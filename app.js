@@ -15,20 +15,33 @@ function nice(n){if(!isFinite(n))return "";if(Math.abs(n)>=1e9)return (n/1e9).to
 function dateLabel(t){const d=new Date(t);if(tf==="1d")return d.toLocaleDateString("en-US",{month:"short",day:"2-digit"});return d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",hour12:false})}
 function fullDate(t){return new Date(t).toLocaleString("en-US",{year:"numeric",month:"short",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false})}
 function basisPeriod(){return ["5m","15m","30m","1h","2h","4h","6h","12h","1d"].includes(tf)?tf:null}
+async function fetchJson(url){const r=await fetch(url,{cache:"no-store"});if(!r.ok)throw new Error("HTTP "+r.status);return r.json()}
 async function loadBasis(){
   basisData=[];basisMap=new Map();const period=basisPeriod();
   if(!basisOn||!period||!bars.length){requestDraw();return}
-  const end=Date.now(),start=Math.max(bars[0].t,end-days*86400000),step=TFMS[period]||900000,all=[];let cursor=start;
-  while(cursor<end){
-    const u=BASIS_API+"?pair="+SYMBOL+"&contractType=PERPETUAL&period="+period+"&startTime="+cursor+"&endTime="+end+"&limit=500";let r;
-    try{r=await fetch(u,{cache:"no-store"})}catch(e){console.warn("Basis fetch",e);break}
-    if(!r.ok){console.warn("Basis HTTP",r.status);break}
-    const a=await r.json();if(!a.length)break;all.push(...a);
-    const next=+a[a.length-1].timestamp+step;if(next<=cursor)break;cursor=next;if(a.length<500)break;
+  const end=Date.now(),start=Math.max(bars[0].t,end-days*86400000),step=TFMS[period]||900000;
+  try{
+    const u=BASIS_API+"?pair="+encodeURIComponent(SYMBOL)+"&contractType=PERPETUAL&period="+period+"&startTime="+start+"&endTime="+end+"&limit=500";
+    const a=await fetchJson(u);
+    basisData=(Array.isArray(a)?a:[]).filter(x=>isFinite(+x.timestamp)&&isFinite(+x.basis)).map(x=>({t:+x.timestamp,basis:+x.basis,basisRate:+x.basisRate||0,futuresPrice:+x.futuresPrice,indexPrice:+x.indexPrice,source:"basis"})).sort((a,b)=>a.t-b.t);
+  }catch(e){
+    console.warn("Basis endpoint unavailable, deriving from Binance Mark/Index:",e);
+    try{
+      const mp=await fetchJson("https://fapi.binance.com/fapi/v1/markPriceKlines?symbol="+encodeURIComponent(SYMBOL)+"&interval="+period+"&startTime="+start+"&endTime="+end+"&limit=1500");
+      const ip=await fetchJson("https://fapi.binance.com/fapi/v1/indexPriceKlines?pair="+encodeURIComponent(SYMBOL)+"&interval="+period+"&startTime="+start+"&endTime="+end+"&limit=1500");
+      const im=new Map((Array.isArray(ip)?ip:[]).map(x=>[+x[0],+x[4]]));
+      basisData=(Array.isArray(mp)?mp:[]).filter(x=>im.has(+x[0])).map(x=>({t:+x[0],basis:+x[4]-im.get(+x[0]),basisRate:im.get(+x[0])?((+x[4]-im.get(+x[0]))/im.get(+x[0])):0,futuresPrice:+x[4],indexPrice:im.get(+x[0]),source:"mark-index"})).sort((a,b)=>a.t-b.t);
+    }catch(e2){console.warn("Basis fallback failed:",e2);basisData=[]}
   }
-  const seen=new Set();
-  basisData=all.filter(x=>x.timestamp!=null&&!seen.has(+x.timestamp)&&(seen.add(+x.timestamp),true)).map(x=>({t:+x.timestamp,basis:+x.basis,basisRate:+x.basisRate||0,futuresPrice:+x.futuresPrice,indexPrice:+x.indexPrice})).sort((a,b)=>a.t-b.t);
-  basisData.forEach(x=>basisMap.set(x.t,x));requestDraw()
+  basisData.forEach(x=>basisMap.set(x.t,x));
+  requestDraw()
+}
+function getBasisAt(t){
+  if(!basisData.length)return null;
+  const step=TFMS[basisPeriod()]||900000;let lo=0,hi=basisData.length-1,best=null;
+  while(lo<=hi){const m=(lo+hi)>>1,v=basisData[m].t;if(v<t)lo=m+1;else if(v>t)hi=m-1;else return basisData[m]}
+  for(const i of [hi,lo]){if(i>=0&&i<basisData.length){const q=basisData[i];if(!best||Math.abs(q.t-t)<Math.abs(best.t-t))best=q}}
+  return best&&Math.abs(best.t-t)<=step*.55?best:null
 }
 function scheduleBasisPoll(){if(basisPoll)clearInterval(basisPoll);basisPoll=setInterval(()=>{if(basisOn)loadBasis()},60000)}
 async function loadHistory(){
@@ -71,12 +84,12 @@ function draw(){
 if(strengthOn){const sy=volTop+volH*.62,amp=volH*.34;ctx.strokeStyle="#3a424e";ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(left,sy);ctx.lineTo(W-right,sy);ctx.stroke();ctx.setLineDash([]);let prev=null;for(let i=0;i<n;i++){const v=strengthAll[first+i];if(v==null){prev=null;continue}const x=left+i*pw+pw/2,y=sy-v*amp,col=v>=0?"#26a69a":"#ef5350";ctx.strokeStyle=col;ctx.lineWidth=2.5;if(prev){ctx.beginPath();ctx.moveTo(prev.x,prev.y);ctx.lineTo(x,y);ctx.stroke()}if(Math.abs(v)>=.95){ctx.fillStyle=col;ctx.beginPath();ctx.arc(x,y,3.5,0,Math.PI*2);ctx.fill()}prev={x,y}}ctx.fillStyle="#aab3c2";ctx.font="10px Arial";ctx.fillText(`Strength S · N=${strengthLen} · EWMA=${strengthHl} · lookback=${strengthLook}`,left,sy-7)}
 // Binance Basis overlay — timestamp aligned
 if(basisOn&&basisMap.size&&basisPeriod()){
- const vals=[];for(let i=0;i<n;i++){const q=basisMap.get(full[i].t);if(q&&isFinite(q.basis))vals.push(q.basis)}
+ const vals=[];for(let i=0;i<n;i++){const q=getBasisAt(full[i].t);if(q&&isFinite(q.basis))vals.push(q.basis)}
  if(vals.length){
   let lo=Math.min(...vals),hi=Math.max(...vals),br=hi-lo;if(!isFinite(br)||br<=0)br=Math.max(Math.abs(hi)*.002,.0001);const pad=br*.12;lo-=pad;hi+=pad;
   const by=volTop+volH*.62,bh=volH*.34,bpy=v=>by+bh-(v-lo)/(hi-lo)*bh;let prev=null;
   ctx.save();ctx.strokeStyle="rgba(240,185,11,.30)";ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(left,by+bh/2);ctx.lineTo(W-right,by+bh/2);ctx.stroke();ctx.setLineDash([]);
-  for(let i=0;i<n;i++){const q=basisMap.get(full[i].t);if(!q||!isFinite(q.basis)){prev=null;continue}const x=left+i*pw+pw/2,y=bpy(q.basis);ctx.strokeStyle=q.basis>=0?"#f0b90b":"#9b87f5";ctx.lineWidth=2;if(prev){ctx.beginPath();ctx.moveTo(prev.x,prev.y);ctx.lineTo(x,y);ctx.stroke()}ctx.fillStyle=ctx.strokeStyle;ctx.beginPath();ctx.arc(x,y,2.3,0,Math.PI*2);ctx.fill();prev={x,y}}
+  for(let i=0;i<n;i++){const q=getBasisAt(full[i].t);if(!q||!isFinite(q.basis)){prev=null;continue}const x=left+i*pw+pw/2,y=bpy(q.basis);ctx.strokeStyle=q.basis>=0?"#f0b90b":"#9b87f5";ctx.lineWidth=2;if(prev){ctx.beginPath();ctx.moveTo(prev.x,prev.y);ctx.lineTo(x,y);ctx.stroke()}ctx.fillStyle=ctx.strokeStyle;ctx.beginPath();ctx.arc(x,y,2.3,0,Math.PI*2);ctx.fill();prev={x,y}}
   ctx.fillStyle="#f0b90b";ctx.font="10px Arial";ctx.fillText("Basis · Binance USDⓈ-M · "+basisPeriod(),left,by-7);
   ctx.textAlign="right";ctx.fillStyle="#8d96a7";ctx.font="10px Arial";ctx.fillText(hi.toFixed(4),W-right,by+6);ctx.fillText(lo.toFixed(4),W-right,by+bh+2);ctx.textAlign="left";ctx.restore();
  }
@@ -98,7 +111,7 @@ canvas.addEventListener("wheel",e=>{e.preventDefault();if(!bars.length)return;co
 const pointers=new Map();let pinchStartDist=0,pinchStartVisible=0,pinchStartCenter=0,panStartX=0,panStartFirst=0,panMoved=false;
 function hideCross(){tip.style.display="none";crosshair.idx=null}
 function pointerPos(e){const r=canvas.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top}}
-function showCross(e){if(!bars.length)return;const p=pointerPos(e),left=70,right=72,pw=(canvas.clientWidth-left-right)/Math.max(visible,1),idx=Math.floor((p.x-left)/pw);if(idx<0||idx>=Math.min(visible,bars.length-first)){hideCross();requestDraw();return}const b=bars[first+idx];if(!b)return;crosshair.idx=idx;crosshair.x=p.x;crosshair.y=p.y;tip.innerHTML="<b>"+fullDate(b.t)+"</b><br><b>O</b> "+b.o+" &nbsp; <b>H</b> "+b.h+" &nbsp; <b>L</b> "+b.l+" &nbsp; <b>C</b> "+b.c+"<br><span style='color:#2ebd85'>Taker Buy: "+b.buy.toFixed(4)+"</span><br><span style='color:#f6465d'>Taker Sell: "+b.sell.toFixed(4)+"</span><br><b>NetFlow:</b> "+(b.buy-b.sell).toFixed(4);const bq=basisOn?basisMap.get(b.t):null;if(bq)tip.innerHTML+="<br><span style='color:#f0b90b'>Basis: "+bq.basis.toFixed(6)+" ("+(bq.basisRate*100).toFixed(4)+"%)</span>";tip.style.display="block";const tw=Math.min(245,canvas.clientWidth-16),th=bq?125:105;tip.style.left=Math.min(canvas.clientWidth-tw-8,Math.max(8,p.x+14))+"px";tip.style.top=Math.min(canvas.clientHeight-th-8,Math.max(8,p.y+14))+"px";requestDraw()}
+function showCross(e){if(!bars.length)return;const p=pointerPos(e),left=70,right=72,pw=(canvas.clientWidth-left-right)/Math.max(visible,1),idx=Math.floor((p.x-left)/pw);if(idx<0||idx>=Math.min(visible,bars.length-first)){hideCross();requestDraw();return}const b=bars[first+idx];if(!b)return;crosshair.idx=idx;crosshair.x=p.x;crosshair.y=p.y;tip.innerHTML="<b>"+fullDate(b.t)+"</b><br><b>O</b> "+b.o+" &nbsp; <b>H</b> "+b.h+" &nbsp; <b>L</b> "+b.l+" &nbsp; <b>C</b> "+b.c+"<br><span style='color:#2ebd85'>Taker Buy: "+b.buy.toFixed(4)+"</span><br><span style='color:#f6465d'>Taker Sell: "+b.sell.toFixed(4)+"</span><br><b>NetFlow:</b> "+(b.buy-b.sell).toFixed(4);const bq=basisOn?getBasisAt(b.t):null;if(bq)tip.innerHTML+="<br><span style='color:#f0b90b'>Basis: "+bq.basis.toFixed(6)+" ("+(bq.basisRate*100).toFixed(4)+"%)</span>";tip.style.display="block";const tw=Math.min(245,canvas.clientWidth-16),th=bq?125:105;tip.style.left=Math.min(canvas.clientWidth-tw-8,Math.max(8,p.x+14))+"px";tip.style.top=Math.min(canvas.clientHeight-th-8,Math.max(8,p.y+14))+"px";requestDraw()}
 function dist2(){const a=[...pointers.values()];if(a.length<2)return 0;return Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)}
 function mid2(){const a=[...pointers.values()];return a.length<2?(canvas.clientWidth/2):((a[0].x+a[1].x)/2)}
 canvas.addEventListener("pointerdown",e=>{canvas.setPointerCapture?.(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});panMoved=false;if(pointers.size===1){panStartX=e.clientX;panStartFirst=first}else if(pointers.size===2){pinchStartDist=dist2();pinchStartVisible=visible;pinchStartCenter=mid2();hideCross()}});
