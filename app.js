@@ -23,7 +23,7 @@ async function loadBasis(){
   try{
     const u=BASIS_API+"?pair="+encodeURIComponent(SYMBOL)+"&contractType=PERPETUAL&period="+period+"&startTime="+start+"&endTime="+end+"&limit=500";
     const a=await fetchJson(u);
-    basisData=(Array.isArray(a)?a:[]).filter(x=>isFinite(+x.timestamp)&&isFinite(+x.basis)).map(x=>({t:+x.timestamp,basis:+x.basis,basisRate:+x.basisRate||0,futuresPrice:+x.futuresPrice,indexPrice:+x.indexPrice,source:"basis"})).sort((a,b)=>a.t-b.t);
+    basisData=(Array.isArray(a)?a:[]).filter(x=>isFinite(+x.timestamp)&&isFinite(+x.basis)).map(x=>({t:+x.timestamp,basis:+x.basis,basisRate:+x.basisRate||0,futuresPrice:+x.futuresPrice,indexPrice:+x.indexPrice,source:"basis"})).sort((a,b)=>a.t-b.t);if(!basisData.length)throw new Error("Basis endpoint returned no records");
   }catch(e){
     console.warn("Basis endpoint unavailable, deriving from Binance Mark/Index:",e);
     try{
