@@ -1,8 +1,10 @@
 const SYMBOL="SPYUSDT";
 const API="https://fapi.binance.com/fapi/v1/klines";
+const BASIS_API="https://fapi.binance.com/futures/data/basis";
 const WSBASE="wss://fstream.binance.com/market/stream?streams=";
 const TFMS={ "1m":60000,"5m":300000,"15m":900000,"30m":1800000,"1h":3600000,"2h":7200000,"4h":14400000,"1d":86400000 };
 let tf="15m", days=7, bars=[], ws=null, canvas,ctx,tip;
+let basisOn=false,basisData=[],basisMap=new Map(),basisPoll=null;
 let strengthOn=true,strengthLen=8,strengthHl=2,strengthLook=500; let first=0, visible=120, dragging=false, dragX=0, dragFirst=0,crosshair={idx:null,x:null,y:null};let drawQueued=false,strengthCache=null,strengthCacheKey="";
 const $=id=>document.getElementById(id);
 function setStatus(s,ok=true){$("status").textContent=s;$("status").className=ok?"ok":"bad"}
@@ -12,6 +14,23 @@ function calcStrength(all){const out=new Array(all.length).fill(null),norm=new A
 function nice(n){if(!isFinite(n))return "";if(Math.abs(n)>=1e9)return (n/1e9).toFixed(1)+"B";if(Math.abs(n)>=1e6)return (n/1e6).toFixed(1)+"M";if(Math.abs(n)>=1e3)return (n/1e3).toFixed(0)+"K";return n.toFixed(n<10?2:0)}
 function dateLabel(t){const d=new Date(t);if(tf==="1d")return d.toLocaleDateString("en-US",{month:"short",day:"2-digit"});return d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit",hour12:false})}
 function fullDate(t){return new Date(t).toLocaleString("en-US",{year:"numeric",month:"short",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false})}
+function basisPeriod(){return ["5m","15m","30m","1h","2h","4h","6h","12h","1d"].includes(tf)?tf:null}
+async function loadBasis(){
+  basisData=[];basisMap=new Map();const period=basisPeriod();
+  if(!basisOn||!period||!bars.length){requestDraw();return}
+  const end=Date.now(),start=Math.max(bars[0].t,end-days*86400000),step=TFMS[period]||900000,all=[];let cursor=start;
+  while(cursor<end){
+    const u=BASIS_API+"?pair="+SYMBOL+"&contractType=PERPETUAL&period="+period+"&startTime="+cursor+"&endTime="+end+"&limit=500";let r;
+    try{r=await fetch(u,{cache:"no-store"})}catch(e){console.warn("Basis fetch",e);break}
+    if(!r.ok){console.warn("Basis HTTP",r.status);break}
+    const a=await r.json();if(!a.length)break;all.push(...a);
+    const next=+a[a.length-1].timestamp+step;if(next<=cursor)break;cursor=next;if(a.length<500)break;
+  }
+  const seen=new Set();
+  basisData=all.filter(x=>x.timestamp!=null&&!seen.has(+x.timestamp)&&(seen.add(+x.timestamp),true)).map(x=>({t:+x.timestamp,basis:+x.basis,basisRate:+x.basisRate||0,futuresPrice:+x.futuresPrice,indexPrice:+x.indexPrice})).sort((a,b)=>a.t-b.t);
+  basisData.forEach(x=>basisMap.set(x.t,x));requestDraw()
+}
+function scheduleBasisPoll(){if(basisPoll)clearInterval(basisPoll);basisPoll=setInterval(()=>{if(basisOn)loadBasis()},60000)}
 async function loadHistory(){
  $("status").textContent="Loading Binance data…";$("status").className="bad";$("err").style.display="none";
  const end=Date.now(),start=end-days*86400000,all=[];let cursor=start;
@@ -22,7 +41,7 @@ async function loadHistory(){
   const a=await r.json();if(!a.length)break;all.push(...a);const next=+a[a.length-1][0]+intervalMs();if(next<=cursor)break;cursor=next;if(a.length<1500)break;await new Promise(r=>setTimeout(r,80))
  }
  const seen=new Set();bars=all.filter(x=>!seen.has(+x[0])&&(seen.add(+x[0]),true)).map(x=>({t:+x[0],o:+x[1],h:+x[2],l:+x[3],c:+x[4],v:+x[5],buy:+x[9],sell:Math.max(0,+x[5]-+x[9]),closed:Date.now()>+x[6]}));
- bars.sort((a,b)=>a.t-b.t);first=Math.max(0,bars.length-visible);draw();connect()
+ bars.sort((a,b)=>a.t-b.t);first=Math.max(0,bars.length-visible);if(basisOn)await loadBasis();draw();connect();scheduleBasisPoll()
 }
 function connect(){
  if(ws)try{ws.close()}catch(e){}
@@ -50,6 +69,18 @@ function draw(){
  full.forEach((b,i)=>{const x=left+i*pw+pw/2,up=b.c>=b.o;ctx.strokeStyle=up?"#2ebd85":"#f6465d";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,py(b.h));ctx.lineTo(x,py(b.l));ctx.stroke();ctx.fillStyle=up?"#2ebd85":"#f6465d";ctx.fillRect(x-body/2,Math.min(py(b.o),py(b.c)),body,Math.max(1,Math.abs(py(b.o)-py(b.c))));ctx.fillStyle="#f6465d";ctx.fillRect(x-vbar-2,vy(b.sell),vbar,(b.sell/vmax)*volH);ctx.fillStyle="#2ebd85";ctx.fillRect(x+2,vy(b.buy),vbar,(b.buy/vmax)*volH)});
  const strengthKey=bars.length+"|"+strengthLen+"|"+strengthHl+"|"+strengthLook+"|"+(bars.length?bars[bars.length-1].t:0)+"|"+(bars.length?bars[bars.length-1].buy:0);const strengthAll=(strengthCacheKey===strengthKey&&strengthCache)?strengthCache:(strengthCacheKey=strengthKey,strengthCache=calcStrength(bars));
 if(strengthOn){const sy=volTop+volH*.62,amp=volH*.34;ctx.strokeStyle="#3a424e";ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(left,sy);ctx.lineTo(W-right,sy);ctx.stroke();ctx.setLineDash([]);let prev=null;for(let i=0;i<n;i++){const v=strengthAll[first+i];if(v==null){prev=null;continue}const x=left+i*pw+pw/2,y=sy-v*amp,col=v>=0?"#26a69a":"#ef5350";ctx.strokeStyle=col;ctx.lineWidth=2.5;if(prev){ctx.beginPath();ctx.moveTo(prev.x,prev.y);ctx.lineTo(x,y);ctx.stroke()}if(Math.abs(v)>=.95){ctx.fillStyle=col;ctx.beginPath();ctx.arc(x,y,3.5,0,Math.PI*2);ctx.fill()}prev={x,y}}ctx.fillStyle="#aab3c2";ctx.font="10px Arial";ctx.fillText(`Strength S · N=${strengthLen} · EWMA=${strengthHl} · lookback=${strengthLook}`,left,sy-7)}
+// Binance Basis overlay — timestamp aligned
+if(basisOn&&basisMap.size&&basisPeriod()){
+ const vals=[];for(let i=0;i<n;i++){const q=basisMap.get(full[i].t);if(q&&isFinite(q.basis))vals.push(q.basis)}
+ if(vals.length){
+  let lo=Math.min(...vals),hi=Math.max(...vals),br=hi-lo;if(!isFinite(br)||br<=0)br=Math.max(Math.abs(hi)*.002,.0001);const pad=br*.12;lo-=pad;hi+=pad;
+  const by=volTop+volH*.62,bh=volH*.34,bpy=v=>by+bh-(v-lo)/(hi-lo)*bh;let prev=null;
+  ctx.save();ctx.strokeStyle="rgba(240,185,11,.30)";ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(left,by+bh/2);ctx.lineTo(W-right,by+bh/2);ctx.stroke();ctx.setLineDash([]);
+  for(let i=0;i<n;i++){const q=basisMap.get(full[i].t);if(!q||!isFinite(q.basis)){prev=null;continue}const x=left+i*pw+pw/2,y=bpy(q.basis);ctx.strokeStyle=q.basis>=0?"#f0b90b":"#9b87f5";ctx.lineWidth=2;if(prev){ctx.beginPath();ctx.moveTo(prev.x,prev.y);ctx.lineTo(x,y);ctx.stroke()}ctx.fillStyle=ctx.strokeStyle;ctx.beginPath();ctx.arc(x,y,2.3,0,Math.PI*2);ctx.fill();prev={x,y}}
+  ctx.fillStyle="#f0b90b";ctx.font="10px Arial";ctx.fillText("Basis · Binance USDⓈ-M · "+basisPeriod(),left,by-7);
+  ctx.textAlign="right";ctx.fillStyle="#8d96a7";ctx.font="10px Arial";ctx.fillText(hi.toFixed(4),W-right,by+6);ctx.fillText(lo.toFixed(4),W-right,by+bh+2);ctx.textAlign="left";ctx.restore();
+ }
+}
 // Day separators
 ctx.save();ctx.setLineDash([5,5]);for(let i=0;i<n;i++){if(i===0||new Date(full[i].t).toLocaleDateString()!==new Date(full[i-1].t).toLocaleDateString()){const x=left+i*pw;ctx.strokeStyle="rgba(255,255,255,.24)";ctx.beginPath();ctx.moveTo(x,top);ctx.lineTo(x,volTop+volH);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle="#aab3c2";ctx.font="10px Arial";ctx.fillText(new Date(full[i].t).toLocaleDateString("en-US",{month:"short",day:"2-digit"}),x+4,top+12);ctx.setLineDash([5,5])}}ctx.restore();
 const zy=volTop+volH;ctx.strokeStyle="#39404c";ctx.beginPath();ctx.moveTo(left,zy);ctx.lineTo(W-right,zy);ctx.stroke();ctx.fillStyle="#778294";ctx.font="11px Arial";ctx.textAlign="center";
@@ -60,7 +91,8 @@ const zy=volTop+volH;ctx.strokeStyle="#39404c";ctx.beginPath();ctx.moveTo(left,z
 // Crosshair overlay
 if(crosshair.idx!=null){const cx=left+crosshair.idx*pw+pw/2,cy=crosshair.y;ctx.save();ctx.strokeStyle="rgba(220,226,235,.55)";ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(cx,top);ctx.lineTo(cx,volTop+volH);ctx.stroke();ctx.beginPath();ctx.moveTo(left,cy);ctx.lineTo(W-right,cy);ctx.stroke();ctx.restore();const cb=full[crosshair.idx];if(cb){ctx.fillStyle="#20242d";ctx.strokeStyle="#596273";ctx.font="11px Arial";ctx.textAlign="center";const label=fullDate(cb.t),tw=Math.min(190,Math.max(120,ctx.measureText(label).width+18)),lx=Math.max(left+tw/2,Math.min(W-right-tw/2,cx));ctx.fillRect(lx-tw/2,top+4,tw,18);ctx.strokeRect(lx-tw/2,top+4,tw,18);ctx.fillStyle="#e7e9ee";ctx.fillText(label,lx,top+17);ctx.textAlign="left"}}
 canvas=$("c");ctx=canvas.getContext("2d");tip=$("tip");window.addEventListener("resize",resize);
-$("tf").onchange=async()=>{tf=$("tf").value;await loadHistory()};$("range").onchange=async()=>{days=+$("range").value;await loadHistory()};$("strOn").onchange=()=>{strengthOn=$("strOn").checked;requestDraw()};$("strLen").onchange=()=>{strengthLen=+$("strLen").value;strengthCacheKey="";requestDraw()};$("strHl").onchange=()=>{strengthHl=+$("strHl").value;strengthCacheKey="";requestDraw()};$("fit").onclick=fit;$("left").onclick=()=>move(-Math.max(1,Math.floor(visible*.35)));$("right").onclick=()=>move(Math.max(1,Math.floor(visible*.35)));$("refresh").onclick=()=>loadHistory();
+$("tf").onchange=async()=>{tf=$("tf").value;await loadHistory()};$("range").onchange=async()=>{days=+$("range").value;await loadHistory()};$("strOn").onchange=()=>{strengthOn=$("strOn").checked;requestDraw()};$("strLen").onchange=()=>{strengthLen=+$("strLen").value;strengthCacheKey="";requestDraw()};$("strHl").onchange=()=>{strengthHl=+$("strHl").value;strengthCacheKey="";requestDraw()};
+$("basisOn").onchange=async()=>{basisOn=$("basisOn").checked;if(basisOn)await loadBasis();else{basisData=[];basisMap.clear();requestDraw()}};$("fit").onclick=fit;$("left").onclick=()=>move(-Math.max(1,Math.floor(visible*.35)));$("right").onclick=()=>move(Math.max(1,Math.floor(visible*.35)));$("refresh").onclick=()=>loadHistory();
 canvas.addEventListener("wheel",e=>{e.preventDefault();if(!bars.length)return;const factor=e.deltaY<0?.8:1.25,old=visible,newV=Math.max(20,Math.min(bars.length,Math.round(old*factor))),rect=canvas.getBoundingClientRect(),x=e.clientX-rect.left,left=70,right=72,pw=(canvas.clientWidth-left-right)/old,idx=Math.max(0,Math.min(old-1,Math.floor((x-left)/pw))),center=first+idx;visible=newV;first=Math.max(0,Math.min(Math.max(0,bars.length-visible),center-Math.floor(newV*(idx/Math.max(old,1)))));crosshair.idx=null;requestDraw()},{passive:false});
 // Mobile/desktop pointer interaction: one-finger pan, two-finger pinch zoom, tap for Crosshair.
 const pointers=new Map();let pinchStartDist=0,pinchStartVisible=0,pinchStartCenter=0,panStartX=0,panStartFirst=0,panMoved=false;
