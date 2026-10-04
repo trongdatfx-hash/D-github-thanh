@@ -42,6 +42,31 @@ let rows=[],featureRows=[],tradeSamples=[],model=null,norm=null,live={last:NaN,i
 const say=s=>{$("log").textContent=s};
 const pct=v=>(100*v).toFixed(1);
 function softmax(z){let m=Math.max(...z),e=z.map(v=>Math.exp(v-m)),s=e.reduce((a,b)=>a+b,0);return e.map(v=>v/s)}
+function calcStrengthLine(all){
+ const n=all.length,norm=Array(n).fill(null),rolling=Array(n).fill(null),ewma=Array(n).fill(null),line=Array(n).fill(NaN);
+ let volumeSum=0,smoothed=null,absSum=0,absCount=0;
+ const alpha=1-Math.pow(2,-1/Math.max(1,STRENGTH_HALF_LIFE));
+ for(let i=0;i<n;i++){
+  volumeSum+=all[i].volume;
+  if(i>=20)volumeSum-=all[i-20].volume;
+  if(i>=19&&volumeSum>0)norm[i]=(all[i].tbuy-all[i].tsell)/(volumeSum/20);
+  if(i>=STRENGTH_LEN-1){
+   let sum=0,valid=true;
+   for(let j=i-STRENGTH_LEN+1;j<=i;j++){if(norm[j]===null){valid=false;break}sum+=norm[j]}
+   if(valid)rolling[i]=sum;
+  }
+  if(rolling[i]!==null){smoothed=smoothed===null?rolling[i]:smoothed+alpha*(rolling[i]-smoothed);ewma[i]=smoothed}
+  if(ewma[i]!==null){absSum+=Math.abs(ewma[i]);absCount++}
+  if(i>=STRENGTH_LOOKBACK&&ewma[i-STRENGTH_LOOKBACK]!==null){absSum-=Math.abs(ewma[i-STRENGTH_LOOKBACK]);absCount--}
+  if(ewma[i]!==null&&absCount>=STRENGTH_LOOKBACK){
+   const scale=absSum/absCount*1.2533141373,z=scale>0?ewma[i]/scale:0,az=Math.abs(z);
+   const t=1/(1+.2316419*az),d=.3989422804014327*Math.exp(-az*az/2);
+   const p=d*t*(.319381530+t*(-.356563782+t*(1.781477937+t*(-1.821255978+t*1.330274429))));
+   const cdf=z>=0?1-p:p;line[i]=2*cdf-1;
+  }
+ }
+ return line;
+}
 function features(data){
  const x=data.map(r=>({...r}));let cvd=0;
  const windowStats=(i,n,get)=>{
@@ -77,7 +102,18 @@ function features(data){
   const currSellHigh=extreme(i,"tsp",0,span,true),prevSellHigh=extreme(i,"tsp",prevOffset,span,true);
   r.bullDiv=Number.isFinite(prevBasisLow)&&currBasisLow<prevBasisLow&&currBuyLow>prevBuyLow+5?1:0;
   r.bearDiv=Number.isFinite(prevBasisHigh)&&currBasisHigh>prevBasisHigh&&currBuyHigh<prevBuyHigh-5&&currSellHigh>prevSellHigh?1:0;
- }return x;
+ }
+ const strength=calcStrengthLine(x),w=DIV_WINDOW;
+ for(let i=0;i<x.length;i++){
+  const r=x[i];r.strength=strength[i];r.strengthSlope=i>=4?strength[i]-strength[i-4]:NaN;
+  if(i>=2*w-1){
+   const prev=x.slice(i-2*w+1,i-w+1),curr=x.slice(i-w+1,i+1);
+   const min=(a,k)=>Math.min(...a.map(q=>q[k])),max=(a,k)=>Math.max(...a.map(q=>q[k]));
+   r.bullDiv=min(curr,"bp")<min(prev,"bp")&&min(curr,"strength")>min(prev,"strength")+.05?1:0;
+   r.bearDiv=max(curr,"bp")>max(prev,"bp")&&max(curr,"strength")<max(prev,"strength")-.05?1:0;
+  }else{r.bullDiv=0;r.bearDiv=0}
+ }
+ return x;
 }
 const DEFAULT_PARAMS={directionalEdge:.58,minDirectionalMass:.05,strengthEdge:.15};
 const PARAM_GRID=[.52,.58,.64,.70].flatMap(directionalEdge=>[.05,.10,.15].flatMap(minDirectionalMass=>[.05,.10,.20,.35].map(strengthEdge=>({directionalEdge,minDirectionalMass,strengthEdge}))));
