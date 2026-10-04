@@ -31,7 +31,7 @@ table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:7px;bord
 </div></div>
 <div class="panel"><h3>Taker strength percentile × Basis</h3><div id="setupState" class="muted">Waiting for closed candles…</div><canvas id="strengthChart" style="width:100%;height:260px;display:block"></canvas><div class="muted"><span style="color:#36d399">━ Taker Buy %ile</span> &nbsp; <span style="color:#fb7185">━ Taker Sell %ile</span> &nbsp; <span style="color:#60a5fa">━ Basis %ile</span> · window 96 candles · swing windows 8 + 8 · closed candles.</div></div>
 <div class="two">
-<div class="panel"><h3>ML backtest</h3><table><tr><th>Metric</th><th>Value</th></tr><tr><td>Walk-forward test accuracy</td><td id="acc">—</td></tr><tr><td>Balanced accuracy</td><td id="bacc">—</td></tr><tr><td>Walk-forward test samples</td><td id="samples">—</td></tr><tr><td>Walk-forward folds</td><td id="folds">—</td></tr><tr><td>Trades (ML + flow/basis)</td><td id="trades">—</td></tr><tr><td>Agreement setups</td><td id="agreementTrades">—</td></tr><tr><td>Confirmed divergence setups</td><td id="divergenceTrades">—</td></tr><tr><td>Strategy return*</td><td id="sret">—</td></tr></table><p class="muted">*Proxy: 4 bps round-trip cost (2 bps per side); excludes slippage/funding. Research only.</p></div>
+<div class="panel"><h3>ML backtest</h3><table><tr><th>Metric</th><th>Value</th></tr><tr><td>Walk-forward test accuracy</td><td id="acc">—</td></tr><tr><td>Balanced accuracy</td><td id="bacc">—</td></tr><tr><td>Walk-forward test samples</td><td id="samples">—</td></tr><tr><td>Walk-forward folds</td><td id="folds">—</td></tr><tr><td>Trades (ML + flow/basis)</td><td id="trades">—</td></tr><tr><td>Agreement setups</td><td id="agreementTrades">—</td></tr><tr><td>Confirmed divergence setups</td><td id="divergenceTrades">—</td></tr><tr><td>Selected ML / flow / gap</td><td id="params">—</td></tr><tr><td>Strategy return*</td><td id="sret">—</td></tr></table><p class="muted">*Proxy: 4 bps round-trip cost (2 bps per side); excludes slippage/funding. Research only.</p></div>
 <div class="panel"><h3>Agent reasoning</h3><div id="reason" class="log">Waiting for model…</div><p class="muted">Trade filter: ML probability ≥60% plus a confirmed Taker/Basis agreement or divergence. Live taker flow is an additional confirmation.</p></div>
 </div>
 <div class="panel"><h3>Recent walk-forward trade samples</h3><div style="overflow:auto"><table><thead><tr><th>Time</th><th>Side</th><th>Setup</th><th>Buy %ile</th><th>Sell %ile</th><th>Basis %ile</th><th>4-bar net</th></tr></thead><tbody id="tradeSamples"><tr><td colspan="7">No qualified samples yet</td></tr></tbody></table></div></div><div class="panel"><h3>Status</h3><div id="log" class="log">Loading Binance 15m history…</div></div>
@@ -79,15 +79,42 @@ function features(data){
   r.bearDiv=Number.isFinite(prevBasisHigh)&&currBasisHigh>prevBasisHigh&&currBuyHigh<prevBuyHigh-5&&currSellHigh>prevSellHigh?1:0;
  }return x;
 }
-function flowBasisSetup(r){
- const buy=r.tbp,sell=r.tsp,basis=r.bpr,slope=r.bslope;
- const bullDiv=!!r.bullDiv&&slope>0&&buy>sell;
- const bearDiv=!!r.bearDiv&&slope<0&&sell>buy;
- const longAgreement=buy>=PCT_EDGE&&buy-sell>=AGREEMENT_GAP&&slope>0&&basis>=55;
- const shortAgreement=sell>=PCT_EDGE&&sell-buy>=AGREEMENT_GAP&&slope<0&&basis<=45;
+const DEFAULT_PARAMS={probEdge:.60,pctEdge:75,gap:15};
+const PARAM_GRID=[.45,.50,.55,.60].flatMap(probEdge=>[55,65,75].flatMap(pctEdge=>[0,10,20].map(gap=>({probEdge,pctEdge,gap}))));
+function flowBasisSetup(r,params=DEFAULT_PARAMS){
+ const buy=r.tbp,sell=r.tsp,basis=r.bpr,slope=r.bslope,edge=params.pctEdge??PCT_EDGE,gap=params.gap??AGREEMENT_GAP;
+ const bullDiv=!!r.bullDiv&&slope>0&&buy>sell,bearDiv=!!r.bearDiv&&slope<0&&sell>buy;
+ const longAgreement=buy>=edge&&buy-sell>=gap&&slope>0&&basis>=55;
+ const shortAgreement=sell>=edge&&sell-buy>=gap&&slope<0&&basis<=45;
  const isLong=longAgreement||bullDiv,isShort=shortAgreement||bearDiv;
  return {isLong,isShort,longAgreement,shortAgreement,bullDiv,bearDiv,
   label:longAgreement?"Bull agreement":shortAgreement?"Bear agreement":bullDiv?"Bull divergence confirmed":bearDiv?"Bear divergence confirmed":"No aligned setup"};
+}
+function simulateValidation(fx,indices,probabilities_,params){
+ let equity=1,peak=1,drawdown=0,trades=0,nextTradeAfter=-1;
+ for(let j=0;j<indices.length;j++){
+  const i=indices[j],p=probabilities_[j],setup=flowBasisSetup(fx[i],params);
+  const direction=p[2]>=params.probEdge&&setup.isLong?1:p[0]>=params.probEdge&&setup.isShort?-1:0;
+  if(!direction||i<nextTradeAfter)continue;
+  const net=direction*(fx[i+HORIZON].last/fx[i].last-1)-ROUND_TRIP_FEE;
+  equity*=Math.max(0,1+net);peak=Math.max(peak,equity);drawdown=Math.max(drawdown,(peak-equity)/peak);
+  trades++;nextTradeAfter=i+HORIZON+1;
+ }
+ return {ret:equity-1,drawdown,trades};
+}
+function tuneStrategy(fx,indices,predictions){
+ if(indices.length<60)return {params:{...DEFAULT_PARAMS},score:-Infinity};
+ const cuts=[0,Math.floor(indices.length/3),Math.floor(indices.length*2/3),indices.length];
+ const blocks=[[cuts[0],cuts[1]],[cuts[1],cuts[2]],[cuts[2],cuts[3]]].filter(([a,b])=>b>a);
+ let best=null,bestScore=-Infinity;
+ for(const params of PARAM_GRID){
+  const results=blocks.map(([a,b])=>simulateValidation(fx,indices.slice(a,b),predictions.slice(a,b),params));
+  if(results.reduce((n,r)=>n+r.trades,0)<6||results.some(r=>r.trades<2))continue;
+  const returns=results.map(r=>r.ret).sort((a,b)=>a-b),median=returns[Math.floor(returns.length/2)];
+  const score=median-.5*Math.max(...results.map(r=>r.drawdown));
+  if(score>bestScore){bestScore=score;best=params}
+ }
+ return !best||bestScore<=0?{params:{probEdge:1.01,pctEdge:100,gap:100},score:bestScore}:{params:best,score:bestScore};
 }
 function drawStrengthChart(){
  const c=$("strengthChart");if(!c||featureRows.length<2)return;
@@ -121,15 +148,22 @@ function train(){
  const ys=label(fx),valid=fx.map((r,i)=>ys[i]!==null&&FEATURES.every(k=>Number.isFinite(r[k]))),ix=fx.map((r,i)=>valid[i]?i:-1).filter(i=>i>=0);
  if(ix.length<300){say("Chưa đủ dữ liệu hợp lệ để train: "+ix.length);return}
  const initialTrain=Math.floor(ix.length*.6),X=matrix(fx),confusion=Array.from({length:3},()=>[0,0,0]);
- let correct=0,testCount=0,trades=0,agreementTrades=0,divergenceTrades=0,eq=1,folds=0,nextTradeAfter=-1;tradeSamples=[];
+ let correct=0,testCount=0,trades=0,agreementTrades=0,divergenceTrades=0,eq=1,folds=0,nextTradeAfter=-1;tradeSamples=[];const tuned=[];
  for(let start=initialTrain;start<ix.length;start+=FOLD_SIZE){
   const trainEnd=start-HORIZON,tr=ix.slice(0,trainEnd),te=ix.slice(start,Math.min(start+FOLD_SIZE,ix.length));
   if(tr.length<100||!te.length)continue;
+  const innerCut=Math.floor(tr.length*.75),innerFit=tr.slice(0,Math.max(0,innerCut-HORIZON)),val=tr.slice(innerCut);
+  let params={...DEFAULT_PARAMS};
+  if(innerFit.length>=100&&val.length>=60){
+   const n0=prep(innerFit.map(i=>X[i]),innerFit.length),w0=fit(normX(innerFit.map(i=>X[i]),n0),innerFit.map(i=>ys[i]));
+   const valP=val.map(i=>probs(w0,fx[i],n0)),selection=tuneStrategy(fx,val,valP);params=selection.params;
+  }
+  tuned.push(params);
   const N=prep(tr.map(i=>X[i]),tr.length),W=fit(normX(tr.map(i=>X[i]),N),tr.map(i=>ys[i]));folds++;
   for(const i of te){
    const p=probs(W,fx[i],N),pred=p.indexOf(Math.max(...p)),actual=ys[i];
    confusion[actual][pred]++;testCount++;if(pred===actual)correct++;
-   const setup=flowBasisSetup(fx[i]),longSignal=p[2]>=.6&&setup.isLong,shortSignal=p[0]>=.6&&setup.isShort;
+   const setup=flowBasisSetup(fx[i],params),longSignal=p[2]>=params.probEdge&&setup.isLong,shortSignal=p[0]>=params.probEdge&&setup.isShort;
    if(i>=nextTradeAfter&&(longSignal||shortSignal)){
     const direction=longSignal?1:-1,forward=fx[i+HORIZON].last/fx[i].last-1,net=direction*forward-ROUND_TRIP_FEE;
     eq*=Math.max(0,1+net);trades++;
@@ -142,25 +176,26 @@ function train(){
  }
  const recall=[0,1,2].map(c=>{const n=confusion[c].reduce((a,b)=>a+b,0);return n?confusion[c][c]/n:0}),bacc=recall.reduce((a,b)=>a+b,0)/3;
  const N=prep(ix.map(i=>X[i]),ix.length),W=fit(normX(ix.map(i=>X[i]),N),ix.map(i=>ys[i]));
- model={W,N};trainedAt=Date.now();$("model").textContent="ML + Flow/Basis";
+ const params=tuned.at(-1)||{...DEFAULT_PARAMS};model={W,N,params};trainedAt=Date.now();$("model").textContent="ML + Flow/Basis";
  $("acc").textContent=pct(correct/testCount)+"%";$("bacc").textContent=pct(bacc)+"%";
  $("samples").textContent=testCount.toLocaleString();$("folds").textContent=folds;
  $("trades").textContent=trades.toLocaleString();$("agreementTrades").textContent=agreementTrades.toLocaleString();$("divergenceTrades").textContent=divergenceTrades.toLocaleString();
+ $("params").textContent=(params.probEdge*100).toFixed(0)+"% / "+params.pctEdge+" / "+params.gap;
  $("sret").textContent=((eq-1)*100).toFixed(2)+"%";renderTradeSamples();predictLatest();
- say("Walk-forward "+folds+" đoạn; "+ix.length.toLocaleString()+" nến hợp lệ. Tín hiệu chỉ được tính khi ML ≥60% và có đồng thuận hoặc phân kỳ basis–taker; giữ lệnh "+HORIZON+" nến.");
+ say("Nested walk-forward: "+folds+" đoạn; "+ix.length.toLocaleString()+" nến hợp lệ. Ngưỡng được chọn trên validation trước từng test fold; return OOS "+((eq-1)*100).toFixed(2)+"%.");
 }
 function predictLatest(){
  if(!model)return;const fx=featureRows.length===rows.length?featureRows:features(rows),r=fx[fx.length-1],p=probs(model.W,r,model.N);featureRows=fx;drawStrengthChart();
  $("ps").textContent=pct(p[0]);$("pn").textContent=pct(p[1]);$("pl").textContent=pct(p[2]);$("psb").style.width=pct(p[0])+"%";$("pnb").style.width=pct(p[1])+"%";$("plb").style.width=pct(p[2])+"%";
- const setup=flowBasisSetup(r),confirm=live.sell+live.buy?((live.buy-live.sell)/(live.buy+live.sell)):r.ti;
- const longOk=p[2]>=.6&&setup.isLong&&confirm>-.05,shortOk=p[0]>=.6&&setup.isShort&&confirm<.05,sig=longOk?"LONG":shortOk?"SHORT":"WAIT";
+ const setup=flowBasisSetup(r,model.params),confirm=live.sell+live.buy?((live.buy-live.sell)/(live.buy+live.sell)):r.ti;
+ const longOk=p[2]>=model.params.probEdge&&setup.isLong&&confirm>-.05,shortOk=p[0]>=model.params.probEdge&&setup.isShort&&confirm<.05,sig=longOk?"LONG":shortOk?"SHORT":"WAIT";
  const score=(p[2]-p[0])*100+(setup.isLong?15:setup.isShort?-15:0);
  $("signal").textContent=sig;$("signal").className="signal "+sig;$("score").textContent=(score>=0?"+":"")+score.toFixed(1);$("ti").textContent=(confirm*100).toFixed(1)+"%";
  $("reason").textContent="ML: L "+pct(p[2])+"% | N "+pct(p[1])+"% | S "+pct(p[0])+"%\n"+
   "Taker percentile: Buy "+r.tbp.toFixed(1)+" / Sell "+r.tsp.toFixed(1)+"\n"+
   "Basis: "+(r.basis>=0?"+":"")+r.basis.toFixed(4)+" ("+r.bp.toFixed(4)+"%), basis percentile "+r.bpr.toFixed(1)+"\n"+
   "Basis 4-bar slope: "+(r.bslope>=0?"+":"")+r.bslope.toFixed(4)+" pp\n"+
-  "Pattern: "+setup.label+" | live taker imbalance "+(confirm*100).toFixed(1)+"%\n"+
+  "Pattern: "+setup.label+" | tuned ML edge "+(model.params.probEdge*100).toFixed(0)+"%\n"+
   "Decision: "+(sig==="WAIT"?"chờ ML và basis–flow đồng thuận hoặc phân kỳ xác nhận":"đủ xác suất và điều kiện flow/basis");
 }
 async function getJSON(u){let r=await fetch(u);if(!r.ok)throw Error(r.status);return r.json()}
