@@ -151,7 +151,7 @@ function tuneStrategy(fx,indices,predictions){
   const score=median-.5*Math.max(...results.map(r=>r.drawdown));
   if(score>bestScore){bestScore=score;best=params}
  }
- return !best||bestScore<=0?{params:{directionalEdge:1.01,minDirectionalMass:1.01,strengthEdge:1.01},score:bestScore}:{params:best,score:bestScore};
+ return !best?{params:{directionalEdge:1.01,minDirectionalMass:1.01,strengthEdge:1.01},score:bestScore}:{params:best,score:bestScore};
 }
 function drawStrengthChart(){
  const c=$("strengthChart");if(!c||featureRows.length<2)return;
