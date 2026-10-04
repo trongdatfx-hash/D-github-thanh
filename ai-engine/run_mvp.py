@@ -95,6 +95,7 @@ def run():
         sim=simulate(P,test,fwd.iloc[te].to_numpy(),te,params)
         o=test[["time","last","basis","basis_pct","taker_buy_pct","taker_sell_pct","basis_pct_rank",
                 "basis_slope_4","flow_basis_pattern"]].copy()
+        o["flow_basis_pattern"]=sim["pattern"]
         o["source_idx"]=te;o["y"]=y.iloc[te].values;o["pred"]=P.argmax(1)
         o["p_short"]=P[:,0];o["p_neutral"]=P[:,1];o["p_long"]=P[:,2]
         o["directional_edge"],o["min_directional_mass"],o["strength_edge"]=params
