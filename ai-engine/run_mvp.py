@@ -6,7 +6,7 @@ from feature_engine import make_features,make_labels,flow_basis_signals,FEATURES
 ROOT=Path(__file__).parent;DATA=ROOT/"data";REPORT=ROOT/"reports";MODELS=ROOT/"models"
 REPORT.mkdir(exist_ok=True);MODELS.mkdir(exist_ok=True)
 HORIZON=4;ROUND_TRIP_COST=.0004
-PARAM_GRID=list(itertools.product([.45,.50,.55,.60,.65],[55.,65.,75.],[0.,10.,20.]))
+PARAM_GRID=list(itertools.product([.52,.58,.64,.70],[.05,.10,.15],[55.,65.,75.],[0.,10.,20.]))
 
 def model():
     try:
@@ -37,9 +37,12 @@ def setup_signals(frame,percentile_edge,gap):
         default="No aligned setup")
 
 def simulate(prob,frame,forward,source_indices,params):
-    prob_edge,pct_edge,gap=params
+    directional_edge,min_directional_mass,pct_edge,gap=params
     long_setup,short_setup,pattern=setup_signals(frame,pct_edge,gap)
-    raw=np.where((prob[:,2]>=prob_edge)&long_setup,1,np.where((prob[:,0]>=prob_edge)&short_setup,-1,0))
+    directional_mass=prob[:,0]+prob[:,2]
+    long_share=np.divide(prob[:,2],directional_mass,out=np.full(len(prob),.5),where=directional_mass>0)
+    raw=np.where((directional_mass>=min_directional_mass)&(long_share>=directional_edge)&long_setup,1,
+        np.where((directional_mass>=min_directional_mass)&((1.-long_share)>=directional_edge)&short_setup,-1,0))
     equity=1.;peak=1.;max_drawdown=0.;trades=0;next_trade_after=-1;returns=np.zeros(len(raw));signals=np.zeros(len(raw),dtype=int)
     for j,candidate in enumerate(raw):
         source=int(source_indices[j])
@@ -57,11 +60,11 @@ def tune_params(prob,frame,forward,source_indices):
         results=[]
         for block in blocks:
             results.append(simulate(prob[block],frame.iloc[block],forward[block],source_indices[block],params))
-        if sum(r["trades"] for r in results)<9 or any(r["trades"]<2 for r in results):continue
+        if sum(r["trades"] for r in results)<3 or any(r["trades"]<1 for r in results):continue
         score=float(np.median([r["return"] for r in results])-.5*max(r["drawdown"] for r in results))
         if score>best_score:best_score=score;best=params
     # Stay flat when no candidate shows a positive, repeatable validation result.
-    if best is None or best_score<=0:return (1.01,100.,100.),best_score
+    if best is None or best_score<=0:return (1.01,1.01,100.,100.),float("nan")
     return best,best_score
 
 def run():
@@ -93,7 +96,7 @@ def run():
                 "basis_slope_4","flow_basis_pattern"]].copy()
         o["source_idx"]=te;o["y"]=y.iloc[te].values;o["pred"]=P.argmax(1)
         o["p_short"]=P[:,0];o["p_neutral"]=P[:,1];o["p_long"]=P[:,2]
-        o["probability_edge"],o["percentile_edge"],o["percentile_gap"]=params
+        o["directional_edge"],o["min_directional_mass"],o["percentile_edge"],o["percentile_gap"]=params
         o["signal"]=sim["signals"];o["strategy_ret"]=sim["trade_returns"];o["forward_return"]=fwd.iloc[te].values
         parts.append(o);folds+=1
     if not parts:return {"status":"WAITING_FOR_MORE_TEST_DATA","samples":int(len(idx))}
@@ -106,8 +109,9 @@ def run():
     divergence_trades=int(((out.signal!=0)&out.flow_basis_pattern.str.contains("divergence")).sum())
     returns=out.strategy_ret.to_numpy();equity=np.cumprod(1+returns);peaks=np.maximum.accumulate(np.r_[1.,equity])[1:]
     max_drawdown=float(np.max(np.divide(peaks-equity,peaks,out=np.zeros_like(equity),where=peaks!=0))) if len(equity) else 0.
-    positive_params=[p for p in chosen if p[0]<=1]
-    live_params=positive_params[-1] if positive_params else (1.01,100.,100.)
+    positive_params=[p for p in chosen if p[0]<=.70]
+    live_params=positive_params[-1] if positive_params else (1.01,1.01,100.,100.)
+    median_score=float(np.nanmedian(inner_scores)) if np.isfinite(inner_scores).any() else None
     result={"status":"BASELINE_READY","updated":str(x.time.iloc[-1]),"model":"XGBoost or HistGradientBoosting",
       "validation":"nested expanding walk-forward; thresholds selected on inner validation only",
       "folds":int(folds),"accuracy":float(accuracy_score(out.y,out.pred)),
@@ -115,14 +119,16 @@ def run():
       "trades":int((out.signal!=0).sum()),"agreement_trades":agreement_trades,"divergence_trades":divergence_trades,
       "strategy_return":float(out.equity.iloc[-1]-1),"max_drawdown":max_drawdown,
       "last":float(x.last.iloc[-1]),"basis":float(x.basis.iloc[-1]),"basis_pct":float(x.basis_pct.iloc[-1]),
-      "tuned_probability_edge":float(live_params[0]),"tuned_percentile_edge":float(live_params[1]),
-      "tuned_percentile_gap":float(live_params[2]),"median_inner_validation_score":float(np.median(inner_scores))}
+      "tuned_directional_edge":float(live_params[0]),"tuned_min_directional_mass":float(live_params[1]),
+      "tuned_percentile_edge":float(live_params[2]),"tuned_percentile_gap":float(live_params[3]),
+      "median_inner_validation_score":median_score}
 
     final_model=model();final_model.fit(x.loc[valid,FEATURES],y.loc[valid]);joblib.dump(
         {"model":final_model,"features":FEATURES,"strategy_params":live_params},MODELS/"model.joblib")
     P=probabilities(final_model,x.iloc[-1:][FEATURES])[0];latest=x.iloc[-1]
     long_setup,short_setup,pattern=setup_signals(x.iloc[-1:],live_params[1],live_params[2])
-    signal="LONG" if P[2]>=live_params[0] and bool(long_setup[0]) else "SHORT" if P[0]>=live_params[0] and bool(short_setup[0]) else "WAIT"
+    directional_mass=float(P[0]+P[2]);long_share=float(P[2]/directional_mass) if directional_mass>0 else .5
+    signal="LONG" if directional_mass>=live_params[1] and long_share>=live_params[0] and bool(long_setup[0]) else "SHORT" if directional_mass>=live_params[1] and (1.-long_share)>=live_params[0] and bool(short_setup[0]) else "WAIT"
     result.update(p_short=float(P[0]),p_neutral=float(P[1]),p_long=float(P[2]),score=float((P[2]-P[0])*100),
       signal=signal,flow_basis_pattern=str(pattern[0]),taker_buy_percentile=float(latest.taker_buy_pct),
       taker_sell_percentile=float(latest.taker_sell_pct),basis_percentile=float(latest.basis_pct_rank))
