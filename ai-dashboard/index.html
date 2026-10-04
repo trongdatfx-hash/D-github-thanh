@@ -85,14 +85,24 @@ function predictLatest(){
 }
 async function getJSON(u){let r=await fetch(u);if(!r.ok)throw Error(r.status);return r.json()}
 async function loadHistory(){
- say("Đang tải Binance SPYUSDT 15m…");let [k,m,i]=await Promise.all([
- getJSON("https://fapi.binance.com/fapi/v1/klines?symbol=SPYUSDT&interval=15m&limit="+K),
- getJSON("https://fapi.binance.com/fapi/v1/markPriceKlines?symbol=SPYUSDT&interval=15m&limit="+K),
- getJSON("https://fapi.binance.com/fapi/v1/indexPriceKlines?pair=SPYUSDT&interval=15m&limit="+K)]);
- rows=k.map((q,n)=>({time:q[0],last:+q[4],open:+q[1],high:+q[2],low:+q[3],volume:+q[5],tbuy:+q[9],tsell:+q[5]-+q[9],mark:+m[n][4],index:+i[n][4],basis:+q[4]-+i[n][4]}));
- live.last=rows.at(-1).last;live.mark=rows.at(-1).mark;live.index=rows.at(-1).index;renderLive();train();connect();
+ say("Đang tải Binance SPYUSDT 15m…");
+ const [k,m,i]=await Promise.all([
+   getJSON("https://fapi.binance.com/fapi/v1/klines?symbol=SPYUSDT&interval=15m&limit="+K),
+   getJSON("https://fapi.binance.com/fapi/v1/markPriceKlines?symbol=SPYUSDT&interval=15m&limit="+K),
+   getJSON("https://fapi.binance.com/fapi/v1/indexPriceKlines?pair=SPYUSDT&interval=15m&limit="+K)
+ ]);
+ const mm=new Map(m.map(q=>[String(q[0],q[4])])), ii=new Map(i.map(q=>[String(q[0]),+q[4]]));
+ rows=k.map(q=>{
+   const ts=String(q[0]), mark=mm.get(ts), index=ii.get(ts), last=+q[4];
+   return {time:q[0],last,open:+q[1],high:+q[2],low:+q[3],volume:+q[5],tbuy:+q[9],tsell:+q[5]-+q[9],
+           mark:Number.isFinite(mark)?mark:last,index:Number.isFinite(index)?index:last,
+           basis:last-(Number.isFinite(index)?index:last)};
+ }).filter(r=>Number.isFinite(r.last)&&Number.isFinite(r.index));
+ if(!rows.length) throw Error("Binance returned no usable candles");
+ live.last=rows.at(-1).last; live.mark=rows.at(-1).mark; live.index=rows.at(-1).index;
+ renderLive(); train(); connect();
 }
-function renderLive(){let r=rows.at(-1);$("last").textContent=(live.last||r.last).toFixed(4);$("index").textContent=(live.index||r.index).toFixed(4);let b=(live.last||r.last)-(live.index||r.index);$("basis").textContent=(b>=0?"+":"")+b.toFixed(4);$("bp").textContent=(b/(live.index||r.index)*100).toFixed(4)+"%"}
+function renderLive(){let r=rows.at(-1);if(!r)return;let lp=Number.isFinite(live.last)?live.last:r.last,ip=Number.isFinite(live.index)?live.index:r.index;if(!Number.isFinite(lp)||!Number.isFinite(ip))return;$("last").textContent=lp.toFixed(4);$("index").textContent=ip.toFixed(4);let b=lp-ip;$("basis").textContent=(b>=0?"+":"")+b.toFixed(4);$("bp").textContent=(b/ip*100).toFixed(4)+"%"}
 function connect(){
  const ws=new WebSocket("wss://fstream.binance.com/market/stream?streams=spyusdt@markPrice@1s/spyusdt@aggTrade");
  ws.onopen=()=>{$("conn").textContent="● Binance LIVE";$("conn").className="ok"};
