@@ -13,7 +13,7 @@ button{background:#13263c;color:#e7eef7;border:1px solid #25415f;border-radius:9
 table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:7px;border-bottom:1px solid #19314a}@media(max-width:850px){.grid{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}}
 </style></head>
 <body><div class="wrap">
-<div class="top"><div><h1>SPYUSDT.P — AI Signal Engine</h1><div class="muted">Browser ML baseline · real Binance data · 15m · no auto-trading</div></div><div><button id="run">RUN / RETRAIN ML</button> <span id="conn" class="muted">starting…</span></div></div>
+<div class="top"><div><h1>SPYUSDT.P — AI Signal Engine</h1><div class="muted">Browser ML baseline · real Binance data · 15m · no auto-trading</div></div><div><button id="run">REFRESH DATA / RETRAIN ML</button> <span id="conn" class="muted">starting…</span></div></div>
 <div class="grid">
 <div class="card"><div class="label">Last</div><div id="last" class="big">—</div></div>
 <div class="card"><div class="label">Index</div><div id="index" class="big">—</div></div>
@@ -126,17 +126,42 @@ async function getKlineHistory(kind){
  }
  return [...all.values()].sort((a,b)=>Number(a[0])-Number(b[0])).slice(-TARGET_CANDLES);
 }
+function rowsFromCandles(k,m,i,closedOnly=false){
+ const mm=new Map(m.map(q=>[String(q[0]),+q[4]])),ii=new Map(i.map(q=>[String(q[0]),+q[4]]));
+ return k.map(q=>{
+  const ts=String(q[0]),mark=mm.get(ts),index=ii.get(ts),last=+q[4];
+  return {time:q[0],closeTime:+q[6],last,open:+q[1],high:+q[2],low:+q[3],volume:+q[5],tbuy:+q[9],tsell:+q[5]-+q[9],mark,index,basis:Number.isFinite(index)?last-index:NaN};
+ }).filter(r=>Number.isFinite(r.last)&&Number.isFinite(r.mark)&&Number.isFinite(r.index)&&(!closedOnly||r.closeTime<Date.now()));
+}
+async function getRecentKlines(kind,limit=20){
+ let path,params;
+ if(kind==="last"){path="klines";params={symbol:"SPYUSDT",interval:"15m",limit:String(limit)}}
+ else if(kind==="mark"){path="markPriceKlines";params={symbol:"SPYUSDT",interval:"15m",limit:String(limit)}}
+ else{path="indexPriceKlines";params={pair:"SPYUSDT",interval:"15m",limit:String(limit)}}
+ return getJSON("https://fapi.binance.com/fapi/v1/"+path+"?"+new URLSearchParams(params));
+}
 async function loadHistory(){
  say("Đang tải lịch sử 15m theo từng trang Binance (tối đa "+TARGET_CANDLES.toLocaleString()+" nến)…");
  const [k,m,i]=await Promise.all([getKlineHistory("last"),getKlineHistory("mark"),getKlineHistory("index")]);
- const mm=new Map(m.map(q=>[String(q[0]),+q[4]])),ii=new Map(i.map(q=>[String(q[0]),+q[4]]));
- rows=k.map(q=>{
-  const ts=String(q[0]),mark=mm.get(ts),index=ii.get(ts),last=+q[4];
-  return {time:q[0],last,open:+q[1],high:+q[2],low:+q[3],volume:+q[5],tbuy:+q[9],tsell:+q[5]-+q[9],mark,index,basis:Number.isFinite(index)?last-index:NaN};
- }).filter(r=>Number.isFinite(r.last)&&Number.isFinite(r.mark)&&Number.isFinite(r.index));
- if(!rows.length)throw Error("Binance không trả về nến Last/Mark/Index khớp timestamp");
+ rows=rowsFromCandles(k,m,i,true).slice(-TARGET_CANDLES);
+ if(!rows.length)throw Error("Binance không trả về nến Last/Mark/Index đã đóng khớp timestamp");
  live.last=rows.at(-1).last;live.mark=rows.at(-1).mark;live.index=rows.at(-1).index;
  renderLive();train();connect();
+}
+let refreshBusy=false;
+async function refreshAndTrain(){
+ if(refreshBusy||!rows.length)return;
+ refreshBusy=true;
+ try{
+  say("Đang lấy nến 15m mới từ Binance…");
+  const [k,m,i]=await Promise.all([getRecentKlines("last"),getRecentKlines("mark"),getRecentKlines("index")]);
+  const fresh=rowsFromCandles(k,m,i,true),byTime=new Map(rows.map(r=>[Number(r.time),r]));
+  for(const r of fresh)byTime.set(Number(r.time),r);
+  rows=[...byTime.values()].sort((a,b)=>Number(a.time)-Number(b.time)).slice(-TARGET_CANDLES);
+  if(fresh.length){renderLive();train()}
+  else say("Chưa có nến 15m mới đã đóng; dữ liệu kiểm định giữ nguyên.");
+ }catch(e){say("Không cập nhật được dữ liệu Binance: "+e.message)}
+ finally{refreshBusy=false}
 }
 function renderLive(){let r=rows.at(-1);if(!r)return;let lp=Number.isFinite(live.last)?live.last:r.last,ip=Number.isFinite(live.index)?live.index:r.index;if(!Number.isFinite(lp)||!Number.isFinite(ip))return;$("last").textContent=lp.toFixed(4);$("index").textContent=ip.toFixed(4);let b=lp-ip;$("basis").textContent=(b>=0?"+":"")+b.toFixed(4);$("bp").textContent=(b/ip*100).toFixed(4)+"%"}
 function connect(){
@@ -146,5 +171,5 @@ function connect(){
  ws.onmessage=e=>{let d=JSON.parse(e.data).data;if(d.e==="markPriceUpdate"){live.mark=+d.p;live.index=+d.i;live.last=live.last||+d.p;renderLive()}else if(d.e==="aggTrade"){live.last=+d.p;if(d.m)live.sell+=+d.q;else live.buy+=+d.q;renderLive();predictLatest()}};
  setInterval(()=>{live.buy=live.sell=0},15*60*1000);
 }
-$("run").onclick=train;loadHistory().catch(e=>say("Lỗi tải Binance: "+e.message));
+$("run").onclick=refreshAndTrain;loadHistory().then(()=>setInterval(refreshAndTrain,15*60*1000)).catch(e=>say("Lỗi tải Binance: "+e.message));
 </script></body></html>
