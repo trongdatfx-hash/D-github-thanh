@@ -8,7 +8,7 @@
   "balanced_accuracy": 0.3534231632883542,
   "samples": 4548,
   "trades": 25,
-  "agreement_trades": 14,
+  "agreement_trades": 15,
   "divergence_trades": 10,
   "strategy_return": -0.014518042791136998,
   "max_drawdown": 0.01598448287254604,
