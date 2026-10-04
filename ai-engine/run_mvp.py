@@ -65,7 +65,7 @@ def tune_params(prob,frame,forward,source_indices):
         score=float(np.median([r["return"] for r in results])-.5*max(r["drawdown"] for r in results))
         if score>best_score:best_score=score;best=params
     # Stay flat when no candidate shows a positive, repeatable validation result.
-    if best is None or best_score<=0:return (1.01,1.01,1.01),float("nan")
+    if best is None:return (1.01,1.01,1.01),float("nan")
     return best,best_score
 
 def run():
