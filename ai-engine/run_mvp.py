@@ -6,7 +6,7 @@ from feature_engine import make_features,make_labels,flow_basis_signals,FEATURES
 ROOT=Path(__file__).parent;DATA=ROOT/"data";REPORT=ROOT/"reports";MODELS=ROOT/"models"
 REPORT.mkdir(exist_ok=True);MODELS.mkdir(exist_ok=True)
 HORIZON=4;ROUND_TRIP_COST=.0004
-PARAM_GRID=list(itertools.product([.52,.58,.64,.70],[.05,.10,.15],[55.,65.,75.],[0.,10.,20.]))
+PARAM_GRID=list(itertools.product([.52,.58,.64,.70],[.05,.10,.15],[.05,.10,.20,.35]))
 
 def model():
     try:
@@ -22,23 +22,24 @@ def probabilities(m,X):
     for j,c in enumerate(classes):out[:,int(c)]=raw[:,j]
     return out
 
-def setup_signals(frame,percentile_edge,gap):
-    buy=frame["taker_buy_pct"].to_numpy();sell=frame["taker_sell_pct"].to_numpy()
-    basis=frame["basis_pct_rank"].to_numpy();slope=frame["basis_slope_4"].to_numpy()
+def setup_signals(frame,strength_edge):
+    strength=frame["strength_line"].to_numpy()
+    basis=frame["basis"].to_numpy()
+    slope=frame["basis_slope_4"].to_numpy()
     bull_div=frame["bull_divergence"].to_numpy()>0
     bear_div=frame["bear_divergence"].to_numpy()>0
-    bull_confirm=bull_div&(slope>0)&(buy>sell)
-    bear_confirm=bear_div&(slope<0)&(sell>buy)
-    bull_agree=(buy>=percentile_edge)&((buy-sell)>=gap)&(slope>0)&(basis>=55)
-    bear_agree=(sell>=percentile_edge)&((sell-buy)>=gap)&(slope<0)&(basis<=45)
-    return bull_agree|bull_confirm,bear_agree|bear_confirm,np.select(
-        [bull_agree,bear_agree,bull_confirm,bear_confirm],
-        ["Bull agreement","Bear agreement","Bull divergence confirmed","Bear divergence confirmed"],
+    bull_confirm=bull_div&(slope>0)&(strength>0)
+    bear_confirm=bear_div&(slope<0)&(strength<0)
+    bull_agree=(strength>=strength_edge)&(slope>0)&(basis>0)
+    bear_agree=(strength<=-strength_edge)&(slope<0)&(basis<0)
+    return bull_confirm|bull_agree,bear_confirm|bear_agree,np.select(
+        [bull_confirm,bear_confirm,bull_agree,bear_agree],
+        ["Bull divergence confirmed","Bear divergence confirmed","Bull agreement","Bear agreement"],
         default="No aligned setup")
 
 def simulate(prob,frame,forward,source_indices,params):
-    directional_edge,min_directional_mass,pct_edge,gap=params
-    long_setup,short_setup,pattern=setup_signals(frame,pct_edge,gap)
+    directional_edge,min_directional_mass,strength_edge=params
+    long_setup,short_setup,pattern=setup_signals(frame,strength_edge)
     directional_mass=prob[:,0]+prob[:,2]
     long_share=np.divide(prob[:,2],directional_mass,out=np.full(len(prob),.5),where=directional_mass>0)
     raw=np.where((directional_mass>=min_directional_mass)&(long_share>=directional_edge)&long_setup,1,
@@ -64,7 +65,7 @@ def tune_params(prob,frame,forward,source_indices):
         score=float(np.median([r["return"] for r in results])-.5*max(r["drawdown"] for r in results))
         if score>best_score:best_score=score;best=params
     # Stay flat when no candidate shows a positive, repeatable validation result.
-    if best is None or best_score<=0:return (1.01,1.01,100.,100.),float("nan")
+    if best is None or best_score<=0:return (1.01,1.01,1.01),float("nan")
     return best,best_score
 
 def run():
@@ -96,7 +97,7 @@ def run():
                 "basis_slope_4","flow_basis_pattern"]].copy()
         o["source_idx"]=te;o["y"]=y.iloc[te].values;o["pred"]=P.argmax(1)
         o["p_short"]=P[:,0];o["p_neutral"]=P[:,1];o["p_long"]=P[:,2]
-        o["directional_edge"],o["min_directional_mass"],o["percentile_edge"],o["percentile_gap"]=params
+        o["directional_edge"],o["min_directional_mass"],o["strength_edge"]=params
         o["signal"]=sim["signals"];o["strategy_ret"]=sim["trade_returns"];o["forward_return"]=fwd.iloc[te].values
         parts.append(o);folds+=1
     if not parts:return {"status":"WAITING_FOR_MORE_TEST_DATA","samples":int(len(idx))}
@@ -110,7 +111,7 @@ def run():
     returns=out.strategy_ret.to_numpy();equity=np.cumprod(1+returns);peaks=np.maximum.accumulate(np.r_[1.,equity])[1:]
     max_drawdown=float(np.max(np.divide(peaks-equity,peaks,out=np.zeros_like(equity),where=peaks!=0))) if len(equity) else 0.
     positive_params=[p for p in chosen if p[0]<=.70]
-    live_params=positive_params[-1] if positive_params else (1.01,1.01,100.,100.)
+    live_params=positive_params[-1] if positive_params else (1.01,1.01,1.01)
     median_score=float(np.nanmedian(inner_scores)) if np.isfinite(inner_scores).any() else None
     result={"status":"BASELINE_READY","updated":str(x.time.iloc[-1]),"model":"XGBoost or HistGradientBoosting",
       "validation":"nested expanding walk-forward; thresholds selected on inner validation only",
@@ -120,18 +121,19 @@ def run():
       "strategy_return":float(out.equity.iloc[-1]-1),"max_drawdown":max_drawdown,
       "last":float(x.last.iloc[-1]),"basis":float(x.basis.iloc[-1]),"basis_pct":float(x.basis_pct.iloc[-1]),
       "tuned_directional_edge":float(live_params[0]),"tuned_min_directional_mass":float(live_params[1]),
-      "tuned_percentile_edge":float(live_params[2]),"tuned_percentile_gap":float(live_params[3]),
+      "tuned_strength_edge":float(live_params[2]),
       "median_inner_validation_score":median_score}
 
     final_model=model();final_model.fit(x.loc[valid,FEATURES],y.loc[valid]);joblib.dump(
         {"model":final_model,"features":FEATURES,"strategy_params":live_params},MODELS/"model.joblib")
     P=probabilities(final_model,x.iloc[-1:][FEATURES])[0];latest=x.iloc[-1]
-    long_setup,short_setup,pattern=setup_signals(x.iloc[-1:],live_params[2],live_params[3])
+    long_setup,short_setup,pattern=setup_signals(x.iloc[-1:],live_params[2])
     directional_mass=float(P[0]+P[2]);long_share=float(P[2]/directional_mass) if directional_mass>0 else .5
     signal="LONG" if directional_mass>=live_params[1] and long_share>=live_params[0] and bool(long_setup[0]) else "SHORT" if directional_mass>=live_params[1] and (1.-long_share)>=live_params[0] and bool(short_setup[0]) else "WAIT"
     result.update(p_short=float(P[0]),p_neutral=float(P[1]),p_long=float(P[2]),score=float((P[2]-P[0])*100),
       signal=signal,flow_basis_pattern=str(pattern[0]),taker_buy_percentile=float(latest.taker_buy_pct),
-      taker_sell_percentile=float(latest.taker_sell_pct),basis_percentile=float(latest.basis_pct_rank))
+      taker_sell_percentile=float(latest.taker_sell_pct),basis_percentile=float(latest.basis_pct_rank),
+      strength_line=float(latest.strength_line),strength_slope_4=float(latest.strength_slope_4))
     out.to_csv(REPORT/"backtest.csv",index=False)
     (REPORT/"latest_signal.json").write_text(json.dumps(result,indent=2),encoding="utf-8")
     return result
