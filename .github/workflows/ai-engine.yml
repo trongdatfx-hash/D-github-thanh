@@ -21,6 +21,6 @@ jobs:
       - run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add ai-engine/data/SPYUSDT_15m.csv ai-engine/reports/backtest.csv ai-engine/reports/latest_signal.json ai-engine/models/model.joblib
+          git add ai-engine/data ai-engine/reports ai-engine/models
           git diff --cached --quiet || git commit -m "Update AI signal results"
           git push
