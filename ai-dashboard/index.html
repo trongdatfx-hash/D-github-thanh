@@ -81,7 +81,7 @@ function predictLatest(){
  if(!model)return;let fx=features(rows),r=fx[fx.length-1],p=probs(model.W,r,model.N);$("ps").textContent=pct(p[0]);$("pn").textContent=pct(p[1]);$("pl").textContent=pct(p[2]);$("psb").style.width=pct(p[0])+"%";$("pnb").style.width=pct(p[1])+"%";$("plb").style.width=pct(p[2])+"%";
  let score=(p[2]-p[0])*100,confirm=live.sell+live.buy?((live.buy-live.sell)/(live.buy+live.sell)):r.ti;let sig=p[2]>=.6&&confirm>-0.05?"LONG":p[0]>=.6&&confirm<0.05?"SHORT":"WAIT";
  $("signal").textContent=sig;$("signal").className="signal "+sig;$("score").textContent=(score>=0?"+":"")+score.toFixed(1);$("ti").textContent=(confirm*100).toFixed(1)+"%";
- $("reason").textContent="ML: LONG "+pct(p[2])+"% | NEUTRAL "+pct(p[1])+"% | SHORT "+pct(p[0])+"%\nBasis: "+(r.basis>=0?"+":"")+r.basis.toFixed(4)+" ("+r.basis_pct.toFixed(4)+"%)\nTaker imbalance: "+(confirm*100).toFixed(1)+"%\nDecision filter: "+(sig==="WAIT"?"chưa đủ xác nhận":"đủ xác suất + flow confirmation");
+ $("reason").textContent="ML: LONG "+pct(p[2])+"% | NEUTRAL "+pct(p[1])+"% | SHORT "+pct(p[0])+"%\nBasis: "+(r.basis>=0?"+":"")+r.basis.toFixed(4)+" ("+r.bp.toFixed(4)+"%)\nTaker imbalance: "+(confirm*100).toFixed(1)+"%\nDecision filter: "+(sig==="WAIT"?"chưa đủ xác nhận":"đủ xác suất + flow confirmation");
 }
 async function getJSON(u){let r=await fetch(u);if(!r.ok)throw Error(r.status);return r.json()}
 async function loadHistory(){
@@ -91,7 +91,7 @@ async function loadHistory(){
    getJSON("https://fapi.binance.com/fapi/v1/markPriceKlines?symbol=SPYUSDT&interval=15m&limit="+K),
    getJSON("https://fapi.binance.com/fapi/v1/indexPriceKlines?pair=SPYUSDT&interval=15m&limit="+K)
  ]);
- const mm=new Map(m.map(q=>[String(q[0],q[4])])), ii=new Map(i.map(q=>[String(q[0]),+q[4]]));
+ const mm=new Map(m.map(q=>[String(q[0]),+q[4]])), ii=new Map(i.map(q=>[String(q[0]),+q[4]]));
  rows=k.map(q=>{
    const ts=String(q[0]), mark=mm.get(ts), index=ii.get(ts), last=+q[4];
    return {time:q[0],last,open:+q[1],high:+q[2],low:+q[3],volume:+q[5],tbuy:+q[9],tsell:+q[5]-+q[9],
