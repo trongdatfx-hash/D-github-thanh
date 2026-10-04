@@ -50,7 +50,44 @@ function plot(arr,color,lw=1.6){ctx.strokeStyle=color;ctx.lineWidth=lw;ctx.begin
 if(mode!=='basis'){plot(samples.map(s=>s.last),'#60a5fa');plot(samples.map(s=>s.mark),'#fbbf24');plot(samples.map(s=>s.index),'#36d399')}
 if(mode!=='price'){plot(samples.map(s=>s.b),'#fb7185');let ma=samples.map((_,i)=>i<maLen-1?NaN:sma(samples.slice(0,i+1).map(s=>s.b),maLen));plot(ma,'#e8f0f8',2)}
 ctx.fillStyle='#8fa6bd';ctx.font='11px system-ui';ctx.fillText(fmt(max,mode==='basis'?4:2),6,29);ctx.fillText(fmt(min,mode==='basis'?4:2),6,h-8)}
-function connect(){socket=new WebSocket('wss://fstream.binance.com/market/stream?streams=spyusdt@markPrice@1s/spyusdt@trade');socket.onopen=()=>{$('dot').classList.add('on');$('status').textContent='LIVE — Binance';};socket.onclose=()=>{$('dot').classList.remove('on');$('status').textContent='Disconnected — reconnecting…';setTimeout(connect,2000)};socket.onerror=()=>socket.close();socket.onmessage=e=>{let z=JSON.parse(e.data).data;if(z.e==='markPriceUpdate'){mark=+z.p;index=+z.i;funding=+z.r;push();update();draw()}else if(z.e==='trade'){last=+z.p;push();update();draw()}}}
+const WS_URL='wss://fstream.binance.com/stream?streams=spyusdt@markPrice@1s/spyusdt@trade';
+let reconnectTimer=null, staleTimer=null, retryDelay=1000, lastMessageAt=0;
+function validPrice(value){const n=Number(value);return Number.isFinite(n)&&n>0?n:NaN}
+function scheduleReconnect(){
+  if(reconnectTimer)return;
+  $('dot').classList.remove('on');$('status').textContent='Disconnected — reconnecting…';
+  reconnectTimer=setTimeout(()=>{reconnectTimer=null;connect()},retryDelay);
+  retryDelay=Math.min(retryDelay*2,30000);
+}
+function connect(){
+  if(socket&&(socket.readyState===WebSocket.OPEN||socket.readyState===WebSocket.CONNECTING))return;
+  try{socket=new WebSocket(WS_URL)}catch(error){scheduleReconnect();return}
+  socket.onopen=()=>{retryDelay=1000;lastMessageAt=Date.now();$('dot').classList.add('on');$('status').textContent='Connected — waiting for Binance data…'};
+  socket.onclose=()=>{if(staleTimer){clearInterval(staleTimer);staleTimer=null}scheduleReconnect()};
+  socket.onerror=()=>{if(socket&&socket.readyState< WebSocket.CLOSING)socket.close()};
+  socket.onmessage=e=>{
+    let envelope;
+    try{envelope=JSON.parse(e.data)}catch(error){return}
+    const z=envelope&&envelope.data;
+    if(!z||typeof z!=='object')return;
+    lastMessageAt=Date.now();
+    if(z.e==='markPriceUpdate'){
+      const nextMark=validPrice(z.p),nextIndex=validPrice(z.i),nextFunding=Number(z.r);
+      if(Number.isFinite(nextMark))mark=nextMark;
+      if(Number.isFinite(nextIndex))index=nextIndex;
+      if(Number.isFinite(nextFunding))funding=nextFunding;
+    }else if(z.e==='trade'){
+      const nextLast=validPrice(z.p);
+      if(Number.isFinite(nextLast))last=nextLast;
+    }else{return}
+    push();update();draw();
+    if(Number.isFinite(last)&&Number.isFinite(mark)&&Number.isFinite(index)){$('dot').classList.add('on');$('status').textContent='LIVE — Binance'}
+  };
+  if(staleTimer)clearInterval(staleTimer);
+  staleTimer=setInterval(()=>{
+    if(socket&&socket.readyState===WebSocket.OPEN&&Date.now()-lastMessageAt>20000)socket.close();
+  },5000);
+}
 document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-mode]').forEach(x=>x.classList.remove('active'));b.classList.add('active');mode=b.dataset.mode;draw()});
 $('ma').onchange=e=>{maLen=+e.target.value;draw()};resize();connect();
 </script></body></html>
