@@ -1,10 +1,12 @@
 import json
 from pathlib import Path
+import itertools
 import joblib, numpy as np, pandas as pd
 from feature_engine import make_features,make_labels,flow_basis_signals,FEATURES
 ROOT=Path(__file__).parent;DATA=ROOT/"data";REPORT=ROOT/"reports";MODELS=ROOT/"models"
 REPORT.mkdir(exist_ok=True);MODELS.mkdir(exist_ok=True)
-HORIZON=4;PROBABILITY_EDGE=.60;ROUND_TRIP_COST=.0004
+HORIZON=4;ROUND_TRIP_COST=.0004
+PARAM_GRID=list(itertools.product([.45,.50,.55,.60,.65],[55.,65.,75.],[0.,10.,20.]))
 
 def model():
     try:
@@ -20,6 +22,48 @@ def probabilities(m,X):
     for j,c in enumerate(classes):out[:,int(c)]=raw[:,j]
     return out
 
+def setup_signals(frame,percentile_edge,gap):
+    buy=frame["taker_buy_pct"].to_numpy();sell=frame["taker_sell_pct"].to_numpy()
+    basis=frame["basis_pct_rank"].to_numpy();slope=frame["basis_slope_4"].to_numpy()
+    bull_div=frame["bull_divergence"].to_numpy()>0
+    bear_div=frame["bear_divergence"].to_numpy()>0
+    bull_confirm=bull_div&(slope>0)&(buy>sell)
+    bear_confirm=bear_div&(slope<0)&(sell>buy)
+    bull_agree=(buy>=percentile_edge)&((buy-sell)>=gap)&(slope>0)&(basis>=55)
+    bear_agree=(sell>=percentile_edge)&((sell-buy)>=gap)&(slope<0)&(basis<=45)
+    return bull_agree|bull_confirm,bear_agree|bear_confirm,np.select(
+        [bull_agree,bear_agree,bull_confirm,bear_confirm],
+        ["Bull agreement","Bear agreement","Bull divergence confirmed","Bear divergence confirmed"],
+        default="No aligned setup")
+
+def simulate(prob,frame,forward,source_indices,params):
+    prob_edge,pct_edge,gap=params
+    long_setup,short_setup,pattern=setup_signals(frame,pct_edge,gap)
+    raw=np.where((prob[:,2]>=prob_edge)&long_setup,1,np.where((prob[:,0]>=prob_edge)&short_setup,-1,0))
+    equity=1.;peak=1.;max_drawdown=0.;trades=0;next_trade_after=-1;returns=np.zeros(len(raw));signals=np.zeros(len(raw),dtype=int)
+    for j,candidate in enumerate(raw):
+        source=int(source_indices[j])
+        if candidate and source>=next_trade_after:
+            net=int(candidate)*float(forward[j])-ROUND_TRIP_COST
+            equity*=max(0.,1.+net);peak=max(peak,equity);max_drawdown=max(max_drawdown,(peak-equity)/peak)
+            trades+=1;next_trade_after=source+HORIZON+1;returns[j]=net;signals[j]=int(candidate)
+    return {"return":equity-1,"drawdown":max_drawdown,"trades":trades,"signals":signals,"pattern":pattern,"trade_returns":returns}
+
+def tune_params(prob,frame,forward,source_indices):
+    # Parameter selection only sees chronological validation data inside the training period.
+    blocks=[b for b in np.array_split(np.arange(len(source_indices)),3) if len(b)]
+    best=None;best_score=-np.inf
+    for params in PARAM_GRID:
+        results=[]
+        for block in blocks:
+            results.append(simulate(prob[block],frame.iloc[block],forward[block],source_indices[block],params))
+        if sum(r["trades"] for r in results)<9 or any(r["trades"]<2 for r in results):continue
+        score=float(np.median([r["return"] for r in results])-.5*max(r["drawdown"] for r in results))
+        if score>best_score:best_score=score;best=params
+    # Stay flat when no candidate shows a positive, repeatable validation result.
+    if best is None or best_score<=0:return (1.01,100.,100.),best_score
+    return best,best_score
+
 def run():
     df=pd.read_csv(DATA/"SPYUSDT_15m.csv",parse_dates=["time"])
     x=flow_basis_signals(make_features(df));y,fwd=make_labels(x,horizon=HORIZON)
@@ -27,55 +71,61 @@ def run():
     if len(idx)<1400:return {"status":"WAITING_FOR_DATA","samples":int(len(idx))}
     initial_train=max(900,int(len(idx)*.60))
     if initial_train>=len(idx)-50:return {"status":"WAITING_FOR_MORE_TEST_DATA","samples":int(len(idx))}
-    test_size=max(150,int(np.ceil((len(idx)-initial_train)/6)));parts=[];folds=0
+    test_size=max(150,int(np.ceil((len(idx)-initial_train)/6)));parts=[];folds=0;chosen=[];inner_scores=[]
     for start in range(initial_train,len(idx),test_size):
         te=idx[start:min(start+test_size,len(idx))]
-        tr=idx[:max(0,start-HORIZON)]  # purge labels whose forward horizon overlaps the next test segment
-        if len(te)<50 or len(tr)<900:continue
-        m=model();m.fit(x.iloc[tr][FEATURES],y.iloc[tr]);P=probabilities(m,x.iloc[te][FEATURES]);folds+=1
-        test=x.iloc[te]
-        long_setup=test["flow_basis_long"].to_numpy(dtype=bool)
-        short_setup=test["flow_basis_short"].to_numpy(dtype=bool)
-        long_ok=(P[:,2]>=PROBABILITY_EDGE)&long_setup
-        short_ok=(P[:,0]>=PROBABILITY_EDGE)&short_setup
-        signal=np.select([long_ok,short_ok],[1,-1],default=0)
+        tr=idx[:max(0,start-HORIZON)]
+        if len(te)<50 or len(tr)<1200:continue
+
+        # Inner chronological validation: select thresholds before seeing this outer test fold.
+        inner_cut=max(900,int(len(tr)*.75))
+        inner_fit=tr[:max(0,inner_cut-HORIZON)];val=tr[inner_cut:]
+        if len(inner_fit)<900 or len(val)<90:continue
+        inner_model=model();inner_model.fit(x.iloc[inner_fit][FEATURES],y.iloc[inner_fit])
+        inner_prob=probabilities(inner_model,x.iloc[val][FEATURES])
+        params,score=tune_params(inner_prob,x.iloc[val],fwd.iloc[val].to_numpy(),val)
+        chosen.append(params);inner_scores.append(score)
+
+        fitted=model();fitted.fit(x.iloc[tr][FEATURES],y.iloc[tr])
+        P=probabilities(fitted,x.iloc[te][FEATURES]);test=x.iloc[te]
+        sim=simulate(P,test,fwd.iloc[te].to_numpy(),te,params)
         o=test[["time","last","basis","basis_pct","taker_buy_pct","taker_sell_pct","basis_pct_rank",
                 "basis_slope_4","flow_basis_pattern"]].copy()
         o["source_idx"]=te;o["y"]=y.iloc[te].values;o["pred"]=P.argmax(1)
-        o["p_short"]=P[:,0];o["p_neutral"]=P[:,1];o["p_long"]=P[:,2];o["signal_raw"]=signal
-        o["forward_return"]=fwd.iloc[te].values
-        parts.append(o)
+        o["p_short"]=P[:,0];o["p_neutral"]=P[:,1];o["p_long"]=P[:,2]
+        o["probability_edge"],o["percentile_edge"],o["percentile_gap"]=params
+        o["signal"]=sim["signals"];o["strategy_ret"]=sim["trade_returns"];o["forward_return"]=fwd.iloc[te].values
+        parts.append(o);folds+=1
     if not parts:return {"status":"WAITING_FOR_MORE_TEST_DATA","samples":int(len(idx))}
     out=pd.concat(parts).drop_duplicates("time").sort_values("time").reset_index(drop=True)
-    # Convert qualifying bars into non-overlapping four-candle trades.
-    out["signal"]=0;next_trade_after=-1
-    for row_id,row in out.iterrows():
-        candidate=int(row.signal_raw)
-        if candidate and int(row.source_idx)>=next_trade_after:
-            out.at[row_id,"signal"]=candidate
-            next_trade_after=int(row.source_idx)+HORIZON+1
-    out["strategy_ret"]=out["signal"]*out["forward_return"]-ROUND_TRIP_COST*(out["signal"]!=0)
     out["equity"]=(1+out.strategy_ret).cumprod()
 
     from sklearn.metrics import accuracy_score,balanced_accuracy_score
     agreement_names={"Bull agreement","Bear agreement"}
     agreement_trades=int(((out.signal!=0)&out.flow_basis_pattern.isin(agreement_names)).sum())
     divergence_trades=int(((out.signal!=0)&out.flow_basis_pattern.str.contains("divergence")).sum())
+    returns=out.strategy_ret.to_numpy();equity=np.cumprod(1+returns);peaks=np.maximum.accumulate(np.r_[1.,equity])[1:]
+    max_drawdown=float(np.max(np.divide(peaks-equity,peaks,out=np.zeros_like(equity),where=peaks!=0))) if len(equity) else 0.
+    positive_params=[p for p in chosen if p[0]<=1]
+    live_params=positive_params[-1] if positive_params else (1.01,100.,100.)
     result={"status":"BASELINE_READY","updated":str(x.time.iloc[-1]),"model":"XGBoost or HistGradientBoosting",
-      "validation":"expanding walk-forward","folds":int(folds),"accuracy":float(accuracy_score(out.y,out.pred)),
+      "validation":"nested expanding walk-forward; thresholds selected on inner validation only",
+      "folds":int(folds),"accuracy":float(accuracy_score(out.y,out.pred)),
       "balanced_accuracy":float(balanced_accuracy_score(out.y,out.pred)),"samples":int(len(out)),
       "trades":int((out.signal!=0).sum()),"agreement_trades":agreement_trades,"divergence_trades":divergence_trades,
-      "strategy_return":float(out.equity.iloc[-1]-1),"last":float(x.last.iloc[-1]),
-      "basis":float(x.basis.iloc[-1]),"basis_pct":float(x.basis_pct.iloc[-1])}
+      "strategy_return":float(out.equity.iloc[-1]-1),"max_drawdown":max_drawdown,
+      "last":float(x.last.iloc[-1]),"basis":float(x.basis.iloc[-1]),"basis_pct":float(x.basis_pct.iloc[-1]),
+      "tuned_probability_edge":float(live_params[0]),"tuned_percentile_edge":float(live_params[1]),
+      "tuned_percentile_gap":float(live_params[2]),"median_inner_validation_score":float(np.median(inner_scores))}
 
-    fitted=model();fitted.fit(x.loc[valid,FEATURES],y.loc[valid]);joblib.dump({"model":fitted,"features":FEATURES},MODELS/"model.joblib")
-    P=probabilities(fitted,x.iloc[-1:][FEATURES])[0];latest=x.iloc[-1]
-    flow_long=bool(latest.flow_basis_long);flow_short=bool(latest.flow_basis_short)
-    signal="LONG" if P[2]>=PROBABILITY_EDGE and flow_long else "SHORT" if P[0]>=PROBABILITY_EDGE and flow_short else "WAIT"
-    result.update(p_short=float(P[0]),p_neutral=float(P[1]),p_long=float(P[2]),
-      score=float((P[2]-P[0])*100),signal=signal,flow_basis_pattern=str(latest.flow_basis_pattern),
-      taker_buy_percentile=float(latest.taker_buy_pct),taker_sell_percentile=float(latest.taker_sell_pct),
-      basis_percentile=float(latest.basis_pct_rank))
+    final_model=model();final_model.fit(x.loc[valid,FEATURES],y.loc[valid]);joblib.dump(
+        {"model":final_model,"features":FEATURES,"strategy_params":live_params},MODELS/"model.joblib")
+    P=probabilities(final_model,x.iloc[-1:][FEATURES])[0];latest=x.iloc[-1]
+    long_setup,short_setup,pattern=setup_signals(x.iloc[-1:],live_params[1],live_params[2])
+    signal="LONG" if P[2]>=live_params[0] and bool(long_setup[0]) else "SHORT" if P[0]>=live_params[0] and bool(short_setup[0]) else "WAIT"
+    result.update(p_short=float(P[0]),p_neutral=float(P[1]),p_long=float(P[2]),score=float((P[2]-P[0])*100),
+      signal=signal,flow_basis_pattern=str(pattern[0]),taker_buy_percentile=float(latest.taker_buy_pct),
+      taker_sell_percentile=float(latest.taker_sell_pct),basis_percentile=float(latest.basis_pct_rank))
     out.to_csv(REPORT/"backtest.csv",index=False)
     (REPORT/"latest_signal.json").write_text(json.dumps(result,indent=2),encoding="utf-8")
     return result
