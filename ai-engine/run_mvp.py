@@ -139,4 +139,91 @@ def run():
     (REPORT/"latest_signal.json").write_text(json.dumps(result,indent=2),encoding="utf-8")
     return result
 
-if __name__=="__main__":print(json.dumps(run(),indent=2))
+
+def research_setup():
+    """Frozen taker/Basis rule test on a chronological holdout; no threshold tuning."""
+    df=pd.read_csv(DATA/"SPYUSDT_15m.csv",parse_dates=["time"])
+    x=make_features(df)
+    total=x["volume"].rolling(4,min_periods=4).sum().replace(0,np.nan)
+    flow4=(x["taker_buy"]-x["taker_sell"]).rolling(4,min_periods=4).sum()/total
+    rank=x["basis_pct_rank"]
+    slope=x["basis_slope_4"]
+    strength=x["strength_line"]
+    # Candidate A: taker pressure and Basis slope agree, avoiding the most extreme
+    # trailing Basis ranks. Candidate B: confirmed Strength/Basis divergence.
+    agree_long=(flow4>=0.10)&(slope>0)&rank.between(10,90)
+    agree_short=(flow4<=-0.10)&(slope<0)&rank.between(10,90)
+    guard_long=(flow4>=0.10)&(slope>0)&rank.between(10,85)
+    guard_short=(flow4<=-0.10)&(slope<0)&rank.between(15,90)
+    div_long=(x["bull_divergence"]>0)&(slope>0)&(strength>0)&(flow4>0)
+    div_short=(x["bear_divergence"]>0)&(slope<0)&(strength<0)&(flow4<0)
+    setups={
+        "agreement":(agree_long,agree_short),
+        "agreement_basis_guard":(guard_long,guard_short),
+        "confirmed_divergence":(div_long,div_short),
+    }
+    setups["combined"]=(agree_long|div_long,agree_short|div_short)
+    valid=x[["time","open","last","basis_pct_rank","basis_slope_4","strength_line"]].notna().all(axis=1)&flow4.notna()
+    indices=np.flatnonzero(valid.to_numpy())
+    if len(indices)<1400:
+        result={"status":"WAITING_FOR_DATA","valid_samples":int(len(indices))}
+        (REPORT/"research_setup.json").write_text(json.dumps(result,indent=2),encoding="utf-8")
+        return result
+    split=int(len(indices)*0.60)
+    test_indices=indices[split:]
+    test_start=int(test_indices[0]);test_end=int(test_indices[-1])
+    results=[]
+    for name,(long_mask,short_mask) in setups.items():
+        raw=np.where(long_mask.to_numpy(),1,np.where(short_mask.to_numpy(),-1,0))
+        for horizon in (1,4):
+            trades=[]
+            last_signal=-10**9
+            for j in test_indices:
+                j=int(j)
+                # Enter at the next candle open after the signal candle closes,
+                # exit at the close after 1 bar (15m) or 4 bars (1h).
+                exit_i=j+horizon
+                entry_i=j+1
+                if j<last_signal or exit_i>test_end or raw[j]==0:
+                    continue
+                entry=float(x.open.iloc[entry_i]);exit_price=float(x["last"].iloc[exit_i])
+                if not np.isfinite(entry) or entry<=0 or not np.isfinite(exit_price):
+                    continue
+                gross=int(raw[j])*(exit_price/entry-1.)
+                trades.append((j,int(raw[j]),gross))
+                last_signal=exit_i
+            for cost in (0.0004,0.0008):
+                net=np.array([t[2]-cost for t in trades],dtype=float)
+                equity=np.cumprod(1+net) if len(net) else np.array([])
+                peaks=np.maximum.accumulate(np.r_[1.,equity])[1:] if len(equity) else np.array([])
+                dd=float(np.max(np.divide(peaks-equity,peaks,out=np.zeros_like(equity),where=peaks!=0))) if len(net) else 0.
+                results.append({
+                    "setup":name,"holding_bars":horizon,"holding_minutes":horizon*15,
+                    "round_trip_cost_bps":cost*10000,"trades":len(trades),
+                    "long_trades":sum(t[1]>0 for t in trades),"short_trades":sum(t[1]<0 for t in trades),
+                    "win_rate":float(np.mean(net>0)) if len(net) else None,
+                    "mean_net_trade_return":float(np.mean(net)) if len(net) else None,
+                    "compounded_return":float(equity[-1]-1) if len(net) else 0.0,
+                    "max_drawdown":dd,
+                    "evidence_flag":"too_few_trades_under_30" if len(trades)<30 else "exploratory_only",
+                })
+    result={
+        "status":"RESEARCH_HOLDOUT_READY",
+        "method":"frozen rules; first 60% used only for rolling feature warmup, final 40% chronological holdout; next-open entry; no threshold selection on holdout",
+        "data":"real Binance SPYUSDT 15m candles; taker sell=total volume minus taker buy; Basis=last minus index",
+        "high_frequency_scope":"15m bars are intraday proxies, not tick/order-book HFT",
+        "valid_samples":int(len(indices)),
+        "holdout_samples":int(len(test_indices)),
+        "holdout_start":str(x.time.iloc[test_start]),
+        "holdout_end":str(x.time.iloc[test_end]),
+        "signal_definition":"4-bar signed taker volume / total volume >= 0.10; Basis slope and trailing percentile filters; divergence uses chart-matched Strength/Basis features",
+        "cost_sensitivity":"4 bps round trip baseline and 8 bps stress; excludes funding and market impact",
+        "results":results
+    }
+    (REPORT/"research_setup.json").write_text(json.dumps(result,indent=2),encoding="utf-8")
+    return result
+
+if __name__=="__main__":
+    print(json.dumps(run(),indent=2))
+    print(json.dumps(research_setup(),indent=2))
+
