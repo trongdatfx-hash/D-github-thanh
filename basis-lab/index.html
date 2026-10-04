@@ -50,7 +50,7 @@ function plot(arr,color,lw=1.6){ctx.strokeStyle=color;ctx.lineWidth=lw;ctx.begin
 if(mode!=='basis'){plot(samples.map(s=>s.last),'#60a5fa');plot(samples.map(s=>s.mark),'#fbbf24');plot(samples.map(s=>s.index),'#36d399')}
 if(mode!=='price'){plot(samples.map(s=>s.b),'#fb7185');let ma=samples.map((_,i)=>i<maLen-1?NaN:sma(samples.slice(0,i+1).map(s=>s.b),maLen));plot(ma,'#e8f0f8',2)}
 ctx.fillStyle='#8fa6bd';ctx.font='11px system-ui';ctx.fillText(fmt(max,mode==='basis'?4:2),6,29);ctx.fillText(fmt(min,mode==='basis'?4:2),6,h-8)}
-const WS_URL='wss://fstream.binance.com/stream?streams=spyusdt@markPrice@1s/spyusdt@trade';
+const WS_URL='wss://fstream.binance.com/market/stream?streams=spyusdt@markPrice@1s/spyusdt@aggTrade';
 let reconnectTimer=null, staleTimer=null, retryDelay=1000, lastMessageAt=0;
 function validPrice(value){const n=Number(value);return Number.isFinite(n)&&n>0?n:NaN}
 function scheduleReconnect(){
@@ -76,7 +76,7 @@ function connect(){
       if(Number.isFinite(nextMark))mark=nextMark;
       if(Number.isFinite(nextIndex))index=nextIndex;
       if(Number.isFinite(nextFunding))funding=nextFunding;
-    }else if(z.e==='trade'){
+    }else if(z.e==='aggTrade'){
       const nextLast=validPrice(z.p);
       if(Number.isFinite(nextLast))last=nextLast;
     }else{return}
