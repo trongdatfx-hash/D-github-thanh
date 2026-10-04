@@ -117,19 +117,25 @@ def fetch(path, cols, target=TARGET, params=None, archive_kind=None):
 def main():
     kcols = ["time", "open", "high", "low", "last", "volume", "close_time", "quote_volume", "trades", "taker_buy", "taker_buy_quote", "ignore"]
     k = fetch("/fapi/v1/klines", kcols, params={"symbol": SYMBOL}, archive_kind="klines")
-    k = k[pd.to_numeric(k["close_time"], errors="coerce") < int(time.time() * 1000)]
+    k["time"] = pd.to_numeric(k["time"], errors="coerce")
+    k["close_time"] = pd.to_numeric(k["close_time"], errors="coerce")
+    k = k[k["close_time"] < int(time.time() * 1000)]
     for col in ["open", "high", "low", "last", "volume", "trades", "taker_buy", "taker_buy_quote"]:
         k[col] = pd.to_numeric(k[col], errors="coerce")
     k["taker_sell"] = k["volume"] - k["taker_buy"]
 
     mcols = ["time", "open", "high", "low", "mark", "x1", "close_time", "x2", "count", "x3", "x4", "x5"]
     m = fetch("/fapi/v1/markPriceKlines", mcols, params={"symbol": SYMBOL}, archive_kind="markPriceKlines")
-    m = m[pd.to_numeric(m["close_time"], errors="coerce") < int(time.time() * 1000)][["time", "mark"]]
+    m["time"] = pd.to_numeric(m["time"], errors="coerce")
+    m["close_time"] = pd.to_numeric(m["close_time"], errors="coerce")
+    m = m[m["close_time"] < int(time.time() * 1000)][["time", "mark"]]
     m["mark"] = pd.to_numeric(m["mark"], errors="coerce")
 
     icols = ["time", "open", "high", "low", "index", "x1", "close_time", "x2", "count", "x3", "x4", "x5"]
     i = fetch("/fapi/v1/indexPriceKlines", icols, params={"pair": SYMBOL}, archive_kind="indexPriceKlines")
-    i = i[pd.to_numeric(i["close_time"], errors="coerce") < int(time.time() * 1000)][["time", "index"]]
+    i["time"] = pd.to_numeric(i["time"], errors="coerce")
+    i["close_time"] = pd.to_numeric(i["close_time"], errors="coerce")
+    i = i[i["close_time"] < int(time.time() * 1000)][["time", "index"]]
     i["index"] = pd.to_numeric(i["index"], errors="coerce")
 
     df = k[["time", "last", "open", "high", "low", "volume", "trades", "taker_buy", "taker_sell"]].merge(m, on="time").merge(i, on="time")
