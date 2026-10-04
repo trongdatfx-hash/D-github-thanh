@@ -150,7 +150,7 @@ function train(){
  say("Walk-forward "+folds+" đoạn; "+ix.length.toLocaleString()+" nến hợp lệ. Tín hiệu chỉ được tính khi ML ≥60% và có đồng thuận hoặc phân kỳ basis–taker; giữ lệnh "+HORIZON+" nến.");
 }
 function predictLatest(){
- if(!model)return;const fx=features(rows),r=fx[fx.length-1],p=probs(model.W,r,model.N);featureRows=fx;drawStrengthChart();
+ if(!model)return;const fx=featureRows.length===rows.length?featureRows:features(rows),r=fx[fx.length-1],p=probs(model.W,r,model.N);featureRows=fx;drawStrengthChart();
  $("ps").textContent=pct(p[0]);$("pn").textContent=pct(p[1]);$("pl").textContent=pct(p[2]);$("psb").style.width=pct(p[0])+"%";$("pnb").style.width=pct(p[1])+"%";$("plb").style.width=pct(p[2])+"%";
  const setup=flowBasisSetup(r),confirm=live.sell+live.buy?((live.buy-live.sell)/(live.buy+live.sell)):r.ti;
  const longOk=p[2]>=.6&&setup.isLong&&confirm>-.05,shortOk=p[0]>=.6&&setup.isShort&&confirm<.05,sig=longOk?"LONG":shortOk?"SHORT":"WAIT";
@@ -227,5 +227,5 @@ function connect(){
  ws.onmessage=e=>{let d=JSON.parse(e.data).data;if(d.e==="markPriceUpdate"){live.mark=+d.p;live.index=+d.i;live.last=live.last||+d.p;renderLive()}else if(d.e==="aggTrade"){live.last=+d.p;if(d.m)live.sell+=+d.q;else live.buy+=+d.q;renderLive();predictLatest()}};
  setInterval(()=>{live.buy=live.sell=0},15*60*1000);
 }
-$("run").onclick=refreshAndTrain;loadHistory().then(()=>setInterval(refreshAndTrain,15*60*1000)).catch(e=>say("Lỗi tải Binance: "+e.message));
+window.addEventListener("resize",drawStrengthChart);$("run").onclick=refreshAndTrain;loadHistory().then(()=>setInterval(refreshAndTrain,15*60*1000)).catch(e=>say("Lỗi tải Binance: "+e.message));
 </script></body></html>
