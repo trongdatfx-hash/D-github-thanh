@@ -33,7 +33,7 @@ function connect(){
 }
 function fit(){visible=Math.min(120,bars.length);first=Math.max(0,bars.length-visible);draw()}
 function move(n){first=Math.max(0,Math.min(Math.max(0,bars.length-visible),first+n));draw()}
-function resize(){const r=canvas.getBoundingClientRect(),d=devicePixelRatio||1;canvas.width=Math.round(r.width*d);canvas.height=Math.round(r.height*d);ctx.setTransform(d,0,0,d,0,0);draw()}
+function resize(){const r=canvas.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(r.width*d);canvas.height=Math.round(r.height*d);ctx.setTransform(d,0,0,d,0,0);draw()}
 function requestDraw(){if(drawQueued)return;drawQueued=true;requestAnimationFrame(()=>{drawQueued=false;draw()})}
 function draw(){
  if(!ctx||!bars.length)return;const W=canvas.clientWidth,H=canvas.clientHeight;ctx.clearRect(0,0,W,H);ctx.fillStyle="#171a21";ctx.fillRect(0,0,W,H);
