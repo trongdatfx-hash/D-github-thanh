@@ -1,0 +1,26 @@
+name: SPYUSDT.P AI Engine
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+permissions:
+  contents: write
+jobs:
+  ai:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r ai-engine/requirements.txt
+      - run: |
+          cd ai-engine
+          python binance_data.py
+          python run_mvp.py
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ai-engine/data/SPYUSDT_15m.csv ai-engine/reports/backtest.csv ai-engine/reports/latest_signal.json ai-engine/models/model.joblib
+          git diff --cached --quiet || git commit -m "Update AI signal results"
+          git push
