@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SPYUSDT.P Basis Lab</title>
+<style>
+:root{--bg:#07111f;--panel:#0d1b2d;--line:#1d3552;--text:#e8f0f8;--muted:#8fa6bd;--green:#36d399;--red:#fb7185;--blue:#60a5fa;--yellow:#fbbf24}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#07111f,#0a1627);color:var(--text);font:14px Inter,system-ui,Arial}
+.wrap{max-width:1400px;margin:auto;padding:18px}.top{display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap}
+h1{font-size:22px;margin:0}.sub{color:var(--muted);margin-top:4px}.status{padding:7px 11px;border:1px solid var(--line);border-radius:20px;background:#0b1828}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red);margin-right:7px}.on{background:var(--green)}
+.cards{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:18px 0}.card{background:rgba(13,27,45,.92);border:1px solid var(--line);border-radius:12px;padding:12px}.label{font-size:11px;color:var(--muted);text-transform:uppercase}.value{font-size:19px;font-weight:700;margin-top:6px}.pos{color:var(--green)}.neg{color:var(--red)}
+.panel{background:rgba(13,27,45,.94);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}.toolbar button,.toolbar select{background:#12243a;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px 10px}.toolbar button.active{border-color:var(--blue)}
+canvas{width:100%;height:330px;display:block;background:#081423;border-radius:10px}.legend{display:flex;gap:16px;color:var(--muted);margin-top:9px;font-size:12px}.sw{display:inline-block;width:20px;height:2px;vertical-align:middle;margin-right:5px}
+.grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px}.formula{font-family:ui-monospace,Consolas,monospace;background:#081423;padding:12px;border-radius:9px;line-height:1.8;color:#cfe2f5}.note{color:var(--muted);line-height:1.55}
+@media(max-width:900px){.cards{grid-template-columns:repeat(3,1fr)}.grid{grid-template-columns:1fr}}@media(max-width:520px){.cards{grid-template-columns:repeat(2,1fr)}}
+</style></head>
+<body><div class="wrap">
+<div class="top"><div><h1>SPYUSDT.P — Basis Lab</h1><div class="sub">Live Index Price • Mark Price • Last Price • Basis • Basis MA</div></div><div class="status"><span id="dot" class="dot"></span><span id="status">Connecting…</span></div></div>
+<div class="cards">
+<div class="card"><div class="label">Last Price</div><div id="last" class="value">—</div></div>
+<div class="card"><div class="label">Mark Price</div><div id="mark" class="value">—</div></div>
+<div class="card"><div class="label">Index Price</div><div id="index" class="value">—</div></div>
+<div class="card"><div class="label">Basis</div><div id="basis" class="value">—</div></div>
+<div class="card"><div class="label">Basis %</div><div id="basisPct" class="value">—</div></div>
+<div class="card"><div class="label">Funding</div><div id="funding" class="value">—</div></div>
+</div>
+<div class="panel"><div class="toolbar"><b>Live chart</b><button data-mode="price" class="active">Price</button><button data-mode="basis">Basis</button><button data-mode="both">Both</button><label>MA <select id="ma"><option>20</option><option>30</option><option>60</option><option>120</option></select></label><span class="note">Last 300 samples</span></div>
+<canvas id="chart"></canvas><div class="legend"><span><i class="sw" style="background:#60a5fa"></i>Last</span><span><i class="sw" style="background:#fbbf24"></i>Mark</span><span><i class="sw" style="background:#36d399"></i>Index</span><span><i class="sw" style="background:#fb7185"></i>Basis</span><span><i class="sw" style="background:#e8f0f8"></i>Basis MA</span></div></div>
+<div class="grid"><div class="panel"><h3>Ý tưởng phân tích</h3><div class="formula">Basis = Last Price − Index Price<br>Basis % = (Last − Index) / Index × 100<br>Basis MA = SMA(Basis, N)</div><p class="note">Basis dương = perpetual premium so với index. Basis âm = discount. Khi kết hợp Basis với Taker Buy/Sell, có thể phân biệt dòng mua đang thực sự đẩy premium hay chỉ hấp thụ thanh khoản.</p></div>
+<div class="panel"><h3>Binance feed</h3><p class="note">Trang này lấy Mark Price stream của Binance USDⓈ-M. Payload cung cấp trực tiếp <b>mark price (p)</b>, <b>index price (i)</b> và <b>funding rate (r)</b>.</p><p class="note">Không cần API key. Đây là bản nghiên cứu/hiển thị dữ liệu, không phải tín hiệu giao dịch.</p></div></div>
+</div>
+<script>
+const $=id=>document.getElementById(id), N=300;
+let mode='price', maLen=20, last=NaN, mark=NaN, index=NaN, funding=NaN, samples=[], socket;
+const canvas=$('chart'),ctx=canvas.getContext('2d');
+function fmt(v,d=4){return Number.isFinite(v)?v.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}):'—'}
+function basis(){return Number.isFinite(last)&&Number.isFinite(index)?last-index:NaN}
+function bPct(){let b=basis();return Number.isFinite(b)?b/index*100:NaN}
+function resize(){const r=canvas.getBoundingClientRect(),d=devicePixelRatio||1;canvas.width=r.width*d;canvas.height=r.height*d;ctx.setTransform(d,0,0,d,0,0);draw()}
+window.addEventListener('resize',resize);
+function push(){if(Number.isFinite(last)&&Number.isFinite(mark)&&Number.isFinite(index))samples.push({t:Date.now(),last,mark,index,b:basis()});if(samples.length>N)samples.shift()}
+function update(){let b=basis(),bp=bPct();$('last').textContent=fmt(last);$('mark').textContent=fmt(mark);$('index').textContent=fmt(index);$('basis').textContent=Number.isFinite(b)?(b>=0?'+':'')+fmt(b):'—';$('basis').className='value '+(b>=0?'pos':'neg');$('basisPct').textContent=Number.isFinite(bp)?(bp>=0?'+':'')+fmt(bp,4)+'%':'—';$('basisPct').className='value '+(bp>=0?'pos':'neg');$('funding').textContent=Number.isFinite(funding)?(funding*100).toFixed(4)+'%':'—';}
+function sma(a,n){let x=a.slice(-n).filter(Number.isFinite);return x.length?x.reduce((p,c)=>p+c,0)/x.length:NaN}
+function line(vals,w,h,pad,min,max){if(vals.length<2)return;ctx.beginPath();vals.forEach((v,i)=>{if(!Number.isFinite(v))return;let x=pad+i*(w-2*pad)/(vals.length-1),y=pad+(max-v)/(max-min||1)*(h-2*pad);i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.stroke()}
+function draw(){const w=canvas.clientWidth,h=canvas.clientHeight;ctx.clearRect(0,0,w,h);if(samples.length<2){ctx.fillStyle='#8fa6bd';ctx.fillText('Waiting for live Binance data…',20,30);return}
+ctx.strokeStyle='#18304b';ctx.lineWidth=1;for(let i=0;i<5;i++){let y=25+i*(h-45)/4;ctx.beginPath();ctx.moveTo(45,y);ctx.lineTo(w-15,y);ctx.stroke()}
+let vals=[]; if(mode==='basis') vals=samples.map(x=>x.b); else vals=samples.flatMap(x=>[x.last,x.mark,x.index]); let min=Math.min(...vals),max=Math.max(...vals); if(mode==='basis'){let m=Math.max(Math.abs(min),Math.abs(max));min=-m;max=m}
+let pad=48, W=w-pad-15, H=h-25; const x=i=>pad+i*(W)/(samples.length-1), y=v=>25+(max-v)/(max-min||1)*H;
+function plot(arr,color,lw=1.6){ctx.strokeStyle=color;ctx.lineWidth=lw;ctx.beginPath();arr.forEach((v,i)=>{if(!Number.isFinite(v))return;i?ctx.lineTo(x(i),y(v)):ctx.moveTo(x(i),y(v))});ctx.stroke()}
+if(mode!=='basis'){plot(samples.map(s=>s.last),'#60a5fa');plot(samples.map(s=>s.mark),'#fbbf24');plot(samples.map(s=>s.index),'#36d399')}
+if(mode!=='price'){plot(samples.map(s=>s.b),'#fb7185');let ma=samples.map((_,i)=>i<maLen-1?NaN:sma(samples.slice(0,i+1).map(s=>s.b),maLen));plot(ma,'#e8f0f8',2)}
+ctx.fillStyle='#8fa6bd';ctx.font='11px system-ui';ctx.fillText(fmt(max,mode==='basis'?4:2),6,29);ctx.fillText(fmt(min,mode==='basis'?4:2),6,h-8)}
+function connect(){socket=new WebSocket('wss://fstream.binance.com/market/stream?streams=spyusdt@markPrice@1s/spyusdt@trade');socket.onopen=()=>{$('dot').classList.add('on');$('status').textContent='LIVE — Binance';};socket.onclose=()=>{$('dot').classList.remove('on');$('status').textContent='Disconnected — reconnecting…';setTimeout(connect,2000)};socket.onerror=()=>socket.close();socket.onmessage=e=>{let z=JSON.parse(e.data).data;if(z.e==='markPriceUpdate'){mark=+z.p;index=+z.i;funding=+z.r;push();update();draw()}else if(z.e==='trade'){last=+z.p;push();update();draw()}}}
+document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-mode]').forEach(x=>x.classList.remove('active'));b.classList.add('active');mode=b.dataset.mode;draw()});
+$('ma').onchange=e=>{maLen=+e.target.value;draw()};resize();connect();
+</script></body></html>
