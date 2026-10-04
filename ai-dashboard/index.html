@@ -32,7 +32,7 @@ table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:7px;bord
 <div class="panel"><h3>Taker strength percentile × Basis</h3><div id="setupState" class="muted">Waiting for closed candles…</div><canvas id="strengthChart" style="width:100%;height:260px;display:block"></canvas><div class="muted"><span style="color:#36d399">━ Taker Buy %ile</span> &nbsp; <span style="color:#fb7185">━ Taker Sell %ile</span> &nbsp; <span style="color:#60a5fa">━ Basis %ile</span> · window 96 candles · swing windows 8 + 8 · closed candles.</div></div>
 <div class="two">
 <div class="panel"><h3>ML backtest</h3><table><tr><th>Metric</th><th>Value</th></tr><tr><td>Walk-forward test accuracy</td><td id="acc">—</td></tr><tr><td>Balanced accuracy</td><td id="bacc">—</td></tr><tr><td>Walk-forward test samples</td><td id="samples">—</td></tr><tr><td>Walk-forward folds</td><td id="folds">—</td></tr><tr><td>Trades (ML + flow/basis)</td><td id="trades">—</td></tr><tr><td>Agreement setups</td><td id="agreementTrades">—</td></tr><tr><td>Confirmed divergence setups</td><td id="divergenceTrades">—</td></tr><tr><td>Selected ML / flow / gap</td><td id="params">—</td></tr><tr><td>Strategy return*</td><td id="sret">—</td></tr></table><p class="muted">*Proxy: 4 bps round-trip cost (2 bps per side); excludes slippage/funding. Research only.</p></div>
-<div class="panel"><h3>Agent reasoning</h3><div id="reason" class="log">Waiting for model…</div><p class="muted">Trade filter: ML probability ≥60% plus a confirmed Taker/Basis agreement or divergence. Live taker flow is an additional confirmation.</p></div>
+<div class="panel"><h3>Agent reasoning</h3><div id="reason" class="log">Waiting for model…</div><p class="muted">Trade filter: relative LONG/SHORT probability, minimum directional probability mass, and a confirmed Taker/Basis agreement or divergence. Live taker flow is an additional confirmation.</p></div>
 </div>
 <div class="panel"><h3>Recent walk-forward trade samples</h3><div style="overflow:auto"><table><thead><tr><th>Time</th><th>Side</th><th>Setup</th><th>Buy %ile</th><th>Sell %ile</th><th>Basis %ile</th><th>4-bar net</th></tr></thead><tbody id="tradeSamples"><tr><td colspan="7">No qualified samples yet</td></tr></tbody></table></div></div><div class="panel"><h3>Status</h3><div id="log" class="log">Loading Binance 15m history…</div></div>
 </div>
@@ -79,8 +79,8 @@ function features(data){
   r.bearDiv=Number.isFinite(prevBasisHigh)&&currBasisHigh>prevBasisHigh&&currBuyHigh<prevBuyHigh-5&&currSellHigh>prevSellHigh?1:0;
  }return x;
 }
-const DEFAULT_PARAMS={probEdge:.60,pctEdge:75,gap:15};
-const PARAM_GRID=[.45,.50,.55,.60].flatMap(probEdge=>[55,65,75].flatMap(pctEdge=>[0,10,20].map(gap=>({probEdge,pctEdge,gap}))));
+const DEFAULT_PARAMS={directionalEdge:.58,minDirectionalMass:.05,pctEdge:75,gap:15};
+const PARAM_GRID=[.52,.58,.64,.70].flatMap(directionalEdge=>[.05,.10,.15].flatMap(minDirectionalMass=>[55,65,75].flatMap(pctEdge=>[0,10,20].map(gap=>({directionalEdge,minDirectionalMass,pctEdge,gap})))));
 function flowBasisSetup(r,params=DEFAULT_PARAMS){
  const buy=r.tbp,sell=r.tsp,basis=r.bpr,slope=r.bslope,edge=params.pctEdge??PCT_EDGE,gap=params.gap??AGREEMENT_GAP;
  const bullDiv=!!r.bullDiv&&slope>0&&buy>sell,bearDiv=!!r.bearDiv&&slope<0&&sell>buy;
@@ -93,8 +93,9 @@ function flowBasisSetup(r,params=DEFAULT_PARAMS){
 function simulateValidation(fx,indices,probabilities_,params){
  let equity=1,peak=1,drawdown=0,trades=0,nextTradeAfter=-1;
  for(let j=0;j<indices.length;j++){
-  const i=indices[j],p=probabilities_[j],setup=flowBasisSetup(fx[i],params);
-  const direction=p[2]>=params.probEdge&&setup.isLong?1:p[0]>=params.probEdge&&setup.isShort?-1:0;
+  const i=indices[j],p=probabilities_[j],setup=flowBasisSetup(fx[i],params),mass=p[0]+p[2],longShare=mass>0?p[2]/mass:.5;
+  const direction=mass>=params.minDirectionalMass&&longShare>=params.directionalEdge&&setup.isLong?1:
+   mass>=params.minDirectionalMass&&(1-longShare)>=params.directionalEdge&&setup.isShort?-1:0;
   if(!direction||i<nextTradeAfter)continue;
   const net=direction*(fx[i+HORIZON].last/fx[i].last-1)-ROUND_TRIP_FEE;
   equity*=Math.max(0,1+net);peak=Math.max(peak,equity);drawdown=Math.max(drawdown,(peak-equity)/peak);
@@ -109,12 +110,12 @@ function tuneStrategy(fx,indices,predictions){
  let best=null,bestScore=-Infinity;
  for(const params of PARAM_GRID){
   const results=blocks.map(([a,b])=>simulateValidation(fx,indices.slice(a,b),predictions.slice(a,b),params));
-  if(results.reduce((n,r)=>n+r.trades,0)<6||results.some(r=>r.trades<2))continue;
+  if(results.reduce((n,r)=>n+r.trades,0)<3||results.some(r=>r.trades<1))continue;
   const returns=results.map(r=>r.ret).sort((a,b)=>a-b),median=returns[Math.floor(returns.length/2)];
   const score=median-.5*Math.max(...results.map(r=>r.drawdown));
   if(score>bestScore){bestScore=score;best=params}
  }
- return !best||bestScore<=0?{params:{probEdge:1.01,pctEdge:100,gap:100},score:bestScore}:{params:best,score:bestScore};
+ return !best||bestScore<=0?{params:{directionalEdge:1.01,minDirectionalMass:1.01,pctEdge:100,gap:100},score:bestScore}:{params:best,score:bestScore};
 }
 function drawStrengthChart(){
  const c=$("strengthChart");if(!c||featureRows.length<2)return;
@@ -163,7 +164,9 @@ function train(){
   for(const i of te){
    const p=probs(W,fx[i],N),pred=p.indexOf(Math.max(...p)),actual=ys[i];
    confusion[actual][pred]++;testCount++;if(pred===actual)correct++;
-   const setup=flowBasisSetup(fx[i],params),longSignal=p[2]>=params.probEdge&&setup.isLong,shortSignal=p[0]>=params.probEdge&&setup.isShort;
+   const setup=flowBasisSetup(fx[i],params),mass=p[0]+p[2],longShare=mass>0?p[2]/mass:.5;
+   const longSignal=mass>=params.minDirectionalMass&&longShare>=params.directionalEdge&&setup.isLong;
+   const shortSignal=mass>=params.minDirectionalMass&&(1-longShare)>=params.directionalEdge&&setup.isShort;
    if(i>=nextTradeAfter&&(longSignal||shortSignal)){
     const direction=longSignal?1:-1,forward=fx[i+HORIZON].last/fx[i].last-1,net=direction*forward-ROUND_TRIP_FEE;
     eq*=Math.max(0,1+net);trades++;
@@ -180,7 +183,7 @@ function train(){
  $("acc").textContent=pct(correct/testCount)+"%";$("bacc").textContent=pct(bacc)+"%";
  $("samples").textContent=testCount.toLocaleString();$("folds").textContent=folds;
  $("trades").textContent=trades.toLocaleString();$("agreementTrades").textContent=agreementTrades.toLocaleString();$("divergenceTrades").textContent=divergenceTrades.toLocaleString();
- $("params").textContent=(params.probEdge*100).toFixed(0)+"% / "+params.pctEdge+" / "+params.gap;
+ $("params").textContent=(params.directionalEdge*100).toFixed(0)+"% dir / "+(params.minDirectionalMass*100).toFixed(0)+"% mass / "+params.pctEdge+" / "+params.gap;
  $("sret").textContent=((eq-1)*100).toFixed(2)+"%";renderTradeSamples();predictLatest();
  say("Nested walk-forward: "+folds+" đoạn; "+ix.length.toLocaleString()+" nến hợp lệ. Ngưỡng được chọn trên validation trước từng test fold; return OOS "+((eq-1)*100).toFixed(2)+"%.");
 }
@@ -188,7 +191,9 @@ function predictLatest(){
  if(!model)return;const fx=featureRows.length===rows.length?featureRows:features(rows),r=fx[fx.length-1],p=probs(model.W,r,model.N);featureRows=fx;drawStrengthChart();
  $("ps").textContent=pct(p[0]);$("pn").textContent=pct(p[1]);$("pl").textContent=pct(p[2]);$("psb").style.width=pct(p[0])+"%";$("pnb").style.width=pct(p[1])+"%";$("plb").style.width=pct(p[2])+"%";
  const setup=flowBasisSetup(r,model.params),confirm=live.sell+live.buy?((live.buy-live.sell)/(live.buy+live.sell)):r.ti;
- const longOk=p[2]>=model.params.probEdge&&setup.isLong&&confirm>-.05,shortOk=p[0]>=model.params.probEdge&&setup.isShort&&confirm<.05,sig=longOk?"LONG":shortOk?"SHORT":"WAIT";
+ const directionalMass=p[0]+p[2],longShare=directionalMass>0?p[2]/directionalMass:.5;
+ const longOk=directionalMass>=model.params.minDirectionalMass&&longShare>=model.params.directionalEdge&&setup.isLong&&confirm>-.05;
+ const shortOk=directionalMass>=model.params.minDirectionalMass&&(1-longShare)>=model.params.directionalEdge&&setup.isShort&&confirm<.05,sig=longOk?"LONG":shortOk?"SHORT":"WAIT";
  const score=(p[2]-p[0])*100+(setup.isLong?15:setup.isShort?-15:0);
  $("signal").textContent=sig;$("signal").className="signal "+sig;$("score").textContent=(score>=0?"+":"")+score.toFixed(1);$("ti").textContent=(confirm*100).toFixed(1)+"%";
  $("reason").textContent="ML: L "+pct(p[2])+"% | N "+pct(p[1])+"% | S "+pct(p[0])+"%\n"+
