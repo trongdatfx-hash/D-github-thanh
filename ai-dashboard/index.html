@@ -29,38 +29,81 @@ table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:7px;bord
 <div class="card"><div class="label">Signal Score</div><div id="score" class="big">—</div></div>
 <div class="card"><div class="label">Current Taker Imbalance</div><div id="ti" class="big">—</div></div>
 </div></div>
+<div class="panel"><h3>Taker strength percentile × Basis</h3><div id="setupState" class="muted">Waiting for closed candles…</div><canvas id="strengthChart" style="width:100%;height:260px;display:block"></canvas><div class="muted">Percentile window: 96 candles · divergence swing windows: 8 + 8 candles · latest closed bars only.</div></div>
 <div class="two">
-<div class="panel"><h3>ML backtest</h3><table><tr><th>Metric</th><th>Value</th></tr><tr><td>Walk-forward test accuracy</td><td id="acc">—</td></tr><tr><td>Balanced accuracy</td><td id="bacc">—</td></tr><tr><td>Walk-forward test samples</td><td id="samples">—</td></tr><tr><td>Walk-forward folds</td><td id="folds">—</td></tr><tr><td>Trades (≥60%)</td><td id="trades">—</td></tr><tr><td>Strategy return*</td><td id="sret">—</td></tr></table><p class="muted">*Proxy: 4 bps round-trip cost (2 bps per side); excludes slippage/funding. Research only.</p></div>
+<div class="panel"><h3>ML backtest</h3><table><tr><th>Metric</th><th>Value</th></tr><tr><td>Walk-forward test accuracy</td><td id="acc">—</td></tr><tr><td>Balanced accuracy</td><td id="bacc">—</td></tr><tr><td>Walk-forward test samples</td><td id="samples">—</td></tr><tr><td>Walk-forward folds</td><td id="folds">—</td></tr><tr><td>Trades (ML + flow/basis)</td><td id="trades">—</td></tr><tr><td>Agreement setups</td><td id="agreementTrades">—</td></tr><tr><td>Confirmed divergence setups</td><td id="divergenceTrades">—</td></tr><tr><td>Strategy return*</td><td id="sret">—</td></tr></table><p class="muted">*Proxy: 4 bps round-trip cost (2 bps per side); excludes slippage/funding. Research only.</p></div>
 <div class="panel"><h3>Agent reasoning</h3><div id="reason" class="log">Waiting for model…</div><p class="muted">Agent rule: ML probability ≥60% is required. Basis direction and live taker imbalance are used as confirmation/filter, not as a fabricated prediction.</p></div>
 </div>
-<div class="panel"><h3>Status</h3><div id="log" class="log">Loading Binance 15m history…</div></div>
+<div class="panel"><h3>Recent walk-forward trade samples</h3><div style="overflow:auto"><table><thead><tr><th>Time</th><th>Side</th><th>Setup</th><th>Buy %ile</th><th>Sell %ile</th><th>Basis %ile</th><th>4-bar net</th></tr></thead><tbody id="tradeSamples"><tr><td colspan="7">No qualified samples yet</td></tr></tbody></table></div></div><div class="panel"><h3>Status</h3><div id="log" class="log">Loading Binance 15m history…</div></div>
 </div>
 <script>
-const $=id=>document.getElementById(id),TARGET_CANDLES=12000,PAGE_SIZE=1500,HORIZON=4,FOLD_SIZE=600,EPOCHS=30,ROUND_TRIP_FEE=.0004,FEATURES=["r1","r4","r16","bp","bv","ba","bz","mi","ti","cvd4","vol","mom","rng","vz"];
-let rows=[],model=null,norm=null,live={last:NaN,index:NaN,mark:NaN,buy:0,sell:0},trainedAt=0;
+const $=id=>document.getElementById(id),TARGET_CANDLES=12000,PAGE_SIZE=1500,HORIZON=4,FOLD_SIZE=600,EPOCHS=30,ROUND_TRIP_FEE=.0004,PCT_WINDOW=96,DIV_WINDOW=8,PCT_EDGE=75,AGREEMENT_GAP=15,FEATURES=["r1","r4","r16","bp","bv","ba","bz","mi","ti","cvd4","vol","mom","rng","vz","tbp","tsp","bpr","bslope","bullDiv","bearDiv"];
+let rows=[],featureRows=[],tradeSamples=[],model=null,norm=null,live={last:NaN,index:NaN,mark:NaN,buy:0,sell:0},trainedAt=0;
 const say=s=>{$("log").textContent=s};
 const pct=v=>(100*v).toFixed(1);
 function softmax(z){let m=Math.max(...z),e=z.map(v=>Math.exp(v-m)),s=e.reduce((a,b)=>a+b,0);return e.map(v=>v/s)}
 function features(data){
  const x=data.map(r=>({...r}));let cvd=0;
  const windowStats=(i,n,get)=>{
-   if(i+1<n)return {mean:NaN,std:NaN};
-   let sum=0,sq=0;
-   for(let j=i-n+1;j<=i;j++){const v=get(x[j]);if(!Number.isFinite(v))return {mean:NaN,std:NaN};sum+=v;sq+=v*v}
-   const mean=sum/n;return {mean,std:Math.sqrt(Math.max(0,sq/n-mean*mean))||1};
+  if(i+1<n)return {mean:NaN,std:NaN};let sum=0,sq=0;
+  for(let j=i-n+1;j<=i;j++){const v=get(x[j]);if(!Number.isFinite(v))return {mean:NaN,std:NaN};sum+=v;sq+=v*v}
+  const mean=sum/n;return {mean,std:Math.sqrt(Math.max(0,sq/n-mean*mean))||1};
+ };
+ const percentile=(i,key,n)=>{
+  if(i+1<n)return NaN;const value=x[i][key];if(!Number.isFinite(value))return NaN;
+  let less=0,equal=0;for(let j=i-n+1;j<=i;j++){const v=x[j][key];if(!Number.isFinite(v))return NaN;if(v<value)less++;else if(v===value)equal++}
+  return 100*(less+(equal-1)/2)/n;
+ };
+ const extreme=(i,key,offset,n,isHigh)=>{
+  let v=isHigh?-Infinity:Infinity;
+  for(let j=i-offset-n+1;j<=i-offset;j++){const q=x[j]?.[key];if(!Number.isFinite(q))return NaN;v=isHigh?Math.max(v,q):Math.min(v,q)}
+  return v;
  };
  for(let i=0;i<x.length;i++){
   const r=x[i],prev=x[i-1];
   r.r1=prev?r.last/prev.last-1:NaN;r.r4=i>=4?r.last/x[i-4].last-1:NaN;r.r16=i>=16?r.last/x[i-16].last-1:NaN;
   r.bp=r.basis/r.index*100;r.bv=prev?r.basis-prev.basis:NaN;r.ba=(prev&&i>1)?r.bv-x[i-2].bv:NaN;
-  const bs=windowStats(i,96,q=>q.basis);r.bz=(r.basis-bs.mean)/bs.std;
+  const bs=windowStats(i,PCT_WINDOW,q=>q.basis);r.bz=(r.basis-bs.mean)/bs.std;
   r.mi=(r.mark-r.index)/r.index*100;r.ti=(r.tbuy-r.tsell)/((r.tbuy+r.tsell)||NaN);
   cvd+=r.tbuy-r.tsell;r.cvd=cvd;r.cvd4=i>=4?cvd-x[i-4].cvd:NaN;
-  r.vol=windowStats(i,32,q=>q.r1).std;
-  r.mom=r.last/windowStats(i,32,q=>q.last).mean-1;
-  r.rng=(r.high-r.low)/r.last*100;
-  const vs=windowStats(i,96,q=>q.volume);r.vz=(r.volume-vs.mean)/vs.std;
+  r.vol=windowStats(i,32,q=>q.r1).std;r.mom=r.last/windowStats(i,32,q=>q.last).mean-1;
+  r.rng=(r.high-r.low)/r.last*100;const vs=windowStats(i,PCT_WINDOW,q=>q.volume);r.vz=(r.volume-vs.mean)/vs.std;
+  r.tbp=percentile(i,"tbuy",PCT_WINDOW);r.tsp=percentile(i,"tsell",PCT_WINDOW);r.bpr=percentile(i,"bp",PCT_WINDOW);
+  r.bslope=i>=4?r.bp-x[i-4].bp:NaN;
+  const span=DIV_WINDOW,prevOffset=span,currBasisLow=extreme(i, "bp",0,span,false),prevBasisLow=extreme(i,"bp",prevOffset,span,false);
+  const currBasisHigh=extreme(i,"bp",0,span,true),prevBasisHigh=extreme(i,"bp",prevOffset,span,true);
+  const currBuyLow=extreme(i,"tbp",0,span,false),prevBuyLow=extreme(i,"tbp",prevOffset,span,false);
+  const currBuyHigh=extreme(i,"tbp",0,span,true),prevBuyHigh=extreme(i,"tbp",prevOffset,span,true);
+  const currSellHigh=extreme(i,"tsp",0,span,true),prevSellHigh=extreme(i,"tsp",prevOffset,span,true);
+  r.bullDiv=Number.isFinite(prevBasisLow)&&currBasisLow<prevBasisLow&&currBuyLow>prevBuyLow+5?1:0;
+  r.bearDiv=Number.isFinite(prevBasisHigh)&&currBasisHigh>prevBasisHigh&&currBuyHigh<prevBuyHigh-5&&currSellHigh>prevSellHigh?1:0;
  }return x;
+}
+function flowBasisSetup(r){
+ const buy=r.tbp,sell=r.tsp,basis=r.bpr,slope=r.bslope;
+ const bullDiv=!!r.bullDiv&&slope>0&&buy>sell;
+ const bearDiv=!!r.bearDiv&&slope<0&&sell>buy;
+ const longAgreement=buy>=PCT_EDGE&&buy-sell>=AGREEMENT_GAP&&slope>0&&basis>=55;
+ const shortAgreement=sell>=PCT_EDGE&&sell-buy>=AGREEMENT_GAP&&slope<0&&basis<=45;
+ const isLong=longAgreement||bullDiv,isShort=shortAgreement||bearDiv;
+ return {isLong,isShort,longAgreement,shortAgreement,bullDiv,bearDiv,
+  label:longAgreement?"Bull agreement":shortAgreement?"Bear agreement":bullDiv?"Bull divergence confirmed":bearDiv?"Bear divergence confirmed":"No aligned setup"};
+}
+function drawStrengthChart(){
+ const c=$("strengthChart");if(!c||featureRows.length<2)return;
+ const dpr=window.devicePixelRatio||1,r=c.getBoundingClientRect();if(!r.width)return;
+ c.width=r.width*dpr;c.height=r.height*dpr;const g=c.getContext("2d");g.setTransform(dpr,0,0,dpr,0,0);
+ const w=r.width,h=r.height,pad=30,data=featureRows.slice(-240),x=i=>pad+i*(w-2*pad)/(data.length-1),y=v=>h-pad-v/100*(h-2*pad);
+ g.clearRect(0,0,w,h);g.font="11px system-ui";g.strokeStyle="#1b3550";g.fillStyle="#8fa6bd";
+ for(let q=0;q<=100;q+=25){const yy=y(q);g.beginPath();g.moveTo(pad,yy);g.lineTo(w-pad,yy);g.stroke();g.fillText(String(q),4,yy+4)}
+ const draw=(key,color)=>{g.beginPath();let started=false;data.forEach((row,i)=>{const v=row[key];if(!Number.isFinite(v)){started=false;return}if(!started){g.moveTo(x(i),y(v));started=true}else g.lineTo(x(i),y(v))});g.strokeStyle=color;g.lineWidth=1.8;g.stroke()};
+ draw("tbp","#36d399");draw("tsp","#fb7185");draw("bpr","#60a5fa");
+ const r0=data.at(-1),setup=flowBasisSetup(r0);
+ $("setupState").textContent=setup.label+" · Buy "+r0.tbp.toFixed(0)+" / Sell "+r0.tsp.toFixed(0)+" / Basis "+r0.bpr.toFixed(0)+" percentile";
+}
+function renderTradeSamples(){
+ const body=$("tradeSamples");if(!body)return;
+ body.innerHTML=tradeSamples.slice(-20).reverse().map(t=>"<tr><td>"+new Date(t.time).toLocaleString("vi-VN")+"</td><td>"+t.side+"</td><td>"+t.setup+"</td><td>"+t.buy.toFixed(0)+"</td><td>"+t.sell.toFixed(0)+"</td><td>"+t.basis.toFixed(0)+"</td><td>"+(t.net*100).toFixed(3)+"%</td></tr>").join("")||'<tr><td colspan="7">No qualified samples yet</td></tr>';
 }
 function label(x){return x.map((r,i)=>{if(i+HORIZON>=x.length)return null;let f=x[i+HORIZON].last/r.last-1;return f>.001?2:f<-.001?0:1})}
 function matrix(x){return x.map(r=>FEATURES.map(k=>r[k]))}
@@ -74,10 +117,11 @@ function prep(X,trainN){let d=X[0].length,m=Array(d).fill(0),s=Array(d).fill(0);
 function normX(X,n){return X.map(r=>r.map((v,j)=>(v-n.m[j])/n.s[j]))}
 function probs(W,r,n){let xx=[1,...FEATURES.map((k,j)=>(r[k]-n.m[j])/n.s[j])];return softmax(W.map(w=>w.reduce((s,v,j)=>s+v*xx[j],0)))}
 function train(){
- const fx=features(rows),ys=label(fx),valid=fx.map((r,i)=>ys[i]!==null&&FEATURES.every(k=>Number.isFinite(r[k]))),ix=fx.map((r,i)=>valid[i]?i:-1).filter(i=>i>=0);
+ const fx=features(rows);featureRows=fx;drawStrengthChart();
+ const ys=label(fx),valid=fx.map((r,i)=>ys[i]!==null&&FEATURES.every(k=>Number.isFinite(r[k]))),ix=fx.map((r,i)=>valid[i]?i:-1).filter(i=>i>=0);
  if(ix.length<300){say("Chưa đủ dữ liệu hợp lệ để train: "+ix.length);return}
  const initialTrain=Math.floor(ix.length*.6),X=matrix(fx),confusion=Array.from({length:3},()=>[0,0,0]);
- let correct=0,testCount=0,trades=0,eq=1,folds=0,nextTradeAfter=-1;
+ let correct=0,testCount=0,trades=0,agreementTrades=0,divergenceTrades=0,eq=1,folds=0,nextTradeAfter=-1;tradeSamples=[];
  for(let start=initialTrain;start<ix.length;start+=FOLD_SIZE){
   const trainEnd=start-HORIZON,tr=ix.slice(0,trainEnd),te=ix.slice(start,Math.min(start+FOLD_SIZE,ix.length));
   if(tr.length<100||!te.length)continue;
@@ -85,27 +129,39 @@ function train(){
   for(const i of te){
    const p=probs(W,fx[i],N),pred=p.indexOf(Math.max(...p)),actual=ys[i];
    confusion[actual][pred]++;testCount++;if(pred===actual)correct++;
-   if(i>=nextTradeAfter&&(p[2]>=.6||p[0]>=.6)){
-    const direction=p[2]>=.6?1:-1,forward=fx[i+HORIZON].last/fx[i].last-1;
-    eq*=Math.max(0,1+direction*forward-ROUND_TRIP_FEE);trades++;nextTradeAfter=i+HORIZON+1;
+   const setup=flowBasisSetup(fx[i]),longSignal=p[2]>=.6&&setup.isLong,shortSignal=p[0]>=.6&&setup.isShort;
+   if(i>=nextTradeAfter&&(longSignal||shortSignal)){
+    const direction=longSignal?1:-1,forward=fx[i+HORIZON].last/fx[i].last-1,net=direction*forward-ROUND_TRIP_FEE;
+    eq*=Math.max(0,1+net);trades++;
+    const isAgreement=longSignal?setup.longAgreement:setup.shortAgreement;
+    if(isAgreement)agreementTrades++;else divergenceTrades++;
+    tradeSamples.push({time:fx[i].time,side:direction>0?"LONG":"SHORT",setup:setup.label,buy:fx[i].tbp,sell:fx[i].tsp,basis:fx[i].bpr,net});
+    nextTradeAfter=i+HORIZON+1;
    }
   }
  }
- const recall=[0,1,2].map(c=>{const n=confusion[c].reduce((a,b)=>a+b,0);return n?confusion[c][c]/n:0});
- const bacc=recall.reduce((a,b)=>a+b,0)/3;
- // Retrain on every fully labeled historical candle for the live dashboard prediction.
+ const recall=[0,1,2].map(c=>{const n=confusion[c].reduce((a,b)=>a+b,0);return n?confusion[c][c]/n:0}),bacc=recall.reduce((a,b)=>a+b,0)/3;
  const N=prep(ix.map(i=>X[i]),ix.length),W=fit(normX(ix.map(i=>X[i]),N),ix.map(i=>ys[i]));
- model={W,N};trainedAt=Date.now();$("model").textContent="ML Logistic";
+ model={W,N};trainedAt=Date.now();$("model").textContent="ML + Flow/Basis";
  $("acc").textContent=pct(correct/testCount)+"%";$("bacc").textContent=pct(bacc)+"%";
  $("samples").textContent=testCount.toLocaleString();$("folds").textContent=folds;
- $("trades").textContent=trades.toLocaleString();$("sret").textContent=((eq-1)*100).toFixed(2)+"%";
- predictLatest();say("Walk-forward đã chạy "+folds+" đoạn; dùng "+ix.length.toLocaleString()+" nến hợp lệ / "+rows.length.toLocaleString()+" nến tải được. Train mở rộng theo thời gian, purge "+HORIZON+" nến giữa train/test.");
+ $("trades").textContent=trades.toLocaleString();$("agreementTrades").textContent=agreementTrades.toLocaleString();$("divergenceTrades").textContent=divergenceTrades.toLocaleString();
+ $("sret").textContent=((eq-1)*100).toFixed(2)+"%";renderTradeSamples();predictLatest();
+ say("Walk-forward "+folds+" đoạn; "+ix.length.toLocaleString()+" nến hợp lệ. Tín hiệu chỉ được tính khi ML ≥60% và có đồng thuận hoặc phân kỳ basis–taker; giữ lệnh "+HORIZON+" nến.");
 }
 function predictLatest(){
- if(!model)return;let fx=features(rows),r=fx[fx.length-1],p=probs(model.W,r,model.N);$("ps").textContent=pct(p[0]);$("pn").textContent=pct(p[1]);$("pl").textContent=pct(p[2]);$("psb").style.width=pct(p[0])+"%";$("pnb").style.width=pct(p[1])+"%";$("plb").style.width=pct(p[2])+"%";
- let score=(p[2]-p[0])*100,confirm=live.sell+live.buy?((live.buy-live.sell)/(live.buy+live.sell)):r.ti;let sig=p[2]>=.6&&confirm>-0.05?"LONG":p[0]>=.6&&confirm<0.05?"SHORT":"WAIT";
+ if(!model)return;const fx=features(rows),r=fx[fx.length-1],p=probs(model.W,r,model.N);featureRows=fx;drawStrengthChart();
+ $("ps").textContent=pct(p[0]);$("pn").textContent=pct(p[1]);$("pl").textContent=pct(p[2]);$("psb").style.width=pct(p[0])+"%";$("pnb").style.width=pct(p[1])+"%";$("plb").style.width=pct(p[2])+"%";
+ const setup=flowBasisSetup(r),confirm=live.sell+live.buy?((live.buy-live.sell)/(live.buy+live.sell)):r.ti;
+ const longOk=p[2]>=.6&&setup.isLong&&confirm>-.05,shortOk=p[0]>=.6&&setup.isShort&&confirm<.05,sig=longOk?"LONG":shortOk?"SHORT":"WAIT";
+ const score=(p[2]-p[0])*100+(setup.isLong?15:setup.isShort?-15:0);
  $("signal").textContent=sig;$("signal").className="signal "+sig;$("score").textContent=(score>=0?"+":"")+score.toFixed(1);$("ti").textContent=(confirm*100).toFixed(1)+"%";
- $("reason").textContent="ML: LONG "+pct(p[2])+"% | NEUTRAL "+pct(p[1])+"% | SHORT "+pct(p[0])+"%\nBasis: "+(r.basis>=0?"+":"")+r.basis.toFixed(4)+" ("+r.bp.toFixed(4)+"%)\nTaker imbalance: "+(confirm*100).toFixed(1)+"%\nDecision filter: "+(sig==="WAIT"?"chưa đủ xác nhận":"đủ xác suất + flow confirmation");
+ $("reason").textContent="ML: L "+pct(p[2])+"% | N "+pct(p[1])+"% | S "+pct(p[0])+"%\n"+
+  "Taker percentile: Buy "+r.tbp.toFixed(1)+" / Sell "+r.tsp.toFixed(1)+"\n"+
+  "Basis: "+(r.basis>=0?"+":"")+r.basis.toFixed(4)+" ("+r.bp.toFixed(4)+"%), basis percentile "+r.bpr.toFixed(1)+"\n"+
+  "Basis 4-bar slope: "+(r.bslope>=0?"+":"")+r.bslope.toFixed(4)+" pp\n"+
+  "Pattern: "+setup.label+" | live taker imbalance "+(confirm*100).toFixed(1)+"%\n"+
+  "Decision: "+(sig==="WAIT"?"chờ ML và basis–flow đồng thuận hoặc phân kỳ xác nhận":"đủ xác suất và điều kiện flow/basis");
 }
 async function getJSON(u){let r=await fetch(u);if(!r.ok)throw Error(r.status);return r.json()}
 async function getKlineHistory(kind){
