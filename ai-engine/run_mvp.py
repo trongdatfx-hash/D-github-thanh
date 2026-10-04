@@ -126,7 +126,7 @@ def run():
     final_model=model();final_model.fit(x.loc[valid,FEATURES],y.loc[valid]);joblib.dump(
         {"model":final_model,"features":FEATURES,"strategy_params":live_params},MODELS/"model.joblib")
     P=probabilities(final_model,x.iloc[-1:][FEATURES])[0];latest=x.iloc[-1]
-    long_setup,short_setup,pattern=setup_signals(x.iloc[-1:],live_params[1],live_params[2])
+    long_setup,short_setup,pattern=setup_signals(x.iloc[-1:],live_params[2],live_params[3])
     directional_mass=float(P[0]+P[2]);long_share=float(P[2]/directional_mass) if directional_mass>0 else .5
     signal="LONG" if directional_mass>=live_params[1] and long_share>=live_params[0] and bool(long_setup[0]) else "SHORT" if directional_mass>=live_params[1] and (1.-long_share)>=live_params[0] and bool(short_setup[0]) else "WAIT"
     result.update(p_short=float(P[0]),p_neutral=float(P[1]),p_long=float(P[2]),score=float((P[2]-P[0])*100),
