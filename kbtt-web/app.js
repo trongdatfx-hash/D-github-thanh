@@ -1,0 +1,14 @@
+const fileEl=document.getElementById('file'),drop=document.getElementById('drop'),rowsEl=document.getElementById('rows'),stats=document.getElementById('stats'),msg=document.getElementById('msg'),dateEl=document.getElementById('date'),daysEl=document.getElementById('days'),send=document.getElementById('send');
+let data=[];
+dateEl.value=new Date().toISOString().slice(0,10);
+fileEl.addEventListener('change',e=>e.target.files[0]&&readFile(e.target.files[0]));
+drop.addEventListener('dragover',e=>{e.preventDefault();drop.style.background='#dbeafe'});
+drop.addEventListener('dragleave',()=>drop.style.background='');
+drop.addEventListener('drop',e=>{e.preventDefault();drop.style.background='';if(e.dataTransfer.files[0])readFile(e.dataTransfer.files[0])});
+document.getElementById('demo').onclick=()=>{data=[['Nguyễn Văn A','01/01/1980','123456789012','Nam','Hà Nội -- Phường Cầu Giấy','Phòng 01'],['Trần Thị B','02/02/1990','','Nữ','Hòa Bình -- Phường Tân Hòa','Phòng 02']];render()};
+function readFile(file){msg.textContent='Đang đọc '+file.name+'...';const r=new FileReader();r.onload=e=>{try{const wb=XLSX.read(e.target.result,{type:'array',cellDates:true});const ws=wb.Sheets[wb.SheetNames[0]];const a=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});data=parseRows(a);render();}catch(err){msg.textContent='Không đọc được file: '+err.message}};r.readAsArrayBuffer(file)}
+function find(row,names){for(const n of names){const i=row.findIndex(x=>String(x).trim().toLowerCase()===n.toLowerCase());if(i>=0)return i}return -1}
+function parseRows(a){if(!a.length)return[];const h=a[0].map(String),iTen=find(h,['Họ tên','hoTen','hoten']),iNs=find(h,['ngaysinh','Ngày sinh']),iThe=find(h,['Số thẻ','soGiayTo','CCCD']),iGt=find(h,['GT','Giới tính']),iDc=find(h,['Địa chỉ','diachi']),iPh=find(h,['Phòng','phong']);if(iTen<0){return a.filter(r=>r.some(Boolean)).slice(0,200).map(r=>[r[1]||'',r[2]||'',r[17]||'',r[7]||'',r[15]||'',r[16]||''])}return a.slice(1).filter(r=>r[iTen]).map(r=>[r[iTen],r[iNs],r[iThe],r[iGt],r[iDc],r[iPh]])}
+function render(){rowsEl.innerHTML='';let good=0;data.forEach((r,n)=>{const tr=document.createElement('tr');const missing=!r[2];if(!missing)good++;const st=missing?'⚠ Thiếu giấy tờ':'✓ Sẵn sàng';tr.innerHTML='<td>'+(n+1)+'</td>'+r.map(v=>'<td>'+esc(v)+'</td>').join('')+'<td class="'+(missing?'bad':'ok')+'">'+st+'</td>';rowsEl.appendChild(tr)});stats.textContent=data.length+' bệnh nhân · '+good+' sẵn sàng · '+(data.length-good)+' cần bổ sung';msg.textContent=data.length?'Đã đọc dữ liệu. Hãy kiểm tra trước khi gửi.':'Không có bệnh nhân hợp lệ.';send.disabled=!good}
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+send.onclick=()=>alert('Bản web GitHub hiện mới là bước kiểm tra. Để gửi thật KBTT, cần nối nút này tới backend Python kbtt_api.py. Không đặt tài khoản KBTT trong JavaScript/GitHub Pages.');
