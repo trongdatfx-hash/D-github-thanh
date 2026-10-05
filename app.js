@@ -4,7 +4,7 @@ const BASIS_API="https://fapi.binance.com/futures/data/basis";
 const WSBASE="wss://fstream.binance.com/market/stream?streams=";
 const TFMS={ "1m":60000,"5m":300000,"15m":900000,"30m":1800000,"1h":3600000,"2h":7200000,"4h":14400000,"1d":86400000 };
 let tf="15m", days=7, bars=[], ws=null, canvas,ctx,tip,crossV,crossH;
-let basisOn=false,basisData=[],basisMap=new Map(),basisPoll=null; let lsOn=true,lsData=[],lsPoll=null;
+let basisOn=false,basisData=[],basisMap=new Map(),basisPoll=null; let lsOn=true,lsData=[],lsPoll=null; let divLook=4;
 let strengthOn=true,strengthLen=8,strengthHl=2,strengthLook=500; let first=0, visible=120, dragging=false, dragX=0, dragFirst=0,crosshair={idx:null,x:null,y:null};let drawQueued=false,strengthCache=null,strengthCacheKey="";
 const $=id=>document.getElementById(id);
 function setStatus(s,ok=true){$("status").textContent=s;$("status").className=ok?"ok":"bad"}
@@ -77,6 +77,19 @@ function getTopLSAt(t){
  for(const i of [hi,lo])if(i>=0&&i<lsData.length){const q=lsData[i];if(dayKey(q.t)!==targetDay)continue;if(!best||Math.abs(q.t-t)<Math.abs(best.t-t))best=q}
  return best&&Math.abs(best.t-t)<=step*.55?best:null;
 }
+function topLSDivergenceAt(i,full){
+ if(i<divLook||!full[i])return null;
+ const a=getTopLSAt(full[i].t),p0=full[i-divLook],p1=full[i];
+ const b0=getTopLSAt(p0.t);
+ if(!a||!b0)return null;
+ const priceCh=(p1.c-p0.c)/Math.max(Math.abs(p0.c),1);
+ const longCh=a.longPct-b0.longPct;
+ const netCh=(a.longPct-a.shortPct)-(b0.longPct-b0.shortPct);
+ let type=null;
+ if(priceCh< -0.001 && longCh>0.005) type="BULL";
+ else if(priceCh>0.001 && longCh< -0.005) type="BEAR";
+ return type?{type,priceCh,longCh,netCh}:null;
+}
 function scheduleTopLSPoll(){if(lsPoll)clearInterval(lsPoll);lsPoll=setInterval(()=>{if(lsOn)loadTopLS()},60000)}
 function scheduleBasisPoll(){if(basisPoll)clearInterval(basisPoll);basisPoll=setInterval(()=>{if(basisOn)loadBasis()},60000)}
 async function loadHistory(){
@@ -144,12 +157,24 @@ if(lsOn&&lsData.length&&lsPeriod()){
   const ry=v=>chartTop+chartH-(v-rlo)/(rhi-rlo)*chartH;let prev=null;
   for(let i=0;i<n;i++){const q=getTopLSAt(full[i].t);if(!q){prev=null;continue}const x=left+i*pw+pw/2,y=ry(q.ratio);ctx.strokeStyle="#e7e9ee";ctx.lineWidth=2.3;if(prev&&dayKey(full[i].t)===dayKey(full[i-1].t)){ctx.beginPath();ctx.moveTo(prev.x,prev.y);ctx.lineTo(x,y);ctx.stroke()}prev={x,y}}
   ctx.textAlign="right";ctx.fillStyle="#aab3c2";ctx.font="10px Arial";ctx.fillText(rhi.toFixed(2),W-right,chartTop+4);ctx.fillText(((rhi+rlo)/2).toFixed(2),W-right,chartTop+chartH/2+4);ctx.fillText(rlo.toFixed(2),W-right,chartTop+chartH+4);
-  ctx.textAlign="left";ctx.fillStyle="#e7e9ee";ctx.font="600 12px Arial";ctx.fillText("Top Trader Long/Short · Position · Daily Reset",left,paneTop+16);
+  ctx.textAlign="left";ctx.fillStyle="#e7e9ee";ctx.font="600 12px Arial";ctx.fillText("Top Trader L/S · Divergence · Daily Reset",left,paneTop+16);
   ctx.save();ctx.setLineDash([4,4]);for(let i=0;i<n;i++){if(i===0||dayKey(full[i].t)!==dayKey(full[i-1].t)){const x=left+i*pw;ctx.strokeStyle="rgba(255,255,255,.30)";ctx.beginPath();ctx.moveTo(x,chartTop);ctx.lineTo(x,chartTop+chartH);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle="#aab3c2";ctx.font="9px Arial";ctx.fillText(new Date(full[i].t).toLocaleDateString("en-US",{month:"short",day:"2-digit"}),x+3,chartTop+12);ctx.setLineDash([4,4])}}ctx.restore();
   ctx.fillStyle="#f6465d";ctx.fillRect(left+225,paneTop+8,10,10);ctx.fillStyle="#8d96a7";ctx.font="10px Arial";ctx.fillText("Short %",left+240,paneTop+17);
   ctx.fillStyle="#2ebd85";ctx.fillRect(left+292,paneTop+8,10,10);ctx.fillStyle="#8d96a7";ctx.fillText("Long %",left+307,paneTop+17);
   ctx.fillStyle="#e7e9ee";ctx.fillRect(left+362,paneTop+8,18,2);ctx.fillStyle="#8d96a7";ctx.fillText("Long/Short Ratio",left+385,paneTop+17);
   const last=getTopLSAt(full[n-1].t);if(last){ctx.fillStyle="#e7e9ee";ctx.font="11px Arial";ctx.fillText("L "+(last.longPct*100).toFixed(1)+"%  S "+(last.shortPct*100).toFixed(1)+"%  Ratio "+last.ratio.toFixed(3),left,paneTop+lsH-5)}
+  // Divergence markers: price down + top-trader Long rising = bullish; price up + Long falling = bearish.
+  for(let i=divLook;i<n;i++){
+    const d=topLSDivergenceAt(i,full); if(!d)continue;
+    const x=left+i*pw+pw/2, b=full[i];
+    const y=d.type==="BULL"?py(b.l)-8:py(b.h)+8;
+    ctx.fillStyle=d.type==="BULL"?"#2ebd85":"#f6465d";
+    ctx.beginPath();
+    if(d.type==="BULL"){ctx.moveTo(x,y-6);ctx.lineTo(x-6,y+5);ctx.lineTo(x+6,y+5)}
+    else{ctx.moveTo(x,y+6);ctx.lineTo(x-6,y-5);ctx.lineTo(x+6,y-5)}
+    ctx.closePath();ctx.fill();
+    ctx.font="bold 9px Arial";ctx.textAlign="center";ctx.fillText(d.type==="BULL"?"BULL DIV":"BEAR DIV",x,d.type==="BULL"?y-9:y+16);
+  }
   ctx.restore();
  }
 }
