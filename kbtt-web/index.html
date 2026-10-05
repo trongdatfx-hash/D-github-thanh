@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KBTT Bệnh nhân</title><link rel="stylesheet" href="./style.css"></head>
+<body><main class="wrap">
+<header><div><div class="eyebrow">HỆ THỐNG KBTT</div><h1>Đăng ký tạm trú bệnh nhân</h1><p>Upload Excel → kiểm tra → bổ sung → đăng ký.</p></div><div class="badge">BẢN THỬ NGHIỆM</div></header>
+<section class="card upload"><h2>1. Nhập danh sách bệnh nhân</h2>
+<label class="drop" id="drop"><input id="file" type="file" accept=".xlsx,.xls,.csv"><b>📁 Chọn file Excel</b><span>hoặc kéo thả file vào đây</span><small>Không upload dữ liệu lên GitHub. File được đọc trực tiếp trong trình duyệt.</small></label>
+<div class="controls"><label>Ngày vào viện <input id="date" type="date"></label><label>Số ngày dự kiến <input id="days" type="number" min="1" value="7"></label><button id="demo" class="secondary">Nạp dữ liệu mẫu</button></div>
+</section>
+<section class="card"><div class="section-head"><h2>2. Kiểm tra dữ liệu</h2><div id="stats">Chưa có file</div></div>
+<div id="msg" class="msg">Chưa có dữ liệu.</div><div class="table-wrap"><table><thead><tr><th>STT</th><th>Họ tên</th><th>Ngày sinh</th><th>Giấy tờ</th><th>Địa chỉ</th><th>Ngày đến</th><th>Ngày đi</th><th>Phòng</th><th>Trạng thái</th></tr></thead><tbody id="rows"></tbody></table></div></section>
+<section class="card actions"><h2>3. Đăng ký</h2><p id="apiState">Backend KBTT chưa kết nối. Bản GitHub Pages chỉ xử lý giao diện/kiểm tra Excel.</p><button id="send" disabled>ĐĂNG KÝ TẠM TRÚ</button></section>
+</main><script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script><script src="./app.js"></script></body></html>
