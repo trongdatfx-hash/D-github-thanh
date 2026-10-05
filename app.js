@@ -67,10 +67,14 @@ async function loadTopLS(){
  }catch(e){console.warn("Top Trader L/S load failed:",e);lsData=[]}
  requestDraw();
 }
+function dayKey(t){
+ const d=new Date(t);
+ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
 function getTopLSAt(t){
- if(!lsData.length)return null; const step=TFMS[lsPeriod()]||900000; let lo=0,hi=lsData.length-1,best=null;
- while(lo<=hi){const m=(lo+hi)>>1,v=lsData[m].t;if(v<t)lo=m+1;else if(v>t)hi=m-1;else return lsData[m]}
- for(const i of [hi,lo])if(i>=0&&i<lsData.length){const q=lsData[i];if(!best||Math.abs(q.t-t)<Math.abs(best.t-t))best=q}
+ if(!lsData.length)return null; const step=TFMS[lsPeriod()]||900000; const targetDay=dayKey(t); let lo=0,hi=lsData.length-1,best=null;
+ while(lo<=hi){const m=(lo+hi)>>1,v=lsData[m].t;if(v<t)lo=m+1;else if(v>t)hi=m-1;else return dayKey(v)===targetDay?lsData[m]:null}
+ for(const i of [hi,lo])if(i>=0&&i<lsData.length){const q=lsData[i];if(dayKey(q.t)!==targetDay)continue;if(!best||Math.abs(q.t-t)<Math.abs(best.t-t))best=q}
  return best&&Math.abs(best.t-t)<=step*.55?best:null;
 }
 function scheduleTopLSPoll(){if(lsPoll)clearInterval(lsPoll);lsPoll=setInterval(()=>{if(lsOn)loadTopLS()},60000)}
@@ -138,9 +142,10 @@ if(lsOn&&lsData.length&&lsPeriod()){
   for(let j=0;j<=2;j++){const yy=chartTop+j*chartH/2;ctx.strokeStyle="#303642";ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(W-right,yy);ctx.stroke();ctx.fillStyle="#7e899d";ctx.fillText((100-j*50)+"%",left-9,yy+4)}
   const ratios=pts.map(q=>q.ratio).filter(isFinite);let rlo=Math.min(...ratios),rhi=Math.max(...ratios);if(!(rhi>rlo)){rlo=Math.max(.1,rlo-.05);rhi+=.05}else{const rp=(rhi-rlo)*.12;rlo=Math.max(.01,rlo-rp);rhi+=rp}
   const ry=v=>chartTop+chartH-(v-rlo)/(rhi-rlo)*chartH;let prev=null;
-  for(let i=0;i<n;i++){const q=getTopLSAt(full[i].t);if(!q){prev=null;continue}const x=left+i*pw+pw/2,y=ry(q.ratio);ctx.strokeStyle="#e7e9ee";ctx.lineWidth=2.3;if(prev){ctx.beginPath();ctx.moveTo(prev.x,prev.y);ctx.lineTo(x,y);ctx.stroke()}prev={x,y}}
+  for(let i=0;i<n;i++){const q=getTopLSAt(full[i].t);if(!q){prev=null;continue}const x=left+i*pw+pw/2,y=ry(q.ratio);ctx.strokeStyle="#e7e9ee";ctx.lineWidth=2.3;if(prev&&dayKey(full[i].t)===dayKey(full[i-1].t)){ctx.beginPath();ctx.moveTo(prev.x,prev.y);ctx.lineTo(x,y);ctx.stroke()}prev={x,y}}
   ctx.textAlign="right";ctx.fillStyle="#aab3c2";ctx.font="10px Arial";ctx.fillText(rhi.toFixed(2),W-right,chartTop+4);ctx.fillText(((rhi+rlo)/2).toFixed(2),W-right,chartTop+chartH/2+4);ctx.fillText(rlo.toFixed(2),W-right,chartTop+chartH+4);
-  ctx.textAlign="left";ctx.fillStyle="#e7e9ee";ctx.font="600 12px Arial";ctx.fillText("Top Trader Long/Short · Position",left,paneTop+16);
+  ctx.textAlign="left";ctx.fillStyle="#e7e9ee";ctx.font="600 12px Arial";ctx.fillText("Top Trader Long/Short · Position · Daily Reset",left,paneTop+16);
+  ctx.save();ctx.setLineDash([4,4]);for(let i=0;i<n;i++){if(i===0||dayKey(full[i].t)!==dayKey(full[i-1].t)){const x=left+i*pw;ctx.strokeStyle="rgba(255,255,255,.30)";ctx.beginPath();ctx.moveTo(x,chartTop);ctx.lineTo(x,chartTop+chartH);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle="#aab3c2";ctx.font="9px Arial";ctx.fillText(new Date(full[i].t).toLocaleDateString("en-US",{month:"short",day:"2-digit"}),x+3,chartTop+12);ctx.setLineDash([4,4])}}ctx.restore();
   ctx.fillStyle="#f6465d";ctx.fillRect(left+225,paneTop+8,10,10);ctx.fillStyle="#8d96a7";ctx.font="10px Arial";ctx.fillText("Short %",left+240,paneTop+17);
   ctx.fillStyle="#2ebd85";ctx.fillRect(left+292,paneTop+8,10,10);ctx.fillStyle="#8d96a7";ctx.fillText("Long %",left+307,paneTop+17);
   ctx.fillStyle="#e7e9ee";ctx.fillRect(left+362,paneTop+8,18,2);ctx.fillStyle="#8d96a7";ctx.fillText("Long/Short Ratio",left+385,paneTop+17);
