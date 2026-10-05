@@ -52,11 +52,18 @@ function normTopLS(x){
 }
 async function loadTopLS(){
  lsData=[]; const period=lsPeriod(); if(!lsOn||!period||!bars.length){requestDraw();return}
- const end=Date.now(),start=Math.max(bars[0].t,end-days*86400000);
+ const end=Date.now(),start=Math.max(bars[0].t,end-days*86400000),all=[]; let cursor=start;
  try{
-  const u="https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol="+encodeURIComponent(SYMBOL)+"&period="+period+"&limit=500&startTime="+start+"&endTime="+end;
-  const a=await fetchJson(u);
-  lsData=(Array.isArray(a)?a:[]).map(normTopLS).filter(x=>isFinite(x.t)&&isFinite(x.ratio)&&x.ratio>0).sort((a,b)=>a.t-b.t);
+  while(cursor<end){
+   const u="https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol="+encodeURIComponent(SYMBOL)+"&period="+period+"&limit=500&startTime="+cursor+"&endTime="+end;
+   const a=await fetchJson(u); if(!Array.isArray(a)||!a.length)break;
+   all.push(...a);
+   const next=+a[a.length-1].timestamp+(TFMS[period]||900000);
+   if(next<=cursor)break; cursor=next; if(a.length<500)break;
+   await new Promise(r=>setTimeout(r,80));
+  }
+  const seen=new Set();
+  lsData=all.map(normTopLS).filter(x=>isFinite(x.t)&&isFinite(x.ratio)&&x.ratio>0&&!seen.has(x.t)&&(seen.add(x.t),true)).sort((a,b)=>a.t-b.t);
  }catch(e){console.warn("Top Trader L/S load failed:",e);lsData=[]}
  requestDraw();
 }
