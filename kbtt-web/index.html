@@ -1,16 +1,15 @@
 <!doctype html>
 <html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>KBTT Bệnh nhân</title><link rel="stylesheet" href="./style.css"></head>
+<title>KBTT - Chuẩn dữ liệu lưu trú</title><link rel="stylesheet" href="./style.css"></head>
 <body><main class="wrap">
-<header><div><div class="eyebrow">HỆ THỐNG KBTT</div><h1>Đăng ký tạm trú bệnh nhân</h1><p>Excel tại máy → kiểm tra/sửa → Python bệnh viện → KBTT.</p></div><div class="badge">BẢN THỬ NGHIỆM</div></header>
+<header><div><div class="eyebrow">HỆ THỐNG KBTT</div><h1>Chuẩn hóa dữ liệu lưu trú bệnh nhân</h1><p>Nhập Excel → bổ sung/sửa → xuất đúng mẫu 19 cột KBTT → gửi Python bệnh viện.</p></div><div class="badge">BẢN THỬ NGHIỆM</div></header>
 <section class="card connect"><div class="section-head"><h2>0. Kết nối Python tại máy bệnh viện</h2><span id="connBadge" class="pill off">Chưa kiểm tra</span></div>
-<div class="connect-row"><label>Địa chỉ backend <input id="apiUrl" value="http://127.0.0.1:8765"></label><button id="checkApi" class="secondary">KIỂM TRA KẾT NỐI</button></div>
-<small>File Excel không được tải lên GitHub. Khi gửi, trình duyệt chỉ chuyển dữ liệu đã kiểm tra tới Python chạy trên chính máy bệnh viện.</small></section>
-<section class="card upload"><h2>1. Nhập danh sách bệnh nhân</h2>
-<label class="drop" id="drop"><input id="file" type="file" accept=".xlsx,.xls,.csv"><b>📁 Chọn file Excel</b><span>hoặc kéo thả file vào đây</span><small>Excel được đọc cục bộ trong trình duyệt.</small></label>
-<div class="controls"><label>Ngày vào viện <input id="date" type="date"></label><label>Số ngày dự kiến <input id="days" type="number" min="1" value="7"></label><button id="demo" class="secondary">NẠP DỮ LIỆU MẪU</button></div>
-</section>
-<section class="card"><div class="section-head"><h2>2. Kiểm tra dữ liệu</h2><div id="stats">Chưa có file</div></div>
-<div id="msg" class="msg">Chưa có dữ liệu.</div><div class="table-wrap"><table><thead><tr><th>STT</th><th>Họ tên</th><th>Ngày sinh</th><th>Giấy tờ</th><th>Giới tính</th><th>Địa chỉ</th><th>Ngày đến</th><th>Ngày đi</th><th>Phòng</th><th>Trạng thái</th></tr></thead><tbody id="rows"></tbody></table></div></section>
-<section class="card actions"><h2>3. Đăng ký</h2><p id="apiState">Có thể thử giao diện ngay. Muốn gửi sang KBTT cần bật Python backend trên máy bệnh viện.</p><button id="send" disabled>ĐĂNG KÝ TẠM TRÚ</button><div id="result" class="result"></div></section>
+<div class="connect-row"><label>Địa chỉ backend <input id="apiUrl" value="http://127.0.0.1:8765"></label><button id="checkApi" class="secondary">KIỂM TRA</button></div>
+<small>Excel được đọc ngay trên máy. Không tải dữ liệu bệnh nhân lên GitHub.</small></section>
+<section class="card upload"><h2>1. Nhập danh sách</h2>
+<label class="drop" id="drop"><input id="file" type="file" accept=".xlsx,.xls,.csv"><b>📁 CHỌN FILE EXCEL</b><span>File nguồn hoặc file mẫu KBTT đều được</span><small>Hệ thống tự tìm dòng tiêu đề chuẩn có “HỌ TÊN (*)”.</small></label>
+<div class="controls"><label>Ngày đến mặc định <input id="date" type="date"></label><label>Số ngày dự kiến <input id="days" type="number" min="1" value="7"></label><button id="demo" class="secondary">NẠP MẪU</button><button id="export" class="secondary" disabled>⬇ XUẤT EXCEL CHUẨN KBTT</button></div></section>
+<section class="card"><div class="section-head"><h2>2. Kiểm tra & bổ sung</h2><div id="stats">Chưa có file</div></div>
+<div id="msg" class="msg">Chưa có dữ liệu.</div><div class="table-wrap"><table><thead id="thead"></thead><tbody id="rows"></tbody></table></div></section>
+<section class="card actions"><h2>3. Gửi đi</h2><p id="apiState">Chưa kết nối Python.</p><button id="send" disabled>ĐĂNG KÝ TẠM TRÚ QUA PYTHON</button><div id="result" class="result"></div></section>
 </main><script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script><script src="./app.js"></script></body></html>
