@@ -33,11 +33,11 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-acti
  <div><div class="title">SPYUSDT.P — Price + Taker Buy/Sell Volume</div><div class="sub">Binance USDⓈ-M Futures · live</div></div>
  <select id="tf"><option value="1m">1m</option><option value="5m">5m</option><option value="15m" selected>15m</option><option value="30m">30m</option><option value="1h">1h</option><option value="2h">2h</option><option value="4h">4h</option><option value="1d">1D</option></select>
  <select id="range"><option value="1">1D</option><option value="3">3D</option><option value="7" selected>7D</option><option value="14">14D</option><option value="30">30D</option></select>
- <button id="left">◀</button><button id="right">▶</button><button id="fit">Fit</button><button id="refresh">↻ Reload</button><label style="font-size:11px;color:#aab3c2"><input id="strOn" type="checkbox" checked> Strength</label><label style="font-size:11px;color:#aab3c2"><input id="basisOn" type="checkbox"> Basis</label><select id="strLen"><option value="5">S5</option><option value="8" selected>S8</option><option value="14">S14</option><option value="20">S20</option></select><select id="strHl"><option value="0">EWMA 0</option><option value="1">EWMA 1</option><option value="2" selected>EWMA 2</option><option value="3">EWMA 3</option><option value="5">EWMA 5</option></select>
+ <button id="left">◀</button><button id="right">▶</button><button id="fit">Fit</button><button id="refresh">↻ Reload</button><label style="font-size:11px;color:#aab3c2"><input id="strOn" type="checkbox" checked> Strength</label><label style="font-size:11px;color:#aab3c2"><input id="basisOn" type="checkbox"> Basis</label><label style="font-size:11px;color:#aab3c2"><input id="lsOn" type="checkbox" checked> Top L/S</label><select id="strLen"><option value="5">S5</option><option value="8" selected>S8</option><option value="14">S14</option><option value="20">S20</option></select><select id="strHl"><option value="0">EWMA 0</option><option value="1">EWMA 1</option><option value="2" selected>EWMA 2</option><option value="3">EWMA 3</option><option value="5">EWMA 5</option></select>
  <span style="font-size:11px;color:#7f899a">Wheel=zoom · Drag=pan · Crosshair</span>
  <div id="status" class="bad">Loading…</div>
 </div>
 <div id="wrap"><canvas id="c"></canvas><div id="crossV"></div><div id="crossH"></div><div id="tip"></div><div id="err"></div></div>
-<script src="app.js?v=20261004-basis4"></script>
+<script src="app.js?v=20261005-topls1"></script>
 </body>
 </html>
