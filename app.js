@@ -94,7 +94,7 @@ function requestDraw(){if(drawQueued)return;drawQueued=true;requestAnimationFram
 function draw(){
  if(!ctx||!bars.length)return;const W=canvas.clientWidth,H=canvas.clientHeight;ctx.clearRect(0,0,W,H);ctx.fillStyle="#171a21";ctx.fillRect(0,0,W,H);
  const left=70,right=72,top=55,bottom=38,gap=18,full=bars.slice(Math.max(0,first),Math.min(bars.length,first+visible));if(!full.length)return;
- const n=full.length,pw=(W-left-right)/n,basisH=basisOn?Math.max(88,Math.floor(H*.17)):0,lsH=lsOn?Math.max(128,Math.floor(H*.23)):0,lowerTop=H-bottom-lsH-basisH,basisTop=lowerTop,basisBottom=basisTop+basisH,lsTop=H-bottom-lsH,priceH=Math.floor(H*(basisOn||lsOn?.43:.54)),volTop=top+priceH+gap,volH=Math.max(70,lowerTop-volTop-gap),body=Math.max(2,Math.min(8,pw*.62)),vbar=Math.max(2,Math.min(6,pw*.28));
+ const n=full.length,pw=(W-left-right)/n,basisH=basisOn?Math.max(88,Math.floor(H*.17)):0,lsH=lsOn?Math.max(128,Math.floor(H*.23)):0,lowerTop=H-bottom-lsH-basisH,basisTop=lowerTop,basisBottom=basisTop+basisH,lsTop=H-bottom-lsH,priceH=Math.floor(H*(basisOn||lsOn ? .43 : .54)),volTop=top+priceH+gap,volH=Math.max(70,lowerTop-volTop-gap),body=Math.max(2,Math.min(8,pw*.62)),vbar=Math.max(2,Math.min(6,pw*.28));
  let plo=Math.min(...full.map(b=>b.l)),phi=Math.max(...full.map(b=>b.h));let pr=phi-plo;if(!isFinite(pr)||pr<=0)pr=Math.max(Math.abs(phi)*0.002,0.01);const pp=pr*0.08;plo-=pp;phi+=pp;
  let vmax=Math.max(...full.map(b=>Math.max(b.buy,b.sell)),1);const stepRaw=vmax/3,p10=Math.pow(10,Math.floor(Math.log10(stepRaw||1))),nm=stepRaw/p10,vstep=(nm<=1?1:nm<=2?2:nm<=5?5:10)*p10;vmax=vstep*3;
  const py=v=>top+(phi-v)/(phi-plo)*priceH,vy=v=>volTop+volH-(v/vmax)*volH;
