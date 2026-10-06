@@ -218,8 +218,30 @@ function percentile(data,i,key,n){
  for(let j=i-n+1;j<=i;j++){const v=data[j][key];if(!Number.isFinite(v))return NaN;if(v<value)less++;else if(v===value)equal++}
  return 100*(less+(equal-1)/2)/n;
 }
+const NF_DEADBAND_PCT=2,NF_EMA_SPAN=5,NF_CLUSTER_MIN=3;
+function addNetflowRegimes(data){
+ const alpha=2/(NF_EMA_SPAN+1);let smooth=NaN,regime=0,run=0,episodeSampled=false;
+ for(const r of data){
+  const raw=Number(r.netflowPct);
+  if(!Number.isFinite(raw)){
+   smooth=NaN;regime=0;run=0;episodeSampled=false;
+   r.netflowEma=NaN;r.netflowRegime=NaN;r.netflowConflict=NaN;r.netflowRun=0;r.netflowClusterSignal=NaN;
+   continue;
+  }
+  smooth=Number.isFinite(smooth)?smooth+alpha*(raw-smooth):raw;
+  const previous=regime;
+  if(smooth>NF_DEADBAND_PCT)regime=1;else if(smooth<-NF_DEADBAND_PCT)regime=-1;
+  if(regime===0){run=0;episodeSampled=false}
+  else if(regime!==previous){run=1;episodeSampled=false}
+  else run++;
+  const conflict=regime!==0&&raw*regime<0;
+  let cluster=0;
+  if(regime!==0&&run>=NF_CLUSTER_MIN&&!conflict&&!episodeSampled){cluster=regime;episodeSampled=true}
+  r.netflowEma=smooth;r.netflowRegime=regime;r.netflowConflict=conflict?1:0;r.netflowRun=run;r.netflowClusterSignal=cluster;
+ }
+}
 function features(data){
- const x=data.map(r=>({...r}));let cvd=0;const strength=calcStrengthLine(x);
+ const x=data.map(r=>({...r}));let cvd=0;const strength=calcStrengthLine(x);addNetflowRegimes(x);
  const liqScale=(i)=>{const w=windowStats(x,i,PCT_WINDOW,q=>q.liqNet);return Number.isFinite(x[i].liqNet)?x[i].liqNet/w.std:0};
  for(let i=0;i<x.length;i++){
   const r=x[i],prev=x[i-1];
@@ -344,13 +366,13 @@ async function pagedHistory(url,limitField="limit",tsKey="timestamp",maxItems=AU
  }
  return [...map.values()].sort((a,b)=>Number(a.timestamp??a.time??a.fundingTime)-Number(b.timestamp??b.time??b.fundingTime));
 }
-async function getKlineHistory(kind){
+async function getKlineHistory(kind,symbol="SPYUSDT"){
  const all=new Map();let endTime=null;
  while(all.size<TARGET_CANDLES){
   let path,params;
-  if(kind==="last"){path="klines";params={symbol:"SPYUSDT",interval:"15m",limit:String(PAGE_SIZE)}}
-  else if(kind==="mark"){path="markPriceKlines";params={symbol:"SPYUSDT",interval:"15m",limit:String(PAGE_SIZE)}}
-  else{path="indexPriceKlines";params={pair:"SPYUSDT",interval:"15m",limit:String(PAGE_SIZE)}}
+  if(kind==="last"){path="klines";params={symbol,interval:"15m",limit:String(PAGE_SIZE)}}
+  else if(kind==="mark"){path="markPriceKlines";params={symbol,interval:"15m",limit:String(PAGE_SIZE)}}
+  else{path="indexPriceKlines";params={pair:symbol,interval:"15m",limit:String(PAGE_SIZE)}}
   if(endTime!==null)params.endTime=String(endTime);
   const batch=await getJSON("https://fapi.binance.com/fapi/v1/"+path+"?"+new URLSearchParams(params));
   if(!Array.isArray(batch)||!batch.length)break;
@@ -381,8 +403,9 @@ function aggregateLiquidations(forceOrders){
  for(const q of forceOrders){const t=Number(q.time),price=Number(q.averagePrice||q.price),qty=Number(q.origQty),quote=price*qty,start=Math.floor(t/900000)*900000;if(!Number.isFinite(quote))continue;let z=map.get(start)||{liqLong:0,liqShort:0,liqNet:0};if(q.side==="SELL"){z.liqLong+=quote;z.liqNet-=quote}else if(q.side==="BUY"){z.liqShort+=quote;z.liqNet+=quote}map.set(start,z)}
  return map;
 }
-function rowsFromCandles(k,m,i,aux,closedOnly=true){
+function rowsFromCandles(k,m,i,aux,closedOnly=true,qqq=[]){
  const mm=new Map(m.map(q=>[Number(q[0]),+q[4]])),ii=new Map(i.map(q=>[Number(q[0]),+q[4]])),lm=new Map(aux.ls.map(q=>[Number(q.timestamp),Number(q.longShortRatio)])),am=new Map(aux.acct.map(q=>[Number(q.timestamp),Number(q.longShortRatio)])),gm=new Map(aux.globalLS.map(q=>[Number(q.timestamp),Number(q.longShortRatio)])),tm=new Map(aux.taker.map(q=>[Number(q.timestamp),Number(q.buySellRatio)])),om=new Map(aux.oi.map(q=>[Number(q.timestamp),Number(q.sumOpenInterestValue||q.sumOpenInterest)])),fm=aux.fr,liq=aggregateLiquidations(aux.fo);
+ const qm=new Map(qqq.map(q=>[Number(q[0]),q]));
  let lastLS=1,lastAcct=1,lastGlobal=1,lastTaker=1,lastOI=NaN,lastFunding=0;
  return k.map(q=>{
   const t=Number(q[0]),close=+q[4],mark=Number.isFinite(mm.get(t))?mm.get(t):close,index=Number.isFinite(ii.get(t))?ii.get(t):close;
@@ -390,22 +413,25 @@ function rowsFromCandles(k,m,i,aux,closedOnly=true){
   const ov=om.get(t);if(Number.isFinite(ov))lastOI=ov;
   const fv=seriesValue(fm,t,"fundingRate");if(Number.isFinite(fv))lastFunding=fv;
   const l=liq.get(t)||liqByBucket.get(t)||{liqLong:0,liqShort:0,liqNet:0};
-  return {time:t,closeTime:+q[6],last:close,open:+q[1],high:+q[2],low:+q[3],volume:+q[5],tbuy:+q[9],tsell:+q[5]-+q[9],mark,index,basis:close-index,topLS:lastLS,topAcctLS:lastAcct,globalLS:lastGlobal,takerRatio:lastTaker,oi:lastOI,funding:lastFunding,liqLong:l.liqLong,liqShort:l.liqShort,liqNet:l.liqNet};
+  const qq=qm.get(t),qClose=qq?Number(qq[4]):NaN,qVol=qq?Number(qq[5]):NaN,qBuy=qq?Number(qq[9]):NaN,spyQuote=Number(q[5])*close,spyNet=(2*Number(q[9])-Number(q[5]))*close,qqqQuote=qVol*qClose,qqqNet=(2*qBuy-qVol)*qClose,netflowPct=qq&&spyQuote+qqqQuote>0?100*(spyNet+qqqNet)/(spyQuote+qqqQuote):NaN;
+  return {time:t,closeTime:+q[6],last:close,open:+q[1],high:+q[2],low:+q[3],volume:+q[5],tbuy:+q[9],tsell:+q[5]-+q[9],mark,index,basis:close-index,topLS:lastLS,topAcctLS:lastAcct,globalLS:lastGlobal,takerRatio:lastTaker,oi:lastOI,funding:lastFunding,liqLong:l.liqLong,liqShort:l.liqShort,liqNet:l.liqNet,netflowPct};
  }).filter(r=>Number.isFinite(r.last)&&(!closedOnly||r.closeTime<Date.now()));
 }
-async function getRecentKlines(kind,limit=20){
- let path,params;if(kind==="last"){path="klines";params={symbol:"SPYUSDT",interval:"15m",limit:String(limit)}}else if(kind==="mark"){path="markPriceKlines";params={symbol:"SPYUSDT",interval:"15m",limit:String(limit)}}else{path="indexPriceKlines";params={pair:"SPYUSDT",interval:"15m",limit:String(limit)}}return getJSON("https://fapi.binance.com/fapi/v1/"+path+"?"+new URLSearchParams(params));
+async function getRecentKlines(kind,limit=20,symbol="SPYUSDT"){
+ let path,params;if(kind==="last"){path="klines";params={symbol,interval:"15m",limit:String(limit)}}else if(kind==="mark"){path="markPriceKlines";params={symbol,interval:"15m",limit:String(limit)}}else{path="indexPriceKlines";params={pair:symbol,interval:"15m",limit:String(limit)}}return getJSON("https://fapi.binance.com/fapi/v1/"+path+"?"+new URLSearchParams(params));
 }
 async function refreshAux(){const a=await getAux();if(a.ls.length)live.topLS=Number(a.ls.at(-1)?.longShortRatio);if(a.oi.length)live.oi=Number(a.oi.at(-1)?.sumOpenInterestValue||a.oi.at(-1)?.sumOpenInterest);if(a.fr.length)live.funding=Number(a.fr.at(-1)?.fundingRate);return a}
 async function loadHistory(){
  say("Đang tải 15m + Top L/S + Open Interest + Funding + Liquidation từ Binance…");
- const [k,m,i,aux]=await Promise.all([
+ const [k,m,i,aux,qqq]=await Promise.all([
   getKlineHistory("last"),
   getKlineHistory("mark").catch(e=>{console.warn("Mark Price history unavailable:",e);return[]}),
   getKlineHistory("index").catch(e=>{console.warn("Index Price history unavailable:",e);return[]}),
-  getAux()
+  getAux(),
+  getKlineHistory("last","QQQUSDT").catch(e=>{console.warn("QQQ NetFlow proxy unavailable:",e);return[]})
  ]);
- rows=rowsFromCandles(k,m,i,aux,true).slice(-TARGET_CANDLES);if(!rows.length)throw Error("Không tải được Kline SPYUSDT từ Binance");
+ rows=rowsFromCandles(k,m,i,aux,true,qqq).slice(-TARGET_CANDLES);if(!rows.length)throw Error("Không tải được Kline SPYUSDT từ Binance");
+ if(!qqq.length)console.warn("QQQ NetFlow proxy unavailable — matrix will show NO DATA");
  if(!m.length)console.warn("Mark Price unavailable — using last price fallback");
  if(!i.length)console.warn("Index Price unavailable — using last price fallback");
  if(!aux.ls.length)console.warn("Top L/S unavailable — fallback neutral");if(!aux.oi.length)console.warn("OI unavailable — fallback neutral");
@@ -415,13 +441,14 @@ async function refreshAndTrain(){
  if(refreshBusy||!rows.length)return;refreshBusy=true;
  try{
   say("Đang cập nhật nến + flow derivatives…");
-  const [k,m,i,aux]=await Promise.all([
+  const [k,m,i,aux,qqq]=await Promise.all([
    getRecentKlines("last"),
    getRecentKlines("mark").catch(e=>{console.warn("Mark update unavailable:",e);return[]}),
    getRecentKlines("index").catch(e=>{console.warn("Index update unavailable:",e);return[]}),
-   getAux()
+   getAux(),
+   getRecentKlines("last",20,"QQQUSDT").catch(e=>{console.warn("QQQ NetFlow update unavailable:",e);return[]})
   ]);
-  const fresh=rowsFromCandles(k,m,i,aux,true),map=new Map(rows.map(r=>[r.time,r]));
+  const fresh=rowsFromCandles(k,m,i,aux,true,qqq),map=new Map(rows.map(r=>[r.time,r]));
   for(const r of fresh)map.set(r.time,r);
   rows=[...map.values()].sort((a,b)=>a.time-b.time).slice(-TARGET_CANDLES);
   renderLive();train();
@@ -470,6 +497,7 @@ function matrixFactorDefs(){
   ["Taker Buy/Sell Ratio","takerRatio",v=>Math.tanh(Math.log(Math.max(.05,v))*1.4),"takerRatio"],
   ["OI Regime","oiDelta",v=>Math.tanh(v),"oi"],
   ["Funding","fundingZ",v=>-Math.tanh(v/2),"funding"],
+  ["NetFlow cluster · SPY+QQQ proxy","netflowClusterSignal",v=>v,"netflow"],
   ["Liquidation","liqNetZ",v=>Math.tanh(v/2),"liq"],
   ["Basis","bz",v=>Math.tanh(v/2),"basis"],
   ["Flow/Price Divergence","flowPriceDiv",v=>v,"div"]
@@ -501,22 +529,23 @@ function runSignalMatrix(){
  const THR=.15,HS=[1,2,4,8],FEE_BPS=ROUND_TRIP_FEE*1e4,rowsM=featureRows;
  const defs=matrixFactorDefs(),tbody=document.querySelector("#matrixTable tbody");let html="",usable=0;
  const pUp={};for(const h of HS){let u=0,c=0;for(let i=0;i<rowsM.length-h;i++){const r=rowsM[i+h].last/rowsM[i].last-1;if(Number.isFinite(r)){c++;if(r>0)u++}}pUp[h]=c?u/c:.5}
- const evalH=(vals,h,step)=>{let n=0,w=0,nb=0,sum=0;for(let i=0;i<rowsM.length-h;i+=step){const b=vals[i];if(!Number.isFinite(b)||Math.abs(b)<THR)continue;const ret=rowsM[i+h].last/rowsM[i].last-1;if(!Number.isFinite(ret))continue;const d=b>0?1:-1;n++;if(d*ret>0)w++;if(d>0)nb++;sum+=d*ret}
+ const evalH=(vals,h,step,episodes=false)=>{let n=0,w=0,nb=0,sum=0,nextEligible=0;for(let i=0;i<rowsM.length-h;i+=step){if(episodes&&i<nextEligible)continue;const b=vals[i];if(!Number.isFinite(b)||Math.abs(b)<THR)continue;const ret=rowsM[i+h].last/rowsM[i].last-1;if(!Number.isFinite(ret))continue;const d=b>0?1:-1;n++;if(d*ret>0)w++;if(d>0)nb++;sum+=d*ret;if(episodes)nextEligible=i+h}
   const hit=n?100*w/n:NaN,exp=n?100*(nb*pUp[h]+(n-nb)*(1-pUp[h]))/n:NaN;
   return {n,hit,edge:hit-exp,bps:n?1e4*sum/n-FEE_BPS:NaN}};
  for(const [name,key,transform,kind] of defs){
-  const vals=rowsM.map(r=>{const v=Number(r[key]);return Number.isFinite(v)?transform(v):NaN});
-  const cur=kind==="liq"?Math.tanh(liveLiquidationZ()/2):vals.at(-1),res=HS.map(h=>evalH(vals,h,1)),no8=evalH(vals,8,8),r4=res[2];
-  const cls=cur>THR?"matrixBull":cur<-THR?"matrixBear":"matrixNeutral",bias=cur>THR?"BULL":cur<-THR?"BEAR":"NEUTRAL";
+  const vals=kind==="netflow"?rowsM.map(r=>Number(r.netflowClusterSignal)):rowsM.map(r=>{const v=Number(r[key]);return Number.isFinite(v)?transform(v):NaN});
+  const last=rowsM.at(-1),cur=kind==="liq"?Math.tanh(liveLiquidationZ()/2):kind==="netflow"?Number(last?.netflowRegime):vals.at(-1),res=HS.map(h=>evalH(vals,h,1,kind==="netflow")),no8=evalH(vals,8,kind==="netflow"?1:8,kind==="netflow"),r4=res[2];
+  const cls=cur>THR?"matrixBull":cur<-THR?"matrixBear":"matrixNeutral",bias=kind==="netflow"?(Number.isFinite(cur)?(cur>0?"BULL · "+last.netflowRun+" bars"+((last.netflowConflict===1)?" · CONFLICT":""):cur<0?"BEAR · "+last.netflowRun+" bars"+((last.netflowConflict===1)?" · CONFLICT":""):"WAIT · building state"):"NO QQQ DATA"):cur>THR?"BULL":cur<-THR?"BEAR":"NEUTRAL";
   if(Number.isFinite(cur))usable++;
   const f1=x=>Number.isFinite(x)?x.toFixed(1):"—",sg=x=>Number.isFinite(x)?(x>=0?"+":"")+x.toFixed(1):"—";
-  html+="<tr><td>"+name+"</td><td>"+(Number.isFinite(cur)?cur.toFixed(2):"—")+"</td><td class='"+cls+"'>"+bias+"</td>"+
+  const current=kind==="netflow"?(Number.isFinite(last?.netflowPct)?(last.netflowPct>=0?"+":"")+last.netflowPct.toFixed(2)+"% · "+last.netflowRun+"/"+NF_CLUSTER_MIN:"—"):(Number.isFinite(cur)?cur.toFixed(2):"—");
+  html+="<tr><td>"+name+"</td><td>"+current+"</td><td class='"+cls+"'>"+bias+"</td>"+
    res.map(x=>"<td>"+(Number.isFinite(x.hit)?f1(x.hit)+"%":"—")+"</td>").join("")+
    "<td>"+sg(r4.edge)+"</td><td>"+sg(r4.bps)+"</td><td>"+(Number.isFinite(no8.hit)?f1(no8.hit)+"% ("+no8.n+")":"—")+"</td><td>"+res[0].n+"</td></tr>";
  }
  tbody.innerHTML=html;
  const r=rowsM.at(-1),score=Number.isFinite(r?.impactScore)?r.impactScore:0;
- $("matrixNote").textContent="Base up-rate: 1c "+(100*pUp[1]).toFixed(1)+"% · 2c "+(100*pUp[2]).toFixed(1)+"% · 4c "+(100*pUp[4]).toFixed(1)+"% · 8c "+(100*pUp[8]).toFixed(1)+"%. Edge 4 = hit − hit kỳ vọng theo base rate (điểm %); Net bps 4 = lợi nhuận TB có dấu sau phí "+FEE_BPS.toFixed(0)+" bps; Hit 8 NO = lấy mẫu không chồng lấp. In-sample, chỉ thống kê, chưa dùng để đổi tín hiệu ML. Liquidation lấy từ Binance WebSocket; thống kê tích lũy từ lúc mở trang. Current Impact "+(score>=0?"+":"")+score.toFixed(0)+" · "+usable+"/"+defs.length+" factors có dữ liệu.";
+ $("matrixNote").textContent="NetFlow proxy = taker delta notional SPYUSDT + QQQUSDT / tổng notional, EMA "+NF_EMA_SPAN+" nến, dead-band ±"+NF_DEADBAND_PCT.toFixed(1)+"% (RTH-equivalent; không phải bản Pine nguyên gốc). Cụm xác nhận từ "+NF_CLUSTER_MIN+" nến cùng regime, không conflict, một mẫu/cụm và không chồng lấp theo horizon. Hit/edge là thống kê lịch sử in-sample, chưa bật làm bộ lọc lệnh hay trọng số ML. Liquidation lấy từ Binance WebSocket. Current Impact "+(score>=0?"+":"")+score.toFixed(0)+" · "+usable+"/"+defs.length+" factors có dữ liệu.";
 }
 $("matrixRun").onclick=runSignalMatrix;
 </script>
