@@ -27,9 +27,10 @@ table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:7px;bord
 <div><div>NEUTRAL <b id="pn">—</b>%</div><div class="bar"><i id="pnb" class="pn"></i></div></div>
 <div><div>LONG <b id="pl">—</b>%</div><div class="bar"><i id="plb" class="pl"></i></div></div>
 <div class="card"><div class="label">Signal Score</div><div id="score" class="big">—</div></div>
-<div class="card"><div class="label">Current Taker Imbalance</div><div id="ti" class="big">—</div></div>
+<div class="card"><div class="label">Current Taker Imbalance</div><div id="ti" class="big">—</div></div><div class="card"><div class="label">Top Trader L/S</div><div id="topls" class="big">—</div></div><div class="card"><div class="label">Price Impact</div><div id="impact" class="big">—</div></div>
 </div></div>
-<div class="panel"><h3>Taker Strength line × Basis</h3><div id="setupState" class="muted">Waiting for closed candles…</div><canvas id="strengthChart" style="width:100%;height:260px;display:block"></canvas><div class="muted"><span style="color:#36d399">━ Taker Strength S8 / EWMA 2</span> &nbsp; <span style="color:#60a5fa">━ Basis rank mapped to −1…+1</span> · basis/strength divergence windows 8 + 8 · closed candles.</div></div>
+<div class="panel"><h3>Taker Strength line × Basis</h3><div id="setupState" class="muted">Waiting for closed candles…</div><canvas id="strengthChart" style="width:100%;height:260px;display:block"></canvas><div class="muted"><span style="color:#36d399">━ Taker Strength S8 / EWMA 2</span> &nbsp; <span style="color:#60a5fa">━ Basis rank mapped to −1…+1</span> · basis/strength divergence windows 8 + 8 · Top Trader L/S · absorption/price-flow divergence · closed candles.</div></div>
+<div class="panel"><h3>Taker → Price Impact Engine</h3><div id="impactState" class="log">Waiting for flow data…</div><table><tr><th>Flow</th><th>Value</th></tr><tr><td>Taker pressure</td><td id="flowPressure">—</td></tr><tr><td>Top Trader L/S</td><td id="topls2">—</td></tr><tr><td>Top L/S Δ</td><td id="toplsSlope">—</td></tr><tr><td>Absorption</td><td id="absorption">—</td></tr><tr><td>Price–Flow divergence</td><td id="priceFlowDiv">—</td></tr></table></div>
 <div class="two">
 <div class="panel"><h3>ML backtest</h3><table><tr><th>Metric</th><th>Value</th></tr><tr><td>Walk-forward test accuracy</td><td id="acc">—</td></tr><tr><td>Balanced accuracy</td><td id="bacc">—</td></tr><tr><td>Walk-forward test samples</td><td id="samples">—</td></tr><tr><td>Walk-forward folds</td><td id="folds">—</td></tr><tr><td>Trades (ML + flow/basis)</td><td id="trades">—</td></tr><tr><td>Agreement setups</td><td id="agreementTrades">—</td></tr><tr><td>Confirmed divergence setups</td><td id="divergenceTrades">—</td></tr><tr><td>Selected directional odds / mass / strength edge</td><td id="params">—</td></tr><tr><td>Strategy return*</td><td id="sret">—</td></tr></table><p class="muted">*Proxy: 4 bps round-trip cost (2 bps per side); excludes slippage/funding. Research only.</p></div>
 <div class="panel"><h3>Agent reasoning</h3><div id="reason" class="log">Waiting for model…</div><p class="muted">Trade filter: relative LONG/SHORT probability plus the linked Taker Strength line and Basis agreement/divergence; live taker flow is an additional confirmation.</p></div>
@@ -37,8 +38,8 @@ table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:7px;bord
 <div class="panel"><h3>Recent walk-forward trade samples</h3><div style="overflow:auto"><table><thead><tr><th>Time</th><th>Side</th><th>Setup</th><th>Buy %ile</th><th>Sell %ile</th><th>Basis %ile</th><th>4-bar net</th></tr></thead><tbody id="tradeSamples"><tr><td colspan="7">No qualified samples yet</td></tr></tbody></table></div></div><div class="panel"><h3>Status</h3><div id="log" class="log">Loading Binance 15m history…</div></div>
 </div>
 <script>
-const $=id=>document.getElementById(id),TARGET_CANDLES=12000,PAGE_SIZE=1500,HORIZON=4,FOLD_SIZE=600,EPOCHS=30,ROUND_TRIP_FEE=.0004,PCT_WINDOW=96,DIV_WINDOW=8,STRENGTH_LEN=8,STRENGTH_HALF_LIFE=2,STRENGTH_LOOKBACK=500,FEATURES=["r1","r4","r16","bp","bv","ba","bz","mi","ti","cvd4","vol","mom","rng","vz","tbp","tsp","bpr","bslope","strength","strengthSlope","bullDiv","bearDiv"];
-let rows=[],featureRows=[],tradeSamples=[],model=null,norm=null,live={last:NaN,index:NaN,mark:NaN,buy:0,sell:0},trainedAt=0;
+const $=id=>document.getElementById(id),TARGET_CANDLES=12000,PAGE_SIZE=1500,HORIZON=4,FOLD_SIZE=600,EPOCHS=30,ROUND_TRIP_FEE=.0004,PCT_WINDOW=96,DIV_WINDOW=8,STRENGTH_LEN=8,STRENGTH_HALF_LIFE=2,STRENGTH_LOOKBACK=500,FEATURES=["r1","r4","r16","bp","bv","ba","bz","mi","ti","cvd4","vol","mom","rng","vz","tbp","tsp","bpr","bslope","strength","strengthSlope","bullDiv","bearDiv","topLS","topLSSlope","topLSZ","flowPressure","impact","absorption","priceFlowDiv"];
+let rows=[],featureRows=[],tradeSamples=[],model=null,norm=null,live={last:NaN,index:NaN,mark:NaN,buy:0,sell:0,topLS:NaN},trainedAt=0;
 const say=s=>{$("log").textContent=s};
 const pct=v=>(100*v).toFixed(1);
 function softmax(z){let m=Math.max(...z),e=z.map(v=>Math.exp(v-m)),s=e.reduce((a,b)=>a+b,0);return e.map(v=>v/s)}
@@ -89,7 +90,7 @@ function features(data){
   r.r1=prev?r.last/prev.last-1:NaN;r.r4=i>=4?r.last/x[i-4].last-1:NaN;r.r16=i>=16?r.last/x[i-16].last-1:NaN;
   r.bp=r.basis/r.index*100;r.bv=prev?r.basis-prev.basis:NaN;r.ba=(prev&&i>1)?r.bv-x[i-2].bv:NaN;
   const bs=windowStats(i,PCT_WINDOW,q=>q.basis);r.bz=(r.basis-bs.mean)/bs.std;
-  r.mi=(r.mark-r.index)/r.index*100;r.ti=(r.tbuy-r.tsell)/((r.tbuy+r.tsell)||NaN);
+  r.mi=(r.mark-r.index)/r.index*100;r.ti=(r.tbuy-r.tsell)/((r.tbuy+r.tsell)||NaN);r.topLS=Number.isFinite(r.topLS)?r.topLS:NaN;r.topLSSlope=i>=4&&Number.isFinite(r.topLS)&&Number.isFinite(x[i-4].topLS)?r.topLS-x[i-4].topLS:NaN;const lz=windowStats(i,96,q=>q.topLS);r.topLSZ=Number.isFinite(r.topLS)?(r.topLS-lz.mean)/r.topLSZ:NaN;r.flowPressure=r.ti*100;r.impact=r.r1*100*(Math.abs(r.ti)*100);r.absorption=(Number.isFinite(r.ti)&&Number.isFinite(r.r1))?Math.max(0,Math.abs(r.ti)*100-Math.abs(r.r1)*1000):NaN;r.priceFlowDiv=(r.r1>0&&r.ti<0)?-1:(r.r1<0&&r.ti>0)?1:0;
   cvd+=r.tbuy-r.tsell;r.cvd=cvd;r.cvd4=i>=4?cvd-x[i-4].cvd:NaN;
   r.vol=windowStats(i,32,q=>q.r1).std;r.mom=r.last/windowStats(i,32,q=>q.last).mean-1;
   r.rng=(r.high-r.low)/r.last*100;const vs=windowStats(i,PCT_WINDOW,q=>q.volume);r.vz=(r.volume-vs.mean)/vs.std;
@@ -231,15 +232,16 @@ function predictLatest(){
  const longOk=directionalMass>=model.params.minDirectionalMass&&longShare>=model.params.directionalEdge&&setup.isLong&&confirm>-.05;
  const shortOk=directionalMass>=model.params.minDirectionalMass&&(1-longShare)>=model.params.directionalEdge&&setup.isShort&&confirm<.05,sig=longOk?"LONG":shortOk?"SHORT":"WAIT";
  const score=(p[2]-p[0])*100+(setup.isLong?15:setup.isShort?-15:0);
- $("signal").textContent=sig;$("signal").className="signal "+sig;$("score").textContent=(score>=0?"+":"")+score.toFixed(1);$("ti").textContent=(confirm*100).toFixed(1)+"%";
+ $("signal").textContent=sig;$("signal").className="signal "+sig;$("score").textContent=(score>=0?"+":"")+score.toFixed(1);$("ti").textContent=(confirm*100).toFixed(1)+"%";$("topls").textContent=Number.isFinite(r.topLS)?r.topLS.toFixed(3):"—";$("topls2").textContent=Number.isFinite(r.topLS)?r.topLS.toFixed(3):"—";$("toplsSlope").textContent=Number.isFinite(r.topLSSlope)?(r.topLSSlope>=0?"+":"")+r.topLSSlope.toFixed(3):"—";$("flowPressure").textContent=(r.flowPressure>=0?"+":"")+r.flowPressure.toFixed(1)+"%";$("impact").textContent=(r.impact>=0?"+":"")+r.impact.toFixed(2);$("absorption").textContent=Number.isFinite(r.absorption)?Math.min(100,r.absorption).toFixed(0)+"%":"—";$("priceFlowDiv").textContent=r.priceFlowDiv===1?"Bullish divergence":r.priceFlowDiv===-1?"Bearish divergence":"None";$("impactState").textContent=(r.absorption>35?"ABSORPTION: taker bị hấp thụ":"TAKER: có phản ứng giá")+" · "+(r.priceFlowDiv===1?"giá giảm nhưng taker buy mạnh":r.priceFlowDiv===-1?"giá tăng nhưng taker sell mạnh":"flow/price chưa phân kỳ");
  $("reason").textContent="ML: L "+pct(p[2])+"% | N "+pct(p[1])+"% | S "+pct(p[0])+"%\n"+
-  "Taker percentile: Buy "+r.tbp.toFixed(1)+" / Sell "+r.tsp.toFixed(1)+"\n"+
+  "Taker percentile: Buy "+r.tbp.toFixed(1)+" / Sell "+r.tsp.toFixed(1)+"\n"+"Top Trader L/S: "+(Number.isFinite(r.topLS)?r.topLS.toFixed(3):"—")+" | Δ "+(Number.isFinite(r.topLSSlope)?r.topLSSlope.toFixed(3):"—")+"\n"+"Impact: "+r.impact.toFixed(2)+" | Absorption: "+(Number.isFinite(r.absorption)?Math.min(100,r.absorption).toFixed(0)+"%":"—")+" | P-F div: "+(r.priceFlowDiv===1?"bullish":r.priceFlowDiv===-1?"bearish":"none")+"\n"+
   "Basis: "+(r.basis>=0?"+":"")+r.basis.toFixed(4)+" ("+r.bp.toFixed(4)+"%), basis percentile "+r.bpr.toFixed(1)+"\n"+
   "Basis 4-bar slope: "+(r.bslope>=0?"+":"")+r.bslope.toFixed(4)+" pp\n"+
   "Pattern: "+setup.label+" | directional odds "+(longShare*100).toFixed(0)+"% LONG / "+((1-longShare)*100).toFixed(0)+"% SHORT\n"+
   "Decision: "+(sig==="WAIT"?"chờ ML và basis–flow đồng thuận hoặc phân kỳ xác nhận":"đủ xác suất và điều kiện flow/basis");
 }
 async function getJSON(u){let r=await fetch(u);if(!r.ok)throw Error(r.status);return r.json()}
+async function getTopLSHistory(){const r=await getJSON("https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol=SPYUSDT&period=15m&limit=500");return Array.isArray(r)?r:[]}
 async function getKlineHistory(kind){
  const all=new Map();let endTime=null;
  while(all.size<TARGET_CANDLES){
@@ -258,11 +260,11 @@ async function getKlineHistory(kind){
  }
  return [...all.values()].sort((a,b)=>Number(a[0])-Number(b[0])).slice(-TARGET_CANDLES);
 }
-function rowsFromCandles(k,m,i,closedOnly=false){
- const mm=new Map(m.map(q=>[String(q[0]),+q[4]])),ii=new Map(i.map(q=>[String(q[0]),+q[4]]));
+function rowsFromCandles(k,m,i,ls=[],closedOnly=false){
+ const mm=new Map(m.map(q=>[String(q[0]),+q[4]])),ii=new Map(i.map(q=>[String(q[0]),+q[4]])),lm=new Map(ls.map(q=>[String(q.timestamp),Number(q.longShortRatio)]));
  return k.map(q=>{
   const ts=String(q[0]),mark=mm.get(ts),index=ii.get(ts),last=+q[4];
-  return {time:q[0],closeTime:+q[6],last,open:+q[1],high:+q[2],low:+q[3],volume:+q[5],tbuy:+q[9],tsell:+q[5]-+q[9],mark,index,basis:Number.isFinite(index)?last-index:NaN};
+  return {time:q[0],closeTime:+q[6],last,open:+q[1],high:+q[2],low:+q[3],volume:+q[5],tbuy:+q[9],tsell:+q[5]-+q[9],mark,index,basis:Number.isFinite(index)?last-index:NaN,topLS:lm.get(ts)};
  }).filter(r=>Number.isFinite(r.last)&&Number.isFinite(r.mark)&&Number.isFinite(r.index)&&(!closedOnly||r.closeTime<Date.now()));
 }
 async function getRecentKlines(kind,limit=20){
@@ -274,8 +276,8 @@ async function getRecentKlines(kind,limit=20){
 }
 async function loadHistory(){
  say("Đang tải lịch sử 15m theo từng trang Binance (tối đa "+TARGET_CANDLES.toLocaleString()+" nến)…");
- const [k,m,i]=await Promise.all([getKlineHistory("last"),getKlineHistory("mark"),getKlineHistory("index")]);
- rows=rowsFromCandles(k,m,i,true).slice(-TARGET_CANDLES);
+ const [k,m,i,ls]=await Promise.all([getKlineHistory("last"),getKlineHistory("mark"),getKlineHistory("index"),getTopLSHistory()]);
+ rows=rowsFromCandles(k,m,i,ls,true).filter(r=>Number.isFinite(r.topLS)).slice(-TARGET_CANDLES);
  if(!rows.length)throw Error("Binance không trả về nến Last/Mark/Index đã đóng khớp timestamp");
  live.last=rows.at(-1).last;live.mark=rows.at(-1).mark;live.index=rows.at(-1).index;
  renderLive();train();connect();
@@ -286,8 +288,8 @@ async function refreshAndTrain(){
  refreshBusy=true;
  try{
   say("Đang lấy nến 15m mới từ Binance…");
-  const [k,m,i]=await Promise.all([getRecentKlines("last"),getRecentKlines("mark"),getRecentKlines("index")]);
-  const fresh=rowsFromCandles(k,m,i,true),byTime=new Map(rows.map(r=>[Number(r.time),r]));
+  const [k,m,i,ls]=await Promise.all([getRecentKlines("last"),getRecentKlines("mark"),getRecentKlines("index"),getTopLSHistory()]);
+  const fresh=rowsFromCandles(k,m,i,ls,true),byTime=new Map(rows.map(r=>[Number(r.time),r]));
   for(const r of fresh)byTime.set(Number(r.time),r);
   rows=[...byTime.values()].sort((a,b)=>Number(a.time)-Number(b.time)).slice(-TARGET_CANDLES);
   if(fresh.length){renderLive();train()}
