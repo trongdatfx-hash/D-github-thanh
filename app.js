@@ -18,7 +18,7 @@ function autoRange(pane){
  if(pane==="basis"){const vals=full.map(b=>getBasisAt(b.t)?.basis).filter(Number.isFinite);if(!vals.length)return[0,1];let lo=Math.min(...vals),hi=Math.max(...vals);if(!(hi>lo))return[lo-.0001,hi+.0001];const pad=(hi-lo)*.12;return[lo-pad,hi+pad]}
  const vals=full.map(b=>getTopLSAt(b.t)?.ratio).filter(Number.isFinite);if(!vals.length)return[.5,1.5];let lo=Math.min(...vals),hi=Math.max(...vals);if(!(hi>lo)){lo=Math.max(.01,lo-.05);hi+=.05}else{const pad=(hi-lo)*.12;lo=Math.max(.01,lo-pad);hi+=pad}return[lo,hi]
 }
-function yRange(pane){const s=yState[pane]||(yState[pane]={manual:false,lo:0,hi:0});if(!s.manual){const a=autoRange(pane);s.lo=a[0];s.hi=a[1]}return[s.lo,s.hi]}
+function resetYRanges(){for(const pane of ["price","basis","ls"]){const s=yState[pane]||(yState[pane]={manual:false,lo:0,hi:0});s.manual=false;s.lo=0;s.hi=0}}\nfunction yRange(pane){const s=yState[pane]||(yState[pane]={manual:false,lo:0,hi:0});if(!(Number.isFinite(s.lo)&&Number.isFinite(s.hi)&&s.hi>s.lo)){const a=autoRange(pane);s.lo=a[0];s.hi=a[1]}return[s.lo,s.hi]}
 function inYAxis(e){if(!canvas)return false;const r=canvas.getBoundingClientRect();return e.clientX>=r.right-AXIS_W}
 function axisPointerDown(e){if(!inYAxis(e))return;e.preventDefault();e.stopPropagation();const r=canvas.getBoundingClientRect(),pane=axisPaneAt(e.clientY-r.top),st=yState[pane],now=performance.now();if(now-lastAxisTap<320){st.manual=false;lastAxisTap=0;axisDrag=null;requestDraw();return}lastAxisTap=now;const[lo,hi]=yRange(pane),auto=autoRange(pane);axisDrag={pane,pointerId:e.pointerId,y0:e.clientY,lo,hi,cy:(lo+hi)/2,autoSpan:Math.max(auto[1]-auto[0],1e-12)};try{canvas.setPointerCapture(e.pointerId)}catch(_){}}
 function axisPointerMove(e){if(!axisDrag)return;e.preventDefault();e.stopPropagation();const st=yState[axisDrag.pane],k=Math.exp((e.clientY-axisDrag.y0)*.006);let half=(axisDrag.hi-axisDrag.lo)/2*k;half=Math.min(Math.max(half,axisDrag.autoSpan*.01),axisDrag.autoSpan*25);st.lo=axisDrag.cy-half;st.hi=axisDrag.cy+half;st.manual=true;requestDraw()}
@@ -121,7 +121,7 @@ async function loadHistory(){
   const a=await r.json();if(!a.length)break;all.push(...a);const next=+a[a.length-1][0]+intervalMs();if(next<=cursor)break;cursor=next;if(a.length<1500)break;await new Promise(r=>setTimeout(r,80))
  }
  const seen=new Set();bars=all.filter(x=>!seen.has(+x[0])&&(seen.add(+x[0]),true)).map(x=>({t:+x[0],o:+x[1],h:+x[2],l:+x[3],c:+x[4],v:+x[5],buy:+x[9],sell:Math.max(0,+x[5]-+x[9]),closed:Date.now()>+x[6]}));
- bars.sort((a,b)=>a.t-b.t);first=Math.max(0,bars.length-visible);if(basisOn)await loadBasis();if(lsOn)await loadTopLS();draw();connect();scheduleBasisPoll();scheduleTopLSPoll()
+ bars.sort((a,b)=>a.t-b.t);first=Math.max(0,bars.length-visible);resetYRanges();if(basisOn)await loadBasis();if(lsOn)await loadTopLS();draw();connect();scheduleBasisPoll();scheduleTopLSPoll()
 }
 function connect(){
  if(ws)try{ws.close()}catch(e){}
@@ -130,7 +130,7 @@ function connect(){
  ws.onmessage=e=>{try{const z=JSON.parse(e.data),k=z.data.k,b={t:+k.t,o:+k.o,h:+k.h,l:+k.l,c:+k.c,v:+k.v,buy:+k.V,sell:Math.max(0,+k.v-+k.V),closed:!!k.x},i=bars.findIndex(x=>x.t===b.t);if(i>=0)bars[i]=b;else bars.push(b);bars.sort((a,b)=>a.t-b.t);if(first+visible>=bars.length-2)first=Math.max(0,bars.length-visible);draw();setStatus(`LIVE · ${tf} · ${Math.max(0,Date.now()-+z.data.E)} ms`,true)}catch(err){}};
  ws.onerror=()=>setStatus("WebSocket error",false);ws.onclose=()=>{setStatus("Reconnecting…",false);setTimeout(()=>connect(),1200)}
 }
-function fit(){visible=Math.min(120,bars.length);first=Math.max(0,bars.length-visible);draw()}
+function fit(){visible=Math.min(120,bars.length);first=Math.max(0,bars.length-visible);resetYRanges();draw()}
 function move(n){first=Math.max(0,Math.min(Math.max(0,bars.length-visible),first+n));draw()}
 function resize(){const r=canvas.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(r.width*d);canvas.height=Math.round(r.height*d);ctx.setTransform(d,0,0,d,0,0);draw()}
 function requestDraw(){if(drawQueued)return;drawQueued=true;requestAnimationFrame(()=>{drawQueued=false;draw()})}
