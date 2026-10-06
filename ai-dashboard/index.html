@@ -122,7 +122,7 @@ img,canvas,svg,iframe{max-width:100%}
 <script>
 const $=id=>document.getElementById(id);
 const TARGET_CANDLES=12000,PAGE_SIZE=1500,AUX_TARGET=5000,HORIZON=4,FOLD_SIZE=1200,EPOCHS=8,MAX_TRAIN_SAMPLES=2500,ROUND_TRIP_FEE=.0004,PCT_WINDOW=96,DIV_WINDOW=8,STRENGTH_LEN=8,STRENGTH_HALF_LIFE=2,STRENGTH_LOOKBACK=500;
-const FEATURES=["r1","r4","r16","bp","bv","ba","bz","mi","ti","cvd4","vol","mom","rng","vz","tbp","tsp","bpr","bslope","strength","strengthSlope","bullDiv","bearDiv","topLS","topLSSlope","topLSZ","oiDelta","oiZ","funding","fundingZ","liqNetZ","takerForce","priceResponse","flowPriceDiv","absorption"];
+const FEATURES=["r1","r4","r16","bp","bv","ba","bz","mi","ti","cvd4","vol","mom","rng","vz","tbp","tsp","bpr","bslope","strength","strengthSlope","bullDiv","bearDiv","topLS","topLSSlope","topLSZ","topAcctLS","topAcctLSSlope","globalLS","globalLSSlope","takerRatio","takerRatioZ","oiDelta","oiZ","funding","fundingZ","liqNetZ","takerForce","priceResponse","flowPriceDiv","absorption"];
 let rows=[],featureRows=[],tradeSamples=[],model=null,live={last:NaN,index:NaN,mark:NaN,buy:0,sell:0,topLS:NaN,oi:NaN,funding:NaN,liqBuy:0,liqSell:0},refreshBusy=false;
 
 const say=s=>$("log").textContent=s;
@@ -145,12 +145,16 @@ function impactScore(r){
  const taker=clamp(safe(r.strength));
  const price=clamp(safe(r.priceResponse));
  const top=Number.isFinite(r.topLS)?tanh(Math.log(Math.max(.05,r.topLS))*1.7):0;
+ const acct=Number.isFinite(r.topAcctLS)?tanh(Math.log(Math.max(.05,r.topAcctLS))*1.5):0;
+ const global=Number.isFinite(r.globalLS)?tanh(Math.log(Math.max(.05,r.globalLS))*1.2):0;
  const topAlign=clamp(taker*top);
+ const acctAlign=clamp(taker*acct);
+ const globalAlign=clamp(taker*global);
  const oiConf=Number.isFinite(r.oiDelta)&&Number.isFinite(r.r4)?clamp(Math.sign(r.r4)*Math.sign(r.oiDelta)*Math.min(1,Math.abs(r.oiZ)/2)):0;
  const liq=clamp(safe(r.liqNetZ)/2);
  const funding=clamp(-safe(r.fundingZ)/2);
  const divPenalty=Number.isFinite(r.flowPriceDiv)&&r.flowPriceDiv!==0?-0.10*r.flowPriceDiv*100/100:0;
- const raw=.40*taker+.25*price+.15*topAlign+.10*oiConf+.07*liq+.03*funding+divPenalty;
+ const raw=.34*taker+.22*price+.13*topAlign+.07*acctAlign+.05*globalAlign+.09*oiConf+.07*liq+.03*funding+divPenalty;
  return clamp(raw)*100;
 }
 function regimeFromOI(r){
@@ -215,6 +219,12 @@ function features(data){
   r.strength=strength[i];r.strengthSlope=i>=4?strength[i]-strength[i-4]:NaN;
   const top=Number.isFinite(r.topLS)?r.topLS:1;r.topLS=top;r.topLSSlope=i>=4&&Number.isFinite(x[i-4].topLS)?top-x[i-4].topLS:0;
   const tz=windowStats(x,i,PCT_WINDOW,q=>q.topLS);r.topLSZ=Number.isFinite(r.topLS)?(r.topLS-tz.mean)/tz.std:0;
+  r.topAcctLS=Number.isFinite(r.topAcctLS)?r.topAcctLS:1;
+  r.topAcctLSSlope=i>=4&&Number.isFinite(x[i-4].topAcctLS)?r.topAcctLS-x[i-4].topAcctLS:0;
+  r.globalLS=Number.isFinite(r.globalLS)?r.globalLS:1;
+  r.globalLSSlope=i>=4&&Number.isFinite(x[i-4].globalLS)?r.globalLS-x[i-4].globalLS:0;
+  r.takerRatio=Number.isFinite(r.takerRatio)?r.takerRatio:1;
+  const trz=windowStats(x,i,PCT_WINDOW,q=>q.takerRatio);r.takerRatioZ=(r.takerRatio-trz.mean)/trz.std;
   r.oiDelta=i>=1&&Number.isFinite(prev.oi)&&Number.isFinite(r.oi)?r.oi-prev.oi:0;
   const oz=windowStats(x,i,PCT_WINDOW,q=>q.oiDelta);r.oiZ=r.oiDelta/oz.std;
   const fz=windowStats(x,i,PCT_WINDOW,q=>q.funding);r.fundingZ=(Number.isFinite(r.funding)?r.funding-fz.mean:0)/fz.std;
@@ -333,13 +343,16 @@ async function getKlineHistory(kind){
 }
 async function safeAux(fn,fallback=[]){try{return await fn()}catch(e){console.warn("Aux source unavailable:",e);return fallback}}
 async function getAux(){
- const [ls,oi,fr,fo]=await Promise.all([
+ const [ls,acct,globalLS,taker,oi,fr,fo]=await Promise.all([
   safeAux(()=>pagedHistory("https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol=SPYUSDT&period=15m","limit","timestamp",1500),[]),
+  safeAux(()=>pagedHistory("https://fapi.binance.com/futures/data/topLongShortAccountRatio?symbol=SPYUSDT&period=15m","limit","timestamp",1500),[]),
+  safeAux(()=>pagedHistory("https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=SPYUSDT&period=15m","limit","timestamp",1500),[]),
+  safeAux(()=>pagedHistory("https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=SPYUSDT&period=15m","limit","timestamp",1500),[]),
   safeAux(()=>pagedHistory("https://fapi.binance.com/futures/data/openInterestHist?symbol=SPYUSDT&period=15m","limit","timestamp",1000),[]),
   safeAux(()=>pagedHistory("https://fapi.binance.com/fapi/v1/fundingRate?symbol=SPYUSDT","limit","fundingTime",200),[]),
   safeAux(()=>getJSON("https://fapi.binance.com/fapi/v1/forceOrders?symbol=SPYUSDT&limit=100"),[])
  ]);
- return {ls:Array.isArray(ls)?ls:[],oi:Array.isArray(oi)?oi:[],fr:Array.isArray(fr)?fr:[],fo:Array.isArray(fo)?fo:[]};
+ return {ls:Array.isArray(ls)?ls:[],acct:Array.isArray(acct)?acct:[],globalLS:Array.isArray(globalLS)?globalLS:[],taker:Array.isArray(taker)?taker:[],oi:Array.isArray(oi)?oi:[],fr:Array.isArray(fr)?fr:[],fo:Array.isArray(fo)?fo:[]};
 }
 function seriesValue(series,time,key){
  let lo=0,hi=series.length-1,best=null;while(lo<=hi){const m=(lo+hi)>>1,ts=Number(series[m].timestamp??series[m].fundingTime??series[m].time);if(ts<=time){best=series[m];lo=m+1}else hi=m-1}
@@ -351,9 +364,9 @@ function aggregateLiquidations(forceOrders){
  return map;
 }
 function rowsFromCandles(k,m,i,aux,closedOnly=true){
- const mm=new Map(m.map(q=>[Number(q[0]),+q[4]])),ii=new Map(i.map(q=>[Number(q[0]),+q[4]])),lm=new Map(aux.ls.map(q=>[Number(q.timestamp),Number(q.longShortRatio)])),om=new Map(aux.oi.map(q=>[Number(q.timestamp),Number(q.sumOpenInterestValue||q.sumOpenInterest)])),fm=aux.fr,liq=aggregateLiquidations(aux.fo);
- let lastLS=1,lastOI=NaN,lastFunding=0;
- return k.map(q=>{const t=Number(q[0]),mark=mm.get(t),index=ii.get(t);if(lm.has(t))lastLS=lm.get(t);const ov=om.get(t);if(Number.isFinite(ov))lastOI=ov;const fv=seriesValue(fm,t,"fundingRate");if(Number.isFinite(fv))lastFunding=fv;const l=liq.get(t)||{liqLong:0,liqShort:0,liqNet:0};return {time:t,closeTime:+q[6],last:+q[4],open:+q[1],high:+q[2],low:+q[3],volume:+q[5],tbuy:+q[9],tsell:+q[5]-+q[9],mark,index,basis:Number.isFinite(index)?+q[4]-index:NaN,topLS:lastLS,oi:lastOI,funding:lastFunding,liqLong:l.liqLong,liqShort:l.liqShort,liqNet:l.liqNet}})
+ const mm=new Map(m.map(q=>[Number(q[0]),+q[4]])),ii=new Map(i.map(q=>[Number(q[0]),+q[4]])),lm=new Map(aux.ls.map(q=>[Number(q.timestamp),Number(q.longShortRatio)])),am=new Map(aux.acct.map(q=>[Number(q.timestamp),Number(q.longShortRatio)])),gm=new Map(aux.globalLS.map(q=>[Number(q.timestamp),Number(q.longShortRatio)])),tm=new Map(aux.taker.map(q=>[Number(q.timestamp),Number(q.buySellRatio)])),om=new Map(aux.oi.map(q=>[Number(q.timestamp),Number(q.sumOpenInterestValue||q.sumOpenInterest)])),fm=aux.fr,liq=aggregateLiquidations(aux.fo);
+ let lastLS=1,lastAcct=1,lastGlobal=1,lastTaker=1,lastOI=NaN,lastFunding=0;
+ return k.map(q=>{const t=Number(q[0]),mark=mm.get(t),index=ii.get(t);if(lm.has(t))lastLS=lm.get(t);if(am.has(t))lastAcct=am.get(t);if(gm.has(t))lastGlobal=gm.get(t);if(tm.has(t))lastTaker=tm.get(t);const ov=om.get(t);if(Number.isFinite(ov))lastOI=ov;const fv=seriesValue(fm,t,"fundingRate");if(Number.isFinite(fv))lastFunding=fv;const l=liq.get(t)||{liqLong:0,liqShort:0,liqNet:0};return {time:t,closeTime:+q[6],last:+q[4],open:+q[1],high:+q[2],low:+q[3],volume:+q[5],tbuy:+q[9],tsell:+q[5]-+q[9],mark,index,basis:Number.isFinite(index)?+q[4]-index:NaN,topLS:lastLS,topAcctLS:lastAcct,globalLS:lastGlobal,takerRatio:lastTaker,oi:lastOI,funding:lastFunding,liqLong:l.liqLong,liqShort:l.liqShort,liqNet:l.liqNet}})
   .filter(r=>Number.isFinite(r.last)&&Number.isFinite(r.mark)&&Number.isFinite(r.index)&&(!closedOnly||r.closeTime<Date.now()));
 }
 async function getRecentKlines(kind,limit=20){
