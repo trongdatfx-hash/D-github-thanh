@@ -110,7 +110,7 @@ async function analyze(){
  $('weekly').innerHTML=weeklyText; $('reason').innerHTML='<b>'+decision+'</b> — '+state+'. '+flowTxt+', '+oiTxt+', '+lsTxt+'. Funding '+(funding*100).toFixed(4)+'%. COT '+cotBias+'. Giá M15 5 nến: '+ret5.toFixed(2)+'%; 20 nến: '+ret20.toFixed(2)+'%. <br><br><b>Lưu ý:</b> Đây là AI Rule Engine Giai đoạn 1 + Historical Weekly Reaction, chưa phải mô hình ML được huấn luyện. WAIT được ưu tiên khi tín hiệu chưa đủ mạnh.';
  $('status').textContent='Cập nhật '+new Date().toLocaleTimeString('vi-VN')+' · Price Binance OK · Taker '+(t.length?'OK':'--')+' · OI '+(o.length?'OK':'--')+' · L/S '+(ls.length?'OK':'--');
 }
-$('refresh').onclick=()=>analyze().catch(e=>{$('status').textContent='Lỗi: '+e.message});
-analyze().catch(e=>{$('reason').textContent='Không lấy được dữ liệu Binance: '+e.message;$('status').textContent='Lỗi kết nối'});
+$('refresh').onclick=()=>analyze().catch(e=>{$('reason').textContent='Lỗi phân tích: '+e.message;$('status').textContent='Lỗi: '+e.message});
+analyze().catch(e=>{$('reason').textContent='Lỗi phân tích/dữ liệu: '+e.message;$('status').textContent='Lỗi: '+e.message});
 setInterval(()=>analyze().catch(()=>{}),60000);
 </script></body></html>
