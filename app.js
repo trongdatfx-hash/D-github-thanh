@@ -151,7 +151,7 @@ function draw(){
    }
   }
   const yy=py(wo);if(yy>=top&&yy<=top+priceH){ctx.setLineDash([3,3]);ctx.strokeStyle='#e7e9ee';ctx.globalAlpha=.6;ctx.beginPath();ctx.moveTo(x0,yy);ctx.lineTo(x1,yy);ctx.stroke();ctx.globalAlpha=1;ctx.fillStyle='#e7e9ee';ctx.font='10px Arial';ctx.fillText('W Open '+wo.toFixed(2),x0+4,yy-4)}
-  ctx.setLineDash([]);ctx.textAlign='right';ctx.fillStyle='#aab3c2';ctx.font='10px Arial';ctx.fillText('Weekly Range Percentile',x1,top+12);ctx.restore();
+  ctx.setLineDash([]);ctx.restore();
  }
  ctx.fillStyle="#e7e9ee";ctx.font="600 16px Arial";ctx.fillText("SPYUSDT.P",16,26);ctx.fillStyle="#8d96a7";ctx.font="12px Arial";ctx.fillText(`Price · ${tf}`,16,43);ctx.fillStyle="#e7e9ee";ctx.font="600 15px Arial";ctx.fillText("Taker Buy/Sell Volume",16,volTop-8);
  ctx.font="11px Arial";ctx.lineWidth=1;ctx.textAlign="right";
