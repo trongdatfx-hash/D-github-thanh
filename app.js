@@ -257,6 +257,18 @@ canvas.addEventListener("pointerdown",e=>{
    panStartX=e.clientX;panStartFirst=first;
  }else if(pointers.size===2){pinchStartDist=dist2();pinchStartVisible=visible;pinchStartCenter=mid2();hideCross()}
 });
+canvas.addEventListener("pointermove",e=>{
+ if(!bars.length)return;const p0=pointers.get(e.pointerId);if(p0){p0.x=e.clientX;p0.y=e.clientY}
+ if(pointers.size>=2){
+   const d=dist2();if(pinchStartDist>0&&d>0){const nv=Math.max(20,Math.min(bars.length,Math.round(pinchStartVisible*pinchStartDist/d))),rect=canvas.getBoundingClientRect(),x=mid2()-rect.left,old=pinchStartVisible,left=70,right=72,pw=(canvas.clientWidth-left-right)/Math.max(old,1),idx=Math.max(0,Math.min(old-1,Math.floor((x-left)/pw))),center=first+idx;visible=nv;first=Math.max(0,Math.min(Math.max(0,bars.length-visible),center-Math.floor(nv*(idx/Math.max(old,1)))));requestDraw()}return
+ }
+ if(pointers.size===1&&p0){
+   if(yDrag){const dy=e.clientY-yDrag.startY;if(Math.abs(dy)>2)panMoved=true;const delta=dy/Math.max(1,yDrag.priceH)*yDrag.span;yState.center=yDrag.startCenter+delta;hideCross();requestDraw();return}
+   const dx=e.clientX-panStartX;if(Math.abs(dx)>3)panMoved=true;
+   if(panMoved){const pw=(canvas.clientWidth-142)/Math.max(visible,1),d=Math.round(-dx/pw);first=Math.max(0,Math.min(Math.max(0,bars.length-visible),panStartFirst+d));hideCross();requestDraw()}
+   else if(e.pointerType==="mouse")showCross(e)
+ }
+});
 canvas.addEventListener("pointerup",e=>{const wasTap=!panMoved&&!yDrag&&pointers.size===1;if(wasTap&&e.pointerType!=="mouse")showCross(e);yDrag=null;pointers.delete(e.pointerId);if(pointers.size<2)pinchStartDist=0});
 canvas.addEventListener("pointercancel",e=>{pointers.delete(e.pointerId);pinchStartDist=0;panMoved=false});
 canvas.addEventListener("pointerleave",e=>{if(e.pointerType==="mouse"){hideCross();requestDraw()}});
