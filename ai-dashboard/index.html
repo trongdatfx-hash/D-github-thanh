@@ -13,31 +13,37 @@ button{background:#13263c;color:#e7eef7;border:1px solid #25415f;border-radius:9
 table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:7px;border-bottom:1px solid #19314a}@media(max-width:850px){.grid{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}} .secondary{display:none!important}.chartFrame{width:100%;height:650px;border:1px solid #29313d;border-radius:10px;background:#171a21;display:block} .impactHero{margin:6px 0 10px}.impactHero .signal{margin:0}.heroSub{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;color:#aab3c2;font-size:12px;margin-top:6px}.heroSub b{color:#e7eef7}
 </style></head>
 <body><div class="wrap">
-<div class="top"><div><h1>SPYUSDT.P — Taker Impact AI</h1><div class="muted">Taker · Top Trader L/S · OI · Liquidation · Funding</div></div><div><button id="run">↻ Refresh AI</button> <span id="conn" class="muted">starting…</span></div></div>
-<div class="grid">
-<div class="card"><div class="label">Price</div><div id="last" class="big">—</div></div>
-<div class="card"><div class="label">Taker</div><div id="ti" class="big">—</div></div>
-<div class="card"><div class="label">Top L/S</div><div id="topls" class="big">—</div></div>
-<div class="card"><div class="label">Basis</div><div id="bp" class="big">—</div></div>
-</div></div>
-<div class="card"><div class="label">Index</div><div id="index" class="big">—</div></div>
-<div class="card"><div class="label">Basis</div><div id="basis" class="big">—</div></div>
-<div class="card"><div class="label">Basis %</div><div id="bp" class="big">—</div></div>
-<div class="card"><div class="label">Model</div><div id="model" class="big">—</div></div>
+<div class="top">
+ <div><h1>SPYUSDT.P — Taker Impact AI</h1><div class="muted">Market-order impact · Top Trader L/S · OI · Liquidation · Funding</div></div>
+ <div><button id="run">↻ Refresh AI</button> <span id="conn" class="muted">starting…</span></div>
 </div>
-<div style="display:none"><div id="signal">WAIT</div><b id="ps"></b><b id="pn"></b><b id="pl"></b><i id="psb"></i><i id="pnb"></i><i id="plb"></i><div id="score"></div><div id="topls2"></div><div id="toplsSlope"></div><div id="fundingCtx"></div><div id="liqBias"></div><div id="reason"></div><div id="setupState"></div><div id="model"></div><div id="acc"></div><div id="bacc"></div><div id="samples"></div><div id="folds"></div><div id="trades"></div><div id="agreementTrades"></div><div id="divergenceTrades"></div><div id="params"></div><div id="sret"></div><tbody id="tradeSamples"></tbody><div id="log"></div></div><div class="impactHero"><div id="impactClass" class="signal IMPACT_NEUTRAL">0 · NEUTRAL</div><div class="heroSub"><span>Impact Score: <b id="impact">0</b></span><span>Taker: <b id="flowPressure">—</b></span><span>Absorption: <b id="absorption">—</b></span><span>Flow/Price: <b id="priceFlowDiv">—</b></span><span>OI: <b id="oiRegime">—</b></span></div></div>
-<div><div>NEUTRAL <b id="pn">—</b>%</div><div class="bar"><i id="pnb" class="pn"></i></div></div>
-<div><div>LONG <b id="pl">—</b>%</div><div class="bar"><i id="plb" class="pl"></i></div></div>
-<div class="card"><div class="label">ML Signal Score</div><div id="score" class="big">—</div></div>
-<div class="card"><div class="label">Current Taker Imbalance</div><div id="ti" class="big">—</div></div><div class="card"><div class="label">Top Trader L/S</div><div id="topls" class="big">—</div></div><div class="card"><div class="label">Price Impact</div><div id="impact" class="big">—</div></div><div class="card"><div class="label">Impact Class</div><div id="impactTop" class="big">NEUTRAL</div></div>
-</div></div>
-<div class="panel"><h3 style="margin:2px 0 8px">Price + Taker Buy/Sell + Top Trader L/S</h3><iframe class="chartFrame" src="../?embedded=1" title="SPYUSDT price taker top L/S chart"></iframe></div>
-<div class="panel secondary"><h3>Taker → Price Impact Engine</h3><div id="impactState" class="log">Waiting for flow data…</div><table><tr><th>Flow</th><th>Value</th></tr><tr><td>Taker pressure</td><td id="flowPressure">—</td></tr><tr><td>Top Trader L/S</td><td id="topls2">—</td></tr><tr><td>Top L/S Δ</td><td id="toplsSlope">—</td></tr><tr><td>Absorption</td><td id="absorption">—</td></tr><tr><td>Price–Flow divergence</td><td id="priceFlowDiv">—</td></tr><tr><td>OI regime</td><td id="oiRegime">—</td></tr><tr><td>Liquidation bias</td><td id="liqBias">—</td></tr><tr><td>Funding context</td><td id="fundingCtx">—</td></tr></table><div id="impactClass" class="signal WAIT" style="font-size:24px;margin-top:12px">NEUTRAL</div><div class="muted" id="impactScale">Thresholds: ≤−80 Strong Bearish · ≤−50 Bearish · ≤−20 Weak Bearish · −19…+19 Neutral · ≥+20 Weak Bullish · ≥+50 Bullish · ≥+80 Strong Bullish</div></div>
-<div class="two secondary">
-<div class="panel"><h3>ML backtest</h3><table><tr><th>Metric</th><th>Value</th></tr><tr><td>Walk-forward test accuracy</td><td id="acc">—</td></tr><tr><td>Balanced accuracy</td><td id="bacc">—</td></tr><tr><td>Walk-forward test samples</td><td id="samples">—</td></tr><tr><td>Walk-forward folds</td><td id="folds">—</td></tr><tr><td>Trades (ML + flow/basis)</td><td id="trades">—</td></tr><tr><td>Agreement setups</td><td id="agreementTrades">—</td></tr><tr><td>Confirmed divergence setups</td><td id="divergenceTrades">—</td></tr><tr><td>Selected directional odds / mass / strength edge</td><td id="params">—</td></tr><tr><td>Strategy return*</td><td id="sret">—</td></tr></table><p class="muted">*Proxy: 4 bps round-trip cost (2 bps per side); excludes slippage/funding. Research only.</p></div>
-<div class="panel"><h3>Agent reasoning</h3><div id="reason" class="log">Waiting for model…</div><p class="muted">Trade filter: relative LONG/SHORT probability plus the linked Taker Strength line and Basis agreement/divergence; live taker flow is an additional confirmation.</p></div>
+
+<div class="impactHero">
+ <div id="impactClass" class="signal IMPACT_NEUTRAL">0 · NEUTRAL</div>
+ <div class="heroSub">
+  <span>Score <b id="impact">0</b></span>
+  <span>Price <b id="last">—</b></span>
+  <span>Taker <b id="flowPressure">—</b></span>
+  <span>Top L/S <b id="topls">—</b></span>
+  <span>Absorption <b id="absorption">—</b></span>
+  <span>Flow/Price <b id="priceFlowDiv">—</b></span>
+  <span>OI <b id="oiRegime">—</b></span>
+ </div>
 </div>
-<div class="panel secondary"><h3>Recent walk-forward trade samples</h3><div style="overflow:auto"><table><thead><tr><th>Time</th><th>Side</th><th>Setup</th><th>Buy %ile</th><th>Sell %ile</th><th>Basis %ile</th><th>4-bar net</th></tr></thead><tbody id="tradeSamples"><tr><td colspan="7">No qualified samples yet</td></tr></tbody></table></div></div><div class="panel secondary"><h3>Status</h3><div id="log" class="log">Loading Binance 15m history…</div></div>
+
+<div class="panel" style="padding:7px">
+ <iframe class="chartFrame" src="../?embedded=1" title="SPYUSDT price, Taker Buy/Sell and Top Trader L/S"></iframe>
+</div>
+
+<!-- Internal elements required by the ML engine; intentionally not displayed. -->
+<div style="display:none">
+ <div id="signal">WAIT</div><div id="index"></div><div id="basis"></div><div id="bp"></div><div id="impactTop"></div>
+ <b id="ps"></b><b id="pn"></b><b id="pl"></b><i id="psb"></i><i id="pnb"></i><i id="plb"></i>
+ <div id="score"></div><div id="topls2"></div><div id="toplsSlope"></div><div id="fundingCtx"></div><div id="liqBias"></div>
+ <div id="reason"></div><div id="setupState"></div><div id="model"></div><div id="acc"></div><div id="bacc"></div>
+ <div id="samples"></div><div id="folds"></div><div id="trades"></div><div id="agreementTrades"></div><div id="divergenceTrades"></div><div id="params"></div><div id="sret"></div>
+ <tbody id="tradeSamples"></tbody><div id="log"></div><canvas id="strengthChart"></canvas><div id="impactState"></div><div id="impactScale"></div>
+</div>
 </div>
 <script>
 const $=id=>document.getElementById(id);
