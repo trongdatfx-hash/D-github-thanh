@@ -378,7 +378,6 @@ function connect(){
  ws.onmessage=e=>{try{const d=JSON.parse(e.data).data;if(d.e==="markPriceUpdate"){live.mark=+d.p;live.index=+d.i;live.funding=+d.r;live.last=live.last||+d.p;renderLive();predictLatest()}else if(d.e==="aggTrade"){live.last=+d.p;if(d.m)live.sell+=+d.q;else live.buy+=+d.q;renderLive();predictLatest()}else if(d.e==="forceOrder"){const o=d.o||{},q=Number(o.ap)*Number(o.z);if(o.S==="SELL")live.liqSell+=q;else if(o.S==="BUY")live.liqBuy+=q;predictLatest()}}catch(_){}};setInterval(()=>{live.buy=live.sell=0;live.liqBuy=live.liqSell=0},15*60*1000);
 }
 window.addEventListener("resize",drawStrengthChart);$("run").onclick=refreshAndTrain;loadHistory().then(()=>setInterval(refreshAndTrain,15*60*1000)).catch(e=>say("Lỗi tải Binance: "+e.message));
-})();
 </script>
 <script>
 (function(){
