@@ -65,6 +65,26 @@ img,canvas,svg,iframe{max-width:100%}
 .impactHero .signal{margin:0}
 .heroSub{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;color:#aab3c2;font-size:12px;margin-top:6px}
 .heroSub b{color:#e7eef7}
+
+/* Landscape chart + conclusion layout */
+.panel{position:relative;box-sizing:border-box}
+#fsBtn{position:absolute;top:10px;right:10px;z-index:5;width:34px;height:34px;border-radius:8px;border:1px solid #29313d;background:#0c1b2cd9;color:#cfe3ff;font-size:18px;line-height:1;display:grid;place-items:center;padding:0}
+@media (orientation:landscape) and (max-height:500px){
+ html,body{height:100dvh;overflow:hidden}
+ body::before{content:"";position:fixed;inset:0;background:#08121f;z-index:0;pointer-events:none}
+ .wrap{width:100%;max-width:none;height:100dvh;padding:0;margin:0}
+ .top,.secondary,.grid,.two{display:none!important}
+ .panel:has(.chartFrame){position:fixed;z-index:1;top:0;bottom:0;left:0;right:30%;width:70%;height:100dvh;padding:4px!important;border-radius:0;border:0;margin:0}
+ .chartFrame{height:100%!important;width:100%;max-width:100%;min-height:0!important;max-height:none!important;border:0}
+ .impactHero{position:fixed;z-index:2;top:0;bottom:0;right:0;width:30%;height:100dvh;overflow-y:auto;box-sizing:border-box;padding:8px;margin:0;background:#11151c;border-left:1px solid #1b3550}
+ .impactHero .signal{font-size:20px;padding:10px 5px;margin:0 0 6px}
+ .heroSub{display:grid!important;grid-template-columns:1fr!important;gap:4px;font-size:11px;margin-top:0}
+ .heroSub span{padding:6px 7px;text-align:left}
+ .heroSub b{font-size:11px;white-space:normal;overflow-wrap:anywhere}
+ #fsBtn{top:8px;right:8px}
+}
+.panel.full{position:fixed!important;inset:0!important;z-index:99!important;width:100%!important;height:100dvh!important;padding:0!important;border-radius:0!important;border:0!important;margin:0!important}
+.panel.full .chartFrame{height:100dvh!important;width:100%!important;border:0!important}
 </style></head>
 <body><div class="wrap">
 <div class="top">
@@ -86,7 +106,7 @@ img,canvas,svg,iframe{max-width:100%}
 </div>
 
 <div class="panel" style="padding:7px">
- <iframe class="chartFrame" src="../?embedded=1" title="SPYUSDT price, Taker Buy/Sell and Top Trader L/S"></iframe>
+ <button id="fsBtn" type="button" aria-label="Phóng to chart" title="Phóng to chart">⛶</button>\n <iframe class="chartFrame" src="../?embedded=1" title="SPYUSDT price, Taker Buy/Sell and Top Trader L/S"></iframe>
 </div>
 
 <!-- Internal elements required by the ML engine; intentionally not displayed. -->
@@ -358,4 +378,28 @@ function connect(){
  ws.onmessage=e=>{try{const d=JSON.parse(e.data).data;if(d.e==="markPriceUpdate"){live.mark=+d.p;live.index=+d.i;live.funding=+d.r;live.last=live.last||+d.p;renderLive();predictLatest()}else if(d.e==="aggTrade"){live.last=+d.p;if(d.m)live.sell+=+d.q;else live.buy+=+d.q;renderLive();predictLatest()}else if(d.e==="forceOrder"){const o=d.o||{},q=Number(o.ap)*Number(o.z);if(o.S==="SELL")live.liqSell+=q;else if(o.S==="BUY")live.liqBuy+=q;predictLatest()}}catch(_){}};setInterval(()=>{live.buy=live.sell=0;live.liqBuy=live.liqSell=0},15*60*1000);
 }
 window.addEventListener("resize",drawStrengthChart);$("run").onclick=refreshAndTrain;loadHistory().then(()=>setInterval(refreshAndTrain,15*60*1000)).catch(e=>say("Lỗi tải Binance: "+e.message));
+<script>
+(function(){
+ const btn=document.getElementById("fsBtn"),panel=btn?.closest(".panel");
+ if(!btn||!panel)return;
+ btn.addEventListener("click",async()=>{
+  const on=!panel.classList.contains("full");
+  panel.classList.toggle("full",on);
+  btn.textContent=on?"✕":"⛶";
+  try{
+   if(on){
+    if(panel.requestFullscreen) await panel.requestFullscreen();
+    if(screen.orientation?.lock) await screen.orientation.lock("landscape");
+   }else{
+    if(document.fullscreenElement) await document.exitFullscreen();
+    screen.orientation?.unlock?.();
+   }
+  }catch(e){}
+ });
+ document.addEventListener("fullscreenchange",()=>{
+  if(!document.fullscreenElement&&!panel.classList.contains("full")){
+   btn.textContent="⛶";
+  }
+ });
+})();
 </script></body></html>
