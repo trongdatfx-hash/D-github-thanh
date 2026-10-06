@@ -1,0 +1,29 @@
+{
+  "reportDate": "2026-09-29",
+  "releaseDate": "2026-10-02",
+  "contract": "E-MINI S&P 500",
+  "code": "13874A",
+  "openInterest": 1895922,
+  "nonCommercial": {
+    "long": 209587,
+    "short": 352086,
+    "spreads": 28572,
+    "net": -142499,
+    "prevNet": -133228
+  },
+  "commercial": {
+    "long": 1410900,
+    "short": 1375619,
+    "net": 35281,
+    "prevNet": 28880
+  },
+  "change": {
+    "openInterest": 5269,
+    "nonCommercialLong": -8456,
+    "nonCommercialShort": 815,
+    "commercialLong": 22538,
+    "commercialShort": 16137
+  },
+  "source": "CFTC CME Futures Only",
+  "sourceUrl": "https://www.cftc.gov/dea/futures/deacmesf.htm"
+}
