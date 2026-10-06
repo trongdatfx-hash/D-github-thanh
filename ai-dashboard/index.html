@@ -27,7 +27,7 @@ table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:7px;bord
 <div><div>NEUTRAL <b id="pn">—</b>%</div><div class="bar"><i id="pnb" class="pn"></i></div></div>
 <div><div>LONG <b id="pl">—</b>%</div><div class="bar"><i id="plb" class="pl"></i></div></div>
 <div class="card"><div class="label">ML Signal Score</div><div id="score" class="big">—</div></div>
-<div class="card"><div class="label">Current Taker Imbalance</div><div id="ti" class="big">—</div></div><div class="card"><div class="label">Top Trader L/S</div><div id="topls" class="big">—</div></div><div class="card"><div class="label">Price Impact</div><div id="impact" class="big">—</div></div>
+<div class="card"><div class="label">Current Taker Imbalance</div><div id="ti" class="big">—</div></div><div class="card"><div class="label">Top Trader L/S</div><div id="topls" class="big">—</div></div><div class="card"><div class="label">Price Impact</div><div id="impact" class="big">—</div></div><div class="card"><div class="label">Impact Class</div><div id="impactTop" class="big">NEUTRAL</div></div>
 </div></div>
 <div class="panel"><h3>Taker Strength line × Basis</h3><div id="setupState" class="muted">Waiting for closed candles…</div><canvas id="strengthChart" style="width:100%;height:260px;display:block"></canvas><div class="muted"><span style="color:#36d399">━ Taker Strength S8 / EWMA 2</span> &nbsp; <span style="color:#60a5fa">━ Basis rank mapped to −1…+1</span> · basis/strength divergence windows 8 + 8 · Top Trader L/S · absorption/price-flow divergence · closed candles.</div></div>
 <div class="panel"><h3>Taker → Price Impact Engine</h3><div id="impactState" class="log">Waiting for flow data…</div><table><tr><th>Flow</th><th>Value</th></tr><tr><td>Taker pressure</td><td id="flowPressure">—</td></tr><tr><td>Top Trader L/S</td><td id="topls2">—</td></tr><tr><td>Top L/S Δ</td><td id="toplsSlope">—</td></tr><tr><td>Absorption</td><td id="absorption">—</td></tr><tr><td>Price–Flow divergence</td><td id="priceFlowDiv">—</td></tr><tr><td>OI regime</td><td id="oiRegime">—</td></tr><tr><td>Liquidation bias</td><td id="liqBias">—</td></tr><tr><td>Funding context</td><td id="fundingCtx">—</td></tr></table><div id="impactClass" class="signal WAIT" style="font-size:24px;margin-top:12px">NEUTRAL</div><div class="muted" id="impactScale">Thresholds: ≤−80 Strong Bearish · ≤−50 Bearish · ≤−20 Weak Bearish · −19…+19 Neutral · ≥+20 Weak Bullish · ≥+50 Bullish · ≥+80 Strong Bullish</div></div>
@@ -181,7 +181,7 @@ function renderTradeSamples(){const body=$("tradeSamples");if(!body)return;body.
 
 function renderImpact(r,liveMode=false){
  const score=Number.isFinite(r.impactScore)?r.impactScore:impactScore(r),cl=classifyImpact(score);
- $("impact").textContent=(score>=0?"+":"")+score.toFixed(0);$("impactClass").textContent=(score>=0?"+":"")+score.toFixed(0)+" · "+cl.label;$("impactClass").className="signal IMPACT_"+cl.key;
+ $("impact").textContent=(score>=0?"+":"")+score.toFixed(0);$("impactTop").textContent=(score>=0?"+":"")+score.toFixed(0)+" "+cl.label;$("impactClass").textContent=(score>=0?"+":"")+score.toFixed(0)+" · "+cl.label;$("impactClass").className="signal IMPACT_"+cl.key;
  $("flowPressure").textContent=((r.ti||0)*100).toFixed(1)+"%";$("topls").textContent=Number.isFinite(r.topLS)?r.topLS.toFixed(3):"—";$("topls2").textContent=Number.isFinite(r.topLS)?r.topLS.toFixed(3):"—";
  $("toplsSlope").textContent=Number.isFinite(r.topLSSlope)?(r.topLSSlope>=0?"+":"")+r.topLSSlope.toFixed(3):"—";$("absorption").textContent=(Math.min(1,Math.max(0,r.absorption||0))*100).toFixed(0)+"%";
  $("priceFlowDiv").textContent=r.flowPriceDiv===1?"Bullish divergence":r.flowPriceDiv===-1?"Bearish divergence":"None";$("oiRegime").textContent=regimeFromOI(r);
@@ -202,7 +202,7 @@ function predictLatest(){
  $("topls").textContent=Number.isFinite(r.topLS)?r.topLS.toFixed(3):"—";$("topls2").textContent=Number.isFinite(r.topLS)?r.topLS.toFixed(3):"—";renderImpact(r,true);
 }
 function train(){
- const fx=features(rows);featureRows=fx;drawStrengthChart();const ys=label(fx),valid=fx.map((r,i)=>ys[i]!==null&&FEATURES.every(k=>Number.isFinite(r[k]))),ix=fx.map((r,i)=>valid[i]?i:-1).filter(i=>i>=0);
+ const fx=features(rows);featureRows=fx;drawStrengthChart();if(fx.length)renderImpact(fx.at(-1),false);say("Impact Engine đã tính. Đang chạy walk-forward ML…");const ys=label(fx),valid=fx.map((r,i)=>ys[i]!==null&&FEATURES.every(k=>Number.isFinite(r[k]))),ix=fx.map((r,i)=>valid[i]?i:-1).filter(i=>i>=0);
  if(ix.length<300){say("Chưa đủ dữ liệu hợp lệ để train: "+ix.length);return}
  const initialTrain=Math.floor(ix.length*.6),X=matrix(fx),confusion=Array.from({length:3},()=>[0,0,0]);let correct=0,testCount=0,trades=0,agreementTrades=0,divergenceTrades=0,eq=1,nextTradeAfter=-1,impactCorrect=0,impactN=0,folds=0;tradeSamples=[];const params={directionalEdge:.58,minDirectionalMass:.05};
  for(let start=initialTrain;start<ix.length;start+=FOLD_SIZE){
@@ -249,14 +249,15 @@ async function getKlineHistory(kind){
  }
  return [...all.values()].sort((a,b)=>Number(a[0])-Number(b[0])).slice(-TARGET_CANDLES);
 }
+async function safeAux(fn,fallback=[]){try{return await fn()}catch(e){console.warn("Aux source unavailable:",e);return fallback}}
 async function getAux(){
  const [ls,oi,fr,fo]=await Promise.all([
-  pagedHistory("https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol=SPYUSDT&period=15m","limit","timestamp",5000),
-  pagedHistory("https://fapi.binance.com/futures/data/openInterestHist?symbol=SPYUSDT&period=15m","limit","timestamp",2000),
-  pagedHistory("https://fapi.binance.com/fapi/v1/fundingRate?symbol=SPYUSDT","limit","fundingTime",500),
-  pagedHistory("https://fapi.binance.com/fapi/v1/forceOrders?symbol=SPYUSDT","limit","time",500)
+  safeAux(()=>pagedHistory("https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol=SPYUSDT&period=15m","limit","timestamp",1500),[]),
+  safeAux(()=>pagedHistory("https://fapi.binance.com/futures/data/openInterestHist?symbol=SPYUSDT&period=15m","limit","timestamp",1000),[]),
+  safeAux(()=>pagedHistory("https://fapi.binance.com/fapi/v1/fundingRate?symbol=SPYUSDT","limit","fundingTime",200),[]),
+  safeAux(()=>getJSON("https://fapi.binance.com/fapi/v1/forceOrders?symbol=SPYUSDT&limit=100"),[])
  ]);
- return {ls,oi,fr,fo};
+ return {ls:Array.isArray(ls)?ls:[],oi:Array.isArray(oi)?oi:[],fr:Array.isArray(fr)?fr:[],fo:Array.isArray(fo)?fo:[]};
 }
 function seriesValue(series,time,key){
  let lo=0,hi=series.length-1,best=null;while(lo<=hi){const m=(lo+hi)>>1,ts=Number(series[m].timestamp??series[m].fundingTime??series[m].time);if(ts<=time){best=series[m];lo=m+1}else hi=m-1}
@@ -276,11 +277,12 @@ function rowsFromCandles(k,m,i,aux,closedOnly=true){
 async function getRecentKlines(kind,limit=20){
  let path,params;if(kind==="last"){path="klines";params={symbol:"SPYUSDT",interval:"15m",limit:String(limit)}}else if(kind==="mark"){path="markPriceKlines";params={symbol:"SPYUSDT",interval:"15m",limit:String(limit)}}else{path="indexPriceKlines";params={pair:"SPYUSDT",interval:"15m",limit:String(limit)}}return getJSON("https://fapi.binance.com/fapi/v1/"+path+"?"+new URLSearchParams(params));
 }
-async function refreshAux(){try{const a=await getAux();live.topLS=Number(a.ls.at(-1)?.longShortRatio);live.oi=Number(a.oi.at(-1)?.sumOpenInterestValue||a.oi.at(-1)?.sumOpenInterest);live.funding=Number(a.fr.at(-1)?.fundingRate);return a}catch(e){console.warn("Aux Binance:",e);return null}}
+async function refreshAux(){const a=await getAux();if(a.ls.length)live.topLS=Number(a.ls.at(-1)?.longShortRatio);if(a.oi.length)live.oi=Number(a.oi.at(-1)?.sumOpenInterestValue||a.oi.at(-1)?.sumOpenInterest);if(a.fr.length)live.funding=Number(a.fr.at(-1)?.fundingRate);return a}
 async function loadHistory(){
  say("Đang tải 15m + Top L/S + Open Interest + Funding + Liquidation từ Binance…");
  const [k,m,i,aux]=await Promise.all([getKlineHistory("last"),getKlineHistory("mark"),getKlineHistory("index"),getAux()]);
  rows=rowsFromCandles(k,m,i,aux,true).slice(-TARGET_CANDLES);if(!rows.length)throw Error("Không ghép được dữ liệu Binance");
+ if(!aux.ls.length)console.warn("Top L/S unavailable — fallback neutral");if(!aux.oi.length)console.warn("OI unavailable — fallback neutral");
  live.last=rows.at(-1).last;live.mark=rows.at(-1).mark;live.index=rows.at(-1).index;live.topLS=rows.at(-1).topLS;live.oi=rows.at(-1).oi;live.funding=rows.at(-1).funding;renderLive();train();connect();
 }
 async function refreshAndTrain(){
@@ -290,7 +292,7 @@ async function refreshAndTrain(){
 function renderLive(){const r=rows.at(-1);if(!r)return;const lp=Number.isFinite(live.last)?live.last:r.last,ip=Number.isFinite(live.index)?live.index:r.index;const b=lp-ip;$("last").textContent=lp.toFixed(4);$("index").textContent=ip.toFixed(4);$("basis").textContent=(b>=0?"+":"")+b.toFixed(4);$("bp").textContent=(b/ip*100).toFixed(4)+"%";$("topls").textContent=Number.isFinite(live.topLS)?live.topLS.toFixed(3):(Number.isFinite(r.topLS)?r.topLS.toFixed(3):"—")}
 function connect(){
  const ws=new WebSocket("wss://fstream.binance.com/market/stream?streams=spyusdt@markPrice@1s/spyusdt@aggTrade/spyusdt@forceOrder");
- ws.onopen=()=>{$("conn").textContent="● Binance LIVE";$("conn").className="ok"};ws.onclose=()=>{$("conn").textContent="reconnecting…";setTimeout(connect,2500)};
+ ws.onopen=()=>{$("conn").textContent="● Binance LIVE";$("conn").className="ok"};ws.onerror=()=>{$("conn").textContent="LIVE stream error";$("conn").className="warn"};ws.onclose=()=>{$("conn").textContent="reconnecting…";setTimeout(connect,2500)};
  ws.onmessage=e=>{try{const d=JSON.parse(e.data).data;if(d.e==="markPriceUpdate"){live.mark=+d.p;live.index=+d.i;live.funding=+d.r;live.last=live.last||+d.p;renderLive();predictLatest()}else if(d.e==="aggTrade"){live.last=+d.p;if(d.m)live.sell+=+d.q;else live.buy+=+d.q;renderLive();predictLatest()}else if(d.e==="forceOrder"){const o=d.o||{},q=Number(o.ap)*Number(o.z);if(o.S==="SELL")live.liqSell+=q;else if(o.S==="BUY")live.liqBuy+=q;predictLatest()}}catch(_){}};setInterval(()=>{live.buy=live.sell=0;live.liqBuy=live.liqSell=0},15*60*1000);
 }
 window.addEventListener("resize",drawStrengthChart);$("run").onclick=refreshAndTrain;loadHistory().then(()=>setInterval(refreshAndTrain,15*60*1000)).catch(e=>say("Lỗi tải Binance: "+e.message));
