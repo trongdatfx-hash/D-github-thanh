@@ -62,10 +62,10 @@ async function analyze(){
  ]);
  const close=k.map(x=>+x[4]), vol=k.map(x=>+x[5]), c=close.at(-1), c5=close.at(-5), c20=close.at(-20);
  const weekMap=new Map(); daily.forEach(x=>{const d=new Date(+x[0]); const monday=Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()-((d.getUTCDay()+6)%7)); if(!weekMap.has(monday))weekMap.set(monday,[]); weekMap.get(monday).push(x)}); const weeks=[...weekMap.values()].map(q=>{const hi=Math.max(...q.map(x=>+x[2])),lo=Math.min(...q.map(x=>+x[3])); return {hi,lo,range:hi-lo,pct:lo?((hi-lo)/lo*100):0}}).filter(x=>x.pct>0);
- const wr=weeks.slice(-52).map(x=>x.pct).sort((a,b)=>a-b); const quant=p=>wr[Math.min(wr.length-1,Math.floor((wr.length-1)*p))];
+ const wr=weeks.slice(-52).map(x=>x.pct).sort((a,b)=>a-b); const quant=p=>wr.length?wr[Math.min(wr.length-1,Math.floor((wr.length-1)*p))]:0;
  const weekStart=Date.now()-((new Date().getUTCDay()+6)%7)*86400000; const curDays=daily.filter(x=>+x[0]>=weekStart);
- const wHi=Math.max(...curDays.map(x=>+x[2])), wLo=Math.min(...curDays.map(x=>+x[3])), wRangePct=(wLo?(wHi-wLo)/wLo*100:0);
- const rank=wr.filter(x=>x<=wRangePct).length/Math.max(1,wr.length), pos=wHi>wLo?(c-wLo)/(wHi-wLo):.5;
+ const curSource=curDays.length?curDays:k; const wHi=Math.max(...curSource.map(x=>+x[2])), wLo=Math.min(...curSource.map(x=>+x[3])), wRangePct=(isFinite(wLo)&&wLo?(wHi-wLo)/wLo*100:0);
+ const rank=wr.length?wr.filter(x=>x<=wRangePct).length/wr.length:.5, pos=wHi>wLo?(c-wLo)/(wHi-wLo):.5;
  let reaction='NORMAL'; if(rank>=.95)reaction='EXTREME RANGE — ưu tiên hồi quy/giảm đuổi giá'; else if(rank>=.75)reaction='EXPANSION — có thể tiếp diễn nhưng rủi ro mean-reversion tăng'; else if(rank<=.25)reaction='COMPRESSED RANGE — chờ breakout/xác nhận';
  const weeklyText='Tuần hiện tại: '+wRangePct.toFixed(2)+'% | Percentile: '+Math.round(rank*100)+'% | P25 '+quant(.25).toFixed(2)+'% · P50 '+quant(.5).toFixed(2)+'% · P75 '+quant(.75).toFixed(2)+'% · P90 '+quant(.9).toFixed(2)+'% · P95 '+quant(.95).toFixed(2)+'%<br><b>Vị trí giá trong tuần:</b> '+Math.round(pos*100)+'% từ Low → High<br><b>Phản ứng dự kiến:</b> '+reaction;
  const hist=[]; const sortedWeeks=[...weekMap.entries()].sort((a,b)=>a[0]-b[0]);
