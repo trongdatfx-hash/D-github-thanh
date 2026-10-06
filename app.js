@@ -4,7 +4,8 @@ const BASIS_API="https://fapi.binance.com/futures/data/basis";
 const WSBASE="wss://fstream.binance.com/market/stream?streams=";
 const TFMS={ "1m":60000,"5m":300000,"15m":900000,"30m":1800000,"1h":3600000,"2h":7200000,"4h":14400000,"1d":86400000 };
 let tf="15m", days=7, bars=[], ws=null, canvas,ctx,tip,crossV,crossH;
-let basisOn=false,basisData=[],basisMap=new Map(),basisPoll=null; let lsOn=true,lsData=[],lsPoll=null; let divLook=4;
+let basisOn=false,basisData=[],basisMap=new Map(),basisPoll=null;
+let weeklyOn=true,weeklyData=[],weeklyPoll=null; let lsOn=true,lsData=[],lsPoll=null; let divLook=4;
 let strengthOn=true,strengthLen=8,strengthHl=2,strengthLook=500; let first=0, visible=120, dragging=false, dragX=0, dragFirst=0,crosshair={idx:null,x:null,y:null};let drawQueued=false,strengthCache=null,strengthCacheKey="";
 const $=id=>document.getElementById(id);
 function setStatus(s,ok=true){$("status").textContent=s;$("status").className=ok?"ok":"bad"}
@@ -92,9 +93,23 @@ function topLSDivergenceAt(i,full){
 }
 function scheduleTopLSPoll(){if(lsPoll)clearInterval(lsPoll);lsPoll=setInterval(()=>{if(lsOn)loadTopLS()},60000)}
 function scheduleBasisPoll(){if(basisPoll)clearInterval(basisPoll);basisPoll=setInterval(()=>{if(basisOn)loadBasis()},60000)}
+async function loadWeeklyPercentiles(){
+ try{
+  const r=await fetch('https://fapi.binance.com/fapi/v1/klines?symbol='+SYMBOL+'&interval=1w&limit=110',{cache:'no-store'});
+  if(!r.ok)throw new Error('Weekly HTTP '+r.status);
+  const a=await r.json(); if(!a.length)return;
+  const completed=a.slice(0,-1);
+  const ranges=completed.map(x=>({rangePct:(+x[2]-+x[3])/(+x[1])*100,open:+x[1],t:+x[0]})).filter(x=>isFinite(x.rangePct)&&x.rangePct>0);
+  const q=p=>{const z=ranges.map(x=>x.rangePct).sort((a,b)=>a-b);return z[Math.max(0,Math.min(z.length-1,Math.floor((z.length-1)*p)))]};
+  weeklyData={p25:q(.25),p50:q(.5),p75:q(.75),p90:q(.9),p95:q(.95),open:+a.at(-1)[1],curHigh:+a.at(-1)[2],curLow:+a.at(-1)[3],updated:+a.at(-1)[0]};
+  requestDraw();
+ }catch(e){weeklyData=[]}
+}
+function scheduleWeeklyPoll(){if(weeklyPoll)clearInterval(weeklyPoll);weeklyPoll=setInterval(loadWeeklyPercentiles,300000)}
 async function loadHistory(){
  $("status").textContent="Loading Binance data…";$("status").className="bad";$("err").style.display="none";
  const end=Date.now(),start=end-days*86400000,all=[];let cursor=start;
+ await loadWeeklyPercentiles();
  while(cursor<end){
   const u=`${API}?symbol=${SYMBOL}&interval=${tf}&startTime=${cursor}&endTime=${end}&limit=1500`;let r;
   try{r=await fetch(u,{cache:"no-store"})}catch(e){throw new Error("Không kết nối được Binance API: "+e.message)}
@@ -102,7 +117,7 @@ async function loadHistory(){
   const a=await r.json();if(!a.length)break;all.push(...a);const next=+a[a.length-1][0]+intervalMs();if(next<=cursor)break;cursor=next;if(a.length<1500)break;await new Promise(r=>setTimeout(r,80))
  }
  const seen=new Set();bars=all.filter(x=>!seen.has(+x[0])&&(seen.add(+x[0]),true)).map(x=>({t:+x[0],o:+x[1],h:+x[2],l:+x[3],c:+x[4],v:+x[5],buy:+x[9],sell:Math.max(0,+x[5]-+x[9]),closed:Date.now()>+x[6]}));
- bars.sort((a,b)=>a.t-b.t);first=Math.max(0,bars.length-visible);if(basisOn)await loadBasis();if(lsOn)await loadTopLS();draw();connect();scheduleBasisPoll();scheduleTopLSPoll()
+ bars.sort((a,b)=>a.t-b.t);first=Math.max(0,bars.length-visible);if(basisOn)await loadBasis();if(lsOn)await loadTopLS();draw();connect();scheduleBasisPoll();scheduleTopLSPoll();scheduleWeeklyPoll()
 }
 function connect(){
  if(ws)try{ws.close()}catch(e){}
@@ -122,6 +137,22 @@ function draw(){
  let plo=Math.min(...full.map(b=>b.l)),phi=Math.max(...full.map(b=>b.h));let pr=phi-plo;if(!isFinite(pr)||pr<=0)pr=Math.max(Math.abs(phi)*0.002,0.01);const pp=pr*0.08;plo-=pp;phi+=pp;
  let vmax=Math.max(...full.map(b=>Math.max(b.buy,b.sell)),1);const stepRaw=vmax/3,p10=Math.pow(10,Math.floor(Math.log10(stepRaw||1))),nm=stepRaw/p10,vstep=(nm<=1?1:nm<=2?2:nm<=5?5:10)*p10;vmax=vstep*3;
  const py=v=>top+(phi-v)/(phi-plo)*priceH,vy=v=>volTop+volH-(v/vmax)*volH;
+ if(weeklyOn&&weeklyData&&weeklyData.open&&weeklyData.p25){
+  const wo=weeklyData.open, levels=[['P25',weeklyData.p25,'#5b6575'],['P50',weeklyData.p50,'#8d96a7'],['P75',weeklyData.p75,'#d8a83e'],['P90',weeklyData.p90,'#f59e0b'],['P95',weeklyData.p95,'#f6465d']];
+  const startWeek=weeklyData.updated, x0=left,x1=W-right;
+  ctx.save();ctx.setLineDash([6,5]);ctx.lineWidth=1;
+  for(const [lab,rpct,col] of levels){
+   if(!isFinite(rpct))continue;
+   const d=wo*rpct/100/2,up=wo+d,dn=wo-d;
+   for(const [v,side] of [[up,'+'],[dn,'-']]){
+    if(v<plo||v>phi)continue;
+    const yy=py(v);ctx.strokeStyle=col;ctx.globalAlpha=.75;ctx.beginPath();ctx.moveTo(x0,yy);ctx.lineTo(x1,yy);ctx.stroke();
+    ctx.globalAlpha=1;ctx.fillStyle=col;ctx.font='10px Arial';ctx.textAlign='left';ctx.fillText(lab+side+' '+v.toFixed(2),x0+4,yy-3);
+   }
+  }
+  const yy=py(wo);if(yy>=top&&yy<=top+priceH){ctx.setLineDash([3,3]);ctx.strokeStyle='#e7e9ee';ctx.globalAlpha=.6;ctx.beginPath();ctx.moveTo(x0,yy);ctx.lineTo(x1,yy);ctx.stroke();ctx.globalAlpha=1;ctx.fillStyle='#e7e9ee';ctx.font='10px Arial';ctx.fillText('W Open '+wo.toFixed(2),x0+4,yy-4)}
+  ctx.setLineDash([]);ctx.textAlign='right';ctx.fillStyle='#aab3c2';ctx.font='10px Arial';ctx.fillText('Weekly Range Percentile',x1,top+12);ctx.restore();
+ }
  ctx.fillStyle="#e7e9ee";ctx.font="600 16px Arial";ctx.fillText("SPYUSDT.P",16,26);ctx.fillStyle="#8d96a7";ctx.font="12px Arial";ctx.fillText(`Price · ${tf}`,16,43);ctx.fillStyle="#e7e9ee";ctx.font="600 15px Arial";ctx.fillText("Taker Buy/Sell Volume",16,volTop-8);
  ctx.font="11px Arial";ctx.lineWidth=1;ctx.textAlign="right";
  for(let i=0;i<=4;i++){const yy=top+i*priceH/4,val=phi-i*(phi-plo)/4;ctx.strokeStyle="#2d333d";ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(W-right,yy);ctx.stroke();ctx.fillStyle="#7e899d";ctx.fillText(val.toFixed(2),W-right+60,yy+4)}
