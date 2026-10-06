@@ -82,7 +82,7 @@ async function analyze(){
  const funding=+f.lastFundingRate||0;
  const cotScore=cot?clamp((cot.nonCommercial.net/cot.openInterest)*1000,-100,100):0, cotMomentum=cot?clamp(((cot.nonCommercial.net-cot.nonCommercial.prevNet)/cot.openInterest)*1000,-100,100):0;
  const trend=clamp(ret20*8,-100,100), flow=clamp((tak-.5)*400,-100,100), oiScore=clamp(oiCh*12,-100,100), lsScore=clamp(lsCh*80,-100,100), fundScore=clamp(-funding*100000,-100,100);
- const longScore=clamp(50+trend*.22+flow*.30+oiScore*.18+lsScore*.12+fundScore*.08+cotScore*.08,0,100);
+ let longScore=clamp(50+trend*.22+flow*.30+oiScore*.18+lsScore*.12+fundScore*.08+cotScore*.08,0,100);
  const shortScore=100-longScore;
  let state=Math.abs(ret20)<.35?'RANGE':(ret20>0?(Math.abs(ret5)>0.28?'BREAKOUT':'TREND UP'):(Math.abs(ret5)>0.28?'BREAKOUT':'TREND DOWN'));
  if(Math.sign(ret5)!==Math.sign(ret20)&&Math.abs(ret5)>.12)state='REVERSAL';
