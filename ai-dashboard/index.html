@@ -11,32 +11,42 @@ button{background:#13263c;color:#e7eef7;border:1px solid #25415f;border-radius:9
 .bar{height:11px;background:#12243a;border-radius:9px;overflow:hidden}.bar i{display:block;height:100%}.ps{background:#fb7185}.pn{background:#fbbf24}.pl{background:#36d399}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.log{background:#081522;border-radius:9px;padding:10px;white-space:pre-wrap;min-height:80px;color:#b9c9d9}.ok{color:#6ee7b7}.warn{color:#fde68a}
 table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:7px;border-bottom:1px solid #19314a}@media(max-width:850px){
- .wrap{padding:7px 6px}
- h1{font-size:18px;line-height:1.15}
- .muted{font-size:11px}
- .top{gap:6px;align-items:flex-start}
- .top button{padding:7px 9px;font-size:12px}
- .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+ .wrap{padding:6px 5px}
+ h1{font-size:18px;line-height:1.1}
+ .muted{font-size:10px}
+ .top{gap:5px;align-items:center}
+ .top>div:first-child{min-width:0}
+ .top button{padding:6px 8px;font-size:11px}
+ .top #conn{font-size:10px}
+ .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
  .two{grid-template-columns:1fr}
- .impactHero{margin:5px 0 7px}
- .impactHero .signal{font-size:26px;padding:13px 8px;border-radius:11px;letter-spacing:-.2px}
- .heroSub{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin-top:5px;font-size:10px}
- .heroSub span{background:#0c1b2c;border:1px solid #1b3550;border-radius:7px;padding:5px 3px;text-align:center;min-width:0}
- .heroSub b{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
- .panel{padding:4px!important;border-radius:10px}
- .chartFrame{height:calc(100svh - 225px);min-height:470px;max-height:760px;border-radius:8px}
-}
-@media(min-width:851px){
- .chartFrame{height:min(72vh,760px);min-height:600px}
+ .impactHero{margin:4px 0 6px}
+ .impactHero .signal{font-size:25px;line-height:1.1;padding:12px 5px;border-radius:10px;white-space:nowrap}
+ .heroSub{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;margin-top:5px;font-size:9px}
+ .heroSub span{background:#0c1b2c;border:1px solid #1b3550;border-radius:6px;padding:4px 3px;text-align:center;min-width:0}
+ .heroSub b{display:block;font-size:10px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .panel{padding:3px!important;border-radius:9px}
+ .chartFrame{height:calc(100svh - 285px);min-height:500px;max-height:760px;border-radius:7px}
 }
 @media(max-width:420px){
- .wrap{padding:5px 4px}
- h1{font-size:17px}
- .top>div:first-child{max-width:72%}
- .heroSub{grid-template-columns:repeat(2,minmax(0,1fr));font-size:9px}
- .heroSub b{font-size:10px}
- .impactHero .signal{font-size:23px;padding:11px 5px}
- .chartFrame{height:calc(100svh - 205px);min-height:430px}
+ .wrap{padding:4px}
+ h1{font-size:16px}
+ .top>div:first-child{max-width:68%}
+ .top>div:first-child .muted{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .top button{padding:6px 7px}
+ .impactHero .signal{font-size:22px;padding:10px 3px}
+ .heroSub{grid-template-columns:repeat(2,minmax(0,1fr));gap:3px}
+ .heroSub span{padding:4px 2px}
+ .heroSub b{font-size:9px}
+ .chartFrame{height:calc(100svh - 265px);min-height:460px}
+}
+@media(orientation:portrait) and (max-width:850px){
+ body{overflow-x:hidden}
+ .wrap{width:100%;max-width:100vw}
+ .chartFrame{width:100%;display:block}
+}
+@media(orientation:landscape) and (max-width:850px){
+ .chartFrame{height:calc(100svh - 145px);min-height:360px}
 }
 .secondary{display:none!important}
 .chartFrame{width:100%;border:1px solid #29313d;background:#171a21;display:block}
