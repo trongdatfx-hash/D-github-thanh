@@ -89,6 +89,15 @@ img,canvas,svg,iframe{max-width:100%}
 .matrixBull{color:#6ee7b7}.matrixBear{color:#fda4af}.matrixNeutral{color:#fde68a}
 @media(max-width:640px){#matrixPanel table{font-size:11px}#matrixPanel td,#matrixPanel th{padding:5px 4px}}
 #pairStudyTable{min-width:760px}
+.mlPanel{margin:8px 0;padding:10px 12px!important}
+.mlHeader{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.mlGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:9px}
+.mlMetric{background:#081522;border:1px solid #19314a;border-radius:9px;padding:8px;min-width:0}
+.mlMetric strong{display:block;font-size:16px;margin-top:3px;overflow-wrap:anywhere}
+.mlProb{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:8px}
+.mlProbItem{min-width:0;color:#aab3c2;font-size:11px}
+.mlProbItem b{display:flex;justify-content:space-between;color:#e7eef7;font-size:11px;margin-bottom:4px}
+@media(max-width:640px){.mlPanel{padding:8px!important}.mlGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}.mlMetric{padding:6px}.mlMetric strong{font-size:14px}.mlProb{gap:4px}}
 </style></head>
 <body><div class="wrap">
 <div class="top">
@@ -108,6 +117,21 @@ img,canvas,svg,iframe{max-width:100%}
   <span>OI <b id="oiRegime">—</b></span>
  </div>
 </div>
+
+<section class="panel mlPanel" id="mlPanel" aria-live="polite">
+ <div class="mlHeader"><b>ML · Walk-forward</b><span id="mlStatus" class="muted">Đang khởi động…</span></div>
+ <div class="mlGrid">
+  <div class="mlMetric"><span class="label">Tín hiệu ML</span><strong id="mlSignal">WAIT</strong></div>
+  <div class="mlMetric"><span class="label">Độ chính xác</span><strong id="mlAccuracy">—</strong></div>
+  <div class="mlMetric"><span class="label">Cân bằng lớp</span><strong id="mlBacc">—</strong></div>
+  <div class="mlMetric"><span class="label">Mẫu kiểm định / folds</span><strong id="mlSamples">— / —</strong></div>
+ </div>
+ <div class="mlProb">
+  <div class="mlProbItem"><b><span>SHORT</span><span id="mlShortPct">—</span></b><div class="bar"><i id="mlShortBar" class="ps" style="width:0%"></i></div></div>
+  <div class="mlProbItem"><b><span>NEUTRAL</span><span id="mlNeutralPct">—</span></b><div class="bar"><i id="mlNeutralBar" class="pn" style="width:0%"></i></div></div>
+  <div class="mlProbItem"><b><span>LONG</span><span id="mlLongPct">—</span></b><div class="bar"><i id="mlLongBar" class="pl" style="width:0%"></i></div></div>
+ </div>
+</section>
 
 <div class="panel" style="padding:7px">
  <button id="fsBtn" type="button" aria-label="Phóng to chart" title="Phóng to chart">⛶</button>\n <iframe class="chartFrame" src="../?embedded=1&yaxis=1" title="SPYUSDT price, Taker Buy/Sell and Top Trader L/S"></iframe>
@@ -143,7 +167,7 @@ const TARGET_CANDLES=12000,PAGE_SIZE=1500,AUX_TARGET=5000,HORIZON=4,FOLD_SIZE=12
 const FEATURES=["r1","r4","r16","bp","bv","ba","bz","mi","ti","cvd4","vol","mom","rng","vz","tbp","tsp","bpr","bslope","strength","strengthSlope","bullDiv","bearDiv","topLS","topLSSlope","topLSZ","topAcctLS","topAcctLSSlope","globalLS","globalLSSlope","takerRatio","takerRatioZ","oiDelta","oiZ","funding","fundingZ","liqNetZ","takerForce","priceResponse","flowPriceDiv","absorption"];
 let rows=[],featureRows=[],tradeSamples=[],model=null,liqByBucket=new Map(),live={last:NaN,index:NaN,mark:NaN,buy:0,sell:0,topLS:NaN,oi:NaN,funding:NaN,liqBuy:0,liqSell:0,liqBucket:Math.floor(Date.now()/900000)*900000},refreshBusy=false;
 
-const say=s=>$("log").textContent=s;
+const say=s=>{$("log").textContent=s;const status=$("mlStatus");if(status)status.textContent=s};
 const pct=v=>(100*v).toFixed(1);
 const clamp=(v,a=-1,b=1)=>Math.max(a,Math.min(b,v));
 const tanh=v=>{const e=Math.exp(2*v);return (e-1)/(e+1)};
@@ -331,6 +355,7 @@ function predictLatest(){
  const p=probs(model.W,r,model.N),setup=flowBasisSetup(r),mass=p[0]+p[2],longShare=mass?p[2]/mass:.5,confirm=r.ti;
  $("ps").textContent=pct(p[0]);$("pn").textContent=pct(p[1]);$("pl").textContent=pct(p[2]);$("psb").style.width=pct(p[0])+"%";$("pnb").style.width=pct(p[1])+"%";$("plb").style.width=pct(p[2])+"%";
  const longOk=mass>=model.params.minDirectionalMass&&longShare>=model.params.directionalEdge&&setup.isLong&&confirm>-.05,shortOk=mass>=model.params.minDirectionalMass&&(1-longShare)>=model.params.directionalEdge&&setup.isShort&&confirm<.05,sig=longOk?"LONG":shortOk?"SHORT":"WAIT",sigScore=(p[2]-p[0])*100+(setup.isLong?15:setup.isShort?-15:0);
+ $("mlSignal").textContent=sig;$("mlSignal").className=sig;$("mlShortPct").textContent=pct(p[0])+"%";$("mlNeutralPct").textContent=pct(p[1])+"%";$("mlLongPct").textContent=pct(p[2])+"%";$("mlShortBar").style.width=pct(p[0])+"%";$("mlNeutralBar").style.width=pct(p[1])+"%";$("mlLongBar").style.width=pct(p[2])+"%";
  $("signal").textContent=sig;$("signal").className="signal "+sig;$("score").textContent=(sigScore>=0?"+":"")+sigScore.toFixed(1);$("ti").textContent=(confirm*100).toFixed(1)+"%";
  $("topls").textContent=Number.isFinite(r.topLS)?r.topLS.toFixed(3):"—";$("topls2").textContent=Number.isFinite(r.topLS)?r.topLS.toFixed(3):"—";renderImpact(r,true);
 }
@@ -353,7 +378,7 @@ function train(){
   }
  }
  const recall=[0,1,2].map(c=>{const n=confusion[c].reduce((a,b)=>a+b,0);return n?confusion[c][c]/n:0}),bacc=recall.reduce((a,b)=>a+b,0)/3,finalTrain=ix.length>MAX_TRAIN_SAMPLES?ix.slice(-MAX_TRAIN_SAMPLES):ix,N=prep(finalTrain.map(i=>X[i])),W=fit(normX(finalTrain.map(i=>X[i]),N),finalTrain.map(i=>ys[i]),EPOCHS);
- model={W,N,params};$("model").textContent="ML + Impact Engine";$("acc").textContent=pct(correct/testCount)+"%";$("bacc").textContent=pct(bacc)+"%";$("samples").textContent=testCount.toLocaleString();$("folds").textContent=folds;$("trades").textContent=trades.toLocaleString();$("agreementTrades").textContent=agreementTrades.toLocaleString();$("divergenceTrades").textContent=divergenceTrades.toLocaleString();$("params").textContent="58% dir / impact ≥20/50/80";$("sret").textContent=((eq-1)*100).toFixed(2)+"%";renderTradeSamples();predictLatest();
+ model={W,N,params};$("model").textContent="ML + Impact Engine";$("acc").textContent=pct(correct/testCount)+"%";$("bacc").textContent=pct(bacc)+"%";$("samples").textContent=testCount.toLocaleString();$("folds").textContent=folds;$("mlAccuracy").textContent=pct(correct/testCount)+"%";$("mlBacc").textContent=pct(bacc)+"%";$("mlSamples").textContent=testCount.toLocaleString()+" / "+folds;$("trades").textContent=trades.toLocaleString();$("agreementTrades").textContent=agreementTrades.toLocaleString();$("divergenceTrades").textContent=divergenceTrades.toLocaleString();$("params").textContent="58% dir / impact ≥20/50/80";$("sret").textContent=((eq-1)*100).toFixed(2)+"%";renderTradeSamples();predictLatest();
  say("Walk-forward "+folds+" folds · "+ix.length.toLocaleString()+" nến hợp lệ · Impact hit-rate |score|≥50: "+(impactN?((impactCorrect/impactN)*100).toFixed(1):"—")+"%.");
 }
 async function getJSON(url){
