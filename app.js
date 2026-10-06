@@ -24,22 +24,6 @@ function axisPointerDown(e){if(!inYAxis(e))return;e.preventDefault();e.stopPropa
 function axisPointerMove(e){if(!axisDrag)return;e.preventDefault();e.stopPropagation();const st=yState[axisDrag.pane],k=Math.exp((e.clientY-axisDrag.y0)*.006);let half=(axisDrag.hi-axisDrag.lo)/2*k;half=Math.min(Math.max(half,axisDrag.autoSpan*.01),axisDrag.autoSpan*25);st.lo=axisDrag.cy-half;st.hi=axisDrag.cy+half;st.manual=true;requestDraw()}
 function axisPointerEnd(e){if(!axisDrag)return;e.preventDefault();e.stopPropagation();try{canvas.releasePointerCapture?.(e.pointerId)}catch(_){}axisDrag=null}
 
-const AXIS_W=72;
-const yState={price:{manual:false,lo:0,hi:0},basis:{manual:false,lo:0,hi:0},ls:{manual:false,lo:0,hi:0}};
-let axisDrag=null,lastAxisTap=0;
-function axisPaneAt(y){const H=canvas?canvas.clientHeight:0,basisH=basisOn?Math.max(88,Math.floor(H*.17)):0,lsH=lsOn?Math.max(128,Math.floor(H*.23)):0,bottom=38,lowerTop=H-bottom-lsH-basisH,lsTop=H-bottom-lsH;if(lsOn&&y>=lsTop)return"ls";if(basisOn&&y>=lowerTop&&y<lsTop)return"basis";return"price"}
-function visibleBarsForY(){return bars.slice(Math.max(0,first),Math.min(bars.length,first+visible))}
-function autoRange(pane){
- const full=visibleBarsForY();if(!full.length)return[0,1];
- if(pane==="price"){let lo=Math.min(...full.map(b=>b.l)),hi=Math.max(...full.map(b=>b.h));if(!isFinite(lo)||!isFinite(hi)||hi<=lo){const c=Number(full.at(-1)?.c)||1;return[c-Math.abs(c)*.01,c+Math.abs(c)*.01]}const pad=(hi-lo)*.08||Math.max(Math.abs(hi)*.002,.01);return[lo-pad,hi+pad]}
- if(pane==="basis"){const vals=full.map(b=>getBasisAt(b.t)?.basis).filter(Number.isFinite);if(!vals.length)return[0,1];let lo=Math.min(...vals),hi=Math.max(...vals);if(!(hi>lo))return[lo-.0001,hi+.0001];const pad=(hi-lo)*.12;return[lo-pad,hi+pad]}
- const vals=full.map(b=>getTopLSAt(b.t)?.ratio).filter(Number.isFinite);if(!vals.length)return[.5,1.5];let lo=Math.min(...vals),hi=Math.max(...vals);if(!(hi>lo)){lo=Math.max(.01,lo-.05);hi+=.05}else{const pad=(hi-lo)*.12;lo=Math.max(.01,lo-pad);hi+=pad}return[lo,hi]
-}
-function yRange(pane){const s=yState[pane]||(yState[pane]={manual:false,lo:0,hi:0});if(!s.manual){const a=autoRange(pane);s.lo=a[0];s.hi=a[1]}return[s.lo,s.hi]}
-function inYAxis(e){if(!canvas)return false;const r=canvas.getBoundingClientRect();return e.clientX>=r.right-AXIS_W}
-function axisPointerDown(e){if(!inYAxis(e))return;e.preventDefault();e.stopPropagation();const r=canvas.getBoundingClientRect(),pane=axisPaneAt(e.clientY-r.top),st=yState[pane],now=performance.now();if(now-lastAxisTap<320){st.manual=false;lastAxisTap=0;axisDrag=null;requestDraw();return}lastAxisTap=now;const[lo,hi]=yRange(pane),auto=autoRange(pane);axisDrag={pane,pointerId:e.pointerId,y0:e.clientY,lo,hi,cy:(lo+hi)/2,autoSpan:Math.max(auto[1]-auto[0],1e-12)};try{canvas.setPointerCapture(e.pointerId)}catch(_){}}
-function axisPointerMove(e){if(!axisDrag)return;e.preventDefault();e.stopPropagation();const st=yState[axisDrag.pane],k=Math.exp((e.clientY-axisDrag.y0)*.006);let half=(axisDrag.hi-axisDrag.lo)/2*k;half=Math.min(Math.max(half,axisDrag.autoSpan*.01),axisDrag.autoSpan*25);st.lo=axisDrag.cy-half;st.hi=axisDrag.cy+half;st.manual=true;requestDraw()}
-function axisPointerEnd(e){if(!axisDrag)return;e.preventDefault();e.stopPropagation();try{canvas.releasePointerCapture?.(e.pointerId)}catch(_){}axisDrag=null}
 
 const $=id=>document.getElementById(id);
 function setStatus(s,ok=true){$("status").textContent=s;$("status").className=ok?"ok":"bad"}
@@ -221,23 +205,36 @@ const zy=volTop+volH;ctx.strokeStyle="#39404c";ctx.beginPath();ctx.moveTo(left,z
  ctx.fillStyle="#f6465d";ctx.fillRect(W/2-160,volTop+15,10,10);ctx.fillStyle="#8d96a7";ctx.fillText("Taker Sell Volume (SPY)",W/2-145,volTop+24);ctx.fillStyle="#2ebd85";ctx.fillRect(W/2+45,volTop+15,10,10);ctx.fillStyle="#8d96a7";ctx.fillText("Taker Buy Volume (SPY)",W/2+60,volTop+24)
 }
 // Crosshair lines are handled by lightweight HTML overlays for continuous movement.
-canvas=$("c");ctx=canvas.getContext("2d");tip=$("tip");crossV=$("crossV");crossH=$("crossH");window.addEventListener("resize",resize);canvas.addEventListener("pointerdown",axisPointerDown,true);canvas.addEventListener("pointermove",axisPointerMove,true);canvas.addEventListener("pointerup",axisPointerEnd,true);canvas.addEventListener("pointercancel",axisPointerEnd,true);canvas.addEventListener("pointerdown",axisPointerDown,true);canvas.addEventListener("pointermove",axisPointerMove,true);canvas.addEventListener("pointerup",axisPointerEnd,true);canvas.addEventListener("pointercancel",axisPointerEnd,true);
+canvas=$("c");ctx=canvas.getContext("2d");tip=$("tip");crossV=$("crossV");crossH=$("crossH");window.addEventListener("resize",resize);canvas.addEventListener("pointerdown",axisPointerDown,true);canvas.addEventListener("pointermove",axisPointerMove,true);canvas.addEventListener("pointerup",axisPointerEnd,true);canvas.addEventListener("pointercancel",axisPointerEnd,true);
 $("tf").onchange=async()=>{tf=$("tf").value;await loadHistory()};$("range").onchange=async()=>{days=+$("range").value;await loadHistory()};$("strOn").onchange=()=>{strengthOn=$("strOn").checked;requestDraw()};$("strLen").onchange=()=>{strengthLen=+$("strLen").value;strengthCacheKey="";requestDraw()};$("strHl").onchange=()=>{strengthHl=+$("strHl").value;strengthCacheKey="";requestDraw()};
 $("basisOn").onchange=async()=>{basisOn=$("basisOn").checked;if(basisOn)await loadBasis();else{basisData=[];basisMap.clear();requestDraw()}};$("lsOn").onchange=async()=>{lsOn=$("lsOn").checked;if(lsOn)await loadTopLS();else{lsData=[];requestDraw()}};$("fit").onclick=fit;$("left").onclick=()=>move(-Math.max(1,Math.floor(visible*.35)));$("right").onclick=()=>move(Math.max(1,Math.floor(visible*.35)));$("refresh").onclick=()=>loadHistory();
 canvas.addEventListener("wheel",e=>{e.preventDefault();if(!bars.length)return;const factor=e.deltaY<0?.8:1.25,old=visible,newV=Math.max(20,Math.min(bars.length,Math.round(old*factor))),rect=canvas.getBoundingClientRect(),x=e.clientX-rect.left,left=70,right=72,pw=(canvas.clientWidth-left-right)/old,idx=Math.max(0,Math.min(old-1,Math.floor((x-left)/pw))),center=first+idx;visible=newV;first=Math.max(0,Math.min(Math.max(0,bars.length-visible),center-Math.floor(newV*(idx/Math.max(old,1)))));crosshair.idx=null;requestDraw()},{passive:false});
 // Mobile/desktop pointer interaction: one-finger pan, two-finger pinch zoom, tap for Crosshair.
-const pointers=new Map();let pinchStartDist=0,pinchStartVisible=0,pinchStartCenter=0,panStartX=0,panStartFirst=0,panMoved=false;
+const pointers=new Map();let pinchStartDist=0,pinchStartVisible=0,pinchStartCenter=0,panStartX=0,panStartY=0,panStartFirst=0,panMoved=false,panVertical=false,panPane="price",panYLo=0,panYHi=1;
 function hideCross(){tip.style.display="none";crosshair.idx=null;if(crossV)crossV.style.display="none";if(crossH)crossH.style.display="none"}
 function pointerPos(e){const r=canvas.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top}}
 function showCross(e){if(!bars.length)return;const p=pointerPos(e),left=70,right=72,pw=(canvas.clientWidth-left-right)/Math.max(visible,1),idx=Math.floor((p.x-left)/pw);if(idx<0||idx>=Math.min(visible,bars.length-first)){hideCross();requestDraw();return}const b=bars[first+idx];if(!b)return;crosshair.idx=idx;crosshair.x=p.x;crosshair.y=p.y;const snapX=left+idx*pw+pw/2;if(crossV){crossV.style.left=snapX+"px";crossV.style.display="block"}if(crossH){crossH.style.top=p.y+"px";crossH.style.display="block"}tip.innerHTML="<b>"+fullDate(b.t)+"</b><br><b>O</b> "+b.o+" &nbsp; <b>H</b> "+b.h+" &nbsp; <b>L</b> "+b.l+" &nbsp; <b>C</b> "+b.c+"<br><span style='color:#2ebd85'>Taker Buy: "+b.buy.toFixed(4)+"</span><br><span style='color:#f6465d'>Taker Sell: "+b.sell.toFixed(4)+"</span><br><b>NetFlow:</b> "+(b.buy-b.sell).toFixed(4);const lq=lsOn?getTopLSAt(b.t):null;if(lq)tip.innerHTML+="<br><span style=\"color:#2ebd85\">Top L/S: Long "+(lq.longPct*100).toFixed(1)+"% · Short "+(lq.shortPct*100).toFixed(1)+"% · Ratio "+lq.ratio.toFixed(3)+"</span>";const bq=basisOn?getBasisAt(b.t):null;if(bq)tip.innerHTML+="<br><span style='color:#f0b90b'>Basis: "+bq.basis.toFixed(6)+" ("+(bq.basisRate*100).toFixed(4)+"%)</span>";tip.style.display="block";const tw=Math.min(245,canvas.clientWidth-16),th=bq?125:105;tip.style.left=Math.min(canvas.clientWidth-tw-8,Math.max(8,p.x+14))+"px";tip.style.top=Math.min(canvas.clientHeight-th-8,Math.max(8,p.y+14))+"px";requestDraw()}
 function dist2(){const a=[...pointers.values()];if(a.length<2)return 0;return Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)}
 function mid2(){const a=[...pointers.values()];return a.length<2?(canvas.clientWidth/2):((a[0].x+a[1].x)/2)}
-canvas.addEventListener("pointerdown",e=>{canvas.setPointerCapture?.(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});panMoved=false;if(pointers.size===1){panStartX=e.clientX;panStartFirst=first}else if(pointers.size===2){pinchStartDist=dist2();pinchStartVisible=visible;pinchStartCenter=mid2();hideCross()}});
+function paneHeightForPan(pane){const H=canvas.clientHeight,basisH=basisOn?Math.max(88,Math.floor(H*.17)):0,lsH=lsOn?Math.max(128,Math.floor(H*.23)):0,priceH=Math.floor(H*(basisOn||lsOn?.43:.54));if(pane==="basis")return Math.max(42,basisH-35);if(pane==="ls")return Math.max(55,lsH-43);return Math.max(60,priceH)}
+function paneAt(y){return axisPaneAt(y)}
+canvas.addEventListener("pointerdown",e=>{canvas.setPointerCapture?.(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});panMoved=false;panVertical=false;if(pointers.size===1){const r=canvas.getBoundingClientRect();panStartX=e.clientX;panStartY=e.clientY;panStartFirst=first;panPane=paneAt(e.clientY-r.top);const rr=yRange(panPane);panYLo=rr[0];panYHi=rr[1]}else if(pointers.size===2){pinchStartDist=dist2();pinchStartVisible=visible;pinchStartCenter=mid2();hideCross()}});
 canvas.addEventListener("pointermove",e=>{if(!bars.length)return;const p0=pointers.get(e.pointerId);if(p0){p0.x=e.clientX;p0.y=e.clientY}
  if(pointers.size>=2){const d=dist2();if(pinchStartDist>0&&d>0){const nv=Math.max(20,Math.min(bars.length,Math.round(pinchStartVisible*pinchStartDist/d))),rect=canvas.getBoundingClientRect(),x=mid2()-rect.left,old=pinchStartVisible,left=70,right=72,pw=(canvas.clientWidth-left-right)/Math.max(old,1),idx=Math.max(0,Math.min(old-1,Math.floor((x-left)/pw))),center=first+idx;visible=nv;first=Math.max(0,Math.min(Math.max(0,bars.length-visible),center-Math.floor(nv*(idx/Math.max(old,1)))));requestDraw()}return}
- if(pointers.size===1&&p0){const dx=e.clientX-panStartX;if(Math.abs(dx)>3)panMoved=true;if(panMoved){const pw=(canvas.clientWidth-142)/Math.max(visible,1),d=Math.round(-dx/pw);first=Math.max(0,Math.min(Math.max(0,bars.length-visible),panStartFirst+d));hideCross();requestDraw()}else if(e.pointerType==="mouse")showCross(e)}});
-canvas.addEventListener("pointerup",e=>{const wasTap=!panMoved&&pointers.size===1;if(wasTap&&e.pointerType!=="mouse")showCross(e);pointers.delete(e.pointerId);if(pointers.size<2)pinchStartDist=0});
-canvas.addEventListener("pointercancel",e=>{pointers.delete(e.pointerId);pinchStartDist=0;panMoved=false});
+ if(pointers.size===1&&p0){const dx=e.clientX-panStartX,dy=e.clientY-panStartY;
+   if(!panVertical&&Math.abs(dy)>12)panVertical=true;
+   const pw=(canvas.clientWidth-142)/Math.max(visible,1);
+   if(Math.abs(dx)>3)panMoved=true;
+   if(Math.abs(dx)>3){const d=Math.round(-dx/pw);first=Math.max(0,Math.min(Math.max(0,bars.length-visible),panStartFirst+d))}
+   if(panVertical){
+     const st=yState[panPane]||(yState[panPane]={manual:false,lo:0,hi:1});
+     const ph=paneHeightForPan(panPane),d=dy/ph*(panYHi-panYLo);
+     st.lo=panYLo+d;st.hi=panYHi+d;st.manual=true;panMoved=true;
+   }
+   if(panMoved){hideCross();requestDraw()}else if(e.pointerType==="mouse")showCross(e)
+ }});
+canvas.addEventListener("pointerup",e=>{const wasTap=!panMoved&&!panVertical&&pointers.size===1;if(wasTap&&e.pointerType!=="mouse")showCross(e);pointers.delete(e.pointerId);if(pointers.size<2){pinchStartDist=0;panVertical=false}});
+canvas.addEventListener("pointercancel",e=>{pointers.delete(e.pointerId);pinchStartDist=0;panMoved=false;panVertical=false});
 canvas.addEventListener("pointerleave",e=>{if(e.pointerType==="mouse"){hideCross();requestDraw()}});
 
 (async()=>{try{await loadHistory();resize()}catch(e){console.error(e);setStatus("ERROR",false);const el=$("err");el.innerHTML="<b>Không tải được dữ liệu Binance.</b><br>"+String(e.message).replace(/</g,"&lt;")+"<br><br>Hãy bấm <b>↻ Reload</b>. Nếu vẫn lỗi, mở F12 → Console để xem chi tiết.";el.style.display="block";resize()}})();
