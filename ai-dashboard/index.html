@@ -335,7 +335,7 @@ function predictLatest(){
  $("topls").textContent=Number.isFinite(r.topLS)?r.topLS.toFixed(3):"—";$("topls2").textContent=Number.isFinite(r.topLS)?r.topLS.toFixed(3):"—";renderImpact(r,true);
 }
 function train(){
- const fx=features(rows);featureRows=fx;drawStrengthChart();if(fx.length)renderImpact(fx.at(-1),false);say("Impact Engine đã tính. Đang chạy walk-forward ML…");const ys=label(fx),valid=fx.map((r,i)=>ys[i]!==null&&FEATURES.every(k=>Number.isFinite(r[k]))),ix=fx.map((r,i)=>valid[i]?i:-1).filter(i=>i>=0);
+ const fx=features(rows);featureRows=fx;runSignalMatrix();drawStrengthChart();if(fx.length)renderImpact(fx.at(-1),false);say("Impact Engine đã tính. Đang chạy walk-forward ML…");const ys=label(fx),valid=fx.map((r,i)=>ys[i]!==null&&FEATURES.every(k=>Number.isFinite(r[k]))),ix=fx.map((r,i)=>valid[i]?i:-1).filter(i=>i>=0);
  if(ix.length<300){say("Chưa đủ dữ liệu hợp lệ để train: "+ix.length);return}
  const initialTrain=Math.floor(ix.length*.6),X=matrix(fx),confusion=Array.from({length:3},()=>[0,0,0]);let correct=0,testCount=0,trades=0,agreementTrades=0,divergenceTrades=0,eq=1,nextTradeAfter=-1,impactCorrect=0,impactN=0,folds=0;tradeSamples=[];const params={directionalEdge:.58,minDirectionalMass:.05};
  for(let start=initialTrain;start<ix.length;start+=FOLD_SIZE){
@@ -353,7 +353,7 @@ function train(){
   }
  }
  const recall=[0,1,2].map(c=>{const n=confusion[c].reduce((a,b)=>a+b,0);return n?confusion[c][c]/n:0}),bacc=recall.reduce((a,b)=>a+b,0)/3,finalTrain=ix.length>MAX_TRAIN_SAMPLES?ix.slice(-MAX_TRAIN_SAMPLES):ix,N=prep(finalTrain.map(i=>X[i])),W=fit(normX(finalTrain.map(i=>X[i]),N),finalTrain.map(i=>ys[i]),EPOCHS);
- model={W,N,params};$("model").textContent="ML + Impact Engine";runSignalMatrix();$("acc").textContent=pct(correct/testCount)+"%";$("bacc").textContent=pct(bacc)+"%";$("samples").textContent=testCount.toLocaleString();$("folds").textContent=folds;$("trades").textContent=trades.toLocaleString();$("agreementTrades").textContent=agreementTrades.toLocaleString();$("divergenceTrades").textContent=divergenceTrades.toLocaleString();$("params").textContent="58% dir / impact ≥20/50/80";$("sret").textContent=((eq-1)*100).toFixed(2)+"%";renderTradeSamples();predictLatest();
+ model={W,N,params};$("model").textContent="ML + Impact Engine";$("acc").textContent=pct(correct/testCount)+"%";$("bacc").textContent=pct(bacc)+"%";$("samples").textContent=testCount.toLocaleString();$("folds").textContent=folds;$("trades").textContent=trades.toLocaleString();$("agreementTrades").textContent=agreementTrades.toLocaleString();$("divergenceTrades").textContent=divergenceTrades.toLocaleString();$("params").textContent="58% dir / impact ≥20/50/80";$("sret").textContent=((eq-1)*100).toFixed(2)+"%";renderTradeSamples();predictLatest();
  say("Walk-forward "+folds+" folds · "+ix.length.toLocaleString()+" nến hợp lệ · Impact hit-rate |score|≥50: "+(impactN?((impactCorrect/impactN)*100).toFixed(1):"—")+"%.");
 }
 async function getJSON(url){
