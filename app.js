@@ -251,30 +251,56 @@ canvas.addEventListener("pointerdown",e=>{
  if(pointers.size===1){
    const p=pointerPos(e),W=canvas.clientWidth,right=72;
    if(e.pointerType==="mouse"&&p.x>=W-right){
-     const H=canvas.clientHeight,top=55,priceH=Math.floor(H*(basisOn||lsOn?.43:.54)),full=bars.slice(Math.max(0,first),Math.min(bars.length,first+visible));
-     if(full.length){let ap0=Math.min(...full.map(b=>b.l)),ap1=Math.max(...full.map(b=>b.h)),apr=ap1-ap0;if(!isFinite(apr)||apr<=0)apr=Math.max(Math.abs(ap1)*.002,.01);const span=(apr*1.16)/Math.max(.25,Math.min(20,yState.scale)),center=(yState.scale<=1.000001||!Number.isFinite(yState.center))?(ap0+ap1)/2:yState.center;yDrag={startY:e.clientY,startCenter:center,span,priceH};hideCross();return}
+     const H=canvas.clientHeight,priceH=Math.floor(H*(basisOn||lsOn?.43:.54)),full=bars.slice(Math.max(0,first),Math.min(bars.length,first+visible));
+     if(full.length){
+       let ap0=Math.min(...full.map(b=>b.l)),ap1=Math.max(...full.map(b=>b.h)),apr=ap1-ap0;
+       if(!isFinite(apr)||apr<=0)apr=Math.max(Math.abs(ap1)*.002,.01);
+       const span=(apr*1.16)/Math.max(.25,Math.min(20,yState.scale));
+       const center=(yState.scale<=1.000001||!Number.isFinite(yState.center))?(ap0+ap1)/2:yState.center;
+       yDrag={startY:e.clientY,startCenter:center,span,priceH};hideCross();return;
+     }
    }
    panStartX=e.clientX;panStartFirst=first;
  }else if(pointers.size===2){pinchStartDist=dist2();pinchStartVisible=visible;pinchStartCenter=mid2();hideCross()}
 });
 canvas.addEventListener("pointermove",e=>{
- if(!bars.length)return;const p0=pointers.get(e.pointerId);if(p0){p0.x=e.clientX;p0.y=e.clientY}
+ if(!bars.length)return;
+ const p0=pointers.get(e.pointerId);if(p0){p0.x=e.clientX;p0.y=e.clientY}
  if(pointers.size>=2){
-   const d=dist2();if(pinchStartDist>0&&d>0){const nv=Math.max(20,Math.min(bars.length,Math.round(pinchStartVisible*pinchStartDist/d))),rect=canvas.getBoundingClientRect(),x=mid2()-rect.left,old=pinchStartVisible,left=70,right=72,pw=(canvas.clientWidth-left-right)/Math.max(old,1),idx=Math.max(0,Math.min(old-1,Math.floor((x-left)/pw))),center=first+idx;visible=nv;first=Math.max(0,Math.min(Math.max(0,bars.length-visible),center-Math.floor(nv*(idx/Math.max(old,1)))));requestDraw()}return
+   const d=dist2();
+   if(pinchStartDist>0&&d>0){
+     const nv=Math.max(20,Math.min(bars.length,Math.round(pinchStartVisible*pinchStartDist/d)));
+     const rect=canvas.getBoundingClientRect(),x=mid2()-rect.left,old=pinchStartVisible,left=70,right=72;
+     const pw=(canvas.clientWidth-left-right)/Math.max(old,1),idx=Math.max(0,Math.min(old-1,Math.floor((x-left)/pw))),center=first+idx;
+     visible=nv;first=Math.max(0,Math.min(Math.max(0,bars.length-visible),center-Math.floor(nv*(idx/Math.max(old,1)))));requestDraw();
+   }
+   return;
  }
  if(pointers.size===1&&p0){
-   if(yDrag){const dy=e.clientY-yDrag.startY;if(Math.abs(dy)>2)panMoved=true;const delta=dy/Math.max(1,yDrag.priceH)*yDrag.span;yState.center=yDrag.startCenter+delta;hideCross();requestDraw();return}
+   if(yDrag){
+     const dy=e.clientY-yDrag.startY;if(Math.abs(dy)>2)panMoved=true;
+     yState.center=yDrag.startCenter+(dy/Math.max(1,yDrag.priceH))*yDrag.span;
+     hideCross();requestDraw();return;
+   }
    const dx=e.clientX-panStartX;if(Math.abs(dx)>3)panMoved=true;
-   if(panMoved){const pw=(canvas.clientWidth-142)/Math.max(visible,1),d=Math.round(-dx/pw);first=Math.max(0,Math.min(Math.max(0,bars.length-visible),panStartFirst+d));hideCross();requestDraw()}
-   else if(e.pointerType==="mouse")showCross(e)
+   if(panMoved){
+     const pw=(canvas.clientWidth-142)/Math.max(visible,1),d=Math.round(-dx/pw);
+     first=Math.max(0,Math.min(Math.max(0,bars.length-visible),panStartFirst+d));hideCross();requestDraw();
+   }else if(e.pointerType==="mouse")showCross(e);
  }
 });
-canvas.addEventListener("pointerup",e=>{const wasTap=!panMoved&&!yDrag&&pointers.size===1;if(wasTap&&e.pointerType!=="mouse")showCross(e);yDrag=null;pointers.delete(e.pointerId);if(pointers.size<2)pinchStartDist=0});
-canvas.addEventListener("pointercancel",e=>{pointers.delete(e.pointerId);pinchStartDist=0;panMoved=false});
+canvas.addEventListener("pointerup",e=>{
+ const wasTap=!panMoved&&!yDrag&&pointers.size===1;
+ if(wasTap&&e.pointerType!=="mouse")showCross(e);
+ yDrag=null;pointers.delete(e.pointerId);if(pointers.size<2)pinchStartDist=0;
+});
+canvas.addEventListener("pointercancel",e=>{pointers.delete(e.pointerId);pinchStartDist=0;panMoved=false;yDrag=null});
 canvas.addEventListener("pointerleave",e=>{if(e.pointerType==="mouse"){hideCross();requestDraw()}});
 
-(async()=>{try{await loadHistory();resize()}catch(e){console.error(e);setStatus("ERROR",false);const el=$("err");el.innerHTML="<b>Không tải được dữ liệu Binance.</b><br>"+String(e.message).replace(/</g,"&lt;")+"<br><br>Hãy bấm <b>↻ Reload</b>. Nếu vẫn lỗi, mở F12 → Console để xem chi tiết.";el.style.display="block";resize()}})()canvas.addEventListener("pointerup",e=>{const wasTap=!panMoved&&pointers.size===1;if(wasTap&&e.pointerType!=="mouse")showCross(e);pointers.delete(e.pointerId);if(pointers.size<2)pinchStartDist=0});
-canvas.addEventListener("pointercancel",e=>{pointers.delete(e.pointerId);pinchStartDist=0;panMoved=false});
-canvas.addEventListener("pointerleave",e=>{if(e.pointerType==="mouse"){hideCross();requestDraw()}});
-
-(async()=>{try{await loadHistory();resize()}catch(e){console.error(e);setStatus("ERROR",false);const el=$("err");el.innerHTML="<b>Không tải được dữ liệu Binance.</b><br>"+String(e.message).replace(/</g,"&lt;")+"<br><br>Hãy bấm <b>↻ Reload</b>. Nếu vẫn lỗi, mở F12 → Console để xem chi tiết.";el.style.display="block";resize()}})();
+(async()=>{try{
+ await loadHistory();resize();
+}catch(e){
+ console.error(e);setStatus("ERROR",false);
+ const el=$("err");el.innerHTML="<b>Không tải được dữ liệu Binance.</b><br>"+String(e.message).replace(/</g,"&lt;")+"<br><br>Hãy bấm <b>↻ Reload</b>.";
+ el.style.display="block";resize();
+}})();
