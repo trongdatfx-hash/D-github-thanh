@@ -46,7 +46,21 @@ table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:7px;bord
  .chartFrame{width:100%;display:block}
 }
 @media(orientation:landscape) and (max-width:850px){
- .chartFrame{height:calc(100svh - 145px);min-height:360px}
+ body{overflow:hidden}
+ .wrap{width:100vw;max-width:100vw;height:100svh;padding:4px 6px;overflow:hidden}
+ .top{height:34px;flex-wrap:nowrap;align-items:center}
+ .top>div:first-child{min-width:0;flex:1}
+ .top h1{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0}
+ .top .muted{display:none}
+ .top>div:last-child{display:flex;align-items:center;gap:4px;white-space:nowrap}
+ .top button{padding:5px 8px}
+ .impactHero{margin:3px 0 4px}
+ .impactHero .signal{font-size:20px;padding:7px 5px;border-radius:7px}
+ .heroSub{display:flex;flex-wrap:nowrap;gap:3px;margin-top:3px}
+ .heroSub span{flex:1;min-width:0;padding:3px 2px;border-radius:5px;font-size:8px;white-space:nowrap}
+ .heroSub b{display:inline;font-size:9px}
+ .panel{height:calc(100svh - 82px);padding:2px!important;border-radius:7px}
+ .chartFrame{height:100%;min-height:0;max-height:none;width:100%;border-radius:5px}
 }
 .secondary{display:none!important}
 .chartFrame{width:100%;border:1px solid #29313d;background:#171a21;display:block}
