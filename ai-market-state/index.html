@@ -56,7 +56,7 @@ async function analyze(){
   get('/fapi/v1/premiumIndex?symbol='+S), get('/fapi/v1/klines?symbol='+S+'&interval=1d&limit=400')
  ]);
  const close=k.map(x=>+x[4]), vol=k.map(x=>+x[5]), c=close.at(-1), c5=close.at(-5), c20=close.at(-20);
- const weeks=[]; for(let i=0;i+6<daily.length;i+=7){const q=daily.slice(i,i+7), hi=Math.max(...q.map(x=>+x[2])), lo=Math.min(...q.map(x=>+x[3])); weeks.push({hi,lo,range:hi-lo,pct:lo?((hi-lo)/lo*100):0});}
+ const weekMap=new Map(); daily.forEach(x=>{const d=new Date(+x[0]); const monday=Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()-((d.getUTCDay()+6)%7)); if(!weekMap.has(monday))weekMap.set(monday,[]); weekMap.get(monday).push(x)}); const weeks=[...weekMap.values()].map(q=>{const hi=Math.max(...q.map(x=>+x[2])),lo=Math.min(...q.map(x=>+x[3])); return {hi,lo,range:hi-lo,pct:lo?((hi-lo)/lo*100):0}}).filter(x=>x.pct>0);
  const wr=weeks.slice(-52).map(x=>x.pct).sort((a,b)=>a-b); const quant=p=>wr[Math.min(wr.length-1,Math.floor((wr.length-1)*p))];
  const weekStart=Date.now()-((new Date().getUTCDay()+6)%7)*86400000; const curDays=daily.filter(x=>+x[0]>=weekStart);
  const wHi=Math.max(...curDays.map(x=>+x[2])), wLo=Math.min(...curDays.map(x=>+x[3])), wRangePct=(wLo?(wHi-wLo)/wLo*100:0);
