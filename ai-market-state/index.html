@@ -47,6 +47,29 @@ function avg(a){return a.length?a.reduce((x,y)=>x+y,0)/a.length:0}
 function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
 function pct(x){return (x*100).toFixed(0)+'%'}
 async function getLocal(path){let r=await fetch(path,{cache:'no-store'});if(!r.ok)throw Error(path+' HTTP '+r.status);return r.json()}
+async function getCOTBundle(){
+ try{
+  const where=encodeURIComponent("cftc_contract_market_code='13874A'");
+  const url='https://publicreporting.cftc.gov/resource/6dca-aqww.json?$limit=200&$where='+where+'&$order=report_date_as_yyyy_mm_dd DESC';
+  const r=await fetch(url,{cache:'no-store'});
+  if(!r.ok)throw Error('CFTC API HTTP '+r.status);
+  const rows=await r.json();
+  const history=(Array.isArray(rows)?rows:[]).map(x=>({
+   reportDate:x.report_date_as_yyyy_mm_dd,
+   oi:+x.open_interest_all||0,
+   ncLong:+x.noncomm_positions_long_all||0,
+   ncShort:+x.noncomm_positions_short_all||0,
+   commLong:+x.comm_positions_long_all||0,
+   commShort:+x.comm_positions_short_all||0
+  })).filter(x=>x.reportDate&&x.oi).sort((a,b)=>new Date(b.reportDate)-new Date(a.reportDate));
+  if(!history.length)throw Error('CFTC history empty');
+  const q=history[0];
+  return {reportDate:q.reportDate,openInterest:q.oi,nonCommercial:{long:q.ncLong,short:q.ncShort,net:q.ncLong-q.ncShort,prevNet:history[1]?(history[1].ncLong-history[1].ncShort):q.ncLong-q.ncShort},commercial:{long:q.commLong,short:q.commShort,net:q.commLong-q.commShort},history,source:'CFTC API'};
+ }catch(e){
+  const local=await getLocal('./cot-sp500.json');
+  return {...local,history:[{reportDate:local.reportDate,oi:local.openInterest,ncLong:local.nonCommercial.long,ncShort:local.nonCommercial.short,commLong:local.commercial.long,commShort:local.commercial.short}],source:'local snapshot'};
+ }
+}
 function renderBars(el,items){$(el).innerHTML=items.map(x=>'<div class="row"><span>'+x[0]+'</span><div class="bar"><div class="fill '+(x[2]||'')+'" style="width:'+clamp(Math.abs(x[1]),0,100)+'%"></div></div><b>'+Math.round(x[1])+'</b></div>').join('')}
 async function analyze(){
  $('status').textContent='Đang lấy M15 + Taker + OI + Top L/S + Funding…';
@@ -58,7 +81,7 @@ async function analyze(){
   getSafe('/futures/data/topLongShortPositionRatio?symbol='+S+'&period=15m&limit=30',[]),
   getSafe('/fapi/v1/premiumIndex?symbol='+S,{}),
   getSafe('/fapi/v1/klines?symbol='+S+'&interval=1d&limit=400',[]),
-  getLocal('./cot-sp500.json').catch(()=>null)
+  getCOTBundle().catch(()=>null)
  ]);
  const close=k.map(x=>+x[4]), vol=k.map(x=>+x[5]), c=close.at(-1), c5=close.at(-5), c20=close.at(-20);
  const weekMap=new Map(); daily.forEach(x=>{const d=new Date(+x[0]); const monday=Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()-((d.getUTCDay()+6)%7)); if(!weekMap.has(monday))weekMap.set(monday,[]); weekMap.get(monday).push(x)}); const weeks=[...weekMap.values()].map(q=>{const hi=Math.max(...q.map(x=>+x[2])),lo=Math.min(...q.map(x=>+x[3])); return {hi,lo,range:hi-lo,pct:lo?((hi-lo)/lo*100):0}}).filter(x=>x.pct>0);
@@ -81,6 +104,32 @@ async function analyze(){
  const ls0=ls.length?+ls[0].longShortRatio:1, ls1=ls.length?+ls.at(-1).longShortRatio:1, lsCh=ls1-ls0;
  const funding=+f.lastFundingRate||0;
  const cotScore=cot?clamp((cot.nonCommercial.net/cot.openInterest)*1000,-100,100):0, cotMomentum=cot?clamp(((cot.nonCommercial.net-cot.nonCommercial.prevNet)/cot.openInterest)*1000,-100,100):0;
+ const ch=cot&&Array.isArray(cot.history)?cot.history.slice(0,156):[];
+ const cotRows=ch.map(x=>({...x,ncNet:x.ncLong-x.ncShort,commNet:x.commLong-x.commShort})).filter(x=>isFinite(x.ncNet)&&isFinite(x.commNet));
+ const cotAsc=[...cotRows].sort((a,b)=>new Date(a.reportDate)-new Date(b.reportDate));
+ const latestCot=cotRows[0];
+ const ncVals=cotRows.map(x=>x.ncNet).sort((a,b)=>a-b);
+ const cotPct=latestCot&&ncVals.length>1?ncVals.filter(x=>x<=latestCot.ncNet).length/(ncVals.length-1):.5;
+ const cotIndexComp=clamp((cotPct-.5)*50,-25,25);
+ const deltas=cotAsc.slice(1).map((x,i)=>x.ncNet-cotAsc[i].ncNet).filter(isFinite);
+ const absD=deltas.map(Math.abs).sort((a,b)=>a-b), mad=absD.length?absD[Math.floor(absD.length*.5)]:1;
+ const d1=latestCot&&cotAsc.length>1?latestCot.ncNet-cotAsc.at(-2).ncNet:0;
+ const d4=latestCot&&cotAsc.length>4?latestCot.ncNet-cotAsc.at(-5).ncNet:0;
+ const delta1Comp=clamp(Math.tanh(d1/Math.max(1,3*mad))*25,-25,25);
+ const delta4Comp=clamp(Math.tanh(d4/Math.max(1,6*mad))*20,-20,20);
+ const spreadNow=latestCot?latestCot.commNet-latestCot.ncNet:0;
+ const spread4=cotAsc.length>4?cotAsc.at(-5).commNet-cotAsc.at(-5).ncNet:spreadNow;
+ const spreadComp=clamp(Math.tanh((spreadNow-spread4)/Math.max(1,6*mad))*15,-15,15);
+ let persist=0;
+ if(cotAsc.length>1){const dir=Math.sign(d1);if(dir){let n=0;for(let i=cotAsc.length-1;i>0&&Math.sign(cotAsc[i].ncNet-cotAsc[i-1].ncNet)===dir;i--)n++;persist=clamp(dir*n/6*10,-10,10)}}
+ const oiChCot=cotAsc.length>1?((latestCot.oi/cotAsc.at(-2).oi)-1)*100:0;
+ const oiComp=clamp((Math.sign(d1)*Math.sign(oiChCot))*5,-5,5);
+ const cotTrendScore=clamp(Math.round(cotIndexComp+delta1Comp+delta4Comp+spreadComp+persist+oiComp),-100,100);
+ const cotTrend=cotTrendScore>=70?'STRONG BULLISH':cotTrendScore>=40?'BULLISH':cotTrendScore>=15?'MILD BULLISH':cotTrendScore<=-70?'STRONG BEARISH':cotTrendScore<=-40?'BEARISH':cotTrendScore<=-15?'MILD BEARISH':'NEUTRAL';
+ const extreme=(cotPct<=.10||cotPct>=.90);
+ const divergence=(cotPct<=.10&&latestCot&&latestCot.commNet>0)||(cotPct>=.90&&latestCot&&latestCot.commNet<0);
+ const reversalRisk=extreme?(divergence?'HIGH':'MEDIUM'):'LOW';
+ const cotTrendBias=cotTrendScore>=15?1:cotTrendScore<=-15?-1:0;
  const trend=clamp(ret20*8,-100,100), flow=clamp((tak-.5)*400,-100,100), oiScore=clamp(oiCh*12,-100,100), lsScore=clamp(lsCh*80,-100,100), fundScore=clamp(-funding*100000,-100,100);
  let longScore=clamp(50+trend*.22+flow*.30+oiScore*.18+lsScore*.12+fundScore*.08+cotScore*.08,0,100);
  const shortScore=100-longScore;
@@ -103,15 +152,13 @@ async function analyze(){
  renderBars('prob',adjPs.map(x=>[x[0],x[1]*100,x[0]==='UP'?'pos':x[0]==='DOWN'?'neg':'']));
  renderBars('scores',[['LONG',longScore,'pos'],['SHORT',100-longScore,'neg'],['FLOW',(flow+100)/2,flow>=0?'pos':'neg'],['OI',(oiScore+100)/2,oiScore>=0?'pos':'neg'],['L/S',(lsScore+100)/2,lsScore>=0?'pos':'neg']]);
  const cotBias=!cot?'UNAVAILABLE':cotScore>=20?'BULLISH':cotScore<=-20?'BEARISH':'NEUTRAL';
- const cotTrendScore=cot?clamp((cotMomentum*0.7)+(cotScore*0.3),-100,100):0;
- const cotTrend=!cot?'UNAVAILABLE':cotTrendScore>=15?'UPTREND':cotTrendScore<=-15?'DOWNTREND':'SIDEWAYS';
- const cotTrendLabel=!cot?'--':cotTrend==='UPTREND'?'COT tăng vị thế Long':cotTrend==='DOWNTREND'?'COT tăng vị thế Short':'COT đi ngang/cân bằng';
- const cotTrendCls=cotTrend==='UPTREND'?'green':cotTrend==='DOWNTREND'?'red':'yellow';
- $('cot').innerHTML='<b>'+cotBias+'</b> · Report '+(cot?cot.reportDate:'--')+'<br><b>COT Trend:</b> <span class="'+cotTrendCls+'">'+cotTrend+'</span> — '+cotTrendLabel+'<br>Non-commercial net: '+(cot?cot.nonCommercial.net.toLocaleString():'--')+' hợp đồng · COT score '+cotScore.toFixed(0)+'/100<br>Tuần trước: '+(cot?cot.nonCommercial.prevNet.toLocaleString():'--')+' · Thay đổi net '+(cot?(cot.nonCommercial.net-cot.nonCommercial.prevNet).toLocaleString():'--')+' · Momentum '+cotMomentum.toFixed(1)+'<br>Commercial net: '+(cot?cot.commercial.net.toLocaleString():'--')+'<br><span style="color:#8fa0bf">COT là dữ liệu có độ trễ, dùng làm macro filter; không dùng làm entry live.</span>';
+ const cotTrendLabel=!cot?'--':cotTrendScore>=40?'COT tăng xu hướng Long':cotTrendScore<=-40?'COT tăng xu hướng Short':cotTrendScore>=15?'COT hơi bullish':cotTrendScore<=-15?'COT hơi bearish':'COT trung tính';
+ const cotTrendCls=cotTrendScore>0?'green':cotTrendScore<0?'red':'yellow';
+ $('cot').innerHTML='<b>'+cotBias+'</b> · Report '+(cot?cot.reportDate:'--')+'<br><b>COT Trend Score:</b> <span class="'+cotTrendCls+'">'+cotTrendScore+'/100</span> · <b>'+cotTrend+'</b><br><b>Reversal Risk:</b> '+reversalRisk+' · History '+cotRows.length+' tuần<br>Non-commercial net: '+(cot?cot.nonCommercial.net.toLocaleString():'--')+' · COT Index '+Math.round(cotPct*100)+'%<br>ΔNet 1W: '+(latestCot?d1.toLocaleString():'--')+' · ΔNet 4W: '+(latestCot?d4.toLocaleString():'--')+' · Persistence '+persist.toFixed(0)+'/10<br>Commercial net: '+(cot?cot.commercial.net.toLocaleString():'--')+' · Spread component '+spreadComp.toFixed(1)+'<br><span style="color:#8fa0bf">Score = COT Index + ΔNet 1W + Momentum 4W + Commercial Spread + Persistence + OI confirmation. COT có độ trễ, dùng làm macro filter.</span>';
  const flowTxt=flow>=15?'Taker Buy chiếm ưu thế':flow<=-15?'Taker Sell chiếm ưu thế':'Taker cân bằng';
  const oiTxt=oiCh>=.3?'OI đang tăng':oiCh<=-.3?'OI đang giảm':'OI gần như ổn định';
  const lsTxt=lsCh>=.03?'Top Trader nghiêng Long':lsCh<=-.03?'Top Trader nghiêng Short':'Top Trader cân bằng';
- $('weekly').innerHTML=weeklyText; $('reason').innerHTML='<b>'+decision+'</b> — '+state+'. '+flowTxt+', '+oiTxt+', '+lsTxt+'. Funding '+(funding*100).toFixed(4)+'%. COT '+cotBias+' / '+cotTrend+'. Giá M15 5 nến: '+ret5.toFixed(2)+'%; 20 nến: '+ret20.toFixed(2)+'%. <br><br><b>Lưu ý:</b> Đây là AI Rule Engine Giai đoạn 1 + Historical Weekly Reaction, chưa phải mô hình ML được huấn luyện. WAIT được ưu tiên khi tín hiệu chưa đủ mạnh.';
+ $('weekly').innerHTML=weeklyText; $('reason').innerHTML='<b>'+decision+'</b> — '+state+'. '+flowTxt+', '+oiTxt+', '+lsTxt+'. Funding '+(funding*100).toFixed(4)+'%. COT '+cotBias+' / '+cotTrend+' '+cotTrendScore+'/100 · Reversal '+reversalRisk+'. Giá M15 5 nến: '+ret5.toFixed(2)+'%; 20 nến: '+ret20.toFixed(2)+'%. <br><br><b>Lưu ý:</b> Đây là AI Rule Engine Giai đoạn 1 + Historical Weekly Reaction, chưa phải mô hình ML được huấn luyện. WAIT được ưu tiên khi tín hiệu chưa đủ mạnh.';
  $('status').textContent='Cập nhật '+new Date().toLocaleTimeString('vi-VN')+' · Price Binance OK · Taker '+(t.length?'OK':'--')+' · OI '+(o.length?'OK':'--')+' · L/S '+(ls.length?'OK':'--');
 }
 $('refresh').onclick=()=>analyze().catch(e=>{$('reason').textContent='Lỗi phân tích: '+e.message;$('status').textContent='Lỗi: '+e.message});
