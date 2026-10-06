@@ -31,7 +31,7 @@ iframe{width:100%;height:650px;border:0;border-radius:10px;background:#080d18}
 <div class="grid">
 <div>
 <div class="panel"><h2>Probability</h2><div class="bars" id="prob"></div></div>
-<div class="panel"><h2>Signal Score</h2><div class="bars" id="scores"></div></div><div class="panel"><h2>Weekly Range Percentile</h2><div id="weekly" class="reason">Đang tính…</div></div>
+<div class="panel"><h2>Signal Score</h2><div class="bars" id="scores"></div></div><div class="panel"><h2>Weekly Range Percentile</h2><div id="weekly" class="reason">Đang tính…</div></div><div class="panel"><h2>Historical Reaction</h2><div id="reaction" class="reason">Đang tính phản ứng lịch sử…</div></div>
 <div class="panel"><h2>AI Agent kết luận</h2><div id="reason" class="reason">Đang phân tích dữ liệu Binance…</div></div>
 <div class="panel"><h2>Trạng thái dữ liệu</h2><div id="status" class="status">Đang tải…</div></div>
 </div>
@@ -63,6 +63,13 @@ async function analyze(){
  const rank=wr.filter(x=>x<=wRangePct).length/Math.max(1,wr.length), pos=wHi>wLo?(c-wLo)/(wHi-wLo):.5;
  let reaction='NORMAL'; if(rank>=.95)reaction='EXTREME RANGE — ưu tiên hồi quy/giảm đuổi giá'; else if(rank>=.75)reaction='EXPANSION — có thể tiếp diễn nhưng rủi ro mean-reversion tăng'; else if(rank<=.25)reaction='COMPRESSED RANGE — chờ breakout/xác nhận';
  const weeklyText='Tuần hiện tại: '+wRangePct.toFixed(2)+'% | Percentile: '+Math.round(rank*100)+'% | P25 '+quant(.25).toFixed(2)+'% · P50 '+quant(.5).toFixed(2)+'% · P75 '+quant(.75).toFixed(2)+'% · P90 '+quant(.9).toFixed(2)+'% · P95 '+quant(.95).toFixed(2)+'%<br><b>Vị trí giá trong tuần:</b> '+Math.round(pos*100)+'% từ Low → High<br><b>Phản ứng dự kiến:</b> '+reaction;
+ const hist=[]; const sortedWeeks=[...weekMap.entries()].sort((a,b)=>a[0]-b[0]);
+ for(let j=0;j<sortedWeeks.length-1;j++){const wk=sortedWeeks[j][1], hi=Math.max(...wk.map(x=>+x[2])),lo=Math.min(...wk.map(x=>+x[3])), close=+wk.at(-1)[4], rg=lo?(hi-lo)/lo*100:0, pr=wr.filter(x=>x<=rg).length/Math.max(1,wr.length); const next=sortedWeeks[j+1][1]; const nh=Math.max(...next.map(x=>+x[2])),nl=Math.min(...next.map(x=>+x[3])),nc=+next.at(-1)[4]; hist.push({pr,dir:nc>close?1:-1,move:(nc/close-1)*100,close,nh,nl});}
+ const bucket=rank>=.9?'P90+':rank>=.75?'P75-P90':rank<=.25?'P0-P25':'P25-P75';
+ const hh=hist.filter(x=>x.pr>=({ 'P90+':.9,'P75-P90':.75,'P0-P25':0,'P25-P75':.25}[bucket]) && x.pr<({ 'P90+':1.01,'P75-P90':.9,'P0-P25':.25,'P25-P75':.75}[bucket]));
+ const upN=hh.filter(x=>x.dir>0).length, downN=hh.length-upN, avgMove=hh.length?avg(hh.map(x=>x.move)):0, follow=upN>downN?'UP':upN<downN?'DOWN':'MIXED';
+ const reactionScore=hh.length?clamp(50+Math.abs(upN-downN)/hh.length*50,50,95):50;
+ $('reaction').innerHTML='<b>Bucket hiện tại:</b> '+bucket+' · '+hh.length+' tuần lịch sử tương tự.<br><b>Phản ứng tuần kế:</b> UP '+(hh.length?Math.round(upN/hh.length*100):0)+'% · DOWN '+(hh.length?Math.round(downN/hh.length*100):0)+'% · Bình quân '+avgMove.toFixed(2)+'%.<br><b>Bias:</b> '+follow+' · Historical confidence '+Math.round(reactionScore)+'/100.<br><span style="color:#8fa0bf">Đây là thống kê điều kiện, không phải dự báo chắc chắn.</span>';
  const ret5=(c/c5-1)*100, ret20=(c/c20-1)*100;
  const tak=avg(t.slice(-5).map(x=>+x.buyVol/(+x.buyVol+(+x.sellVol||1)))); 
  const oi0=+o[0].sumOpenInterest, oi1=+o.at(-1).sumOpenInterest, oiCh=(oi1/oi0-1)*100;
