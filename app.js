@@ -6,6 +6,23 @@ const TFMS={ "1m":60000,"5m":300000,"15m":900000,"30m":1800000,"1h":3600000,"2h"
 let tf="15m", days=7, bars=[], ws=null, canvas,ctx,tip,crossV,crossH;
 let basisOn=false,basisData=[],basisMap=new Map(),basisPoll=null; let lsOn=true,lsData=[],lsPoll=null; let divLook=4;
 let strengthOn=true,strengthLen=8,strengthHl=2,strengthLook=500; let first=0, visible=120, dragging=false, dragX=0, dragFirst=0,crosshair={idx:null,x:null,y:null};let drawQueued=false,strengthCache=null,strengthCacheKey="";
+const AXIS_W=72;
+const yState={price:{manual:false,lo:0,hi:0},basis:{manual:false,lo:0,hi:0},ls:{manual:false,lo:0,hi:0}};
+let axisDrag=null,lastAxisTap=0;
+function axisPaneAt(y){const H=canvas?canvas.clientHeight:0,basisH=basisOn?Math.max(88,Math.floor(H*.17)):0,lsH=lsOn?Math.max(128,Math.floor(H*.23)):0,bottom=38,lowerTop=H-bottom-lsH-basisH,lsTop=H-bottom-lsH;if(lsOn&&y>=lsTop)return"ls";if(basisOn&&y>=lowerTop&&y<lsTop)return"basis";return"price"}
+function visibleBarsForY(){return bars.slice(Math.max(0,first),Math.min(bars.length,first+visible))}
+function autoRange(pane){
+ const full=visibleBarsForY();if(!full.length)return[0,1];
+ if(pane==="price"){let lo=Math.min(...full.map(b=>b.l)),hi=Math.max(...full.map(b=>b.h));if(!isFinite(lo)||!isFinite(hi)||hi<=lo){const c=Number(full.at(-1)?.c)||1;return[c-Math.abs(c)*.01,c+Math.abs(c)*.01]}const pad=(hi-lo)*.08||Math.max(Math.abs(hi)*.002,.01);return[lo-pad,hi+pad]}
+ if(pane==="basis"){const vals=full.map(b=>getBasisAt(b.t)?.basis).filter(Number.isFinite);if(!vals.length)return[0,1];let lo=Math.min(...vals),hi=Math.max(...vals);if(!(hi>lo))return[lo-.0001,hi+.0001];const pad=(hi-lo)*.12;return[lo-pad,hi+pad]}
+ const vals=full.map(b=>getTopLSAt(b.t)?.ratio).filter(Number.isFinite);if(!vals.length)return[.5,1.5];let lo=Math.min(...vals),hi=Math.max(...vals);if(!(hi>lo)){lo=Math.max(.01,lo-.05);hi+=.05}else{const pad=(hi-lo)*.12;lo=Math.max(.01,lo-pad);hi+=pad}return[lo,hi]
+}
+function yRange(pane){const s=yState[pane]||(yState[pane]={manual:false,lo:0,hi:0});if(!s.manual){const a=autoRange(pane);s.lo=a[0];s.hi=a[1]}return[s.lo,s.hi]}
+function inYAxis(e){if(!canvas)return false;const r=canvas.getBoundingClientRect();return e.clientX>=r.right-AXIS_W}
+function axisPointerDown(e){if(!inYAxis(e))return;e.preventDefault();e.stopPropagation();const r=canvas.getBoundingClientRect(),pane=axisPaneAt(e.clientY-r.top),st=yState[pane],now=performance.now();if(now-lastAxisTap<320){st.manual=false;lastAxisTap=0;axisDrag=null;requestDraw();return}lastAxisTap=now;const[lo,hi]=yRange(pane),auto=autoRange(pane);axisDrag={pane,pointerId:e.pointerId,y0:e.clientY,lo,hi,cy:(lo+hi)/2,autoSpan:Math.max(auto[1]-auto[0],1e-12)};try{canvas.setPointerCapture(e.pointerId)}catch(_){}}
+function axisPointerMove(e){if(!axisDrag)return;e.preventDefault();e.stopPropagation();const st=yState[axisDrag.pane],k=Math.exp((e.clientY-axisDrag.y0)*.006);let half=(axisDrag.hi-axisDrag.lo)/2*k;half=Math.min(Math.max(half,axisDrag.autoSpan*.01),axisDrag.autoSpan*25);st.lo=axisDrag.cy-half;st.hi=axisDrag.cy+half;st.manual=true;requestDraw()}
+function axisPointerEnd(e){if(!axisDrag)return;e.preventDefault();e.stopPropagation();try{canvas.releasePointerCapture?.(e.pointerId)}catch(_){}axisDrag=null}
+
 const $=id=>document.getElementById(id);
 function setStatus(s,ok=true){$("status").textContent=s;$("status").className=ok?"ok":"bad"}
 function intervalMs(){return TFMS[tf]}
@@ -119,7 +136,7 @@ function draw(){
  if(!ctx||!bars.length)return;const W=canvas.clientWidth,H=canvas.clientHeight;ctx.clearRect(0,0,W,H);ctx.fillStyle="#171a21";ctx.fillRect(0,0,W,H);
  const left=70,right=72,top=55,bottom=38,gap=18,full=bars.slice(Math.max(0,first),Math.min(bars.length,first+visible));if(!full.length)return;
  const n=full.length,pw=(W-left-right)/n,basisH=basisOn?Math.max(88,Math.floor(H*.17)):0,lsH=lsOn?Math.max(128,Math.floor(H*.23)):0,lowerTop=H-bottom-lsH-basisH,basisTop=lowerTop,basisBottom=basisTop+basisH,lsTop=H-bottom-lsH,priceH=Math.floor(H*(basisOn||lsOn ? .43 : .54)),volTop=top+priceH+gap,volH=Math.max(70,lowerTop-volTop-gap),body=Math.max(2,Math.min(8,pw*.62)),vbar=Math.max(2,Math.min(6,pw*.28));
- let plo=Math.min(...full.map(b=>b.l)),phi=Math.max(...full.map(b=>b.h));let pr=phi-plo;if(!isFinite(pr)||pr<=0)pr=Math.max(Math.abs(phi)*0.002,0.01);const pp=pr*0.08;plo-=pp;phi+=pp;
+ let [plo,phi]=yRange("price");
  let vmax=Math.max(...full.map(b=>Math.max(b.buy,b.sell)),1);const stepRaw=vmax/3,p10=Math.pow(10,Math.floor(Math.log10(stepRaw||1))),nm=stepRaw/p10,vstep=(nm<=1?1:nm<=2?2:nm<=5?5:10)*p10;vmax=vstep*3;
  const py=v=>top+(phi-v)/(phi-plo)*priceH,vy=v=>volTop+volH-(v/vmax)*volH;
  ctx.fillStyle="#e7e9ee";ctx.font="600 16px Arial";ctx.fillText("SPYUSDT.P",16,26);ctx.fillStyle="#8d96a7";ctx.font="12px Arial";ctx.fillText(`Price · ${tf}`,16,43);ctx.fillStyle="#e7e9ee";ctx.font="600 15px Arial";ctx.fillText("Taker Buy/Sell Volume",16,volTop-8);
@@ -134,7 +151,7 @@ if(strengthOn){const sy=volTop+volH*.62,amp=volH*.34;ctx.strokeStyle="#3a424e";c
 if(basisOn&&basisData.length&&basisPeriod()){
  const vals=[];for(let i=0;i<n;i++){const q=getBasisAt(full[i].t);if(q&&isFinite(q.basis))vals.push(q.basis)}
  if(vals.length){
-  let lo=Math.min(...vals),hi=Math.max(...vals),br=hi-lo;if(!isFinite(br)||br<=0)br=Math.max(Math.abs(hi)*.002,.0001);const pad=br*.12;lo-=pad;hi+=pad;
+  let [lo,hi]=yRange("basis");
   const paneTop=basisTop,paneBottom=lsTop,by=paneTop+25,bh=Math.max(42,paneBottom-by-10),bpy=v=>by+bh-(v-lo)/(hi-lo)*bh;let prev=null;
   ctx.save();ctx.fillStyle="#141820";ctx.fillRect(0,paneTop,W,basisH);ctx.strokeStyle="#303642";ctx.beginPath();ctx.moveTo(0,paneTop);ctx.lineTo(W,paneTop);ctx.stroke();
   ctx.strokeStyle="rgba(240,185,11,.38)";ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(left,by+bh/2);ctx.lineTo(W-right,by+bh/2);ctx.stroke();ctx.setLineDash([]);
@@ -153,7 +170,7 @@ if(lsOn&&lsData.length&&lsPeriod()){
   for(let i=0;i<n;i++){const q=getTopLSAt(full[i].t); if(!q)continue; const x=left+i*pw+pw/2,longH=chartH*q.longPct,shortH=chartH*q.shortPct;ctx.fillStyle="#2ebd85";ctx.fillRect(x-barW/2,chartTop+chartH-longH,barW,longH);ctx.fillStyle="#f6465d";ctx.fillRect(x-barW/2,chartTop,barW,shortH)}
   ctx.font="10px Arial";ctx.textAlign="right";
   for(let j=0;j<=2;j++){const yy=chartTop+j*chartH/2;ctx.strokeStyle="#303642";ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(W-right,yy);ctx.stroke();ctx.fillStyle="#7e899d";ctx.fillText((100-j*50)+"%",left-9,yy+4)}
-  const ratios=pts.map(q=>q.ratio).filter(isFinite);let rlo=Math.min(...ratios),rhi=Math.max(...ratios);if(!(rhi>rlo)){rlo=Math.max(.1,rlo-.05);rhi+=.05}else{const rp=(rhi-rlo)*.12;rlo=Math.max(.01,rlo-rp);rhi+=rp}
+  let [rlo,rhi]=yRange("ls");
   const ry=v=>chartTop+chartH-(v-rlo)/(rhi-rlo)*chartH;let prev=null;
   for(let i=0;i<n;i++){const q=getTopLSAt(full[i].t);if(!q){prev=null;continue}const x=left+i*pw+pw/2,y=ry(q.ratio);ctx.strokeStyle="#e7e9ee";ctx.lineWidth=2.3;if(prev&&dayKey(full[i].t)===dayKey(full[i-1].t)){ctx.beginPath();ctx.moveTo(prev.x,prev.y);ctx.lineTo(x,y);ctx.stroke()}prev={x,y}}
   ctx.textAlign="right";ctx.fillStyle="#aab3c2";ctx.font="10px Arial";ctx.fillText(rhi.toFixed(2),W-right,chartTop+4);ctx.fillText(((rhi+rlo)/2).toFixed(2),W-right,chartTop+chartH/2+4);ctx.fillText(rlo.toFixed(2),W-right,chartTop+chartH+4);
@@ -186,7 +203,7 @@ const zy=volTop+volH;ctx.strokeStyle="#39404c";ctx.beginPath();ctx.moveTo(left,z
  ctx.fillStyle="#f6465d";ctx.fillRect(W/2-160,volTop+15,10,10);ctx.fillStyle="#8d96a7";ctx.fillText("Taker Sell Volume (SPY)",W/2-145,volTop+24);ctx.fillStyle="#2ebd85";ctx.fillRect(W/2+45,volTop+15,10,10);ctx.fillStyle="#8d96a7";ctx.fillText("Taker Buy Volume (SPY)",W/2+60,volTop+24)
 }
 // Crosshair lines are handled by lightweight HTML overlays for continuous movement.
-canvas=$("c");ctx=canvas.getContext("2d");tip=$("tip");crossV=$("crossV");crossH=$("crossH");window.addEventListener("resize",resize);
+canvas=$("c");ctx=canvas.getContext("2d");tip=$("tip");crossV=$("crossV");crossH=$("crossH");window.addEventListener("resize",resize);canvas.addEventListener("pointerdown",axisPointerDown,true);canvas.addEventListener("pointermove",axisPointerMove,true);canvas.addEventListener("pointerup",axisPointerEnd,true);canvas.addEventListener("pointercancel",axisPointerEnd,true);
 $("tf").onchange=async()=>{tf=$("tf").value;await loadHistory()};$("range").onchange=async()=>{days=+$("range").value;await loadHistory()};$("strOn").onchange=()=>{strengthOn=$("strOn").checked;requestDraw()};$("strLen").onchange=()=>{strengthLen=+$("strLen").value;strengthCacheKey="";requestDraw()};$("strHl").onchange=()=>{strengthHl=+$("strHl").value;strengthCacheKey="";requestDraw()};
 $("basisOn").onchange=async()=>{basisOn=$("basisOn").checked;if(basisOn)await loadBasis();else{basisData=[];basisMap.clear();requestDraw()}};$("lsOn").onchange=async()=>{lsOn=$("lsOn").checked;if(lsOn)await loadTopLS();else{lsData=[];requestDraw()}};$("fit").onclick=fit;$("left").onclick=()=>move(-Math.max(1,Math.floor(visible*.35)));$("right").onclick=()=>move(Math.max(1,Math.floor(visible*.35)));$("refresh").onclick=()=>loadHistory();
 canvas.addEventListener("wheel",e=>{e.preventDefault();if(!bars.length)return;const factor=e.deltaY<0?.8:1.25,old=visible,newV=Math.max(20,Math.min(bars.length,Math.round(old*factor))),rect=canvas.getBoundingClientRect(),x=e.clientX-rect.left,left=70,right=72,pw=(canvas.clientWidth-left-right)/old,idx=Math.max(0,Math.min(old-1,Math.floor((x-left)/pw))),center=first+idx;visible=newV;first=Math.max(0,Math.min(Math.max(0,bars.length-visible),center-Math.floor(newV*(idx/Math.max(old,1)))));crosshair.idx=null;requestDraw()},{passive:false});
