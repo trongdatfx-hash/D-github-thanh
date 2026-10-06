@@ -103,11 +103,15 @@ async function analyze(){
  renderBars('prob',adjPs.map(x=>[x[0],x[1]*100,x[0]==='UP'?'pos':x[0]==='DOWN'?'neg':'']));
  renderBars('scores',[['LONG',longScore,'pos'],['SHORT',100-longScore,'neg'],['FLOW',(flow+100)/2,flow>=0?'pos':'neg'],['OI',(oiScore+100)/2,oiScore>=0?'pos':'neg'],['L/S',(lsScore+100)/2,lsScore>=0?'pos':'neg']]);
  const cotBias=!cot?'UNAVAILABLE':cotScore>=20?'BULLISH':cotScore<=-20?'BEARISH':'NEUTRAL';
- $('cot').innerHTML='<b>'+cotBias+'</b> · Report '+(cot?cot.reportDate:'--')+'<br>Non-commercial net: '+cot?cot.nonCommercial.net.toLocaleString():'--'+' hợp đồng · COT score '+cotScore.toFixed(0)+'/100<br>Tuần trước: '+cot?cot.nonCommercial.prevNet.toLocaleString():'--'+' · Momentum '+cotMomentum.toFixed(1)+'<br>Commercial net: '+cot?cot.commercial.net.toLocaleString():'--'+'<br><span style="color:#8fa0bf">COT là dữ liệu có độ trễ, dùng làm macro filter; không dùng làm entry live.</span>';
+ const cotTrendScore=cot?clamp((cotMomentum*0.7)+(cotScore*0.3),-100,100):0;
+ const cotTrend=!cot?'UNAVAILABLE':cotTrendScore>=15?'UPTREND':cotTrendScore<=-15?'DOWNTREND':'SIDEWAYS';
+ const cotTrendLabel=!cot?'--':cotTrend==='UPTREND'?'COT tăng vị thế Long':cotTrend==='DOWNTREND'?'COT tăng vị thế Short':'COT đi ngang/cân bằng';
+ const cotTrendCls=cotTrend==='UPTREND'?'green':cotTrend==='DOWNTREND'?'red':'yellow';
+ $('cot').innerHTML='<b>'+cotBias+'</b> · Report '+(cot?cot.reportDate:'--')+'<br><b>COT Trend:</b> <span class="'+cotTrendCls+'">'+cotTrend+'</span> — '+cotTrendLabel+'<br>Non-commercial net: '+(cot?cot.nonCommercial.net.toLocaleString():'--')+' hợp đồng · COT score '+cotScore.toFixed(0)+'/100<br>Tuần trước: '+(cot?cot.nonCommercial.prevNet.toLocaleString():'--')+' · Thay đổi net '+(cot?(cot.nonCommercial.net-cot.nonCommercial.prevNet).toLocaleString():'--')+' · Momentum '+cotMomentum.toFixed(1)+'<br>Commercial net: '+(cot?cot.commercial.net.toLocaleString():'--')+'<br><span style="color:#8fa0bf">COT là dữ liệu có độ trễ, dùng làm macro filter; không dùng làm entry live.</span>';
  const flowTxt=flow>=15?'Taker Buy chiếm ưu thế':flow<=-15?'Taker Sell chiếm ưu thế':'Taker cân bằng';
  const oiTxt=oiCh>=.3?'OI đang tăng':oiCh<=-.3?'OI đang giảm':'OI gần như ổn định';
  const lsTxt=lsCh>=.03?'Top Trader nghiêng Long':lsCh<=-.03?'Top Trader nghiêng Short':'Top Trader cân bằng';
- $('weekly').innerHTML=weeklyText; $('reason').innerHTML='<b>'+decision+'</b> — '+state+'. '+flowTxt+', '+oiTxt+', '+lsTxt+'. Funding '+(funding*100).toFixed(4)+'%. COT '+cotBias+'. Giá M15 5 nến: '+ret5.toFixed(2)+'%; 20 nến: '+ret20.toFixed(2)+'%. <br><br><b>Lưu ý:</b> Đây là AI Rule Engine Giai đoạn 1 + Historical Weekly Reaction, chưa phải mô hình ML được huấn luyện. WAIT được ưu tiên khi tín hiệu chưa đủ mạnh.';
+ $('weekly').innerHTML=weeklyText; $('reason').innerHTML='<b>'+decision+'</b> — '+state+'. '+flowTxt+', '+oiTxt+', '+lsTxt+'. Funding '+(funding*100).toFixed(4)+'%. COT '+cotBias+' / '+cotTrend+'. Giá M15 5 nến: '+ret5.toFixed(2)+'%; 20 nến: '+ret20.toFixed(2)+'%. <br><br><b>Lưu ý:</b> Đây là AI Rule Engine Giai đoạn 1 + Historical Weekly Reaction, chưa phải mô hình ML được huấn luyện. WAIT được ưu tiên khi tín hiệu chưa đủ mạnh.';
  $('status').textContent='Cập nhật '+new Date().toLocaleTimeString('vi-VN')+' · Price Binance OK · Taker '+(t.length?'OK':'--')+' · OI '+(o.length?'OK':'--')+' · L/S '+(ls.length?'OK':'--');
 }
 $('refresh').onclick=()=>analyze().catch(e=>{$('reason').textContent='Lỗi phân tích: '+e.message;$('status').textContent='Lỗi: '+e.message});
