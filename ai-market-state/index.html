@@ -84,15 +84,19 @@ async function analyze(){
  const ps=[['UP',up],['RANGE',range],['DOWN',down]], total=ps.reduce((a,x)=>a+x[1],0);ps.forEach(x=>x[1]/=total);
  const top=ps.slice().sort((a,b)=>b[1]-a[1])[0], confidence=clamp(Math.round(50+Math.abs(longScore-50)*.9),50,95);
  let decision='WAIT'; if(top[0]==='UP'&&confidence>=65)decision='LONG'; if(top[0]==='DOWN'&&confidence>=65)decision='SHORT';
+ const histBias=(follow==='UP'?1:follow==='DOWN'?-1:0), histConf=hh.length?reactionScore:50;
+ if(histConf>=65 && histBias!==0){ if(histBias>0) longScore=clamp(longScore+7,0,100); else longScore=clamp(longScore-7,0,100); }
+ const finalShort=100-longScore, finalBias=longScore>=58?'LONG':longScore<=42?'SHORT':'WAIT';
+ if(finalBias==='LONG'&&longScore>=60)decision='LONG'; else if(finalBias==='SHORT'&&longScore<=40)decision='SHORT'; else decision='WAIT';
  $('state').textContent=state;$('state').className='big '+(state.includes('UP')?'green':state.includes('DOWN')?'red':'yellow');
  $('decision').textContent=decision;$('decision').className='big '+(decision==='LONG'?'green':decision==='SHORT'?'red':'yellow');
  $('conf').textContent=confidence+'/100';$('price').textContent=c.toFixed(5);
  renderBars('prob',ps.map(x=>[x[0],x[1]*100,x[0]==='UP'?'pos':x[0]==='DOWN'?'neg':'']));
- renderBars('scores',[['LONG',longScore,'pos'],['SHORT',shortScore,'neg'],['FLOW',(flow+100)/2,flow>=0?'pos':'neg'],['OI',(oiScore+100)/2,oiScore>=0?'pos':'neg'],['L/S',(lsScore+100)/2,lsScore>=0?'pos':'neg']]);
+ renderBars('scores',[['LONG',longScore,'pos'],['SHORT',100-longScore,'neg'],['FLOW',(flow+100)/2,flow>=0?'pos':'neg'],['OI',(oiScore+100)/2,oiScore>=0?'pos':'neg'],['L/S',(lsScore+100)/2,lsScore>=0?'pos':'neg']]);
  const flowTxt=flow>=15?'Taker Buy chiếm ưu thế':flow<=-15?'Taker Sell chiếm ưu thế':'Taker cân bằng';
  const oiTxt=oiCh>=.3?'OI đang tăng':oiCh<=-.3?'OI đang giảm':'OI gần như ổn định';
  const lsTxt=lsCh>=.03?'Top Trader nghiêng Long':lsCh<=-.03?'Top Trader nghiêng Short':'Top Trader cân bằng';
- $('weekly').innerHTML=weeklyText; $('reason').innerHTML='<b>'+decision+'</b> — '+state+'. '+flowTxt+', '+oiTxt+', '+lsTxt+'. Funding '+(funding*100).toFixed(4)+'%. Giá M15 5 nến: '+ret5.toFixed(2)+'%; 20 nến: '+ret20.toFixed(2)+'%. <br><br><b>Lưu ý:</b> Đây là AI Rule Engine Giai đoạn 1, chưa phải mô hình ML được huấn luyện. WAIT được ưu tiên khi tín hiệu chưa đủ mạnh.';
+ $('weekly').innerHTML=weeklyText; $('reason').innerHTML='<b>'+decision+'</b> — '+state+'. '+flowTxt+', '+oiTxt+', '+lsTxt+'. Funding '+(funding*100).toFixed(4)+'%. Giá M15 5 nến: '+ret5.toFixed(2)+'%; 20 nến: '+ret20.toFixed(2)+'%. <br><br><b>Lưu ý:</b> Đây là AI Rule Engine Giai đoạn 1 + Historical Weekly Reaction, chưa phải mô hình ML được huấn luyện. WAIT được ưu tiên khi tín hiệu chưa đủ mạnh.';
  $('status').textContent='Cập nhật '+new Date().toLocaleTimeString('vi-VN')+' · '+k.length+' nến M15 · Binance OK';
 }
 $('refresh').onclick=()=>analyze().catch(e=>{$('status').textContent='Lỗi: '+e.message});
