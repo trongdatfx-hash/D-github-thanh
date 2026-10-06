@@ -88,7 +88,7 @@ async function analyze(){
  if(Math.sign(ret5)!==Math.sign(ret20)&&Math.abs(ret5)>.12)state='REVERSAL';
  const rawU=clamp(longScore/100,.05,.95), rawD=1-rawU, range=state==='RANGE'?.20:.08, up=rawU*(1-range), down=rawD*(1-range);
  const ps=[['UP',up],['RANGE',range],['DOWN',down]], total=ps.reduce((a,x)=>a+x[1],0);ps.forEach(x=>x[1]/=total);
- const top=ps.slice().sort((a,b)=>b[1]-a[1])[0], confidence=clamp(Math.round(50+Math.abs(longScore-50)*.9),50,95);
+ const top=ps.slice().sort((a,b)=>b[1]-a[1])[0]; let confidence=clamp(Math.round(50+Math.abs(longScore-50)*.9),50,95);
  let decision='WAIT'; if(top[0]==='UP'&&confidence>=65)decision='LONG'; if(top[0]==='DOWN'&&confidence>=65)decision='SHORT';
  const histBias=(follow==='UP'?1:follow==='DOWN'?-1:0), histConf=hh.length?reactionScore:50;
  if(histConf>=65 && histBias!==0){ if(histBias>0) longScore=clamp(longScore+7,0,100); else longScore=clamp(longScore-7,0,100); }
