@@ -7,8 +7,6 @@ let tf="15m", days=7, bars=[], ws=null, canvas,ctx,tip,crossV,crossH;
 let basisOn=false,basisData=[],basisMap=new Map(),basisPoll=null;
 let weeklyOn=true,weeklyData=[],weeklyPoll=null; let lsOn=true,lsData=[],lsPoll=null; let divLook=4;
 let strengthOn=true,strengthLen=8,strengthHl=2,strengthLook=500; let first=0, visible=120, dragging=false, dragX=0, dragFirst=0,crosshair={idx:null,x:null,y:null};let drawQueued=false,strengthCache=null,strengthCacheKey="";
-// TradingView-like price-axis state: scale=1 is auto-fit; >1 zooms the price scale around the cursor.
-let yState={scale:1,center:null},yDrag=null;
 const $=id=>document.getElementById(id);
 function setStatus(s,ok=true){$("status").textContent=s;$("status").className=ok?"ok":"bad"}
 function intervalMs(){return TFMS[tf]}
@@ -128,7 +126,7 @@ function connect(){
  ws.onmessage=e=>{try{const z=JSON.parse(e.data),k=z.data.k,b={t:+k.t,o:+k.o,h:+k.h,l:+k.l,c:+k.c,v:+k.v,buy:+k.V,sell:Math.max(0,+k.v-+k.V),closed:!!k.x},i=bars.findIndex(x=>x.t===b.t);if(i>=0)bars[i]=b;else bars.push(b);bars.sort((a,b)=>a.t-b.t);if(first+visible>=bars.length-2)first=Math.max(0,bars.length-visible);draw();setStatus(`LIVE · ${tf} · ${Math.max(0,Date.now()-+z.data.E)} ms`,true)}catch(err){}};
  ws.onerror=()=>setStatus("WebSocket error",false);ws.onclose=()=>{setStatus("Reconnecting…",false);setTimeout(()=>connect(),1200)}
 }
-function fit(){visible=Math.min(120,bars.length);first=Math.max(0,bars.length-visible);yState={scale:1,center:null};draw()}
+function fit(){visible=Math.min(120,bars.length);first=Math.max(0,bars.length-visible);draw()}
 function move(n){first=Math.max(0,Math.min(Math.max(0,bars.length-visible),first+n));draw()}
 function resize(){const r=canvas.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(r.width*d);canvas.height=Math.round(r.height*d);ctx.setTransform(d,0,0,d,0,0);draw()}
 function requestDraw(){if(drawQueued)return;drawQueued=true;requestAnimationFrame(()=>{drawQueued=false;draw()})}
@@ -136,9 +134,7 @@ function draw(){
  if(!ctx||!bars.length)return;const W=canvas.clientWidth,H=canvas.clientHeight;ctx.clearRect(0,0,W,H);ctx.fillStyle="#171a21";ctx.fillRect(0,0,W,H);
  const left=70,right=72,top=55,bottom=38,gap=18,full=bars.slice(Math.max(0,first),Math.min(bars.length,first+visible));if(!full.length)return;
  const n=full.length,pw=(W-left-right)/n,basisH=basisOn?Math.max(88,Math.floor(H*.17)):0,lsH=lsOn?Math.max(128,Math.floor(H*.23)):0,lowerTop=H-bottom-lsH-basisH,basisTop=lowerTop,basisBottom=basisTop+basisH,lsTop=H-bottom-lsH,priceH=Math.floor(H*(basisOn||lsOn ? .43 : .54)),volTop=top+priceH+gap,volH=Math.max(70,lowerTop-volTop-gap),body=Math.max(2,Math.min(8,pw*.62)),vbar=Math.max(2,Math.min(6,pw*.28));
- let autoPlo=Math.min(...full.map(b=>b.l)),autoPhi=Math.max(...full.map(b=>b.h));let autoPr=autoPhi-autoPlo;if(!isFinite(autoPr)||autoPr<=0)autoPr=Math.max(Math.abs(autoPhi)*0.002,0.01);const autoPad=autoPr*0.08;autoPlo-=autoPad;autoPhi+=autoPad;
- if(yState.scale<=1.000001||!Number.isFinite(yState.center)){yState.scale=1;yState.center=(autoPlo+autoPhi)/2}
- const pr=autoPhi-autoPlo;const span=pr/Math.max(.25,Math.min(20,yState.scale));let plo=yState.center-span/2,phi=yState.center+span/2;
+ let plo=Math.min(...full.map(b=>b.l)),phi=Math.max(...full.map(b=>b.h));let pr=phi-plo;if(!isFinite(pr)||pr<=0)pr=Math.max(Math.abs(phi)*0.002,0.01);const pp=pr*0.08;plo-=pp;phi+=pp;
  let vmax=Math.max(...full.map(b=>Math.max(b.buy,b.sell)),1);const stepRaw=vmax/3,p10=Math.pow(10,Math.floor(Math.log10(stepRaw||1))),nm=stepRaw/p10,vstep=(nm<=1?1:nm<=2?2:nm<=5?5:10)*p10;vmax=vstep*3;
  const py=v=>top+(phi-v)/(phi-plo)*priceH,vy=v=>volTop+volH-(v/vmax)*volH;
  if(weeklyOn&&weeklyData&&weeklyData.open&&weeklyData.p25){
@@ -224,21 +220,7 @@ const zy=volTop+volH;ctx.strokeStyle="#39404c";ctx.beginPath();ctx.moveTo(left,z
 canvas=$("c");ctx=canvas.getContext("2d");tip=$("tip");crossV=$("crossV");crossH=$("crossH");window.addEventListener("resize",resize);
 $("tf").onchange=async()=>{tf=$("tf").value;await loadHistory()};$("range").onchange=async()=>{days=+$("range").value;await loadHistory()};$("strOn").onchange=()=>{strengthOn=$("strOn").checked;requestDraw()};$("strLen").onchange=()=>{strengthLen=+$("strLen").value;strengthCacheKey="";requestDraw()};$("strHl").onchange=()=>{strengthHl=+$("strHl").value;strengthCacheKey="";requestDraw()};$("weeklyOn").onchange=()=>{weeklyOn=$("weeklyOn").checked;requestDraw()};
 $("basisOn").onchange=async()=>{basisOn=$("basisOn").checked;if(basisOn)await loadBasis();else{basisData=[];basisMap.clear();requestDraw()}};$("lsOn").onchange=async()=>{lsOn=$("lsOn").checked;if(lsOn)await loadTopLS();else{lsData=[];requestDraw()}};$("fit").onclick=fit;$("left").onclick=()=>move(-Math.max(1,Math.floor(visible*.35)));$("right").onclick=()=>move(Math.max(1,Math.floor(visible*.35)));$("refresh").onclick=()=>loadHistory();
-canvas.addEventListener("wheel",e=>{
- e.preventDefault();if(!bars.length)return;
- const rect=canvas.getBoundingClientRect(),x=e.clientX-rect.left,y=e.clientY-rect.top,W=canvas.clientWidth,H=canvas.clientHeight,left=70,right=72,top=55;
- const priceH=Math.floor(H*(basisOn||lsOn?.43:.54));
- if(x>=W-right){
-   const full=bars.slice(Math.max(0,first),Math.min(bars.length,first+visible));if(!full.length)return;
-   let ap0=Math.min(...full.map(b=>b.l)),ap1=Math.max(...full.map(b=>b.h)),apr=ap1-ap0;if(!isFinite(apr)||apr<=0)apr=Math.max(Math.abs(ap1)*.002,.01);
-   const oldSpan=(apr*1.16)/Math.max(.25,Math.min(20,yState.scale)),oldCenter=(yState.scale<=1.000001||!Number.isFinite(yState.center))?(ap0+ap1)/2:yState.center,oldPlo=oldCenter-oldSpan/2;
-   const frac=Math.max(0,Math.min(1,(y-top)/Math.max(1,priceH))),cursorValue=oldPlo+frac*oldSpan,z=e.deltaY<0?1.18:.8474576271,newSpan=Math.max(apr*.03,Math.min(apr*8,oldSpan*z));
-   yState.scale=Math.max(.25,Math.min(20,(apr*1.16)/newSpan));yState.center=cursorValue-frac*newSpan+newSpan/2;
-   requestDraw();return;
- }
- const factor=e.deltaY<0?.8:1.25,old=visible,newV=Math.max(20,Math.min(bars.length,Math.round(old*factor))),pw=(W-left-right)/Math.max(old,1),idx=Math.max(0,Math.min(old-1,Math.floor((x-left)/pw))),center=first+idx;
- visible=newV;first=Math.max(0,Math.min(Math.max(0,bars.length-visible),center-Math.floor(newV*(idx/Math.max(old,1)))));crosshair.idx=null;requestDraw();
-},{passive:false});
+canvas.addEventListener("wheel",e=>{e.preventDefault();if(!bars.length)return;const factor=e.deltaY<0?.8:1.25,old=visible,newV=Math.max(20,Math.min(bars.length,Math.round(old*factor))),rect=canvas.getBoundingClientRect(),x=e.clientX-rect.left,left=70,right=72,pw=(canvas.clientWidth-left-right)/old,idx=Math.max(0,Math.min(old-1,Math.floor((x-left)/pw))),center=first+idx;visible=newV;first=Math.max(0,Math.min(Math.max(0,bars.length-visible),center-Math.floor(newV*(idx/Math.max(old,1)))));crosshair.idx=null;requestDraw()},{passive:false});
 // Mobile/desktop pointer interaction: one-finger pan, two-finger pinch zoom, tap for Crosshair.
 const pointers=new Map();let pinchStartDist=0,pinchStartVisible=0,pinchStartCenter=0,panStartX=0,panStartFirst=0,panMoved=false;
 function hideCross(){tip.style.display="none";crosshair.idx=null;if(crossV)crossV.style.display="none";if(crossH)crossH.style.display="none"}
@@ -246,61 +228,12 @@ function pointerPos(e){const r=canvas.getBoundingClientRect();return {x:e.client
 function showCross(e){if(!bars.length)return;const p=pointerPos(e),left=70,right=72,pw=(canvas.clientWidth-left-right)/Math.max(visible,1),idx=Math.floor((p.x-left)/pw);if(idx<0||idx>=Math.min(visible,bars.length-first)){hideCross();requestDraw();return}const b=bars[first+idx];if(!b)return;crosshair.idx=idx;crosshair.x=p.x;crosshair.y=p.y;const snapX=left+idx*pw+pw/2;if(crossV){crossV.style.left=snapX+"px";crossV.style.display="block"}if(crossH){crossH.style.top=p.y+"px";crossH.style.display="block"}tip.innerHTML="<b>"+fullDate(b.t)+"</b><br><b>O</b> "+b.o+" &nbsp; <b>H</b> "+b.h+" &nbsp; <b>L</b> "+b.l+" &nbsp; <b>C</b> "+b.c+"<br><span style='color:#2ebd85'>Taker Buy: "+b.buy.toFixed(4)+"</span><br><span style='color:#f6465d'>Taker Sell: "+b.sell.toFixed(4)+"</span><br><b>NetFlow:</b> "+(b.buy-b.sell).toFixed(4);const lq=lsOn?getTopLSAt(b.t):null;if(lq)tip.innerHTML+="<br><span style=\"color:#2ebd85\">Top L/S: Long "+(lq.longPct*100).toFixed(1)+"% · Short "+(lq.shortPct*100).toFixed(1)+"% · Ratio "+lq.ratio.toFixed(3)+"</span>";const bq=basisOn?getBasisAt(b.t):null;if(bq)tip.innerHTML+="<br><span style='color:#f0b90b'>Basis: "+bq.basis.toFixed(6)+" ("+(bq.basisRate*100).toFixed(4)+"%)</span>";tip.style.display="block";const tw=Math.min(245,canvas.clientWidth-16),th=bq?125:105;tip.style.left=Math.min(canvas.clientWidth-tw-8,Math.max(8,p.x+14))+"px";tip.style.top=Math.min(canvas.clientHeight-th-8,Math.max(8,p.y+14))+"px";requestDraw()}
 function dist2(){const a=[...pointers.values()];if(a.length<2)return 0;return Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)}
 function mid2(){const a=[...pointers.values()];return a.length<2?(canvas.clientWidth/2):((a[0].x+a[1].x)/2)}
-canvas.addEventListener("pointerdown",e=>{
- canvas.setPointerCapture?.(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});panMoved=false;
- if(pointers.size===1){
-   const p=pointerPos(e),W=canvas.clientWidth,right=72;
-   if(e.pointerType==="mouse"&&p.x>=W-right){
-     const H=canvas.clientHeight,priceH=Math.floor(H*(basisOn||lsOn?.43:.54)),full=bars.slice(Math.max(0,first),Math.min(bars.length,first+visible));
-     if(full.length){
-       let ap0=Math.min(...full.map(b=>b.l)),ap1=Math.max(...full.map(b=>b.h)),apr=ap1-ap0;
-       if(!isFinite(apr)||apr<=0)apr=Math.max(Math.abs(ap1)*.002,.01);
-       const span=(apr*1.16)/Math.max(.25,Math.min(20,yState.scale));
-       const center=(yState.scale<=1.000001||!Number.isFinite(yState.center))?(ap0+ap1)/2:yState.center;
-       yDrag={startY:e.clientY,startCenter:center,span,priceH};hideCross();return;
-     }
-   }
-   panStartX=e.clientX;panStartFirst=first;
- }else if(pointers.size===2){pinchStartDist=dist2();pinchStartVisible=visible;pinchStartCenter=mid2();hideCross()}
-});
-canvas.addEventListener("pointermove",e=>{
- if(!bars.length)return;
- const p0=pointers.get(e.pointerId);if(p0){p0.x=e.clientX;p0.y=e.clientY}
- if(pointers.size>=2){
-   const d=dist2();
-   if(pinchStartDist>0&&d>0){
-     const nv=Math.max(20,Math.min(bars.length,Math.round(pinchStartVisible*pinchStartDist/d)));
-     const rect=canvas.getBoundingClientRect(),x=mid2()-rect.left,old=pinchStartVisible,left=70,right=72;
-     const pw=(canvas.clientWidth-left-right)/Math.max(old,1),idx=Math.max(0,Math.min(old-1,Math.floor((x-left)/pw))),center=first+idx;
-     visible=nv;first=Math.max(0,Math.min(Math.max(0,bars.length-visible),center-Math.floor(nv*(idx/Math.max(old,1)))));requestDraw();
-   }
-   return;
- }
- if(pointers.size===1&&p0){
-   if(yDrag){
-     const dy=e.clientY-yDrag.startY;if(Math.abs(dy)>2)panMoved=true;
-     yState.center=yDrag.startCenter+(dy/Math.max(1,yDrag.priceH))*yDrag.span;
-     hideCross();requestDraw();return;
-   }
-   const dx=e.clientX-panStartX;if(Math.abs(dx)>3)panMoved=true;
-   if(panMoved){
-     const pw=(canvas.clientWidth-142)/Math.max(visible,1),d=Math.round(-dx/pw);
-     first=Math.max(0,Math.min(Math.max(0,bars.length-visible),panStartFirst+d));hideCross();requestDraw();
-   }else if(e.pointerType==="mouse")showCross(e);
- }
-});
-canvas.addEventListener("pointerup",e=>{
- const wasTap=!panMoved&&!yDrag&&pointers.size===1;
- if(wasTap&&e.pointerType!=="mouse")showCross(e);
- yDrag=null;pointers.delete(e.pointerId);if(pointers.size<2)pinchStartDist=0;
-});
-canvas.addEventListener("pointercancel",e=>{pointers.delete(e.pointerId);pinchStartDist=0;panMoved=false;yDrag=null});
+canvas.addEventListener("pointerdown",e=>{canvas.setPointerCapture?.(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});panMoved=false;if(pointers.size===1){panStartX=e.clientX;panStartFirst=first}else if(pointers.size===2){pinchStartDist=dist2();pinchStartVisible=visible;pinchStartCenter=mid2();hideCross()}});
+canvas.addEventListener("pointermove",e=>{if(!bars.length)return;const p0=pointers.get(e.pointerId);if(p0){p0.x=e.clientX;p0.y=e.clientY}
+ if(pointers.size>=2){const d=dist2();if(pinchStartDist>0&&d>0){const nv=Math.max(20,Math.min(bars.length,Math.round(pinchStartVisible*pinchStartDist/d))),rect=canvas.getBoundingClientRect(),x=mid2()-rect.left,old=pinchStartVisible,left=70,right=72,pw=(canvas.clientWidth-left-right)/Math.max(old,1),idx=Math.max(0,Math.min(old-1,Math.floor((x-left)/pw))),center=first+idx;visible=nv;first=Math.max(0,Math.min(Math.max(0,bars.length-visible),center-Math.floor(nv*(idx/Math.max(old,1)))));requestDraw()}return}
+ if(pointers.size===1&&p0){const dx=e.clientX-panStartX;if(Math.abs(dx)>3)panMoved=true;if(panMoved){const pw=(canvas.clientWidth-142)/Math.max(visible,1),d=Math.round(-dx/pw);first=Math.max(0,Math.min(Math.max(0,bars.length-visible),panStartFirst+d));hideCross();requestDraw()}else if(e.pointerType==="mouse")showCross(e)}});
+canvas.addEventListener("pointerup",e=>{const wasTap=!panMoved&&pointers.size===1;if(wasTap&&e.pointerType!=="mouse")showCross(e);pointers.delete(e.pointerId);if(pointers.size<2)pinchStartDist=0});
+canvas.addEventListener("pointercancel",e=>{pointers.delete(e.pointerId);pinchStartDist=0;panMoved=false});
 canvas.addEventListener("pointerleave",e=>{if(e.pointerType==="mouse"){hideCross();requestDraw()}});
 
-(async()=>{try{
- await loadHistory();resize();
-}catch(e){
- console.error(e);setStatus("ERROR",false);
- const el=$("err");el.innerHTML="<b>Không tải được dữ liệu Binance.</b><br>"+String(e.message).replace(/</g,"&lt;")+"<br><br>Hãy bấm <b>↻ Reload</b>.";
- el.style.display="block";resize();
-}})();
+(async()=>{try{await loadHistory();resize()}catch(e){console.error(e);setStatus("ERROR",false);const el=$("err");el.innerHTML="<b>Không tải được dữ liệu Binance.</b><br>"+String(e.message).replace(/</g,"&lt;")+"<br><br>Hãy bấm <b>↻ Reload</b>. Nếu vẫn lỗi, mở F12 → Console để xem chi tiết.";el.style.display="block";resize()}})();
