@@ -131,7 +131,7 @@ async function analyze(){
  const reversalRisk=extreme?(divergence?'HIGH':'MEDIUM'):'LOW';
  const cotTrendBias=cotTrendScore>=15?1:cotTrendScore<=-15?-1:0;
  const trend=clamp(ret20*8,-100,100), flow=clamp((tak-.5)*400,-100,100), oiScore=clamp(oiCh*12,-100,100), lsScore=clamp(lsCh*80,-100,100), fundScore=clamp(-funding*100000,-100,100);
- let longScore=clamp(50+trend*.22+flow*.30+oiScore*.18+lsScore*.12+fundScore*.08+cotScore*.08,0,100);
+ let longScore=clamp(50+trend*.22+flow*.30+oiScore*.18+lsScore*.12+fundScore*.08+cotTrendScore*.10,0,100);
  const shortScore=100-longScore;
  let state=Math.abs(ret20)<.35?'RANGE':(ret20>0?(Math.abs(ret5)>0.28?'BREAKOUT':'TREND UP'):(Math.abs(ret5)>0.28?'BREAKOUT':'TREND DOWN'));
  if(Math.sign(ret5)!==Math.sign(ret20)&&Math.abs(ret5)>.12)state='REVERSAL';
@@ -159,7 +159,7 @@ async function analyze(){
  const oiTxt=oiCh>=.3?'OI đang tăng':oiCh<=-.3?'OI đang giảm':'OI gần như ổn định';
  const lsTxt=lsCh>=.03?'Top Trader nghiêng Long':lsCh<=-.03?'Top Trader nghiêng Short':'Top Trader cân bằng';
  $('weekly').innerHTML=weeklyText; $('reason').innerHTML='<b>'+decision+'</b> — '+state+'. '+flowTxt+', '+oiTxt+', '+lsTxt+'. Funding '+(funding*100).toFixed(4)+'%. COT '+cotBias+' / '+cotTrend+' '+cotTrendScore+'/100 · Reversal '+reversalRisk+'. Giá M15 5 nến: '+ret5.toFixed(2)+'%; 20 nến: '+ret20.toFixed(2)+'%. <br><br><b>Lưu ý:</b> Đây là AI Rule Engine Giai đoạn 1 + Historical Weekly Reaction, chưa phải mô hình ML được huấn luyện. WAIT được ưu tiên khi tín hiệu chưa đủ mạnh.';
- $('status').textContent='Cập nhật '+new Date().toLocaleTimeString('vi-VN')+' · Price Binance OK · Taker '+(t.length?'OK':'--')+' · OI '+(o.length?'OK':'--')+' · L/S '+(ls.length?'OK':'--');
+ $('status').textContent='Cập nhật '+new Date().toLocaleTimeString('vi-VN')+' · Price Binance OK · Taker '+(t.length?'OK':'--')+' · OI '+(o.length?'OK':'--')+' · L/S '+(ls.length?'OK':'--')+' · COT '+(cot?(cot.source==='CFTC API'?'HISTORY OK':'LOCAL FALLBACK'):'--');
 }
 $('refresh').onclick=()=>analyze().catch(e=>{$('reason').textContent='Lỗi phân tích: '+e.message;$('status').textContent='Lỗi: '+e.message});
 analyze().catch(e=>{$('reason').textContent='Lỗi phân tích/dữ liệu: '+e.message;$('status').textContent='Lỗi: '+e.message});
