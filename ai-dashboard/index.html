@@ -90,7 +90,7 @@ function features(data){
   r.r1=prev?r.last/prev.last-1:NaN;r.r4=i>=4?r.last/x[i-4].last-1:NaN;r.r16=i>=16?r.last/x[i-16].last-1:NaN;
   r.bp=r.basis/r.index*100;r.bv=prev?r.basis-prev.basis:NaN;r.ba=(prev&&i>1)?r.bv-x[i-2].bv:NaN;
   const bs=windowStats(i,PCT_WINDOW,q=>q.basis);r.bz=(r.basis-bs.mean)/bs.std;
-  r.mi=(r.mark-r.index)/r.index*100;r.ti=(r.tbuy-r.tsell)/((r.tbuy+r.tsell)||NaN);r.topLS=Number.isFinite(r.topLS)?r.topLS:NaN;r.topLSSlope=i>=4&&Number.isFinite(r.topLS)&&Number.isFinite(x[i-4].topLS)?r.topLS-x[i-4].topLS:NaN;const lz=windowStats(i,96,q=>q.topLS);r.topLSZ=Number.isFinite(r.topLS)?(r.topLS-lz.mean)/r.topLSZ:NaN;r.flowPressure=r.ti*100;r.impact=r.r1*100*(Math.abs(r.ti)*100);r.absorption=(Number.isFinite(r.ti)&&Number.isFinite(r.r1))?Math.max(0,Math.abs(r.ti)*100-Math.abs(r.r1)*1000):NaN;r.priceFlowDiv=(r.r1>0&&r.ti<0)?-1:(r.r1<0&&r.ti>0)?1:0;
+  r.mi=(r.mark-r.index)/r.index*100;r.ti=(r.tbuy-r.tsell)/((r.tbuy+r.tsell)||NaN);r.topLS=Number.isFinite(r.topLS)?r.topLS:NaN;r.topLSSlope=i>=4&&Number.isFinite(r.topLS)&&Number.isFinite(x[i-4].topLS)?r.topLS-x[i-4].topLS:NaN;const lz=windowStats(i,96,q=>q.topLS);r.topLSZ=Number.isFinite(r.topLS)?(r.topLS-lz.mean)/lz.std:NaN;r.flowPressure=r.ti*100;r.impact=r.r1*100*(Math.abs(r.ti)*100);r.absorption=(Number.isFinite(r.ti)&&Number.isFinite(r.r1))?Math.max(0,Math.abs(r.ti)*100-Math.abs(r.r1)*1000):NaN;r.priceFlowDiv=(r.r1>0&&r.ti<0)?-1:(r.r1<0&&r.ti>0)?1:0;
   cvd+=r.tbuy-r.tsell;r.cvd=cvd;r.cvd4=i>=4?cvd-x[i-4].cvd:NaN;
   r.vol=windowStats(i,32,q=>q.r1).std;r.mom=r.last/windowStats(i,32,q=>q.last).mean-1;
   r.rng=(r.high-r.low)/r.last*100;const vs=windowStats(i,PCT_WINDOW,q=>q.volume);r.vz=(r.volume-vs.mean)/vs.std;
