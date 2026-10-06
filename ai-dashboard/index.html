@@ -3,14 +3,47 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>SPYUSDT.P AI Signal Engine</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#11151c;color:#e7eef7;font:14px system-ui,Arial}.wrap{max-width:1400px;margin:auto;padding:10px}
+*{box-sizing:border-box}body{margin:0;background:#11151c;color:#e7eef7;font:14px system-ui,Arial}.wrap{width:min(1400px,100%);margin:auto;padding:10px clamp(8px,2vw,18px)}
 h1{margin:0 0 4px;font-size:24px}.muted{color:#8fa6bd}.top{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
 button{background:#13263c;color:#e7eef7;border:1px solid #25415f;border-radius:9px;padding:9px 13px;cursor:pointer}button:hover{border-color:#60a5fa}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:8px 0}.card,.panel{background:#0c1b2c;border:1px solid #1b3550;border-radius:14px;padding:13px}.label{font-size:11px;color:#8fa6bd;text-transform:uppercase}.big{font-size:22px;font-weight:700;margin-top:6px}
 .signal{text-align:center;font-size:36px;font-weight:900;padding:18px;border-radius:13px;margin-bottom:14px}.LONG{background:#07392f;color:#6ee7b7}.SHORT{background:#471d2d;color:#fda4af}.WAIT{background:#3d3410;color:#fde68a}.IMPACT_BULL{background:#063b31;color:#6ee7b7}.IMPACT_WBULL{background:#173b32;color:#9be7c8}.IMPACT_NEUTRAL{background:#2a2f3b;color:#d7dee8}.IMPACT_WBEAR{background:#3b2a20;color:#f5c39a}.IMPACT_BEAR{background:#471d2d;color:#fda4af}.IMPACT_SBULL{background:#04513f;color:#86efac}.IMPACT_SBEAR{background:#5b1727;color:#fecdd3}.scoreBar{height:15px;background:#12243a;border-radius:9px;overflow:hidden}.scoreBar i{display:block;height:100%;width:0;transition:width .2s}
 .bar{height:11px;background:#12243a;border-radius:9px;overflow:hidden}.bar i{display:block;height:100%}.ps{background:#fb7185}.pn{background:#fbbf24}.pl{background:#36d399}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.log{background:#081522;border-radius:9px;padding:10px;white-space:pre-wrap;min-height:80px;color:#b9c9d9}.ok{color:#6ee7b7}.warn{color:#fde68a}
-table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:7px;border-bottom:1px solid #19314a}@media(max-width:850px){.grid{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}} .secondary{display:none!important}.chartFrame{width:100%;height:650px;border:1px solid #29313d;border-radius:10px;background:#171a21;display:block} .impactHero{margin:6px 0 10px}.impactHero .signal{margin:0}.heroSub{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;color:#aab3c2;font-size:12px;margin-top:6px}.heroSub b{color:#e7eef7}
+table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:7px;border-bottom:1px solid #19314a}@media(max-width:850px){
+ .wrap{padding:7px 6px}
+ h1{font-size:18px;line-height:1.15}
+ .muted{font-size:11px}
+ .top{gap:6px;align-items:flex-start}
+ .top button{padding:7px 9px;font-size:12px}
+ .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+ .two{grid-template-columns:1fr}
+ .impactHero{margin:5px 0 7px}
+ .impactHero .signal{font-size:26px;padding:13px 8px;border-radius:11px;letter-spacing:-.2px}
+ .heroSub{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin-top:5px;font-size:10px}
+ .heroSub span{background:#0c1b2c;border:1px solid #1b3550;border-radius:7px;padding:5px 3px;text-align:center;min-width:0}
+ .heroSub b{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .panel{padding:4px!important;border-radius:10px}
+ .chartFrame{height:calc(100svh - 225px);min-height:470px;max-height:760px;border-radius:8px}
+}
+@media(min-width:851px){
+ .chartFrame{height:min(72vh,760px);min-height:600px}
+}
+@media(max-width:420px){
+ .wrap{padding:5px 4px}
+ h1{font-size:17px}
+ .top>div:first-child{max-width:72%}
+ .heroSub{grid-template-columns:repeat(2,minmax(0,1fr));font-size:9px}
+ .heroSub b{font-size:10px}
+ .impactHero .signal{font-size:23px;padding:11px 5px}
+ .chartFrame{height:calc(100svh - 205px);min-height:430px}
+}
+.secondary{display:none!important}
+.chartFrame{width:100%;border:1px solid #29313d;background:#171a21;display:block}
+.impactHero{margin:6px 0 10px}
+.impactHero .signal{margin:0}
+.heroSub{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;color:#aab3c2;font-size:12px;margin-top:6px}
+.heroSub b{color:#e7eef7}
 </style></head>
 <body><div class="wrap">
 <div class="top">
