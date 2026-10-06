@@ -6,6 +6,24 @@ const TFMS={ "1m":60000,"5m":300000,"15m":900000,"30m":1800000,"1h":3600000,"2h"
 let tf="15m", days=7, bars=[], ws=null, canvas,ctx,tip,crossV,crossH;
 let basisOn=false,basisData=[],basisMap=new Map(),basisPoll=null; let lsOn=true,lsData=[],lsPoll=null; let divLook=4;
 let strengthOn=true,strengthLen=8,strengthHl=2,strengthLook=500; let first=0, visible=120, dragging=false, dragX=0, dragFirst=0,crosshair={idx:null,x:null,y:null};let drawQueued=false,strengthCache=null,strengthCacheKey="";
+/* Embedded-dashboard Y-axis control: drag right price scale, double-tap to auto-fit. */
+const AXIS_W=72;
+const yState={price:{manual:false,lo:0,hi:0},basis:{manual:false,lo:0,hi:0},ls:{manual:false,lo:0,hi:0}};
+let axisDrag=null,lastAxisTap=0;
+function axisPaneAt(y){const H=canvas?canvas.clientHeight:0,basisH=basisOn?Math.max(88,Math.floor(H*.17)):0,lsH=lsOn?Math.max(128,Math.floor(H*.23)):0,bottom=38,lowerTop=H-bottom-lsH-basisH,lsTop=H-bottom-lsH;if(lsOn&&y>=lsTop)return"ls";if(basisOn&&y>=lowerTop&&y<lsTop)return"basis";return"price"}
+function visibleBarsForY(){return bars.slice(Math.max(0,first),Math.min(bars.length,first+visible))}
+function autoRange(pane){
+ const full=visibleBarsForY();if(!full.length)return[0,1];
+ if(pane==="price"){let lo=Math.min(...full.map(b=>b.l)),hi=Math.max(...full.map(b=>b.h));if(!isFinite(lo)||!isFinite(hi)||hi<=lo){const c=Number(full.at(-1)?.c)||1;return[c-Math.abs(c)*.01,c+Math.abs(c)*.01]}const pad=(hi-lo)*.08||Math.max(Math.abs(hi)*.002,.01);return[lo-pad,hi+pad]}
+ if(pane==="basis"){const vals=full.map(b=>getBasisAt(b.t)?.basis).filter(Number.isFinite);if(!vals.length)return[0,1];let lo=Math.min(...vals),hi=Math.max(...vals);if(!(hi>lo))return[lo-.0001,hi+.0001];const pad=(hi-lo)*.12;return[lo-pad,hi+pad]}
+ const vals=full.map(b=>getTopLSAt(b.t)?.ratio).filter(Number.isFinite);if(!vals.length)return[.5,1.5];let lo=Math.min(...vals),hi=Math.max(...vals);if(!(hi>lo)){lo=Math.max(.01,lo-.05);hi+=.05}else{const pad=(hi-lo)*.12;lo=Math.max(.01,lo-pad);hi+=pad}return[lo,hi]
+}
+function yRange(pane){const s=yState[pane]||(yState[pane]={manual:false,lo:0,hi:0});if(!s.manual){const a=autoRange(pane);s.lo=a[0];s.hi=a[1]}return[s.lo,s.hi]}
+function inYAxis(e){if(!canvas)return false;const r=canvas.getBoundingClientRect();return e.clientX>=r.right-AXIS_W}
+function axisPointerDown(e){if(!inYAxis(e))return;e.preventDefault();e.stopPropagation();const r=canvas.getBoundingClientRect(),pane=axisPaneAt(e.clientY-r.top),st=yState[pane],now=performance.now();if(now-lastAxisTap<320){st.manual=false;lastAxisTap=0;axisDrag=null;requestDraw();return}lastAxisTap=now;const[lo,hi]=yRange(pane),auto=autoRange(pane);axisDrag={pane,pointerId:e.pointerId,y0:e.clientY,lo,hi,cy:(lo+hi)/2,autoSpan:Math.max(auto[1]-auto[0],1e-12)};try{canvas.setPointerCapture(e.pointerId)}catch(_){}}
+function axisPointerMove(e){if(!axisDrag)return;e.preventDefault();e.stopPropagation();const st=yState[axisDrag.pane],k=Math.exp((e.clientY-axisDrag.y0)*.006);let half=(axisDrag.hi-axisDrag.lo)/2*k;half=Math.min(Math.max(half,axisDrag.autoSpan*.01),axisDrag.autoSpan*25);st.lo=axisDrag.cy-half;st.hi=axisDrag.cy+half;st.manual=true;requestDraw()}
+function axisPointerEnd(e){if(!axisDrag)return;e.preventDefault();e.stopPropagation();try{canvas.releasePointerCapture?.(e.pointerId)}catch(_){}axisDrag=null}
+
 const AXIS_W=72;
 const yState={price:{manual:false,lo:0,hi:0},basis:{manual:false,lo:0,hi:0},ls:{manual:false,lo:0,hi:0}};
 let axisDrag=null,lastAxisTap=0;
@@ -203,7 +221,7 @@ const zy=volTop+volH;ctx.strokeStyle="#39404c";ctx.beginPath();ctx.moveTo(left,z
  ctx.fillStyle="#f6465d";ctx.fillRect(W/2-160,volTop+15,10,10);ctx.fillStyle="#8d96a7";ctx.fillText("Taker Sell Volume (SPY)",W/2-145,volTop+24);ctx.fillStyle="#2ebd85";ctx.fillRect(W/2+45,volTop+15,10,10);ctx.fillStyle="#8d96a7";ctx.fillText("Taker Buy Volume (SPY)",W/2+60,volTop+24)
 }
 // Crosshair lines are handled by lightweight HTML overlays for continuous movement.
-canvas=$("c");ctx=canvas.getContext("2d");tip=$("tip");crossV=$("crossV");crossH=$("crossH");window.addEventListener("resize",resize);canvas.addEventListener("pointerdown",axisPointerDown,true);canvas.addEventListener("pointermove",axisPointerMove,true);canvas.addEventListener("pointerup",axisPointerEnd,true);canvas.addEventListener("pointercancel",axisPointerEnd,true);
+canvas=$("c");ctx=canvas.getContext("2d");tip=$("tip");crossV=$("crossV");crossH=$("crossH");window.addEventListener("resize",resize);canvas.addEventListener("pointerdown",axisPointerDown,true);canvas.addEventListener("pointermove",axisPointerMove,true);canvas.addEventListener("pointerup",axisPointerEnd,true);canvas.addEventListener("pointercancel",axisPointerEnd,true);canvas.addEventListener("pointerdown",axisPointerDown,true);canvas.addEventListener("pointermove",axisPointerMove,true);canvas.addEventListener("pointerup",axisPointerEnd,true);canvas.addEventListener("pointercancel",axisPointerEnd,true);
 $("tf").onchange=async()=>{tf=$("tf").value;await loadHistory()};$("range").onchange=async()=>{days=+$("range").value;await loadHistory()};$("strOn").onchange=()=>{strengthOn=$("strOn").checked;requestDraw()};$("strLen").onchange=()=>{strengthLen=+$("strLen").value;strengthCacheKey="";requestDraw()};$("strHl").onchange=()=>{strengthHl=+$("strHl").value;strengthCacheKey="";requestDraw()};
 $("basisOn").onchange=async()=>{basisOn=$("basisOn").checked;if(basisOn)await loadBasis();else{basisData=[];basisMap.clear();requestDraw()}};$("lsOn").onchange=async()=>{lsOn=$("lsOn").checked;if(lsOn)await loadTopLS();else{lsData=[];requestDraw()}};$("fit").onclick=fit;$("left").onclick=()=>move(-Math.max(1,Math.floor(visible*.35)));$("right").onclick=()=>move(Math.max(1,Math.floor(visible*.35)));$("refresh").onclick=()=>loadHistory();
 canvas.addEventListener("wheel",e=>{e.preventDefault();if(!bars.length)return;const factor=e.deltaY<0?.8:1.25,old=visible,newV=Math.max(20,Math.min(bars.length,Math.round(old*factor))),rect=canvas.getBoundingClientRect(),x=e.clientX-rect.left,left=70,right=72,pw=(canvas.clientWidth-left-right)/old,idx=Math.max(0,Math.min(old-1,Math.floor((x-left)/pw))),center=first+idx;visible=newV;first=Math.max(0,Math.min(Math.max(0,bars.length-visible),center-Math.floor(newV*(idx/Math.max(old,1)))));crosshair.idx=null;requestDraw()},{passive:false});
