@@ -85,11 +85,9 @@ img,canvas,svg,iframe{max-width:100%}
 }
 .panel.full{position:fixed!important;inset:0!important;z-index:99!important;width:100%!important;height:100dvh!important;padding:0!important;border-radius:0!important;border:0!important;margin:0!important}
 .panel.full .chartFrame{height:100dvh!important;width:100%!important;border:0!important}
-<style>
 #matrixPanel{margin-top:12px}
 .matrixBull{color:#6ee7b7}.matrixBear{color:#fda4af}.matrixNeutral{color:#fde68a}
 @media(max-width:640px){#matrixPanel table{font-size:11px}#matrixPanel td,#matrixPanel th{padding:5px 4px}}
-</style>
 </style></head>
 <body><div class="wrap">
 <div class="top">
@@ -348,12 +346,17 @@ async function pagedHistory(url,limitField="limit",tsKey="timestamp",maxItems=AU
 }
 async function getKlineHistory(kind){
  const all=new Map();let endTime=null;
- while(all.size<TARGET_CANDLES){let path,params;
+ while(all.size<TARGET_CANDLES){
+  let path,params;
   if(kind==="last"){path="klines";params={symbol:"SPYUSDT",interval:"15m",limit:String(PAGE_SIZE)}}
   else if(kind==="mark"){path="markPriceKlines";params={symbol:"SPYUSDT",interval:"15m",limit:String(PAGE_SIZE)}}
   else{path="indexPriceKlines";params={pair:"SPYUSDT",interval:"15m",limit:String(PAGE_SIZE)}}
-  if(endTime!==null)params.endTime=String(endTime);const batch=await getJSON("https://fapi.binance.com/fapi/v1/"+path+"?"+new URLSearchParams(params));if(!Array.isArray(batch)||!batch.length)break;
-  for(const q of batch)all.set(Number(q[0]),q);const oldest=Number(batch[0][0]);if(!Number.isFinite(oldest))break;endTime=oldest-1;if(batch.length<PAGE_SIZE)break;
+  if(endTime!==null)params.endTime=String(endTime);
+  const batch=await getJSON("https://fapi.binance.com/fapi/v1/"+path+"?"+new URLSearchParams(params));
+  if(!Array.isArray(batch)||!batch.length)break;
+  for(const q of batch)all.set(Number(q[0]),q);
+  const oldest=Number(batch[0][0]);if(!Number.isFinite(oldest))break;
+  endTime=oldest-1;if(batch.length<PAGE_SIZE)break;
  }
  return [...all.values()].sort((a,b)=>Number(a[0])-Number(b[0])).slice(-TARGET_CANDLES);
 }
@@ -382,8 +385,14 @@ function aggregateLiquidations(forceOrders){
 function rowsFromCandles(k,m,i,aux,closedOnly=true){
  const mm=new Map(m.map(q=>[Number(q[0]),+q[4]])),ii=new Map(i.map(q=>[Number(q[0]),+q[4]])),lm=new Map(aux.ls.map(q=>[Number(q.timestamp),Number(q.longShortRatio)])),am=new Map(aux.acct.map(q=>[Number(q.timestamp),Number(q.longShortRatio)])),gm=new Map(aux.globalLS.map(q=>[Number(q.timestamp),Number(q.longShortRatio)])),tm=new Map(aux.taker.map(q=>[Number(q.timestamp),Number(q.buySellRatio)])),om=new Map(aux.oi.map(q=>[Number(q.timestamp),Number(q.sumOpenInterestValue||q.sumOpenInterest)])),fm=aux.fr,liq=aggregateLiquidations(aux.fo);
  let lastLS=1,lastAcct=1,lastGlobal=1,lastTaker=1,lastOI=NaN,lastFunding=0;
- return k.map(q=>{const t=Number(q[0]),mark=mm.get(t),index=ii.get(t);if(lm.has(t))lastLS=lm.get(t);if(am.has(t))lastAcct=am.get(t);if(gm.has(t))lastGlobal=gm.get(t);if(tm.has(t))lastTaker=tm.get(t);const ov=om.get(t);if(Number.isFinite(ov))lastOI=ov;const fv=seriesValue(fm,t,"fundingRate");if(Number.isFinite(fv))lastFunding=fv;const l=liq.get(t)||{liqLong:0,liqShort:0,liqNet:0};return {time:t,closeTime:+q[6],last:+q[4],open:+q[1],high:+q[2],low:+q[3],volume:+q[5],tbuy:+q[9],tsell:+q[5]-+q[9],mark,index,basis:Number.isFinite(index)?+q[4]-index:NaN,topLS:lastLS,topAcctLS:lastAcct,globalLS:lastGlobal,takerRatio:lastTaker,oi:lastOI,funding:lastFunding,liqLong:l.liqLong,liqShort:l.liqShort,liqNet:l.liqNet}})
-  .filter(r=>Number.isFinite(r.last)&&Number.isFinite(r.mark)&&Number.isFinite(r.index)&&(!closedOnly||r.closeTime<Date.now()));
+ return k.map(q=>{
+  const t=Number(q[0]),close=+q[4],mark=Number.isFinite(mm.get(t))?mm.get(t):close,index=Number.isFinite(ii.get(t))?ii.get(t):close;
+  if(lm.has(t))lastLS=lm.get(t);if(am.has(t))lastAcct=am.get(t);if(gm.has(t))lastGlobal=gm.get(t);if(tm.has(t))lastTaker=tm.get(t);
+  const ov=om.get(t);if(Number.isFinite(ov))lastOI=ov;
+  const fv=seriesValue(fm,t,"fundingRate");if(Number.isFinite(fv))lastFunding=fv;
+  const l=liq.get(t)||{liqLong:0,liqShort:0,liqNet:0};
+  return {time:t,closeTime:+q[6],last:close,open:+q[1],high:+q[2],low:+q[3],volume:+q[5],tbuy:+q[9],tsell:+q[5]-+q[9],mark,index,basis:close-index,topLS:lastLS,topAcctLS:lastAcct,globalLS:lastGlobal,takerRatio:lastTaker,oi:lastOI,funding:lastFunding,liqLong:l.liqLong,liqShort:l.liqShort,liqNet:l.liqNet};
+ }).filter(r=>Number.isFinite(r.last)&&(!closedOnly||r.closeTime<Date.now()));
 }
 async function getRecentKlines(kind,limit=20){
  let path,params;if(kind==="last"){path="klines";params={symbol:"SPYUSDT",interval:"15m",limit:String(limit)}}else if(kind==="mark"){path="markPriceKlines";params={symbol:"SPYUSDT",interval:"15m",limit:String(limit)}}else{path="indexPriceKlines";params={pair:"SPYUSDT",interval:"15m",limit:String(limit)}}return getJSON("https://fapi.binance.com/fapi/v1/"+path+"?"+new URLSearchParams(params));
@@ -391,14 +400,33 @@ async function getRecentKlines(kind,limit=20){
 async function refreshAux(){const a=await getAux();if(a.ls.length)live.topLS=Number(a.ls.at(-1)?.longShortRatio);if(a.oi.length)live.oi=Number(a.oi.at(-1)?.sumOpenInterestValue||a.oi.at(-1)?.sumOpenInterest);if(a.fr.length)live.funding=Number(a.fr.at(-1)?.fundingRate);return a}
 async function loadHistory(){
  say("Đang tải 15m + Top L/S + Open Interest + Funding + Liquidation từ Binance…");
- const [k,m,i,aux]=await Promise.all([getKlineHistory("last"),getKlineHistory("mark"),getKlineHistory("index"),getAux()]);
- rows=rowsFromCandles(k,m,i,aux,true).slice(-TARGET_CANDLES);if(!rows.length)throw Error("Không ghép được dữ liệu Binance");
+ const [k,m,i,aux]=await Promise.all([
+  getKlineHistory("last"),
+  getKlineHistory("mark").catch(e=>{console.warn("Mark Price history unavailable:",e);return[]}),
+  getKlineHistory("index").catch(e=>{console.warn("Index Price history unavailable:",e);return[]}),
+  getAux()
+ ]);
+ rows=rowsFromCandles(k,m,i,aux,true).slice(-TARGET_CANDLES);if(!rows.length)throw Error("Không tải được Kline SPYUSDT từ Binance");
+ if(!m.length)console.warn("Mark Price unavailable — using last price fallback");
+ if(!i.length)console.warn("Index Price unavailable — using last price fallback");
  if(!aux.ls.length)console.warn("Top L/S unavailable — fallback neutral");if(!aux.oi.length)console.warn("OI unavailable — fallback neutral");
  live.last=rows.at(-1).last;live.mark=rows.at(-1).mark;live.index=rows.at(-1).index;live.topLS=rows.at(-1).topLS;live.oi=rows.at(-1).oi;live.funding=rows.at(-1).funding;renderLive();try{train()}catch(e){console.error(e);say("Lỗi AI/ML: "+e.message)}connect();
 }
 async function refreshAndTrain(){
  if(refreshBusy||!rows.length)return;refreshBusy=true;
- try{say("Đang cập nhật nến + flow derivatives…");const [k,m,i,aux]=await Promise.all([getRecentKlines("last"),getRecentKlines("mark"),getRecentKlines("index"),getAux()]);const fresh=rowsFromCandles(k,m,i,aux,true),map=new Map(rows.map(r=>[r.time,r]));for(const r of fresh)map.set(r.time,r);rows=[...map.values()].sort((a,b)=>a.time-b.time).slice(-TARGET_CANDLES);renderLive();train()}catch(e){say("Không cập nhật được Binance: "+e.message)}finally{refreshBusy=false}
+ try{
+  say("Đang cập nhật nến + flow derivatives…");
+  const [k,m,i,aux]=await Promise.all([
+   getRecentKlines("last"),
+   getRecentKlines("mark").catch(e=>{console.warn("Mark update unavailable:",e);return[]}),
+   getRecentKlines("index").catch(e=>{console.warn("Index update unavailable:",e);return[]}),
+   getAux()
+  ]);
+  const fresh=rowsFromCandles(k,m,i,aux,true),map=new Map(rows.map(r=>[r.time,r]));
+  for(const r of fresh)map.set(r.time,r);
+  rows=[...map.values()].sort((a,b)=>a.time-b.time).slice(-TARGET_CANDLES);
+  renderLive();train();
+ }catch(e){say("Không cập nhật được Binance: "+e.message)}finally{refreshBusy=false}
 }
 function renderLive(){const r=rows.at(-1);if(!r)return;const lp=Number.isFinite(live.last)?live.last:r.last,ip=Number.isFinite(live.index)?live.index:r.index;const b=lp-ip;$("last").textContent=lp.toFixed(4);$("index").textContent=ip.toFixed(4);$("basis").textContent=(b>=0?"+":"")+b.toFixed(4);$("bp").textContent=(b/ip*100).toFixed(4)+"%";$("topls").textContent=Number.isFinite(live.topLS)?live.topLS.toFixed(3):(Number.isFinite(r.topLS)?r.topLS.toFixed(3):"—")}
 function connect(){
