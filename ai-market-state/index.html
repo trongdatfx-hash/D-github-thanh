@@ -31,7 +31,7 @@ iframe{width:100%;height:650px;border:0;border-radius:10px;background:#080d18}
 <div class="grid">
 <div>
 <div class="panel"><h2>Probability</h2><div class="bars" id="prob"></div></div>
-<div class="panel"><h2>Signal Score</h2><div class="bars" id="scores"></div></div>
+<div class="panel"><h2>Signal Score</h2><div class="bars" id="scores"></div></div><div class="panel"><h2>Weekly Range Percentile</h2><div id="weekly" class="reason">Đang tính…</div></div>
 <div class="panel"><h2>AI Agent kết luận</h2><div id="reason" class="reason">Đang phân tích dữ liệu Binance…</div></div>
 <div class="panel"><h2>Trạng thái dữ liệu</h2><div id="status" class="status">Đang tải…</div></div>
 </div>
@@ -48,14 +48,21 @@ function pct(x){return (x*100).toFixed(0)+'%'}
 function renderBars(el,items){$(el).innerHTML=items.map(x=>'<div class="row"><span>'+x[0]+'</span><div class="bar"><div class="fill '+(x[2]||'')+'" style="width:'+clamp(Math.abs(x[1]),0,100)+'%"></div></div><b>'+Math.round(x[1])+'</b></div>').join('')}
 async function analyze(){
  $('status').textContent='Đang lấy M15 + Taker + OI + Top L/S + Funding…';
- const [k,t,o,ls,f]=await Promise.all([
+ const [k,t,o,ls,f,daily]=await Promise.all([
   get('/fapi/v1/klines?symbol='+S+'&interval='+TF+'&limit=120'),
   get('/futures/data/takerlongshortRatio?symbol='+S+'&period=15m&limit=30'),
   get('/futures/data/openInterestHist?symbol='+S+'&period=15m&limit=30'),
   get('/futures/data/topLongShortPositionRatio?symbol='+S+'&period=15m&limit=30'),
-  get('/fapi/v1/premiumIndex?symbol='+S)
+  get('/fapi/v1/premiumIndex?symbol='+S), get('/fapi/v1/klines?symbol='+S+'&interval=1d&limit=400')
  ]);
  const close=k.map(x=>+x[4]), vol=k.map(x=>+x[5]), c=close.at(-1), c5=close.at(-5), c20=close.at(-20);
+ const weeks=[]; for(let i=0;i+6<daily.length;i+=7){const q=daily.slice(i,i+7), hi=Math.max(...q.map(x=>+x[2])), lo=Math.min(...q.map(x=>+x[3])); weeks.push({hi,lo,range:hi-lo,pct:lo?((hi-lo)/lo*100):0});}
+ const wr=weeks.slice(-52).map(x=>x.pct).sort((a,b)=>a-b); const quant=p=>wr[Math.min(wr.length-1,Math.floor((wr.length-1)*p))];
+ const weekStart=Date.now()-((new Date().getUTCDay()+6)%7)*86400000; const curDays=daily.filter(x=>+x[0]>=weekStart);
+ const wHi=Math.max(...curDays.map(x=>+x[2])), wLo=Math.min(...curDays.map(x=>+x[3])), wRangePct=(wLo?(wHi-wLo)/wLo*100:0);
+ const rank=wr.filter(x=>x<=wRangePct).length/Math.max(1,wr.length), pos=wHi>wLo?(c-wLo)/(wHi-wLo):.5;
+ let reaction='NORMAL'; if(rank>=.95)reaction='EXTREME RANGE — ưu tiên hồi quy/giảm đuổi giá'; else if(rank>=.75)reaction='EXPANSION — có thể tiếp diễn nhưng rủi ro mean-reversion tăng'; else if(rank<=.25)reaction='COMPRESSED RANGE — chờ breakout/xác nhận';
+ const weeklyText='Tuần hiện tại: '+wRangePct.toFixed(2)+'% | Percentile: '+Math.round(rank*100)+'% | P25 '+quant(.25).toFixed(2)+'% · P50 '+quant(.5).toFixed(2)+'% · P75 '+quant(.75).toFixed(2)+'% · P90 '+quant(.9).toFixed(2)+'% · P95 '+quant(.95).toFixed(2)+'%<br><b>Vị trí giá trong tuần:</b> '+Math.round(pos*100)+'% từ Low → High<br><b>Phản ứng dự kiến:</b> '+reaction;
  const ret5=(c/c5-1)*100, ret20=(c/c20-1)*100;
  const tak=avg(t.slice(-5).map(x=>+x.buyVol/(+x.buyVol+(+x.sellVol||1)))); 
  const oi0=+o[0].sumOpenInterest, oi1=+o.at(-1).sumOpenInterest, oiCh=(oi1/oi0-1)*100;
@@ -78,7 +85,7 @@ async function analyze(){
  const flowTxt=flow>=15?'Taker Buy chiếm ưu thế':flow<=-15?'Taker Sell chiếm ưu thế':'Taker cân bằng';
  const oiTxt=oiCh>=.3?'OI đang tăng':oiCh<=-.3?'OI đang giảm':'OI gần như ổn định';
  const lsTxt=lsCh>=.03?'Top Trader nghiêng Long':lsCh<=-.03?'Top Trader nghiêng Short':'Top Trader cân bằng';
- $('reason').innerHTML='<b>'+decision+'</b> — '+state+'. '+flowTxt+', '+oiTxt+', '+lsTxt+'. Funding '+(funding*100).toFixed(4)+'%. Giá M15 5 nến: '+ret5.toFixed(2)+'%; 20 nến: '+ret20.toFixed(2)+'%. <br><br><b>Lưu ý:</b> Đây là AI Rule Engine Giai đoạn 1, chưa phải mô hình ML được huấn luyện. WAIT được ưu tiên khi tín hiệu chưa đủ mạnh.';
+ $('weekly').innerHTML=weeklyText; $('reason').innerHTML='<b>'+decision+'</b> — '+state+'. '+flowTxt+', '+oiTxt+', '+lsTxt+'. Funding '+(funding*100).toFixed(4)+'%. Giá M15 5 nến: '+ret5.toFixed(2)+'%; 20 nến: '+ret20.toFixed(2)+'%. <br><br><b>Lưu ý:</b> Đây là AI Rule Engine Giai đoạn 1, chưa phải mô hình ML được huấn luyện. WAIT được ưu tiên khi tín hiệu chưa đủ mạnh.';
  $('status').textContent='Cập nhật '+new Date().toLocaleTimeString('vi-VN')+' · '+k.length+' nến M15 · Binance OK';
 }
 $('refresh').onclick=()=>analyze().catch(e=>{$('status').textContent='Lỗi: '+e.message});
