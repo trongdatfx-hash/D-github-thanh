@@ -121,7 +121,7 @@ img,canvas,svg,iframe{max-width:100%}
 </div>
 <script>
 const $=id=>document.getElementById(id);
-const TARGET_CANDLES=12000,PAGE_SIZE=1500,AUX_TARGET=5000,HORIZON=4,FOLD_SIZE=600,EPOCHS=30,ROUND_TRIP_FEE=.0004,PCT_WINDOW=96,DIV_WINDOW=8,STRENGTH_LEN=8,STRENGTH_HALF_LIFE=2,STRENGTH_LOOKBACK=500;
+const TARGET_CANDLES=12000,PAGE_SIZE=1500,AUX_TARGET=5000,HORIZON=4,FOLD_SIZE=1200,EPOCHS=8,MAX_TRAIN_SAMPLES=2500,ROUND_TRIP_FEE=.0004,PCT_WINDOW=96,DIV_WINDOW=8,STRENGTH_LEN=8,STRENGTH_HALF_LIFE=2,STRENGTH_LOOKBACK=500;
 const FEATURES=["r1","r4","r16","bp","bv","ba","bz","mi","ti","cvd4","vol","mom","rng","vz","tbp","tsp","bpr","bslope","strength","strengthSlope","bullDiv","bearDiv","topLS","topLSSlope","topLSZ","oiDelta","oiZ","funding","fundingZ","liqNetZ","takerForce","priceResponse","flowPriceDiv","absorption"];
 let rows=[],featureRows=[],tradeSamples=[],model=null,live={last:NaN,index:NaN,mark:NaN,buy:0,sell:0,topLS:NaN,oi:NaN,funding:NaN,liqBuy:0,liqSell:0},refreshBusy=false;
 
@@ -289,7 +289,7 @@ function train(){
  const initialTrain=Math.floor(ix.length*.6),X=matrix(fx),confusion=Array.from({length:3},()=>[0,0,0]);let correct=0,testCount=0,trades=0,agreementTrades=0,divergenceTrades=0,eq=1,nextTradeAfter=-1,impactCorrect=0,impactN=0,folds=0;tradeSamples=[];const params={directionalEdge:.58,minDirectionalMass:.05};
  for(let start=initialTrain;start<ix.length;start+=FOLD_SIZE){
   const trainEnd=start-HORIZON,tr=ix.slice(0,trainEnd),te=ix.slice(start,Math.min(start+FOLD_SIZE,ix.length));if(tr.length<100||!te.length)continue;
-  const N=prep(tr.map(i=>X[i])),W=fit(normX(tr.map(i=>X[i]),N),tr.map(i=>ys[i]));folds++;
+  const trUse=tr.length>MAX_TRAIN_SAMPLES?tr.slice(-MAX_TRAIN_SAMPLES):tr;const N=prep(trUse.map(i=>X[i])),W=fit(normX(trUse.map(i=>X[i]),N),trUse.map(i=>ys[i]),EPOCHS);folds++;
   for(const i of te){
    const p=probs(W,fx[i],N),pred=p.indexOf(Math.max(...p)),actual=ys[i];confusion[actual][pred]++;testCount++;if(pred===actual)correct++;
    const r=fx[i],sc=r.impactScore; if(Math.abs(sc)>=50){impactN++;const fr=r.last?fx[i+HORIZON].last/r.last-1:0;if((sc>0&&fr>0)||(sc<0&&fr<0))impactCorrect++}
@@ -301,7 +301,7 @@ function train(){
    }
   }
  }
- const recall=[0,1,2].map(c=>{const n=confusion[c].reduce((a,b)=>a+b,0);return n?confusion[c][c]/n:0}),bacc=recall.reduce((a,b)=>a+b,0)/3,N=prep(ix.map(i=>X[i])),W=fit(normX(ix.map(i=>X[i]),N));
+ const recall=[0,1,2].map(c=>{const n=confusion[c].reduce((a,b)=>a+b,0);return n?confusion[c][c]/n:0}),bacc=recall.reduce((a,b)=>a+b,0)/3,finalTrain=ix.length>MAX_TRAIN_SAMPLES?ix.slice(-MAX_TRAIN_SAMPLES):ix,N=prep(finalTrain.map(i=>X[i])),W=fit(normX(finalTrain.map(i=>X[i]),N),finalTrain.map(i=>ys[i]),EPOCHS);
  model={W,N,params};$("model").textContent="ML + Impact Engine";$("acc").textContent=pct(correct/testCount)+"%";$("bacc").textContent=pct(bacc)+"%";$("samples").textContent=testCount.toLocaleString();$("folds").textContent=folds;$("trades").textContent=trades.toLocaleString();$("agreementTrades").textContent=agreementTrades.toLocaleString();$("divergenceTrades").textContent=divergenceTrades.toLocaleString();$("params").textContent="58% dir / impact ≥20/50/80";$("sret").textContent=((eq-1)*100).toFixed(2)+"%";renderTradeSamples();predictLatest();
  say("Walk-forward "+folds+" folds · "+ix.length.toLocaleString()+" nến hợp lệ · Impact hit-rate |score|≥50: "+(impactN?((impactCorrect/impactN)*100).toFixed(1):"—")+"%.");
 }
@@ -365,7 +365,7 @@ async function loadHistory(){
  const [k,m,i,aux]=await Promise.all([getKlineHistory("last"),getKlineHistory("mark"),getKlineHistory("index"),getAux()]);
  rows=rowsFromCandles(k,m,i,aux,true).slice(-TARGET_CANDLES);if(!rows.length)throw Error("Không ghép được dữ liệu Binance");
  if(!aux.ls.length)console.warn("Top L/S unavailable — fallback neutral");if(!aux.oi.length)console.warn("OI unavailable — fallback neutral");
- live.last=rows.at(-1).last;live.mark=rows.at(-1).mark;live.index=rows.at(-1).index;live.topLS=rows.at(-1).topLS;live.oi=rows.at(-1).oi;live.funding=rows.at(-1).funding;renderLive();train();connect();
+ live.last=rows.at(-1).last;live.mark=rows.at(-1).mark;live.index=rows.at(-1).index;live.topLS=rows.at(-1).topLS;live.oi=rows.at(-1).oi;live.funding=rows.at(-1).funding;renderLive();try{train()}catch(e){console.error(e);say("Lỗi AI/ML: "+e.message)}connect();
 }
 async function refreshAndTrain(){
  if(refreshBusy||!rows.length)return;refreshBusy=true;
@@ -377,7 +377,7 @@ function connect(){
  ws.onopen=()=>{$("conn").textContent="● Binance LIVE";$("conn").className="ok"};ws.onerror=()=>{$("conn").textContent="LIVE stream error";$("conn").className="warn"};ws.onclose=()=>{$("conn").textContent="reconnecting…";setTimeout(connect,2500)};
  ws.onmessage=e=>{try{const d=JSON.parse(e.data).data;if(d.e==="markPriceUpdate"){live.mark=+d.p;live.index=+d.i;live.funding=+d.r;live.last=live.last||+d.p;renderLive();predictLatest()}else if(d.e==="aggTrade"){live.last=+d.p;if(d.m)live.sell+=+d.q;else live.buy+=+d.q;renderLive();predictLatest()}else if(d.e==="forceOrder"){const o=d.o||{},q=Number(o.ap)*Number(o.z);if(o.S==="SELL")live.liqSell+=q;else if(o.S==="BUY")live.liqBuy+=q;predictLatest()}}catch(_){}};setInterval(()=>{live.buy=live.sell=0;live.liqBuy=live.liqSell=0},15*60*1000);
 }
-window.addEventListener("resize",drawStrengthChart);$("run").onclick=refreshAndTrain;loadHistory().then(()=>setInterval(refreshAndTrain,15*60*1000)).catch(e=>say("Lỗi tải Binance: "+e.message));
+window.addEventListener("resize",drawStrengthChart);$("run").onclick=()=>{if(refreshBusy)return;refreshAndTrain()};loadHistory().then(()=>setInterval(refreshAndTrain,15*60*1000)).catch(e=>{console.error(e);say("Lỗi khởi động Binance/AI: "+e.message);$("conn").textContent="startup error";$("conn").className="warn";connect()});
 </script>
 <script>
 (function(){
