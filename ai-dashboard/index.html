@@ -137,7 +137,7 @@ img,canvas,svg,iframe{max-width:100%}
 const $=id=>document.getElementById(id);
 const TARGET_CANDLES=12000,PAGE_SIZE=1500,AUX_TARGET=5000,HORIZON=4,FOLD_SIZE=1200,EPOCHS=8,MAX_TRAIN_SAMPLES=2500,ROUND_TRIP_FEE=.0004,PCT_WINDOW=96,DIV_WINDOW=8,STRENGTH_LEN=8,STRENGTH_HALF_LIFE=2,STRENGTH_LOOKBACK=500;
 const FEATURES=["r1","r4","r16","bp","bv","ba","bz","mi","ti","cvd4","vol","mom","rng","vz","tbp","tsp","bpr","bslope","strength","strengthSlope","bullDiv","bearDiv","topLS","topLSSlope","topLSZ","topAcctLS","topAcctLSSlope","globalLS","globalLSSlope","takerRatio","takerRatioZ","oiDelta","oiZ","funding","fundingZ","liqNetZ","takerForce","priceResponse","flowPriceDiv","absorption"];
-let rows=[],featureRows=[],tradeSamples=[],model=null,live={last:NaN,index:NaN,mark:NaN,buy:0,sell:0,topLS:NaN,oi:NaN,funding:NaN,liqBuy:0,liqSell:0},refreshBusy=false;
+let rows=[],featureRows=[],tradeSamples=[],model=null,live={last:NaN,index:NaN,mark:NaN,buy:0,sell:0,topLS:NaN,oi:NaN,funding:NaN,liqBuy:0,liqSell:0,liqBucket:Math.floor(Date.now()/900000)*900000},refreshBusy=false;
 
 const say=s=>$("log").textContent=s;
 const pct=v=>(100*v).toFixed(1);
@@ -297,7 +297,7 @@ function renderImpact(r,liveMode=false){
 }
 function predictLatest(){
  if(!model||!featureRows.length)return;
- let r={...featureRows.at(-1)};r.topLS=Number.isFinite(live.topLS)?live.topLS:r.topLS;r.oi=Number.isFinite(live.oi)?live.oi:r.oi;r.funding=Number.isFinite(live.funding)?live.funding:r.funding;r.liqLong=live.liqSell;r.liqShort=live.liqBuy;r.liqNet=live.liqBuy-live.liqSell;
+ let r={...featureRows.at(-1)};r.topLS=Number.isFinite(live.topLS)?live.topLS:r.topLS;r.oi=Number.isFinite(live.oi)?live.oi:r.oi;r.funding=Number.isFinite(live.funding)?live.funding:r.funding;r.liqLong=live.liqSell;r.liqShort=live.liqBuy;r.liqNet=live.liqBuy-live.liqSell;r.liqNetZ=liveLiquidationZ();
  if(live.buy+live.sell>0){r.tbuy=live.buy;r.tsell=live.sell;r.ti=(live.buy-live.sell)/(live.buy+live.sell);r.strength=clamp(r.strength*.65+r.ti*.85);r.takerForce=clamp(r.ti*2.2+.4*r.strength);r.priceResponse=clamp(((live.last/r.last)-1)/.0015);}
  r.last=Number.isFinite(live.last)?live.last:r.last;r.mark=Number.isFinite(live.mark)?live.mark:r.mark;r.index=Number.isFinite(live.index)?live.index:r.index;r.r1=r.last/featureRows.at(-1).last-1;r.r4=r.r1;
  r.impactScore=impactScore(r);r.impactClass=classifyImpact(r.impactScore);
@@ -362,16 +362,15 @@ async function getKlineHistory(kind){
 }
 async function safeAux(fn,fallback=[]){try{return await fn()}catch(e){console.warn("Aux source unavailable:",e);return fallback}}
 async function getAux(){
- const [ls,acct,globalLS,taker,oi,fr,fo]=await Promise.all([
+ const [ls,acct,globalLS,taker,oi,fr]=await Promise.all([
   safeAux(()=>pagedHistory("https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol=SPYUSDT&period=15m","limit","timestamp",1500),[]),
   safeAux(()=>pagedHistory("https://fapi.binance.com/futures/data/topLongShortAccountRatio?symbol=SPYUSDT&period=15m","limit","timestamp",1500),[]),
   safeAux(()=>pagedHistory("https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=SPYUSDT&period=15m","limit","timestamp",1500),[]),
   safeAux(()=>pagedHistory("https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=SPYUSDT&period=15m","limit","timestamp",1500),[]),
   safeAux(()=>pagedHistory("https://fapi.binance.com/futures/data/openInterestHist?symbol=SPYUSDT&period=15m","limit","timestamp",1000),[]),
-  safeAux(()=>pagedHistory("https://fapi.binance.com/fapi/v1/fundingRate?symbol=SPYUSDT","limit","fundingTime",200),[]),
-  safeAux(()=>getJSON("https://fapi.binance.com/fapi/v1/forceOrders?symbol=SPYUSDT&limit=100"),[])
+  safeAux(()=>pagedHistory("https://fapi.binance.com/fapi/v1/fundingRate?symbol=SPYUSDT","limit","fundingTime",200),[])
  ]);
- return {ls:Array.isArray(ls)?ls:[],acct:Array.isArray(acct)?acct:[],globalLS:Array.isArray(globalLS)?globalLS:[],taker:Array.isArray(taker)?taker:[],oi:Array.isArray(oi)?oi:[],fr:Array.isArray(fr)?fr:[],fo:Array.isArray(fo)?fo:[]};
+ return {ls:Array.isArray(ls)?ls:[],acct:Array.isArray(acct)?acct:[],globalLS:Array.isArray(globalLS)?globalLS:[],taker:Array.isArray(taker)?taker:[],oi:Array.isArray(oi)?oi:[],fr:Array.isArray(fr)?fr:[],fo:[]};
 }
 function seriesValue(series,time,key){
  let lo=0,hi=series.length-1,best=null;while(lo<=hi){const m=(lo+hi)>>1,ts=Number(series[m].timestamp??series[m].fundingTime??series[m].time);if(ts<=time){best=series[m];lo=m+1}else hi=m-1}
@@ -432,7 +431,7 @@ function renderLive(){const r=rows.at(-1);if(!r)return;const lp=Number.isFinite(
 function connect(){
  const ws=new WebSocket("wss://fstream.binance.com/market/stream?streams=spyusdt@markPrice@1s/spyusdt@aggTrade/spyusdt@forceOrder");
  ws.onopen=()=>{$("conn").textContent="● Binance LIVE";$("conn").className="ok"};ws.onerror=()=>{$("conn").textContent="LIVE stream error";$("conn").className="warn"};ws.onclose=()=>{$("conn").textContent="reconnecting…";setTimeout(connect,2500)};
- ws.onmessage=e=>{try{const d=JSON.parse(e.data).data;if(d.e==="markPriceUpdate"){live.mark=+d.p;live.index=+d.i;live.funding=+d.r;live.last=live.last||+d.p;renderLive();predictLatest()}else if(d.e==="aggTrade"){live.last=+d.p;if(d.m)live.sell+=+d.q;else live.buy+=+d.q;renderLive();predictLatest()}else if(d.e==="forceOrder"){const o=d.o||{},q=Number(o.ap)*Number(o.z);if(o.S==="SELL")live.liqSell+=q;else if(o.S==="BUY")live.liqBuy+=q;predictLatest()}}catch(_){}};setInterval(()=>{live.buy=live.sell=0;live.liqBuy=live.liqSell=0},15*60*1000);
+ ws.onmessage=e=>{try{const d=JSON.parse(e.data).data;if(d.e==="markPriceUpdate"){live.mark=+d.p;live.index=+d.i;live.funding=+d.r;live.last=live.last||+d.p;renderLive();predictLatest()}else if(d.e==="aggTrade"){live.last=+d.p;if(d.m)live.sell+=+d.q;else live.buy+=+d.q;renderLive();predictLatest()}else if(d.e==="forceOrder"){const o=d.o||{},q=Number(o.ap||o.p)*Number(o.z),bucket=Math.floor(Date.now()/900000)*900000;if(live.liqBucket!==bucket){live.liqBucket=bucket;live.liqBuy=0;live.liqSell=0}if(Number.isFinite(q)&&q>0){if(o.S==="SELL")live.liqSell+=q;else if(o.S==="BUY")live.liqBuy+=q}predictLatest();runSignalMatrix()}}catch(_){}};setInterval(()=>{live.buy=live.sell=0;liveLiquidationZ()},15*60*1000);
 }
 window.addEventListener("resize",drawStrengthChart);$("run").onclick=()=>{if(refreshBusy)return;refreshAndTrain()};loadHistory().then(()=>setInterval(refreshAndTrain,15*60*1000)).catch(e=>{console.error(e);say("Lỗi khởi động Binance/AI: "+e.message);$("conn").textContent="startup error";$("conn").className="warn";connect()});
 </script>
@@ -486,6 +485,17 @@ function matrixCurrentBias(r,kind,v){
  if(kind==="taker"||kind==="price"||kind==="ls"||kind==="takerRatio"||kind==="oi"||kind==="funding"||kind==="liq"||kind==="basis"||kind==="div")return v;
  return 0;
 }
+function liveLiquidationZ(){
+ const bucket=Math.floor(Date.now()/900000)*900000;
+ if(live.liqBucket!==bucket){live.liqBucket=bucket;live.liqBuy=0;live.liqSell=0}
+ const sample=featureRows.slice(-PCT_WINDOW).map(r=>Number(r.liqNet)).filter(Number.isFinite);
+ const mean=sample.length?sample.reduce((a,b)=>a+b,0)/sample.length:0;
+ const observedStd=sample.length?Math.sqrt(sample.reduce((a,b)=>a+(b-mean)**2,0)/sample.length):0;
+ const quoteVolume=featureRows.slice(-PCT_WINDOW).map(r=>Number(r.volume)*Number(r.close)).filter(v=>Number.isFinite(v)&&v>0);
+ const fallbackScale=quoteVolume.length?quoteVolume.reduce((a,b)=>a+b,0)/quoteVolume.length*.01:0;
+ const scale=observedStd>0?observedStd:fallbackScale;
+ return scale>0?(live.liqBuy-live.liqSell)/scale:0;
+}
 function runSignalMatrix(){
  if(!featureRows.length)return;
  const THR=.15,HS=[1,2,4,8],FEE_BPS=ROUND_TRIP_FEE*1e4,rowsM=featureRows;
@@ -496,7 +506,7 @@ function runSignalMatrix(){
   return {n,hit,edge:hit-exp,bps:n?1e4*sum/n-FEE_BPS:NaN}};
  for(const [name,key,transform,kind] of defs){
   const vals=rowsM.map(r=>{const v=Number(r[key]);return Number.isFinite(v)?transform(v):NaN});
-  const cur=vals.at(-1),res=HS.map(h=>evalH(vals,h,1)),no8=evalH(vals,8,8),r4=res[2];
+  const cur=kind==="liq"?Math.tanh(liveLiquidationZ()/2):vals.at(-1),res=HS.map(h=>evalH(vals,h,1)),no8=evalH(vals,8,8),r4=res[2];
   const cls=cur>THR?"matrixBull":cur<-THR?"matrixBear":"matrixNeutral",bias=cur>THR?"BULL":cur<-THR?"BEAR":"NEUTRAL";
   if(Number.isFinite(cur))usable++;
   const f1=x=>Number.isFinite(x)?x.toFixed(1):"—",sg=x=>Number.isFinite(x)?(x>=0?"+":"")+x.toFixed(1):"—";
@@ -506,7 +516,7 @@ function runSignalMatrix(){
  }
  tbody.innerHTML=html;
  const r=rowsM.at(-1),score=Number.isFinite(r?.impactScore)?r.impactScore:0;
- $("matrixNote").textContent="Base up-rate: 1c "+(100*pUp[1]).toFixed(1)+"% · 2c "+(100*pUp[2]).toFixed(1)+"% · 4c "+(100*pUp[4]).toFixed(1)+"% · 8c "+(100*pUp[8]).toFixed(1)+"%. Edge 4 = hit − hit kỳ vọng theo base rate (điểm %); Net bps 4 = lợi nhuận TB có dấu sau phí "+FEE_BPS.toFixed(0)+" bps; Hit 8 NO = lấy mẫu không chồng lấp. In-sample, chỉ thống kê, chưa dùng để đổi tín hiệu ML. Current Impact "+(score>=0?"+":"")+score.toFixed(0)+" · "+usable+"/"+defs.length+" factors có dữ liệu.";
+ $("matrixNote").textContent="Base up-rate: 1c "+(100*pUp[1]).toFixed(1)+"% · 2c "+(100*pUp[2]).toFixed(1)+"% · 4c "+(100*pUp[4]).toFixed(1)+"% · 8c "+(100*pUp[8]).toFixed(1)+"%. Edge 4 = hit − hit kỳ vọng theo base rate (điểm %); Net bps 4 = lợi nhuận TB có dấu sau phí "+FEE_BPS.toFixed(0)+" bps; Hit 8 NO = lấy mẫu không chồng lấp. In-sample, chỉ thống kê, chưa dùng để đổi tín hiệu ML. Liquidation lấy realtime từ Binance WebSocket; thống kê lịch sử chỉ có mẫu kể từ lúc mở trang. Current Impact "+(score>=0?"+":"")+score.toFixed(0)+" · "+usable+"/"+defs.length+" factors có dữ liệu.";
 }
 $("matrixRun").onclick=runSignalMatrix;
 </script>
