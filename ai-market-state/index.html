@@ -31,7 +31,7 @@ iframe{width:100%;height:650px;border:0;border-radius:10px;background:#080d18}
 <div class="grid">
 <div>
 <div class="panel"><h2>Probability</h2><div class="bars" id="prob"></div></div>
-<div class="panel"><h2>Signal Score</h2><div class="bars" id="scores"></div></div><div class="panel"><h2>Weekly Range Percentile</h2><div id="weekly" class="reason">Đang tính…</div></div><div class="panel"><h2>Historical Reaction</h2><div id="reaction" class="reason">Đang tính phản ứng lịch sử…</div></div>
+<div class="panel"><h2>Signal Score</h2><div class="bars" id="scores"></div></div><div class="panel"><h2>Weekly Range Percentile</h2><div id="weekly" class="reason">Đang tính…</div></div><div class="panel"><h2>Historical Reaction</h2><div id="reaction" class="reason">Đang tính phản ứng lịch sử…</div></div><div class="panel"><h2>COT Regime · E-mini S&amp;P 500</h2><div id="cot" class="reason">Đang đọc COT…</div></div>
 <div class="panel"><h2>AI Agent kết luận</h2><div id="reason" class="reason">Đang phân tích dữ liệu Binance…</div></div>
 <div class="panel"><h2>Trạng thái dữ liệu</h2><div id="status" class="status">Đang tải…</div></div>
 </div>
@@ -45,15 +45,16 @@ async function get(path){let r=await fetch(API+path,{cache:'no-store'});if(!r.ok
 function avg(a){return a.length?a.reduce((x,y)=>x+y,0)/a.length:0}
 function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
 function pct(x){return (x*100).toFixed(0)+'%'}
+async function getLocal(path){let r=await fetch(path,{cache:'no-store'});if(!r.ok)throw Error(path+' HTTP '+r.status);return r.json()}
 function renderBars(el,items){$(el).innerHTML=items.map(x=>'<div class="row"><span>'+x[0]+'</span><div class="bar"><div class="fill '+(x[2]||'')+'" style="width:'+clamp(Math.abs(x[1]),0,100)+'%"></div></div><b>'+Math.round(x[1])+'</b></div>').join('')}
 async function analyze(){
  $('status').textContent='Đang lấy M15 + Taker + OI + Top L/S + Funding…';
- const [k,t,o,ls,f,daily]=await Promise.all([
+ const [k,t,o,ls,f,daily,cot]=await Promise.all([
   get('/fapi/v1/klines?symbol='+S+'&interval='+TF+'&limit=120'),
   get('/futures/data/takerlongshortRatio?symbol='+S+'&period=15m&limit=30'),
   get('/futures/data/openInterestHist?symbol='+S+'&period=15m&limit=30'),
   get('/futures/data/topLongShortPositionRatio?symbol='+S+'&period=15m&limit=30'),
-  get('/fapi/v1/premiumIndex?symbol='+S), get('/fapi/v1/klines?symbol='+S+'&interval=1d&limit=400')
+  get('/fapi/v1/premiumIndex?symbol='+S), get('/fapi/v1/klines?symbol='+S+'&interval=1d&limit=400'), getLocal('./cot-sp500.json')
  ]);
  const close=k.map(x=>+x[4]), vol=k.map(x=>+x[5]), c=close.at(-1), c5=close.at(-5), c20=close.at(-20);
  const weekMap=new Map(); daily.forEach(x=>{const d=new Date(+x[0]); const monday=Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()-((d.getUTCDay()+6)%7)); if(!weekMap.has(monday))weekMap.set(monday,[]); weekMap.get(monday).push(x)}); const weeks=[...weekMap.values()].map(q=>{const hi=Math.max(...q.map(x=>+x[2])),lo=Math.min(...q.map(x=>+x[3])); return {hi,lo,range:hi-lo,pct:lo?((hi-lo)/lo*100):0}}).filter(x=>x.pct>0);
@@ -75,8 +76,9 @@ async function analyze(){
  const oi0=+o[0].sumOpenInterest, oi1=+o.at(-1).sumOpenInterest, oiCh=(oi1/oi0-1)*100;
  const ls0=+ls[0].longShortRatio, ls1=+ls.at(-1).longShortRatio, lsCh=ls1-ls0;
  const funding=+f.lastFundingRate;
+ const cotScore=clamp((cot.nonCommercial.net/cot.openInterest)*1000,-100,100), cotMomentum=clamp(((cot.nonCommercial.net-cot.nonCommercial.prevNet)/cot.openInterest)*1000,-100,100);
  const trend=clamp(ret20*8,-100,100), flow=clamp((tak-.5)*400,-100,100), oiScore=clamp(oiCh*12,-100,100), lsScore=clamp(lsCh*80,-100,100), fundScore=clamp(-funding*100000,-100,100);
- const longScore=clamp(50+trend*.22+flow*.30+oiScore*.18+lsScore*.12+fundScore*.08,0,100);
+ const longScore=clamp(50+trend*.22+flow*.30+oiScore*.18+lsScore*.12+fundScore*.08+cotScore*.08,0,100);
  const shortScore=100-longScore;
  let state=Math.abs(ret20)<.35?'RANGE':(ret20>0?(Math.abs(ret5)>0.28?'BREAKOUT':'TREND UP'):(Math.abs(ret5)>0.28?'BREAKOUT':'TREND DOWN'));
  if(Math.sign(ret5)!==Math.sign(ret20)&&Math.abs(ret5)>.12)state='REVERSAL';
@@ -93,10 +95,12 @@ async function analyze(){
  $('conf').textContent=confidence+'/100';$('price').textContent=c.toFixed(5);
  renderBars('prob',ps.map(x=>[x[0],x[1]*100,x[0]==='UP'?'pos':x[0]==='DOWN'?'neg':'']));
  renderBars('scores',[['LONG',longScore,'pos'],['SHORT',100-longScore,'neg'],['FLOW',(flow+100)/2,flow>=0?'pos':'neg'],['OI',(oiScore+100)/2,oiScore>=0?'pos':'neg'],['L/S',(lsScore+100)/2,lsScore>=0?'pos':'neg']]);
+ const cotBias=cotScore>=20?'BULLISH':cotScore<=-20?'BEARISH':'NEUTRAL';
+ $('cot').innerHTML='<b>'+cotBias+'</b> · Report '+cot.reportDate+'<br>Non-commercial net: '+cot.nonCommercial.net.toLocaleString()+' hợp đồng · COT score '+cotScore.toFixed(0)+'/100<br>Tuần trước: '+cot.nonCommercial.prevNet.toLocaleString()+' · Momentum '+cotMomentum.toFixed(1)+'<br>Commercial net: '+cot.commercial.net.toLocaleString()+'<br><span style="color:#8fa0bf">COT là dữ liệu có độ trễ, dùng làm macro filter; không dùng làm entry live.</span>';
  const flowTxt=flow>=15?'Taker Buy chiếm ưu thế':flow<=-15?'Taker Sell chiếm ưu thế':'Taker cân bằng';
  const oiTxt=oiCh>=.3?'OI đang tăng':oiCh<=-.3?'OI đang giảm':'OI gần như ổn định';
  const lsTxt=lsCh>=.03?'Top Trader nghiêng Long':lsCh<=-.03?'Top Trader nghiêng Short':'Top Trader cân bằng';
- $('weekly').innerHTML=weeklyText; $('reason').innerHTML='<b>'+decision+'</b> — '+state+'. '+flowTxt+', '+oiTxt+', '+lsTxt+'. Funding '+(funding*100).toFixed(4)+'%. Giá M15 5 nến: '+ret5.toFixed(2)+'%; 20 nến: '+ret20.toFixed(2)+'%. <br><br><b>Lưu ý:</b> Đây là AI Rule Engine Giai đoạn 1 + Historical Weekly Reaction, chưa phải mô hình ML được huấn luyện. WAIT được ưu tiên khi tín hiệu chưa đủ mạnh.';
+ $('weekly').innerHTML=weeklyText; $('reason').innerHTML='<b>'+decision+'</b> — '+state+'. '+flowTxt+', '+oiTxt+', '+lsTxt+'. Funding '+(funding*100).toFixed(4)+'%. COT '+cotBias+'. Giá M15 5 nến: '+ret5.toFixed(2)+'%; 20 nến: '+ret20.toFixed(2)+'%. <br><br><b>Lưu ý:</b> Đây là AI Rule Engine Giai đoạn 1 + Historical Weekly Reaction, chưa phải mô hình ML được huấn luyện. WAIT được ưu tiên khi tín hiệu chưa đủ mạnh.';
  $('status').textContent='Cập nhật '+new Date().toLocaleTimeString('vi-VN')+' · '+k.length+' nến M15 · Binance OK';
 }
 $('refresh').onclick=()=>analyze().catch(e=>{$('status').textContent='Lỗi: '+e.message});
