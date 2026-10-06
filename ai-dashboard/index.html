@@ -120,7 +120,7 @@ img,canvas,svg,iframe{max-width:100%}
   <button id="matrixRun">↻ Recalculate Matrix</button>
  </div>
  <div style="overflow:auto;margin-top:8px">
-  <table id="matrixTable"><thead><tr><th>Factor</th><th>Current</th><th>Bias</th><th>Hit 1</th><th>Hit 2</th><th>Hit 4</th><th>Hit 8</th><th>N</th></tr></thead><tbody></tbody></table>
+  <table id="matrixTable"><thead><tr><th>Factor</th><th>Current</th><th>Bias</th><th>Hit 1</th><th>Hit 2</th><th>Hit 4</th><th>Hit 8</th><th>Edge 4</th><th>Net bps 4</th><th>Hit 8 NO</th><th>N</th></tr></thead><tbody></tbody></table>
  </div>
  <div id="matrixNote" class="muted" style="margin-top:7px"></div>
 </div>
@@ -444,7 +444,7 @@ function matrixFactorDefs(){
   ["OI Regime","oiDelta",v=>Math.tanh(v),"oi"],
   ["Funding","fundingZ",v=>-Math.tanh(v/2),"funding"],
   ["Liquidation","liqNetZ",v=>Math.tanh(v/2),"liq"],
-  ["Basis","bp",v=>Math.tanh(v),"basis"],
+  ["Basis","bz",v=>Math.tanh(v/2),"basis"],
   ["Flow/Price Divergence","flowPriceDiv",v=>v,"div"]
  ];
 }
@@ -460,19 +460,25 @@ function matrixCurrentBias(r,kind,v){
 }
 function runSignalMatrix(){
  if(!featureRows.length)return;
- const defs=matrixFactorDefs(), tbody=document.querySelector("#matrixTable tbody");let html="",usable=0;
+ const THR=.15,HS=[1,2,4,8],FEE_BPS=ROUND_TRIP_FEE*1e4,rowsM=featureRows;
+ const defs=matrixFactorDefs(),tbody=document.querySelector("#matrixTable tbody");let html="",usable=0;
+ const pUp={};for(const h of HS){let u=0,c=0;for(let i=0;i<rowsM.length-h;i++){const r=rowsM[i+h].last/rowsM[i].last-1;if(Number.isFinite(r)){c++;if(r>0)u++}}pUp[h]=c?u/c:.5}
+ const evalH=(vals,h,step)=>{let n=0,w=0,nb=0,sum=0;for(let i=0;i<rowsM.length-h;i+=step){const b=vals[i];if(!Number.isFinite(b)||Math.abs(b)<THR)continue;const ret=rowsM[i+h].last/rowsM[i].last-1;if(!Number.isFinite(ret))continue;const d=b>0?1:-1;n++;if(d*ret>0)w++;if(d>0)nb++;sum+=d*ret}
+  const hit=n?100*w/n:NaN,exp=n?100*(nb*pUp[h]+(n-nb)*(1-pUp[h]))/n:NaN;
+  return {n,hit,edge:hit-exp,bps:n?1e4*sum/n-FEE_BPS:NaN}};
  for(const [name,key,transform,kind] of defs){
-  const vals=featureRows.map(r=>{const v=Number(r[key]);return Number.isFinite(v)?transform(v):NaN});
-  const cur=vals.at(-1);let hits=[1,2,4,8].map(h=>{let n=0,w=0;for(let i=0;i<featureRows.length-h;i++){const b=vals[i];if(!Number.isFinite(b)||Math.abs(b)<.15)continue;const hit=matrixHit(featureRows,i,h,b);if(hit!==null){n++;if(hit)w++}}return [n?100*w/n:NaN,n]});
-  const cls=cur>.15?"matrixBull":cur<-.15?"matrixBear":"matrixNeutral", bias=cur>.15?"BULL":cur<-.15?"BEAR":"NEUTRAL";
+  const vals=rowsM.map(r=>{const v=Number(r[key]);return Number.isFinite(v)?transform(v):NaN});
+  const cur=vals.at(-1),res=HS.map(h=>evalH(vals,h,1)),no8=evalH(vals,8,8),r4=res[2];
+  const cls=cur>THR?"matrixBull":cur<-THR?"matrixBear":"matrixNeutral",bias=cur>THR?"BULL":cur<-THR?"BEAR":"NEUTRAL";
   if(Number.isFinite(cur))usable++;
+  const f1=x=>Number.isFinite(x)?x.toFixed(1):"—",sg=x=>Number.isFinite(x)?(x>=0?"+":"")+x.toFixed(1):"—";
   html+="<tr><td>"+name+"</td><td>"+(Number.isFinite(cur)?cur.toFixed(2):"—")+"</td><td class='"+cls+"'>"+bias+"</td>"+
-   hits.map(x=>"<td>"+(Number.isFinite(x[0])?x[0].toFixed(1)+"%":"—")+"</td>").join("")+
-   "<td>"+hits.map(x=>x[1]).reduce((a,b)=>a+b,0)+"</td></tr>";
+   res.map(x=>"<td>"+(Number.isFinite(x.hit)?f1(x.hit)+"%":"—")+"</td>").join("")+
+   "<td>"+sg(r4.edge)+"</td><td>"+sg(r4.bps)+"</td><td>"+(Number.isFinite(no8.hit)?f1(no8.hit)+"% ("+no8.n+")":"—")+"</td><td>"+res[0].n+"</td></tr>";
  }
  tbody.innerHTML=html;
- const r=featureRows.at(-1),score=Number.isFinite(r?.impactScore)?r.impactScore:0;
- $("matrixNote").textContent="Matrix chỉ thống kê quan hệ lịch sử, chưa dùng để thay đổi tín hiệu ML. Current Impact "+(score>=0?"+":"")+score.toFixed(0)+" · "+usable+"/"+defs.length+" factors có dữ liệu.";
+ const r=rowsM.at(-1),score=Number.isFinite(r?.impactScore)?r.impactScore:0;
+ $("matrixNote").textContent="Base up-rate: 1c "+(100*pUp[1]).toFixed(1)+"% · 2c "+(100*pUp[2]).toFixed(1)+"% · 4c "+(100*pUp[4]).toFixed(1)+"% · 8c "+(100*pUp[8]).toFixed(1)+"%. Edge 4 = hit − hit kỳ vọng theo base rate (điểm %); Net bps 4 = lợi nhuận TB có dấu sau phí "+FEE_BPS.toFixed(0)+" bps; Hit 8 NO = lấy mẫu không chồng lấp. In-sample, chỉ thống kê, chưa dùng để đổi tín hiệu ML. Current Impact "+(score>=0?"+":"")+score.toFixed(0)+" · "+usable+"/"+defs.length+" factors có dữ liệu.";
 }
 </script>
 </body></html>
