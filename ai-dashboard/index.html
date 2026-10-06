@@ -85,6 +85,11 @@ img,canvas,svg,iframe{max-width:100%}
 }
 .panel.full{position:fixed!important;inset:0!important;z-index:99!important;width:100%!important;height:100dvh!important;padding:0!important;border-radius:0!important;border:0!important;margin:0!important}
 .panel.full .chartFrame{height:100dvh!important;width:100%!important;border:0!important}
+<style>
+#matrixPanel{margin-top:12px}
+.matrixBull{color:#6ee7b7}.matrixBear{color:#fda4af}.matrixNeutral{color:#fde68a}
+@media(max-width:640px){#matrixPanel table{font-size:11px}#matrixPanel td,#matrixPanel th{padding:5px 4px}}
+</style>
 </style></head>
 <body><div class="wrap">
 <div class="top">
@@ -107,6 +112,17 @@ img,canvas,svg,iframe{max-width:100%}
 
 <div class="panel" style="padding:7px">
  <button id="fsBtn" type="button" aria-label="Phóng to chart" title="Phóng to chart">⛶</button>\n <iframe class="chartFrame" src="../?embedded=1&yaxis=1" title="SPYUSDT price, Taker Buy/Sell and Top Trader L/S"></iframe>
+</div>
+
+<div class="panel" id="matrixPanel">
+ <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+  <div><b>Signal Matrix — M15</b><div class="muted">Đo độc lập từng yếu tố và kết quả sau 1 / 2 / 4 / 8 nến</div></div>
+  <button id="matrixRun">↻ Recalculate Matrix</button>
+ </div>
+ <div style="overflow:auto;margin-top:8px">
+  <table id="matrixTable"><thead><tr><th>Factor</th><th>Current</th><th>Bias</th><th>Hit 1</th><th>Hit 2</th><th>Hit 4</th><th>Hit 8</th><th>N</th></tr></thead><tbody></tbody></table>
+ </div>
+ <div id="matrixNote" class="muted" style="margin-top:7px"></div>
 </div>
 
 <!-- Internal elements required by the ML engine; intentionally not displayed. -->
@@ -312,7 +328,7 @@ function train(){
   }
  }
  const recall=[0,1,2].map(c=>{const n=confusion[c].reduce((a,b)=>a+b,0);return n?confusion[c][c]/n:0}),bacc=recall.reduce((a,b)=>a+b,0)/3,finalTrain=ix.length>MAX_TRAIN_SAMPLES?ix.slice(-MAX_TRAIN_SAMPLES):ix,N=prep(finalTrain.map(i=>X[i])),W=fit(normX(finalTrain.map(i=>X[i]),N),finalTrain.map(i=>ys[i]),EPOCHS);
- model={W,N,params};$("model").textContent="ML + Impact Engine";$("acc").textContent=pct(correct/testCount)+"%";$("bacc").textContent=pct(bacc)+"%";$("samples").textContent=testCount.toLocaleString();$("folds").textContent=folds;$("trades").textContent=trades.toLocaleString();$("agreementTrades").textContent=agreementTrades.toLocaleString();$("divergenceTrades").textContent=divergenceTrades.toLocaleString();$("params").textContent="58% dir / impact ≥20/50/80";$("sret").textContent=((eq-1)*100).toFixed(2)+"%";renderTradeSamples();predictLatest();
+ model={W,N,params};$("model").textContent="ML + Impact Engine";runSignalMatrix();$("acc").textContent=pct(correct/testCount)+"%";$("bacc").textContent=pct(bacc)+"%";$("samples").textContent=testCount.toLocaleString();$("folds").textContent=folds;$("trades").textContent=trades.toLocaleString();$("agreementTrades").textContent=agreementTrades.toLocaleString();$("divergenceTrades").textContent=divergenceTrades.toLocaleString();$("params").textContent="58% dir / impact ≥20/50/80";$("sret").textContent=((eq-1)*100).toFixed(2)+"%";renderTradeSamples();predictLatest();
  say("Walk-forward "+folds+" folds · "+ix.length.toLocaleString()+" nến hợp lệ · Impact hit-rate |score|≥50: "+(impactN?((impactCorrect/impactN)*100).toFixed(1):"—")+"%.");
 }
 async function getJSON(url){
@@ -390,7 +406,7 @@ function connect(){
  ws.onopen=()=>{$("conn").textContent="● Binance LIVE";$("conn").className="ok"};ws.onerror=()=>{$("conn").textContent="LIVE stream error";$("conn").className="warn"};ws.onclose=()=>{$("conn").textContent="reconnecting…";setTimeout(connect,2500)};
  ws.onmessage=e=>{try{const d=JSON.parse(e.data).data;if(d.e==="markPriceUpdate"){live.mark=+d.p;live.index=+d.i;live.funding=+d.r;live.last=live.last||+d.p;renderLive();predictLatest()}else if(d.e==="aggTrade"){live.last=+d.p;if(d.m)live.sell+=+d.q;else live.buy+=+d.q;renderLive();predictLatest()}else if(d.e==="forceOrder"){const o=d.o||{},q=Number(o.ap)*Number(o.z);if(o.S==="SELL")live.liqSell+=q;else if(o.S==="BUY")live.liqBuy+=q;predictLatest()}}catch(_){}};setInterval(()=>{live.buy=live.sell=0;live.liqBuy=live.liqSell=0},15*60*1000);
 }
-window.addEventListener("resize",drawStrengthChart);$("run").onclick=()=>{if(refreshBusy)return;refreshAndTrain()};loadHistory().then(()=>setInterval(refreshAndTrain,15*60*1000)).catch(e=>{console.error(e);say("Lỗi khởi động Binance/AI: "+e.message);$("conn").textContent="startup error";$("conn").className="warn";connect()});
+window.addEventListener("resize",drawStrengthChart);$("matrixRun").onclick=runSignalMatrix;$("run").onclick=()=>{if(refreshBusy)return;refreshAndTrain()};loadHistory().then(()=>setInterval(refreshAndTrain,15*60*1000)).catch(e=>{console.error(e);say("Lỗi khởi động Binance/AI: "+e.message);$("conn").textContent="startup error";$("conn").className="warn";connect()});
 </script>
 <script>
 (function(){
@@ -416,4 +432,47 @@ window.addEventListener("resize",drawStrengthChart);$("run").onclick=()=>{if(ref
   }
  });
 })();
-</script></body></html>
+</script><script>
+function matrixFactorDefs(){
+ return [
+  ["Taker Strength","strength",v=>v,"taker"],
+  ["Price Response","priceResponse",v=>v,"price"],
+  ["Top Trader Position","topLS",v=>Math.tanh(Math.log(Math.max(.05,v))*1.7),"ls"],
+  ["Top Trader Account","topAcctLS",v=>Math.tanh(Math.log(Math.max(.05,v))*1.5),"ls"],
+  ["Global Account L/S","globalLS",v=>Math.tanh(Math.log(Math.max(.05,v))*1.2),"ls"],
+  ["Taker Buy/Sell Ratio","takerRatio",v=>Math.tanh(Math.log(Math.max(.05,v))*1.4),"takerRatio"],
+  ["OI Regime","oiDelta",v=>Math.tanh(v),"oi"],
+  ["Funding","fundingZ",v=>-Math.tanh(v/2),"funding"],
+  ["Liquidation","liqNetZ",v=>Math.tanh(v/2),"liq"],
+  ["Basis","bp",v=>Math.tanh(v),"basis"],
+  ["Flow/Price Divergence","flowPriceDiv",v=>v,"div"]
+ ];
+}
+function matrixHit(rows,i,h,bias){
+ const j=i+h;if(j>=rows.length||!Number.isFinite(bias)||Math.abs(bias)<.15)return null;
+ const ret=rows[j].last/rows[i].last-1;
+ return bias>0 ? ret>0 : ret<0;
+}
+function matrixCurrentBias(r,kind,v){
+ if(!Number.isFinite(v))return 0;
+ if(kind==="taker"||kind==="price"||kind==="ls"||kind==="takerRatio"||kind==="oi"||kind==="funding"||kind==="liq"||kind==="basis"||kind==="div")return v;
+ return 0;
+}
+function runSignalMatrix(){
+ if(!featureRows.length)return;
+ const defs=matrixFactorDefs(), tbody=document.querySelector("#matrixTable tbody");let html="",usable=0;
+ for(const [name,key,transform,kind] of defs){
+  const vals=featureRows.map(r=>{const v=Number(r[key]);return Number.isFinite(v)?transform(v):NaN});
+  const cur=vals.at(-1);let hits=[1,2,4,8].map(h=>{let n=0,w=0;for(let i=0;i<featureRows.length-h;i++){const b=vals[i];if(!Number.isFinite(b)||Math.abs(b)<.15)continue;const hit=matrixHit(featureRows,i,h,b);if(hit!==null){n++;if(hit)w++}}return [n?100*w/n:NaN,n]});
+  const cls=cur>.15?"matrixBull":cur<-.15?"matrixBear":"matrixNeutral", bias=cur>.15?"BULL":cur<-.15?"BEAR":"NEUTRAL";
+  if(Number.isFinite(cur))usable++;
+  html+="<tr><td>"+name+"</td><td>"+(Number.isFinite(cur)?cur.toFixed(2):"—")+"</td><td class='"+cls+"'>"+bias+"</td>"+
+   hits.map(x=>"<td>"+(Number.isFinite(x[0])?x[0].toFixed(1)+"%":"—")+"</td>").join("")+
+   "<td>"+hits.map(x=>x[1]).reduce((a,b)=>a+b,0)+"</td></tr>";
+ }
+ tbody.innerHTML=html;
+ const r=featureRows.at(-1),score=Number.isFinite(r?.impactScore)?r.impactScore:0;
+ $("matrixNote").textContent="Matrix chỉ thống kê quan hệ lịch sử, chưa dùng để thay đổi tín hiệu ML. Current Impact "+(score>=0?"+":"")+score.toFixed(0)+" · "+usable+"/"+defs.length+" factors có dữ liệu.";
+}
+</script>
+</body></html>
