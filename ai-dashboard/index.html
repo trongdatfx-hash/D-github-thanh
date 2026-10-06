@@ -26,11 +26,11 @@ table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:7px;bord
 <div><div>SHORT <b id="ps">—</b>%</div><div class="bar"><i id="psb" class="ps"></i></div></div>
 <div><div>NEUTRAL <b id="pn">—</b>%</div><div class="bar"><i id="pnb" class="pn"></i></div></div>
 <div><div>LONG <b id="pl">—</b>%</div><div class="bar"><i id="plb" class="pl"></i></div></div>
-<div class="card"><div class="label">Signal Score</div><div id="score" class="big">—</div></div>
+<div class="card"><div class="label">ML Signal Score</div><div id="score" class="big">—</div></div>
 <div class="card"><div class="label">Current Taker Imbalance</div><div id="ti" class="big">—</div></div><div class="card"><div class="label">Top Trader L/S</div><div id="topls" class="big">—</div></div><div class="card"><div class="label">Price Impact</div><div id="impact" class="big">—</div></div>
 </div></div>
 <div class="panel"><h3>Taker Strength line × Basis</h3><div id="setupState" class="muted">Waiting for closed candles…</div><canvas id="strengthChart" style="width:100%;height:260px;display:block"></canvas><div class="muted"><span style="color:#36d399">━ Taker Strength S8 / EWMA 2</span> &nbsp; <span style="color:#60a5fa">━ Basis rank mapped to −1…+1</span> · basis/strength divergence windows 8 + 8 · Top Trader L/S · absorption/price-flow divergence · closed candles.</div></div>
-<div class="panel"><h3>Taker → Price Impact Engine</h3><div id="impactState" class="log">Waiting for flow data…</div><table><tr><th>Flow</th><th>Value</th></tr><tr><td>Taker pressure</td><td id="flowPressure">—</td></tr><tr><td>Top Trader L/S</td><td id="topls2">—</td></tr><tr><td>Top L/S Δ</td><td id="toplsSlope">—</td></tr><tr><td>Absorption</td><td id="absorption">—</td></tr><tr><td>Price–Flow divergence</td><td id="priceFlowDiv">—</td></tr><tr><td>OI regime</td><td id="oiRegime">—</td></tr><tr><td>Liquidation bias</td><td id="liqBias">—</td></tr><tr><td>Funding context</td><td id="fundingCtx">—</td></tr></table><div id="impactClass" class="signal WAIT" style="font-size:24px;margin-top:12px">NEUTRAL</div><div class="muted" id="impactScale">−80 Strong Bearish · −50 Bearish · −20 Weak Bearish · 0 Neutral · +20 Weak Bullish · +50 Bullish · +80 Strong Bullish</div></div>
+<div class="panel"><h3>Taker → Price Impact Engine</h3><div id="impactState" class="log">Waiting for flow data…</div><table><tr><th>Flow</th><th>Value</th></tr><tr><td>Taker pressure</td><td id="flowPressure">—</td></tr><tr><td>Top Trader L/S</td><td id="topls2">—</td></tr><tr><td>Top L/S Δ</td><td id="toplsSlope">—</td></tr><tr><td>Absorption</td><td id="absorption">—</td></tr><tr><td>Price–Flow divergence</td><td id="priceFlowDiv">—</td></tr><tr><td>OI regime</td><td id="oiRegime">—</td></tr><tr><td>Liquidation bias</td><td id="liqBias">—</td></tr><tr><td>Funding context</td><td id="fundingCtx">—</td></tr></table><div id="impactClass" class="signal WAIT" style="font-size:24px;margin-top:12px">NEUTRAL</div><div class="muted" id="impactScale">Thresholds: ≤−80 Strong Bearish · ≤−50 Bearish · ≤−20 Weak Bearish · −19…+19 Neutral · ≥+20 Weak Bullish · ≥+50 Bullish · ≥+80 Strong Bullish</div></div>
 <div class="two">
 <div class="panel"><h3>ML backtest</h3><table><tr><th>Metric</th><th>Value</th></tr><tr><td>Walk-forward test accuracy</td><td id="acc">—</td></tr><tr><td>Balanced accuracy</td><td id="bacc">—</td></tr><tr><td>Walk-forward test samples</td><td id="samples">—</td></tr><tr><td>Walk-forward folds</td><td id="folds">—</td></tr><tr><td>Trades (ML + flow/basis)</td><td id="trades">—</td></tr><tr><td>Agreement setups</td><td id="agreementTrades">—</td></tr><tr><td>Confirmed divergence setups</td><td id="divergenceTrades">—</td></tr><tr><td>Selected directional odds / mass / strength edge</td><td id="params">—</td></tr><tr><td>Strategy return*</td><td id="sret">—</td></tr></table><p class="muted">*Proxy: 4 bps round-trip cost (2 bps per side); excludes slippage/funding. Research only.</p></div>
 <div class="panel"><h3>Agent reasoning</h3><div id="reason" class="log">Waiting for model…</div><p class="muted">Trade filter: relative LONG/SHORT probability plus the linked Taker Strength line and Basis agreement/divergence; live taker flow is an additional confirmation.</p></div>
@@ -187,11 +187,11 @@ function renderImpact(r,liveMode=false){
  $("priceFlowDiv").textContent=r.flowPriceDiv===1?"Bullish divergence":r.flowPriceDiv===-1?"Bearish divergence":"None";$("oiRegime").textContent=regimeFromOI(r);
  const liq=r.liqNet; $("liqBias").textContent=Math.abs(liq)>0?((liq>0?"Short liquidations +":"Long liquidations +")):"Neutral";
  $("fundingCtx").textContent=Number.isFinite(r.funding)?(r.funding*100).toFixed(4)+"%":"—";
- $("reason").textContent=addFieldReason(r,score,cl)+"\n"+"Taker percentile: Buy "+safe(r.tbp).toFixed(1)+" / Sell "+safe(r.tsp).toFixed(1)+"\n"+"Taker Force "+(safe(r.takerForce)*100).toFixed(1)+" | Price Response "+(safe(r.priceResponse)*100).toFixed(1)+"\n"+"Top L/S "+(Number.isFinite(r.topLS)?r.topLS.toFixed(3):"—")+" | OI Δ "+(safe(r.oiDelta)*100).toFixed(3)+" | Funding "+(Number.isFinite(r.funding)?(r.funding*100).toFixed(4)+"%":"—")+"\n"+"Absorption "+(Math.min(1,Math.max(0,r.absorption||0))*100).toFixed(0)+"% | Flow/Price "+(r.flowPriceDiv===1?"BULL DIV":r.flowPriceDiv===-1?"BEAR DIV":"NONE")+(liveMode?"\nLIVE overlay: current Taker stream":"");
+ $("reason").textContent=addFieldReason(r,score,cl)+"\n"+"Taker percentile: Buy "+safe(r.tbp).toFixed(1)+" / Sell "+safe(r.tsp).toFixed(1)+"\n"+"Taker Force "+(safe(r.takerForce)*100).toFixed(1)+" | Price Response "+(safe(r.priceResponse)*100).toFixed(1)+" | OI regime "+regimeFromOI(r)+"\n"+"Top L/S "+(Number.isFinite(r.topLS)?r.topLS.toFixed(3):"—")+" | OI Δ "+(safe(r.oiDelta)*100).toFixed(3)+" | Funding "+(Number.isFinite(r.funding)?(r.funding*100).toFixed(4)+"%":"—")+"\n"+"Absorption "+(Math.min(1,Math.max(0,r.absorption||0))*100).toFixed(0)+"% | Flow/Price "+(r.flowPriceDiv===1?"BULL DIV":r.flowPriceDiv===-1?"BEAR DIV":"NONE")+(liveMode?"\nLIVE overlay: current Taker stream":"");
 }
 function predictLatest(){
  if(!model||!featureRows.length)return;
- let r={...featureRows.at(-1)};
+ let r={...featureRows.at(-1)};r.topLS=Number.isFinite(live.topLS)?live.topLS:r.topLS;r.oi=Number.isFinite(live.oi)?live.oi:r.oi;r.funding=Number.isFinite(live.funding)?live.funding:r.funding;r.liqLong=live.liqSell;r.liqShort=live.liqBuy;r.liqNet=live.liqBuy-live.liqSell;
  if(live.buy+live.sell>0){r.tbuy=live.buy;r.tsell=live.sell;r.ti=(live.buy-live.sell)/(live.buy+live.sell);r.strength=clamp(r.strength*.65+r.ti*.85);r.takerForce=clamp(r.ti*2.2+.4*r.strength);r.priceResponse=clamp(((live.last/r.last)-1)/.0015);}
  r.last=Number.isFinite(live.last)?live.last:r.last;r.mark=Number.isFinite(live.mark)?live.mark:r.mark;r.index=Number.isFinite(live.index)?live.index:r.index;r.r1=r.last/featureRows.at(-1).last-1;r.r4=r.r1;
  r.impactScore=impactScore(r);r.impactClass=classifyImpact(r.impactScore);
@@ -251,10 +251,10 @@ async function getKlineHistory(kind){
 }
 async function getAux(){
  const [ls,oi,fr,fo]=await Promise.all([
-  pagedHistory("https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol=SPYUSDT&period=15m"),
-  pagedHistory("https://fapi.binance.com/futures/data/openInterestHist?symbol=SPYUSDT&period=15m"),
-  pagedHistory("https://fapi.binance.com/fapi/v1/fundingRate?symbol=SPYUSDT"),
-  pagedHistory("https://fapi.binance.com/fapi/v1/forceOrders?symbol=SPYUSDT")
+  pagedHistory("https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol=SPYUSDT&period=15m","limit","timestamp",5000),
+  pagedHistory("https://fapi.binance.com/futures/data/openInterestHist?symbol=SPYUSDT&period=15m","limit","timestamp",2000),
+  pagedHistory("https://fapi.binance.com/fapi/v1/fundingRate?symbol=SPYUSDT","limit","fundingTime",500),
+  pagedHistory("https://fapi.binance.com/fapi/v1/forceOrders?symbol=SPYUSDT","limit","time",500)
  ]);
  return {ls,oi,fr,fo};
 }
