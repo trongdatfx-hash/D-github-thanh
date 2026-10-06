@@ -434,7 +434,7 @@ function connect(){
  ws.onopen=()=>{$("conn").textContent="● Binance LIVE";$("conn").className="ok"};ws.onerror=()=>{$("conn").textContent="LIVE stream error";$("conn").className="warn"};ws.onclose=()=>{$("conn").textContent="reconnecting…";setTimeout(connect,2500)};
  ws.onmessage=e=>{try{const d=JSON.parse(e.data).data;if(d.e==="markPriceUpdate"){live.mark=+d.p;live.index=+d.i;live.funding=+d.r;live.last=live.last||+d.p;renderLive();predictLatest()}else if(d.e==="aggTrade"){live.last=+d.p;if(d.m)live.sell+=+d.q;else live.buy+=+d.q;renderLive();predictLatest()}else if(d.e==="forceOrder"){const o=d.o||{},q=Number(o.ap)*Number(o.z);if(o.S==="SELL")live.liqSell+=q;else if(o.S==="BUY")live.liqBuy+=q;predictLatest()}}catch(_){}};setInterval(()=>{live.buy=live.sell=0;live.liqBuy=live.liqSell=0},15*60*1000);
 }
-window.addEventListener("resize",drawStrengthChart);$("matrixRun").onclick=runSignalMatrix;$("run").onclick=()=>{if(refreshBusy)return;refreshAndTrain()};loadHistory().then(()=>setInterval(refreshAndTrain,15*60*1000)).catch(e=>{console.error(e);say("Lỗi khởi động Binance/AI: "+e.message);$("conn").textContent="startup error";$("conn").className="warn";connect()});
+window.addEventListener("resize",drawStrengthChart);$("run").onclick=()=>{if(refreshBusy)return;refreshAndTrain()};loadHistory().then(()=>setInterval(refreshAndTrain,15*60*1000)).catch(e=>{console.error(e);say("Lỗi khởi động Binance/AI: "+e.message);$("conn").textContent="startup error";$("conn").className="warn";connect()});
 </script>
 <script>
 (function(){
@@ -508,5 +508,6 @@ function runSignalMatrix(){
  const r=rowsM.at(-1),score=Number.isFinite(r?.impactScore)?r.impactScore:0;
  $("matrixNote").textContent="Base up-rate: 1c "+(100*pUp[1]).toFixed(1)+"% · 2c "+(100*pUp[2]).toFixed(1)+"% · 4c "+(100*pUp[4]).toFixed(1)+"% · 8c "+(100*pUp[8]).toFixed(1)+"%. Edge 4 = hit − hit kỳ vọng theo base rate (điểm %); Net bps 4 = lợi nhuận TB có dấu sau phí "+FEE_BPS.toFixed(0)+" bps; Hit 8 NO = lấy mẫu không chồng lấp. In-sample, chỉ thống kê, chưa dùng để đổi tín hiệu ML. Current Impact "+(score>=0?"+":"")+score.toFixed(0)+" · "+usable+"/"+defs.length+" factors có dữ liệu.";
 }
+$("matrixRun").onclick=runSignalMatrix;
 </script>
 </body></html>
