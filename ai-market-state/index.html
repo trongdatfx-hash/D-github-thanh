@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="vi"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Market State — SPYUSDT</title>
+<style>
+:root{--bg:#0b1020;--card:#121a2d;--line:#263452;--txt:#e8eefc;--muted:#8fa0bf;--green:#35d07f;--red:#ff6175;--yellow:#f5c451;--blue:#58a6ff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:14px Arial,sans-serif}
+header{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px}
+h1{font-size:20px;margin:0}.sub{color:var(--muted);font-size:12px;margin-top:4px}
+button{background:#1c2b49;color:#fff;border:1px solid #38517d;border-radius:8px;padding:9px 13px;cursor:pointer}
+main{padding:14px;max-width:1500px;margin:auto}.grid{display:grid;grid-template-columns:1.15fr .85fr;gap:12px}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px}.label{color:var(--muted);font-size:11px;text-transform:uppercase}.big{font-size:25px;font-weight:700;margin-top:7px}
+.green{color:var(--green)}.red{color:var(--red)}.yellow{color:var(--yellow)}.blue{color:var(--blue)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}.panel h2{font-size:14px;margin:0 0 12px}
+.bars{display:grid;gap:9px}.row{display:grid;grid-template-columns:105px 1fr 48px;align-items:center;gap:8px}.bar{height:9px;background:#202b43;border-radius:8px;overflow:hidden}.fill{height:100%;background:var(--blue)}.fill.pos{background:var(--green)}.fill.neg{background:var(--red)}
+.reason{line-height:1.65;color:#d6def0}.reason b{color:#fff}
+iframe{width:100%;height:650px;border:0;border-radius:10px;background:#080d18}
+.status{padding:9px 12px;border-radius:8px;background:#18233a;color:var(--muted);font-size:12px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}.cards{grid-template-columns:repeat(2,1fr)}iframe{height:560px}}
+</style></head>
+<body>
+<header><div><h1>AI Market State</h1><div class="sub">SPYUSDT · Binance Futures · Giai đoạn 1</div></div><button id="refresh">↻ Phân tích lại</button></header>
+<main>
+<div class="cards">
+<div class="card"><div class="label">Market State</div><div id="state" class="big blue">Đang tải…</div></div>
+<div class="card"><div class="label">AI Decision</div><div id="decision" class="big yellow">WAIT</div></div>
+<div class="card"><div class="label">Confidence</div><div id="conf" class="big">--</div></div>
+<div class="card"><div class="label">Price</div><div id="price" class="big">--</div></div>
+</div>
+<div class="grid">
+<div>
+<div class="panel"><h2>Probability</h2><div class="bars" id="prob"></div></div>
+<div class="panel"><h2>Signal Score</h2><div class="bars" id="scores"></div></div>
+<div class="panel"><h2>AI Agent kết luận</h2><div id="reason" class="reason">Đang phân tích dữ liệu Binance…</div></div>
+<div class="panel"><h2>Trạng thái dữ liệu</h2><div id="status" class="status">Đang tải…</div></div>
+</div>
+<div class="panel"><h2>Chart SPYUSDT</h2><iframe src="../?embedded=1&yaxis=0" title="SPYUSDT chart"></iframe></div>
+</div>
+</main>
+<script>
+const API='https://fapi.binance.com', S='SPYUSDT', TF='15m';
+const $=id=>document.getElementById(id);
+async function get(path){let r=await fetch(API+path,{cache:'no-store'});if(!r.ok)throw Error(path+' HTTP '+r.status);return r.json()}
+function avg(a){return a.length?a.reduce((x,y)=>x+y,0)/a.length:0}
+function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
+function pct(x){return (x*100).toFixed(0)+'%'}
+function renderBars(el,items){$(el).innerHTML=items.map(x=>'<div class="row"><span>'+x[0]+'</span><div class="bar"><div class="fill '+(x[2]||'')+'" style="width:'+clamp(Math.abs(x[1]),0,100)+'%"></div></div><b>'+Math.round(x[1])+'</b></div>').join('')}
+async function analyze(){
+ $('status').textContent='Đang lấy M15 + Taker + OI + Top L/S + Funding…';
+ const [k,t,o,ls,f]=await Promise.all([
+  get('/fapi/v1/klines?symbol='+S+'&interval='+TF+'&limit=120'),
+  get('/futures/data/takerlongshortRatio?symbol='+S+'&period=15m&limit=30'),
+  get('/futures/data/openInterestHist?symbol='+S+'&period=15m&limit=30'),
+  get('/futures/data/topLongShortPositionRatio?symbol='+S+'&period=15m&limit=30'),
+  get('/fapi/v1/premiumIndex?symbol='+S)
+ ]);
+ const close=k.map(x=>+x[4]), vol=k.map(x=>+x[5]), c=close.at(-1), c5=close.at(-5), c20=close.at(-20);
+ const ret5=(c/c5-1)*100, ret20=(c/c20-1)*100;
+ const tak=avg(t.slice(-5).map(x=>+x.buyVol/(+x.buyVol+(+x.sellVol||1)))); 
+ const oi0=+o[0].sumOpenInterest, oi1=+o.at(-1).sumOpenInterest, oiCh=(oi1/oi0-1)*100;
+ const ls0=+ls[0].longShortRatio, ls1=+ls.at(-1).longShortRatio, lsCh=ls1-ls0;
+ const funding=+f.lastFundingRate;
+ const trend=clamp(ret20*8,-100,100), flow=clamp((tak-.5)*400,-100,100), oiScore=clamp(oiCh*12,-100,100), lsScore=clamp(lsCh*80,-100,100), fundScore=clamp(-funding*100000,-100,100);
+ const longScore=clamp(50+trend*.22+flow*.30+oiScore*.18+lsScore*.12+fundScore*.08,0,100);
+ const shortScore=100-longScore;
+ let state=Math.abs(ret20)<.35?'RANGE':(ret20>0?(Math.abs(ret5)>0.28?'BREAKOUT':'TREND UP'):(Math.abs(ret5)>0.28?'BREAKOUT':'TREND DOWN'));
+ if(Math.sign(ret5)!==Math.sign(ret20)&&Math.abs(ret5)>.12)state='REVERSAL';
+ const rawU=clamp(longScore/100,.05,.95), rawD=1-rawU, range=state==='RANGE'?.20:.08, up=rawU*(1-range), down=rawD*(1-range);
+ const ps=[['UP',up],['RANGE',range],['DOWN',down]], total=ps.reduce((a,x)=>a+x[1],0);ps.forEach(x=>x[1]/=total);
+ const top=ps.slice().sort((a,b)=>b[1]-a[1])[0], confidence=clamp(Math.round(50+Math.abs(longScore-50)*.9),50,95);
+ let decision='WAIT'; if(top[0]==='UP'&&confidence>=65)decision='LONG'; if(top[0]==='DOWN'&&confidence>=65)decision='SHORT';
+ $('state').textContent=state;$('state').className='big '+(state.includes('UP')?'green':state.includes('DOWN')?'red':'yellow');
+ $('decision').textContent=decision;$('decision').className='big '+(decision==='LONG'?'green':decision==='SHORT'?'red':'yellow');
+ $('conf').textContent=confidence+'/100';$('price').textContent=c.toFixed(5);
+ renderBars('prob',ps.map(x=>[x[0],x[1]*100,x[0]==='UP'?'pos':x[0]==='DOWN'?'neg':'']));
+ renderBars('scores',[['LONG',longScore,'pos'],['SHORT',shortScore,'neg'],['FLOW',(flow+100)/2,flow>=0?'pos':'neg'],['OI',(oiScore+100)/2,oiScore>=0?'pos':'neg'],['L/S',(lsScore+100)/2,lsScore>=0?'pos':'neg']]);
+ const flowTxt=flow>=15?'Taker Buy chiếm ưu thế':flow<=-15?'Taker Sell chiếm ưu thế':'Taker cân bằng';
+ const oiTxt=oiCh>=.3?'OI đang tăng':oiCh<=-.3?'OI đang giảm':'OI gần như ổn định';
+ const lsTxt=lsCh>=.03?'Top Trader nghiêng Long':lsCh<=-.03?'Top Trader nghiêng Short':'Top Trader cân bằng';
+ $('reason').innerHTML='<b>'+decision+'</b> — '+state+'. '+flowTxt+', '+oiTxt+', '+lsTxt+'. Funding '+(funding*100).toFixed(4)+'%. Giá M15 5 nến: '+ret5.toFixed(2)+'%; 20 nến: '+ret20.toFixed(2)+'%. <br><br><b>Lưu ý:</b> Đây là AI Rule Engine Giai đoạn 1, chưa phải mô hình ML được huấn luyện. WAIT được ưu tiên khi tín hiệu chưa đủ mạnh.';
+ $('status').textContent='Cập nhật '+new Date().toLocaleTimeString('vi-VN')+' · '+k.length+' nến M15 · Binance OK';
+}
+$('refresh').onclick=()=>analyze().catch(e=>{$('status').textContent='Lỗi: '+e.message});
+analyze().catch(e=>{$('reason').textContent='Không lấy được dữ liệu Binance: '+e.message;$('status').textContent='Lỗi kết nối'});
+setInterval(()=>analyze().catch(()=>{}),60000);
+</script></body></html>
