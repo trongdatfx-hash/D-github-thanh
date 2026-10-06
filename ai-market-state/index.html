@@ -89,11 +89,14 @@ async function analyze(){
  const histBias=(follow==='UP'?1:follow==='DOWN'?-1:0), histConf=hh.length?reactionScore:50;
  if(histConf>=65 && histBias!==0){ if(histBias>0) longScore=clamp(longScore+7,0,100); else longScore=clamp(longScore-7,0,100); }
  const finalShort=100-longScore, finalBias=longScore>=58?'LONG':longScore<=42?'SHORT':'WAIT';
- if(finalBias==='LONG'&&longScore>=60)decision='LONG'; else if(finalBias==='SHORT'&&longScore<=40)decision='SHORT'; else decision='WAIT';
+ const adjU=clamp(longScore/100,.05,.95), adjD=1-adjU, adjRange=state==='RANGE'?.20:.08, adjUp=adjU*(1-adjRange), adjDown=adjD*(1-adjRange);
+ const adjPs=[['UP',adjUp],['RANGE',adjRange],['DOWN',adjDown]], adjTotal=adjPs.reduce((a,x)=>a+x[1],0);adjPs.forEach(x=>x[1]/=adjTotal);
+ const adjTop=adjPs.slice().sort((a,b)=>b[1]-a[1])[0], adjConfidence=clamp(Math.round(50+Math.abs(longScore-50)*.9),50,95);
+ confidence=adjConfidence; decision='WAIT'; if(adjTop[0]==='UP'&&adjConfidence>=65)decision='LONG'; if(adjTop[0]==='DOWN'&&adjConfidence>=65)decision='SHORT';
  $('state').textContent=state;$('state').className='big '+(state.includes('UP')?'green':state.includes('DOWN')?'red':'yellow');
  $('decision').textContent=decision;$('decision').className='big '+(decision==='LONG'?'green':decision==='SHORT'?'red':'yellow');
  $('conf').textContent=confidence+'/100';$('price').textContent=c.toFixed(5);
- renderBars('prob',ps.map(x=>[x[0],x[1]*100,x[0]==='UP'?'pos':x[0]==='DOWN'?'neg':'']));
+ renderBars('prob',adjPs.map(x=>[x[0],x[1]*100,x[0]==='UP'?'pos':x[0]==='DOWN'?'neg':'']));
  renderBars('scores',[['LONG',longScore,'pos'],['SHORT',100-longScore,'neg'],['FLOW',(flow+100)/2,flow>=0?'pos':'neg'],['OI',(oiScore+100)/2,oiScore>=0?'pos':'neg'],['L/S',(lsScore+100)/2,lsScore>=0?'pos':'neg']]);
  const cotBias=cotScore>=20?'BULLISH':cotScore<=-20?'BEARISH':'NEUTRAL';
  $('cot').innerHTML='<b>'+cotBias+'</b> · Report '+cot.reportDate+'<br>Non-commercial net: '+cot.nonCommercial.net.toLocaleString()+' hợp đồng · COT score '+cotScore.toFixed(0)+'/100<br>Tuần trước: '+cot.nonCommercial.prevNet.toLocaleString()+' · Momentum '+cotMomentum.toFixed(1)+'<br>Commercial net: '+cot.commercial.net.toLocaleString()+'<br><span style="color:#8fa0bf">COT là dữ liệu có độ trễ, dùng làm macro filter; không dùng làm entry live.</span>';
