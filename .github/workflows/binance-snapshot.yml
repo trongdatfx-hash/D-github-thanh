@@ -21,6 +21,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         if: runner.os != 'Windows'
@@ -51,8 +54,23 @@ jobs:
             git commit -m "data: update Binance derivatives snapshot"
             for attempt in 1 2 3; do
               git fetch origin main
-              git rebase origin/main
+              if ! git rebase origin/main; then
+                git rebase --abort
+                exit 1
+              fi
               git push && exit 0
             done
             exit 1
           fi
+      - name: Preserve collector inputs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: binance-collector-failed-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ai-engine/data/layers/*_last.csv
+            ai-engine/data/layers/*_mark.csv
+            ai-engine/data/layers/*_index.csv
+            ai-engine/data/layers/*.jsonl
+            ai-engine/data/layers/collection_status.json
+          retention-days: 7
