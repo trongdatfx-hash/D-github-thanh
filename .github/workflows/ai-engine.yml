@@ -1,36 +1,74 @@
-name: SPYUSDT.P AI Engine
+name: SPYUSDT Multi-layer AI
 on:
   workflow_dispatch:
   push:
     branches: [main]
     paths:
       - "ai-engine/**/*.py"
+      - "ai-engine/requirements.txt"
       - ".github/workflows/ai-engine.yml"
   schedule:
     - cron: "7,22,37,52 * * * *"
 concurrency:
-  group: spyusdt-ai-engine
+  group: repository-data-main
   cancel-in-progress: false
 permissions:
   contents: write
 jobs:
   ai:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: ai-engine/requirements.txt
       - run: pip install -r ai-engine/requirements.txt
-      - run: |
+      - name: Check causal dataset and purged evaluation
+        run: python -m unittest discover -s ai-engine/tests -v
+      - name: Model cache window
+        id: window
+        run: python -c "import time, os; open(os.environ['GITHUB_OUTPUT'], 'a').write('bucket=' + str(int(time.time() // 14400)) + '\n')"
+      - name: Restore recent tree models
+        id: model-cache
+        uses: actions/cache@v4
+        with:
+          path: ai-engine/models/layers.joblib
+          key: layers-model-v1-${{ hashFiles('ai-engine/layer_config.py', 'ai-engine/train_layers.py', 'ai-engine/layer_dataset.py') }}-${{ steps.window.outputs.bucket }}
+          restore-keys: |
+            layers-model-v1-${{ hashFiles('ai-engine/layer_config.py', 'ai-engine/train_layers.py', 'ai-engine/layer_dataset.py') }}-
+      - name: Collect closed bars, update dataset and forecast
+        id: forecast
+        env:
+          BINANCE_REST_BASE: ${{ vars.BINANCE_REST_BASE || 'https://fapi.binance.com' }}
+          AI_FORCE_TRAIN: ${{ github.event_name == 'push' && '1' || '0' }}
+        run: |
           cd ai-engine
-          python binance_data.py
-          python run_mvp.py
-      - run: |
+          python collect_layers.py
+          python train_layers.py
+      - name: Save auditable dataset and model for this run
+        if: steps.forecast.outputs.retrained == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-layers-${{ github.run_id }}
+          path: |
+            ai-engine/data/layers/dataset.csv
+            ai-engine/reports/layers_oos.csv
+            ai-engine/models/layers.joblib
+          retention-days: 3
+      - name: Publish collector state and dashboard results
+        run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add ai-engine/data ai-engine/reports ai-engine/models
-          git diff --cached --quiet || git commit -m "Update AI signal results"
+          git add ai-engine/data/layers/*_last.csv ai-engine/data/layers/*_mark.csv ai-engine/data/layers/*_index.csv
+          git add ai-engine/data/layers/aux_receipts.jsonl ai-engine/data/layers/prediction_journal.jsonl ai-engine/data/layers/collection_status.json
+          git add ai-engine/reports/layers_latest.json ai-engine/reports/layers_validation.json ai-engine/reports/paper_live.json
+          git diff --cached --quiet && exit 0
+          git commit -m "data: update multi-layer AI observations and forecasts"
           for attempt in 1 2 3; do
             git fetch origin main
             git rebase origin/main

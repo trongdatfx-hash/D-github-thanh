@@ -1,41 +1,70 @@
-# SPYUSDT.P AI Signal Engine — Research baseline
+# SPYUSDT multi-layer AI on GitHub
 
-Real Binance USDⓈ-M market data for SPYUSDT perpetuals, using 15-minute candles. This project is for research and does not place orders.
+This pipeline uses GitHub-hosted CPU runners and GitHub Pages. It does not place orders. The old browser V1/V2 matrices and browser ML training have been replaced by backend tree forecasts; the original Python baseline files/reports remain as historical references and are not executed by the new workflow.
 
-## Pipeline
-Binance 15m klines → Last/Mark/Index joined by candle open time → Basis and taker buy/sell → rolling strength percentiles → agreement/divergence setups → ML confirmation → expanding walk-forward evaluation.
+## Operation
 
-## Data
-The collector downloads up to 12,000 closed candles for Last, Mark and Index, paginating the public endpoints and joining on open time. Taker sell volume is total candle volume minus taker buy volume. Unmatched Last/Mark/Index candles are dropped rather than filled with synthetic values.
+`.github/workflows/ai-engine.yml` requests execution at UTC minutes 7, 22, 37, 52. Each run collects closed SPY/QQQ M15 bars and auxiliary observations, constructs a causal dataset, generates four horizon forecasts, and publishes compact results to main. Schedule delivery can be delayed or dropped; this is all-day scheduled collection, not a persistent 24/7 WebSocket daemon. The next run paginates missing recent bars. `binance-snapshot.yml` is now manual recovery; COT collection remains weekly. Writers share a concurrency group to avoid simultaneous data commits.
 
-## Taker strength and Basis method
-- Taker Buy and Taker Sell each receive a trailing 96-candle percentile rank (24 hours).
-- Basis is measured as Basis % and its rank within the same trailing window.
-- Bull agreement: Buy percentile ≥75, Buy–Sell percentile gap ≥15 points, Basis % rising over four candles, and Basis percentile ≥55.
-- Bear agreement: symmetric sell dominance, falling Basis %, and Basis percentile ≤45.
-- Bull divergence: Basis makes a lower low across the latest 8-candle segment while Buy strength makes a higher low than the prior 8-candle segment; confirmation requires Basis % to turn up and Buy percentile to exceed Sell percentile.
-- Bear divergence: Basis makes a higher high while Buy strength makes a lower high and Sell strength strengthens; confirmation requires Basis % to turn down and Sell percentile to exceed Buy percentile.
-- The ML model must also assign at least 60% probability to the matching direction before a trade is counted.
+No new server, paid service, GPU or API key is required. Optional repository variable `BINANCE_REST_BASE` selects the user's existing permitted Binance REST endpoint. The default is `https://fapi.binance.com`. A hosted runner can face geographic/API restrictions; in that case the collector tries official Binance Vision daily archives and retains existing observations. The dashboard displays freshness, collector errors and source. Forecasts older than 45 minutes always display WAIT. Archive fallback cannot provide real-time data.
 
-These are explicit research thresholds, not optimized guarantees. A divergence can persist or fail; use the displayed pattern as a hypothesis to evaluate, not as a stand-alone trade instruction.
+The collector never fabricates liquidation events: liquidation is explicitly unavailable because hosted batch jobs cannot observe every WebSocket event. Ratios, OI and funding are polled every run when their endpoints work.
 
-## Model and validation
-XGBoost is used when available; otherwise the runner falls back to scikit-learn HistGradientBoosting. Labels use the next four-candle return with a 0.10% threshold. Validation expands the training history across chronological folds and purges four candles at each train/test boundary. Backtest trades require a confirmed flow/Basis setup and hold for four candles; overlapping positions are skipped. The return proxy assumes a 4 bp round-trip fee (2 bp per side) and excludes slippage and funding.
+## Files and storage
 
-Reported results are research measurements, not expected returns. Review per-class metrics, sample trade records and performance across distinct market regimes before considering paper trading.
+- `collect_layers.py`: incremental/idempotent REST collection, existing price-history bootstrap, official archive fallback.
+- `data/layers/*_{last,mark,index}.csv`: up to 12,000 immutable first-stored market bars per source. `received_at` is when this collector obtained them, and `source` distinguishes retrospective bootstrap/archive from REST.
+- `data/layers/aux_receipts.jsonl`: per-kind event time, **actual response receipt time**, and availability time. First observations are preserved; later downloads cannot rewrite or backdate their values.
+- `data/layers/aux_observations.jsonl`: preserved initial collection trial, excluded from training because its receipt times were recorded at request start rather than response completion. The verified stream uses the separate aux_receipts file.
+- `layer_dataset.py`: grouped features, complete H1/H4 bars and receipt-time as-of auxiliary joins.
+- `train_layers.py`: tree models, chronological calibration, validation and forecasts.
+- `paper_layers.py`: evaluation of frozen forecasts generated before the measured outcome.
+- `data/layers/prediction_journal.jsonl`: up to 2000 frozen snapshots (four horizons each).
+- `reports/layers_latest.json`, `layers_validation.json`, `paper_live.json`: compact public outputs.
 
-## Automation
-GitHub Actions runs every 15 minutes and on manual dispatch, downloads fresh data, trains the model and commits:
-- `ai-engine/data/SPYUSDT_15m.csv`
-- `ai-engine/reports/backtest.csv`
-- `ai-engine/reports/latest_signal.json`
-- `ai-engine/models/model.joblib`
+Generated dataset CSV, full OOS predictions and model joblib are excluded from Git. Model cache uses four-hour windows and a code hash. An artifact is uploaded only when models retrain and retained three days, avoiding large binary/dataset commits every M15. Raw observations and compact reports remain in Git history. Dependencies are pinned, the smaller xgboost-cpu package is used, and pip is cached. Treat joblib files only from this trusted workflow as loadable models.
 
-No API key and no order execution.
+## Causality and timestamp scope
 
-## Web
-AI dashboard: https://trongdatfx-hash.github.io/D-github-thanh/ai-dashboard/
+The nominal dataset decision time is candle close plus one millisecond (`open_time + 15m`). Features use past/current closed bars only. Missing M15 timestamps are inserted explicitly; rolling windows and labels cannot hop missing bars. H1/H4 aggregates join only after their complete periods close. Aux features join by `available_at <= decision_at`, never merely by the exchange's historical event timestamp. Ratios/OI expire after 45 minutes; funding after 24 hours. Historical auxiliary data first downloaded today cannot be used to train earlier rows. This deliberately requires an accumulation period before OI/L/S/funding become useful training inputs.
 
-Basis Lab: https://trongdatfx-hash.github.io/D-github-thanh/basis-lab/
+Historical price/flow bars are retrospective reconstructions: their original publication latency and any exchange revisions cannot be established. First-stored values remain fixed after collection, but this does not turn the existing historical seed into a verified point-in-time tape. Reported historical OOS has this limitation. Group features and source provenance are visible on the dashboard.
 
-Further work should add per-class trade attribution, realistic fills, funding, spread/slippage and paper-trading validation.
+## Model and scores
+
+Five groups: flow, price response, derivatives, SPY/QQQ relations, and H1/H4 context. Each available group fits an XGBoost classifier per horizon 1/2/4/8 M15 bars, with 80 trees, depth 3, two CPU threads, and at most 2500 training rows per fit. A feature must have at least 400 observed training values before inclusion. Each group exposes its actual selected features and coverage. A derivatives group can initially use only basis/mark-index features; it must not be mistaken for a model already trained on OI/funding.
+
+Labels compare next-open-to-horizon-close return with a neutral band `max(6 bps, 0.5 * trailing 32-bar volatility * sqrt(h))`. Flat/small returns belong to NEUTRAL. Cost assumptions are 4 bps round-trip fee plus 2 bps slippage; stress uses 10 bps total. Funding and market impact are excluded.
+
+Within each historical train slice, its last 25% is chronological validation. Samples whose labels have not matured before validation are purged. Group weights use positive relative log-loss improvement over the train-class-prior predictor, shrunk by validation sample count. If none improves, equal weights are exposed but `positive_validation_skill=false` blocks actionable signals. A missing group contributes its train prior instead of increasing the other weights. Temperature in {1,1.5,2,3} is selected only on this inner validation. The validated fit is retained rather than refitted after calibration, so its probability distribution remains the one calibrated.
+
+Group score = `100 * (P_bull - P_bear)` before ensemble calibration. Group contribution = weight * group score. Ensemble probabilities are mixed, then temperature calibrated; final score = `100 * (P_bull - P_bear)` **after** calibration. Thus displayed pre-calibration contributions need not sum to the displayed calibrated score. Green BULL >=15, red BEAR <=-15, otherwise yellow NEUTRAL. Market regime (trend/range/high volatility) is a separate input/context label, not the directional phase.
+
+The gross-return number is a proxy: calibrated class probabilities times class-conditional mean returns from inner training. It is not a separately calibrated return regression or guaranteed fill.
+
+## Validation and real forward audit
+
+Three chronological expanding outer test folds cover the final 40% after warmup. At each boundary, train eligibility is determined by label maturity timestamps, not position in a filtered array. Group features, weights, priors, return proxies and calibration are all fitted before outer test. Metrics include accuracy, balanced accuracy, prior baseline accuracy, log-loss versus prior, Brier score, non-overlapping next-open cost-adjusted trades, and cost stress. Fold timestamps are published for audit.
+
+Evidence is SUPPORTED only with >=200 OOS samples, log-loss below baseline, >=30 non-overlapping trades and positive mean net bps. A LONG/SHORT additionally requires positive validation skill, |score|>=15, fresh data and an aligned gross-return proxy exceeding costs. This is a research guard, not a statistical guarantee. Repeated walk-forward results are not an untouched final holdout; no claim is made about universal predictive performance.
+
+Actual workflow forecast times are written into the journal. Forward paper evaluation enters at the first M15 open strictly **after generated_at**, uses contiguous bars, skips stale forecasts, freezes the first forecast for each entry period, and counts non-overlapping actionable signals. This differs from nominal next-open historical OOS: GitHub scheduling and inference latency are real. Initial forward metrics have zero mature predictions and require future data. No historical predictions are fabricated to populate the live audit.
+
+Models are retrained approximately every four hours when the cache expires; inference/report updates run each scheduled M15. A changed training implementation forces a new fit on push. A runner failure or disabled schedule is visible through aging data; there is no independent external watchdog.
+
+## Dashboard
+
+`ai-dashboard/index.html`, `layers-dashboard.js`, `layers.css` render backend JSON only; no browser model training remains. GitHub raw main is the primary report source, with a Pages-relative fallback. This matters because bot commits made with GITHUB_TOKEN need not trigger a branch-based Pages rebuild. The latest backend reports are therefore fetched separately from the static site build. Binance WebSocket updates the live price; it does not silently change backend model scores. Desktop, portrait and landscape layouts expose all horizons and horizontally scrollable group metrics.
+
+## Run and verify
+
+```sh
+pip install -r ai-engine/requirements.txt
+python -m unittest discover -s ai-engine/tests -v
+python ai-engine/collect_layers.py
+python ai-engine/train_layers.py
+```
+
+Use `AI_FORCE_TRAIN=1` for an explicit local forced fit. Browser smoke tests require Playwright and installed Edge: `node ai-dashboard/layers.browser.test.cjs`. They exercise deterministic reports, stale-data suppression, live price updates, report-source fallback and three viewport sizes; the independent chart iframe is a fixture in that test.
+
+The previous dashboard can be recovered from Git commit `91d1655`; revert this pipeline commit for a complete rollback.

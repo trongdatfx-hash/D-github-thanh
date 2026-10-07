@@ -1,0 +1,724 @@
+{
+  "schema_version": "layers-v1",
+  "generated_at": 1791377226243,
+  "data_as_of": 1791377100000,
+  "model_trained_at": 1791376845200,
+  "lag_minutes": 2.10405,
+  "stale": false,
+  "collector_mode": "GitHub Actions M15 REST + historical archive fallback",
+  "regime": "TREND",
+  "last": 776.38,
+  "dataset_rows": 12096,
+  "missing_bars": 96,
+  "historical_scope": "reconstructed market bars; auxiliary features only after recorded receipt; repeated OOS is research, not a locked final holdout",
+  "costs": {
+    "fee_bps": 4.0,
+    "slippage_bps": 2.0,
+    "funding_included": false
+  },
+  "liquidation_available": false,
+  "horizons": [
+    {
+      "bars": 1,
+      "minutes": 15,
+      "evaluation": {
+        "status": "OOS_READY",
+        "samples": 4774,
+        "folds": [
+          {
+            "test_start": 1787078700000,
+            "train_label_max": 1787077800000,
+            "fit_cutoff": 1785466800000,
+            "train_n": 7159,
+            "test_n": 1592
+          },
+          {
+            "test_start": 1788511500000,
+            "train_label_max": 1788510600000,
+            "fit_cutoff": 1786541400000,
+            "train_n": 8751,
+            "test_n": 1591
+          },
+          {
+            "test_start": 1789943400000,
+            "train_label_max": 1789942500000,
+            "fit_cutoff": 1787615100000,
+            "train_n": 10342,
+            "test_n": 1591
+          }
+        ],
+        "accuracy": 0.8523250942605781,
+        "balanced_accuracy": 0.333890318119441,
+        "baseline_accuracy": 0.8531629660661919,
+        "log_loss": 0.4840337444277181,
+        "baseline_log_loss": 0.5607784894155455,
+        "brier": 0.24564181250290823,
+        "trades": {
+          "n": 0,
+          "hit": null,
+          "net_bps": null,
+          "return": 0.0,
+          "drawdown": 0.0
+        },
+        "stress_trades": {
+          "n": 0,
+          "hit": null,
+          "net_bps": null,
+          "return": 0.0,
+          "drawdown": 0.0
+        },
+        "test_start": 1787078700000,
+        "test_end": 1791374400000,
+        "evidence": "UNPROVEN"
+      },
+      "groups": [
+        {
+          "key": "flow",
+          "name": "D\u00f2ng l\u1ec7nh",
+          "score": -4.6938941582127525,
+          "phase": "NEUTRAL",
+          "available": true,
+          "weight": 0.16758301110438723,
+          "contribution": -0.786616916838586,
+          "train_n": 2500,
+          "features": [
+            "taker_imbalance",
+            "flow_4",
+            "flow_16",
+            "flow_z",
+            "volume_z",
+            "strength"
+          ],
+          "coverage": 1.0
+        },
+        {
+          "key": "price",
+          "name": "Ph\u1ea3n \u1ee9ng gi\u00e1",
+          "score": -0.07978379964184157,
+          "phase": "NEUTRAL",
+          "available": true,
+          "weight": 0.2710540513229763,
+          "contribution": -0.02162572212286178,
+          "train_n": 2500,
+          "features": [
+            "ret_1",
+            "ret_4",
+            "ret_16",
+            "volatility",
+            "momentum",
+            "range_pct",
+            "absorption"
+          ],
+          "coverage": 1.0
+        },
+        {
+          "key": "derivatives",
+          "name": "V\u1ecb th\u1ebf ph\u00e1i sinh",
+          "score": -1.3336230516530851,
+          "phase": "NEUTRAL",
+          "available": true,
+          "weight": 0.12801702168739865,
+          "contribution": -0.17072645112628776,
+          "train_n": 2500,
+          "features": [
+            "basis_pct",
+            "basis_z",
+            "mark_index_pct"
+          ],
+          "coverage": 0.3
+        },
+        {
+          "key": "cross_asset",
+          "name": "SPY \u00d7 QQQ",
+          "score": 1.048508992474191,
+          "phase": "NEUTRAL",
+          "available": true,
+          "weight": 0.21023349451976014,
+          "contribution": 0.22043170952324206,
+          "train_n": 2500,
+          "features": [
+            "qqq_ret_1",
+            "qqq_ret_4",
+            "qqq_flow",
+            "return_spread_4",
+            "flow_spread",
+            "correlation_96"
+          ],
+          "coverage": 1.0
+        },
+        {
+          "key": "context",
+          "name": "B\u1ed1i c\u1ea3nh H1/H4",
+          "score": 1.0566345953704954,
+          "phase": "NEUTRAL",
+          "available": true,
+          "weight": 0.22311242136547774,
+          "contribution": 0.23574830307164304,
+          "train_n": 2500,
+          "features": [
+            "h1_return",
+            "h1_flow",
+            "h4_return",
+            "h4_flow",
+            "volatility_ratio",
+            "hour_sin",
+            "hour_cos"
+          ],
+          "coverage": 1.0
+        }
+      ],
+      "signal": "WAIT",
+      "probabilities": {
+        "bear": 0.09884183359443144,
+        "neutral": 0.8075442235860655,
+        "bull": 0.093613942819503
+      },
+      "score": -0.522789077492844,
+      "phase": "NEUTRAL",
+      "expected_gross_bps": -0.05399181501894955,
+      "temperature": 1.0,
+      "evidence": "UNPROVEN",
+      "positive_validation_skill": true
+    },
+    {
+      "bars": 2,
+      "minutes": 30,
+      "evaluation": {
+        "status": "OOS_READY",
+        "samples": 4773,
+        "folds": [
+          {
+            "test_start": 1787078700000,
+            "train_label_max": 1787077800000,
+            "fit_cutoff": 1785465900000,
+            "train_n": 7157,
+            "test_n": 1591
+          },
+          {
+            "test_start": 1788510600000,
+            "train_label_max": 1788509700000,
+            "fit_cutoff": 1786540500000,
+            "train_n": 8748,
+            "test_n": 1591
+          },
+          {
+            "test_start": 1789942500000,
+            "train_label_max": 1789941600000,
+            "fit_cutoff": 1787614200000,
+            "train_n": 10339,
+            "test_n": 1591
+          }
+        ],
+        "accuracy": 0.7531950555206369,
+        "balanced_accuracy": 0.33815344778060413,
+        "baseline_accuracy": 0.7529855436832181,
+        "log_loss": 0.6806473072415322,
+        "baseline_log_loss": 0.7601654548766708,
+        "brier": 0.37220258349965146,
+        "trades": {
+          "n": 0,
+          "hit": null,
+          "net_bps": null,
+          "return": 0.0,
+          "drawdown": 0.0
+        },
+        "stress_trades": {
+          "n": 0,
+          "hit": null,
+          "net_bps": null,
+          "return": 0.0,
+          "drawdown": 0.0
+        },
+        "test_start": 1787078700000,
+        "test_end": 1791373500000,
+        "evidence": "UNPROVEN"
+      },
+      "groups": [
+        {
+          "key": "flow",
+          "name": "D\u00f2ng l\u1ec7nh",
+          "score": -15.694823393379945,
+          "phase": "BEAR",
+          "available": true,
+          "weight": 0.14501068428644698,
+          "contribution": -2.2759170800289614,
+          "train_n": 2500,
+          "features": [
+            "taker_imbalance",
+            "flow_4",
+            "flow_16",
+            "flow_z",
+            "volume_z",
+            "strength"
+          ],
+          "coverage": 1.0
+        },
+        {
+          "key": "price",
+          "name": "Ph\u1ea3n \u1ee9ng gi\u00e1",
+          "score": -1.8837049884156132,
+          "phase": "NEUTRAL",
+          "available": true,
+          "weight": 0.29443386771617347,
+          "contribution": -0.5546265453754587,
+          "train_n": 2500,
+          "features": [
+            "ret_1",
+            "ret_4",
+            "ret_16",
+            "volatility",
+            "momentum",
+            "range_pct",
+            "absorption"
+          ],
+          "coverage": 1.0
+        },
+        {
+          "key": "derivatives",
+          "name": "V\u1ecb th\u1ebf ph\u00e1i sinh",
+          "score": -2.2596724163020223,
+          "phase": "NEUTRAL",
+          "available": true,
+          "weight": 0.10885407198965075,
+          "contribution": -0.24597454387716838,
+          "train_n": 2500,
+          "features": [
+            "basis_pct",
+            "basis_z",
+            "mark_index_pct"
+          ],
+          "coverage": 0.3
+        },
+        {
+          "key": "cross_asset",
+          "name": "SPY \u00d7 QQQ",
+          "score": 2.7599544566849374,
+          "phase": "NEUTRAL",
+          "available": true,
+          "weight": 0.20060133032719663,
+          "contribution": 0.5536505356534737,
+          "train_n": 2500,
+          "features": [
+            "qqq_ret_1",
+            "qqq_ret_4",
+            "qqq_flow",
+            "return_spread_4",
+            "flow_spread",
+            "correlation_96"
+          ],
+          "coverage": 1.0
+        },
+        {
+          "key": "context",
+          "name": "B\u1ed1i c\u1ea3nh H1/H4",
+          "score": 11.007406979578526,
+          "phase": "NEUTRAL",
+          "available": true,
+          "weight": 0.25110004568053224,
+          "contribution": 2.7639603953963774,
+          "train_n": 2500,
+          "features": [
+            "h1_return",
+            "h1_flow",
+            "h4_return",
+            "h4_flow",
+            "volatility_ratio",
+            "hour_sin",
+            "hour_cos"
+          ],
+          "coverage": 1.0
+        }
+      ],
+      "signal": "WAIT",
+      "probabilities": {
+        "bear": 0.16427296467197783,
+        "neutral": 0.6690431430383618,
+        "bull": 0.16668389228966043
+      },
+      "score": 0.24109276176826067,
+      "phase": "NEUTRAL",
+      "expected_gross_bps": 0.05804278382270619,
+      "temperature": 1.0,
+      "evidence": "UNPROVEN",
+      "positive_validation_skill": true
+    },
+    {
+      "bars": 4,
+      "minutes": 60,
+      "evaluation": {
+        "status": "OOS_READY",
+        "samples": 4772,
+        "folds": [
+          {
+            "test_start": 1787077800000,
+            "train_label_max": 1787076900000,
+            "fit_cutoff": 1785465000000,
+            "train_n": 7152,
+            "test_n": 1591
+          },
+          {
+            "test_start": 1788509700000,
+            "train_label_max": 1788508800000,
+            "fit_cutoff": 1786538700000,
+            "train_n": 8743,
+            "test_n": 1591
+          },
+          {
+            "test_start": 1789941600000,
+            "train_label_max": 1789940700000,
+            "fit_cutoff": 1787612400000,
+            "train_n": 10334,
+            "test_n": 1590
+          }
+        ],
+        "accuracy": 0.6506705783738475,
+        "balanced_accuracy": 0.34038681919249675,
+        "baseline_accuracy": 0.6517183570829841,
+        "log_loss": 0.8459768475061097,
+        "baseline_log_loss": 0.911589028385013,
+        "brier": 0.48571134833076357,
+        "trades": {
+          "n": 2,
+          "hit": 0.0,
+          "net_bps": -3.5052051264090553,
+          "return": -0.0007009473555670276,
+          "drawdown": 0.0007009473555670276
+        },
+        "stress_trades": {
+          "n": 0,
+          "hit": null,
+          "net_bps": null,
+          "return": 0.0,
+          "drawdown": 0.0
+        },
+        "test_start": 1787077800000,
+        "test_end": 1791371700000,
+        "evidence": "UNPROVEN"
+      },
+      "groups": [
+        {
+          "key": "flow",
+          "name": "D\u00f2ng l\u1ec7nh",
+          "score": -12.538063526153564,
+          "phase": "NEUTRAL",
+          "available": true,
+          "weight": 0.1380905200114648,
+          "contribution": -1.7313877122633257,
+          "train_n": 2500,
+          "features": [
+            "taker_imbalance",
+            "flow_4",
+            "flow_16",
+            "flow_z",
+            "volume_z",
+            "strength"
+          ],
+          "coverage": 1.0
+        },
+        {
+          "key": "price",
+          "name": "Ph\u1ea3n \u1ee9ng gi\u00e1",
+          "score": -11.582159305682227,
+          "phase": "NEUTRAL",
+          "available": true,
+          "weight": 0.29281206668572374,
+          "contribution": -3.3913960029801,
+          "train_n": 2500,
+          "features": [
+            "ret_1",
+            "ret_4",
+            "ret_16",
+            "volatility",
+            "momentum",
+            "range_pct",
+            "absorption"
+          ],
+          "coverage": 1.0
+        },
+        {
+          "key": "derivatives",
+          "name": "V\u1ecb th\u1ebf ph\u00e1i sinh",
+          "score": -5.16664653023204,
+          "phase": "NEUTRAL",
+          "available": true,
+          "weight": 0.1223708452429011,
+          "contribution": -0.6322469029757969,
+          "train_n": 2500,
+          "features": [
+            "basis_pct",
+            "basis_z",
+            "mark_index_pct"
+          ],
+          "coverage": 0.3
+        },
+        {
+          "key": "cross_asset",
+          "name": "SPY \u00d7 QQQ",
+          "score": 1.0458916425704956,
+          "phase": "NEUTRAL",
+          "available": true,
+          "weight": 0.20401075562477541,
+          "contribution": 0.21337314430244433,
+          "train_n": 2500,
+          "features": [
+            "qqq_ret_1",
+            "qqq_ret_4",
+            "qqq_flow",
+            "return_spread_4",
+            "flow_spread",
+            "correlation_96"
+          ],
+          "coverage": 1.0
+        },
+        {
+          "key": "context",
+          "name": "B\u1ed1i c\u1ea3nh H1/H4",
+          "score": 5.855331878711892,
+          "phase": "NEUTRAL",
+          "available": true,
+          "weight": 0.24271581243513504,
+          "contribution": 1.4211816340189025,
+          "train_n": 2500,
+          "features": [
+            "h1_return",
+            "h1_flow",
+            "h4_return",
+            "h4_flow",
+            "volatility_ratio",
+            "hour_sin",
+            "hour_cos"
+          ],
+          "coverage": 1.0
+        }
+      ],
+      "signal": "WAIT",
+      "probabilities": {
+        "bear": 0.22868641028042944,
+        "neutral": 0.5838319378381199,
+        "bull": 0.18748165188145063
+      },
+      "score": -4.12047583989788,
+      "phase": "NEUTRAL",
+      "expected_gross_bps": -0.7309949145726673,
+      "temperature": 1.0,
+      "evidence": "UNPROVEN",
+      "positive_validation_skill": true
+    },
+    {
+      "bars": 8,
+      "minutes": 120,
+      "evaluation": {
+        "status": "OOS_READY",
+        "samples": 4768,
+        "folds": [
+          {
+            "test_start": 1787077800000,
+            "train_label_max": 1787076900000,
+            "fit_cutoff": 1785463200000,
+            "train_n": 7144,
+            "test_n": 1590
+          },
+          {
+            "test_start": 1788508800000,
+            "train_label_max": 1788507900000,
+            "fit_cutoff": 1786536000000,
+            "train_n": 8734,
+            "test_n": 1589
+          },
+          {
+            "test_start": 1789938900000,
+            "train_label_max": 1789938000000,
+            "fit_cutoff": 1787608800000,
+            "train_n": 10323,
+            "test_n": 1589
+          }
+        ],
+        "accuracy": 0.5643875838926175,
+        "balanced_accuracy": 0.35932080855890614,
+        "baseline_accuracy": 0.5656459731543624,
+        "log_loss": 0.9634365305910816,
+        "baseline_log_loss": 0.9937198147686008,
+        "brier": 0.5686392917738267,
+        "trades": {
+          "n": 33,
+          "hit": 0.2727272727272727,
+          "net_bps": -3.9503263780213014,
+          "return": -0.012990084245804612,
+          "drawdown": 0.01993857546565536
+        },
+        "stress_trades": {
+          "n": 4,
+          "hit": 0.25,
+          "net_bps": -6.254116086738528,
+          "return": -0.002500199716315543,
+          "drawdown": 0.002500199716315543
+        },
+        "test_start": 1787077800000,
+        "test_end": 1791368100000,
+        "evidence": "UNPROVEN"
+      },
+      "groups": [
+        {
+          "key": "flow",
+          "name": "D\u00f2ng l\u1ec7nh",
+          "score": -10.63703431729921,
+          "phase": "NEUTRAL",
+          "available": true,
+          "weight": 0.0,
+          "contribution": -0.0,
+          "train_n": 2500,
+          "features": [
+            "taker_imbalance",
+            "flow_4",
+            "flow_16",
+            "flow_z",
+            "volume_z",
+            "strength"
+          ],
+          "coverage": 1.0
+        },
+        {
+          "key": "price",
+          "name": "Ph\u1ea3n \u1ee9ng gi\u00e1",
+          "score": -16.685601324689447,
+          "phase": "BEAR",
+          "available": true,
+          "weight": 0.3383872412114977,
+          "contribution": -5.646194600216574,
+          "train_n": 2500,
+          "features": [
+            "ret_1",
+            "ret_4",
+            "ret_16",
+            "volatility",
+            "momentum",
+            "range_pct",
+            "absorption"
+          ],
+          "coverage": 1.0
+        },
+        {
+          "key": "derivatives",
+          "name": "V\u1ecb th\u1ebf ph\u00e1i sinh",
+          "score": -1.2125030340627285,
+          "phase": "NEUTRAL",
+          "available": true,
+          "weight": 0.1619800306498971,
+          "contribution": -0.196401278620574,
+          "train_n": 2500,
+          "features": [
+            "basis_pct",
+            "basis_z",
+            "mark_index_pct"
+          ],
+          "coverage": 0.3
+        },
+        {
+          "key": "cross_asset",
+          "name": "SPY \u00d7 QQQ",
+          "score": 2.6172384229713908,
+          "phase": "NEUTRAL",
+          "available": true,
+          "weight": 0.24598258543372656,
+          "contribution": 0.6437950739789919,
+          "train_n": 2500,
+          "features": [
+            "qqq_ret_1",
+            "qqq_ret_4",
+            "qqq_flow",
+            "return_spread_4",
+            "flow_spread",
+            "correlation_96"
+          ],
+          "coverage": 1.0
+        },
+        {
+          "key": "context",
+          "name": "B\u1ed1i c\u1ea3nh H1/H4",
+          "score": 2.7197749233178747,
+          "phase": "NEUTRAL",
+          "available": true,
+          "weight": 0.2536501427048785,
+          "contribution": 0.689871297424729,
+          "train_n": 2500,
+          "features": [
+            "h1_return",
+            "h1_flow",
+            "h4_return",
+            "h4_flow",
+            "volatility_ratio",
+            "hour_sin",
+            "hour_cos"
+          ],
+          "coverage": 1.0
+        }
+      ],
+      "signal": "WAIT",
+      "probabilities": {
+        "bear": 0.28203409789945383,
+        "neutral": 0.48102109927542663,
+        "bull": 0.23694480282511957
+      },
+      "score": -4.508929507433426,
+      "phase": "NEUTRAL",
+      "expected_gross_bps": -1.1761573882995378,
+      "temperature": 1.0,
+      "evidence": "UNPROVEN",
+      "positive_validation_skill": true
+    }
+  ],
+  "collection": {
+    "collected_at": "2026-10-07T12:46:59.868000+00:00",
+    "collector": "GitHub scheduled REST batch",
+    "market": {
+      "SPYUSDT/last": {
+        "rows": 12000,
+        "latest_close": 1791377099999,
+        "source": "rest"
+      },
+      "SPYUSDT/mark": {
+        "rows": 12000,
+        "latest_close": 1791377099999,
+        "source": "rest"
+      },
+      "SPYUSDT/index": {
+        "rows": 12000,
+        "latest_close": 1791377099999,
+        "source": "rest"
+      },
+      "QQQUSDT/last": {
+        "rows": 12000,
+        "latest_close": 1791377099999,
+        "source": "rest"
+      }
+    },
+    "auxiliary": {
+      "top_position": {
+        "ok": true,
+        "records": 500
+      },
+      "top_account": {
+        "ok": true,
+        "records": 500
+      },
+      "global_account": {
+        "ok": true,
+        "records": 500
+      },
+      "taker_ratio": {
+        "ok": true,
+        "records": 500
+      },
+      "open_interest": {
+        "ok": true,
+        "records": 500
+      },
+      "funding": {
+        "ok": true,
+        "records": 500
+      }
+    },
+    "liquidation": "unavailable: no persistent WebSocket collector on hosted Actions"
+  },
+  "retrained_this_run": false
+}
