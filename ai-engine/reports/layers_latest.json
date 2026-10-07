@@ -1,14 +1,14 @@
 {
   "schema_version": "layers-v1",
-  "generated_at": 1791377949956,
-  "data_as_of": 1791377100000,
-  "model_trained_at": 1791377949956,
-  "lag_minutes": 14.165933333333333,
+  "generated_at": 1791380676066,
+  "data_as_of": 1791379800000,
+  "model_trained_at": 1791380676066,
+  "lag_minutes": 14.6011,
   "stale": false,
-  "live_rest_available": false,
+  "live_rest_available": true,
   "collector_mode": "GitHub Actions M15 REST + historical archive fallback",
   "regime": "TREND",
-  "last": 776.38,
+  "last": 776.1,
   "dataset_rows": 12096,
   "missing_bars": 96,
   "historical_scope": "reconstructed market bars; auxiliary features only after recorded receipt; repeated OOS is research, not a locked final holdout",
@@ -27,23 +27,23 @@
         "samples": 4774,
         "folds": [
           {
-            "test_start": 1787080500000,
-            "train_label_max": 1787079600000,
-            "fit_cutoff": 1785468600000,
+            "test_start": 1787083200000,
+            "train_label_max": 1787082300000,
+            "fit_cutoff": 1785471300000,
             "train_n": 7159,
             "test_n": 1592
           },
           {
-            "test_start": 1788513300000,
-            "train_label_max": 1788512400000,
-            "fit_cutoff": 1786543200000,
+            "test_start": 1788516000000,
+            "train_label_max": 1788515100000,
+            "fit_cutoff": 1786545900000,
             "train_n": 8751,
             "test_n": 1591
           },
           {
-            "test_start": 1789945200000,
-            "train_label_max": 1789944300000,
-            "fit_cutoff": 1787616900000,
+            "test_start": 1789947900000,
+            "train_label_max": 1789947000000,
+            "fit_cutoff": 1787619600000,
             "train_n": 10342,
             "test_n": 1591
           }
@@ -51,9 +51,9 @@
         "accuracy": 0.8521156263091747,
         "balanced_accuracy": 0.3338874251905016,
         "baseline_accuracy": 0.8529534981147885,
-        "log_loss": 0.48594074084914146,
-        "baseline_log_loss": 0.561139393701292,
-        "brier": 0.24646982432250183,
+        "log_loss": 0.4855893663570417,
+        "baseline_log_loss": 0.5611585032147274,
+        "brier": 0.2463520812373814,
         "trades": {
           "n": 0,
           "hit": null,
@@ -68,19 +68,19 @@
           "return": 0.0,
           "drawdown": 0.0
         },
-        "test_start": 1787080500000,
-        "test_end": 1791376200000,
+        "test_start": 1787083200000,
+        "test_end": 1791378900000,
         "evidence": "UNPROVEN"
       },
       "groups": [
         {
           "key": "flow",
           "name": "D\u00f2ng l\u1ec7nh",
-          "score": -5.173143744468689,
+          "score": -2.96062248710528,
           "phase": "NEUTRAL",
           "available": true,
-          "weight": 0.1683869475678029,
-          "contribution": -0.8710898844605567,
+          "weight": 0.1663667583467328,
+          "contribution": -0.4925491658681472,
           "train_n": 2500,
           "features": [
             "taker_imbalance",
@@ -95,11 +95,11 @@
         {
           "key": "price",
           "name": "Ph\u1ea3n \u1ee9ng gi\u00e1",
-          "score": -1.623927789748253,
+          "score": -2.8587506073340956,
           "phase": "NEUTRAL",
           "available": true,
-          "weight": 0.27179471199154,
-          "contribution": -0.4413749859096845,
+          "weight": 0.2708660614976063,
+          "contribution": -0.7743385178124764,
           "train_n": 2500,
           "features": [
             "ret_1",
@@ -115,27 +115,27 @@
         {
           "key": "derivatives",
           "name": "V\u1ecb th\u1ebf ph\u00e1i sinh",
-          "score": -1.6976825260489243,
+          "score": -1.1105246510945361,
           "phase": "NEUTRAL",
           "available": true,
-          "weight": 0.12533677801590903,
-          "contribution": -0.21278205790888174,
+          "weight": 0.12600076320470985,
+          "contribution": -0.13992695359555568,
           "train_n": 2500,
           "features": [
             "basis_pct",
             "basis_z",
             "mark_index_pct"
           ],
-          "coverage": 0.3
+          "coverage": 0.8
         },
         {
           "key": "cross_asset",
           "name": "SPY \u00d7 QQQ",
-          "score": 0.6591294083582132,
+          "score": -2.1672128339282977,
           "phase": "NEUTRAL",
           "available": true,
-          "weight": 0.20629319132986293,
-          "contribution": 0.13597390914958024,
+          "weight": 0.2078342576607405,
+          "contribution": -0.45042107053231745,
           "train_n": 2500,
           "features": [
             "qqq_ret_1",
@@ -150,11 +150,11 @@
         {
           "key": "context",
           "name": "B\u1ed1i c\u1ea3nh H1/H4",
-          "score": -0.13181566799236322,
+          "score": 1.637664412890906,
           "phase": "NEUTRAL",
           "available": true,
-          "weight": 0.22818837109488518,
-          "contribution": -0.030078802563961556,
+          "weight": 0.22893215929021046,
+          "contribution": 0.3749140502358499,
           "train_n": 2500,
           "features": [
             "h1_return",
@@ -170,13 +170,13 @@
       ],
       "signal": "WAIT",
       "probabilities": {
-        "bear": 0.10808377102946821,
-        "neutral": 0.7980259761579985,
-        "bull": 0.09389025281253315
+        "bear": 0.09160894246244604,
+        "neutral": 0.8316053316508344,
+        "bull": 0.07678572588671956
       },
-      "score": -1.4193518216935068,
+      "score": -1.482321657572648,
       "phase": "NEUTRAL",
-      "expected_gross_bps": -0.16421077593950392,
+      "expected_gross_bps": -0.16685046829834438,
       "temperature": 1.0,
       "evidence": "UNPROVEN",
       "positive_validation_skill": true
@@ -189,33 +189,33 @@
         "samples": 4773,
         "folds": [
           {
-            "test_start": 1787080500000,
-            "train_label_max": 1787079600000,
-            "fit_cutoff": 1785467700000,
+            "test_start": 1787083200000,
+            "train_label_max": 1787082300000,
+            "fit_cutoff": 1785470400000,
             "train_n": 7157,
             "test_n": 1591
           },
           {
-            "test_start": 1788512400000,
-            "train_label_max": 1788511500000,
-            "fit_cutoff": 1786542300000,
+            "test_start": 1788515100000,
+            "train_label_max": 1788514200000,
+            "fit_cutoff": 1786545000000,
             "train_n": 8748,
             "test_n": 1591
           },
           {
-            "test_start": 1789944300000,
-            "train_label_max": 1789943400000,
-            "fit_cutoff": 1787616000000,
+            "test_start": 1789947000000,
+            "train_label_max": 1789946100000,
+            "fit_cutoff": 1787618700000,
             "train_n": 10339,
             "test_n": 1591
           }
         ],
-        "accuracy": 0.7529855436832181,
-        "balanced_accuracy": 0.3377677064140705,
+        "accuracy": 0.7527760318457993,
+        "balanced_accuracy": 0.3381434055413328,
         "baseline_accuracy": 0.7525665200083804,
-        "log_loss": 0.6809877900908604,
-        "baseline_log_loss": 0.7606869288796916,
-        "brier": 0.3725916398772077,
+        "log_loss": 0.6806748853378937,
+        "baseline_log_loss": 0.7606340521901132,
+        "brier": 0.37228077508823254,
         "trades": {
           "n": 0,
           "hit": null,
@@ -230,19 +230,19 @@
           "return": 0.0,
           "drawdown": 0.0
         },
-        "test_start": 1787080500000,
-        "test_end": 1791375300000,
+        "test_start": 1787083200000,
+        "test_end": 1791378000000,
         "evidence": "UNPROVEN"
       },
       "groups": [
         {
           "key": "flow",
           "name": "D\u00f2ng l\u1ec7nh",
-          "score": -14.34473906508412,
+          "score": -1.2790859126772247,
           "phase": "NEUTRAL",
           "available": true,
-          "weight": 0.14487856028420343,
-          "contribution": -2.0782451434019578,
+          "weight": 0.14578972514883903,
+          "contribution": -0.1864775836509645,
           "train_n": 2500,
           "features": [
             "taker_imbalance",
@@ -257,11 +257,11 @@
         {
           "key": "price",
           "name": "Ph\u1ea3n \u1ee9ng gi\u00e1",
-          "score": -1.1108860539031928,
+          "score": -0.6836295535343623,
           "phase": "NEUTRAL",
           "available": true,
-          "weight": 0.2885231886659054,
-          "contribution": -0.32051638651663406,
+          "weight": 0.29057579527477584,
+          "contribution": -0.19864620119158727,
           "train_n": 2500,
           "features": [
             "ret_1",
@@ -277,27 +277,27 @@
         {
           "key": "derivatives",
           "name": "V\u1ecb th\u1ebf ph\u00e1i sinh",
-          "score": -3.0180243839010967,
+          "score": 0.0499926518647234,
           "phase": "NEUTRAL",
           "available": true,
-          "weight": 0.1064333428621053,
-          "contribution": -0.32121842401793954,
+          "weight": 0.10646064874030856,
+          "contribution": 0.00532225014976685,
           "train_n": 2500,
           "features": [
             "basis_pct",
             "basis_z",
             "mark_index_pct"
           ],
-          "coverage": 0.3
+          "coverage": 0.8
         },
         {
           "key": "cross_asset",
           "name": "SPY \u00d7 QQQ",
-          "score": 3.2767614503403735,
+          "score": -2.4215883965435223,
           "phase": "NEUTRAL",
           "available": true,
-          "weight": 0.20483066744377434,
-          "contribution": 0.6711812349272488,
+          "weight": 0.20165569570405184,
+          "contribution": -0.48832709281384334,
           "train_n": 2500,
           "features": [
             "qqq_ret_1",
@@ -312,11 +312,11 @@
         {
           "key": "context",
           "name": "B\u1ed1i c\u1ea3nh H1/H4",
-          "score": 12.166007406980134,
+          "score": 3.1416014304995743,
           "phase": "NEUTRAL",
           "available": true,
-          "weight": 0.2553342407440116,
-          "contribution": 3.106398264147294,
+          "weight": 0.25551813513202476,
+          "contribution": 0.8027361388493525,
           "train_n": 2500,
           "features": [
             "h1_return",
@@ -332,13 +332,13 @@
       ],
       "signal": "WAIT",
       "probabilities": {
-        "bear": 0.16672888364441968,
-        "neutral": 0.6559662372597805,
-        "bull": 0.1773048790957998
+        "bear": 0.1356019190203173,
+        "neutral": 0.7294500868459382,
+        "bull": 0.1349479941337445
       },
-      "score": 1.0575995451380131,
+      "score": -0.06539248865727876,
       "phase": "NEUTRAL",
-      "expected_gross_bps": 0.1728144492450903,
+      "expected_gross_bps": 0.02437636040365901,
       "temperature": 1.0,
       "evidence": "UNPROVEN",
       "positive_validation_skill": true
@@ -351,39 +351,39 @@
         "samples": 4772,
         "folds": [
           {
-            "test_start": 1787079600000,
-            "train_label_max": 1787078700000,
-            "fit_cutoff": 1785466800000,
+            "test_start": 1787082300000,
+            "train_label_max": 1787081400000,
+            "fit_cutoff": 1785469500000,
             "train_n": 7152,
             "test_n": 1591
           },
           {
-            "test_start": 1788511500000,
-            "train_label_max": 1788510600000,
-            "fit_cutoff": 1786540500000,
+            "test_start": 1788514200000,
+            "train_label_max": 1788513300000,
+            "fit_cutoff": 1786543200000,
             "train_n": 8743,
             "test_n": 1591
           },
           {
-            "test_start": 1789943400000,
-            "train_label_max": 1789942500000,
-            "fit_cutoff": 1787614200000,
+            "test_start": 1789946100000,
+            "train_label_max": 1789945200000,
+            "fit_cutoff": 1787616900000,
             "train_n": 10334,
             "test_n": 1590
           }
         ],
-        "accuracy": 0.6492036881810561,
-        "balanced_accuracy": 0.33826739670675043,
+        "accuracy": 0.6508801341156748,
+        "balanced_accuracy": 0.3405827677671724,
         "baseline_accuracy": 0.6515088013411567,
-        "log_loss": 0.8462376871971453,
-        "baseline_log_loss": 0.9116962647860418,
-        "brier": 0.48584421577175624,
+        "log_loss": 0.8476163712411375,
+        "baseline_log_loss": 0.9116116978060934,
+        "brier": 0.48672988016010504,
         "trades": {
-          "n": 2,
-          "hit": 0.0,
-          "net_bps": -3.5052051264090553,
-          "return": -0.0007009473555670276,
-          "drawdown": 0.0007009473555670276
+          "n": 0,
+          "hit": null,
+          "net_bps": null,
+          "return": 0.0,
+          "drawdown": 0.0
         },
         "stress_trades": {
           "n": 0,
@@ -392,19 +392,19 @@
           "return": 0.0,
           "drawdown": 0.0
         },
-        "test_start": 1787079600000,
-        "test_end": 1791373500000,
+        "test_start": 1787082300000,
+        "test_end": 1791376200000,
         "evidence": "UNPROVEN"
       },
       "groups": [
         {
           "key": "flow",
           "name": "D\u00f2ng l\u1ec7nh",
-          "score": -12.484593875476627,
+          "score": -6.402917301698285,
           "phase": "NEUTRAL",
           "available": true,
-          "weight": 0.1399664672518254,
-          "contribution": -1.7474244998242392,
+          "weight": 0.13554784448604715,
+          "contribution": -0.8679016386676198,
           "train_n": 2500,
           "features": [
             "taker_imbalance",
@@ -419,11 +419,11 @@
         {
           "key": "price",
           "name": "Ph\u1ea3n \u1ee9ng gi\u00e1",
-          "score": -12.367119079338298,
+          "score": -8.112192153930664,
           "phase": "NEUTRAL",
           "available": true,
-          "weight": 0.2948669228356135,
-          "contribution": -3.6466543472660895,
+          "weight": 0.29440478496277667,
+          "contribution": -2.388268186654681,
           "train_n": 2500,
           "features": [
             "ret_1",
@@ -439,27 +439,27 @@
         {
           "key": "derivatives",
           "name": "V\u1ecb th\u1ebf ph\u00e1i sinh",
-          "score": -4.15419768597792,
+          "score": -1.5346289595740414,
           "phase": "NEUTRAL",
           "available": true,
-          "weight": 0.12137414604655306,
-          "contribution": -0.5042121966441367,
+          "weight": 0.12049286778179949,
+          "contribution": -0.18491184432007549,
           "train_n": 2500,
           "features": [
             "basis_pct",
             "basis_z",
             "mark_index_pct"
           ],
-          "coverage": 0.3
+          "coverage": 0.8
         },
         {
           "key": "cross_asset",
           "name": "SPY \u00d7 QQQ",
-          "score": 0.005833804520460895,
+          "score": -4.415282738664233,
           "phase": "NEUTRAL",
           "available": true,
-          "weight": 0.211390292754702,
-          "contribution": 0.0012332096454539324,
+          "weight": 0.20715163473838477,
+          "contribution": -0.9146330371464685,
           "train_n": 2500,
           "features": [
             "qqq_ret_1",
@@ -474,11 +474,11 @@
         {
           "key": "context",
           "name": "B\u1ed1i c\u1ea3nh H1/H4",
-          "score": 7.011792272680767,
+          "score": 1.9916146993637085,
           "phase": "NEUTRAL",
           "available": true,
-          "weight": 0.232402171111306,
-          "contribution": 1.6295557475524889,
+          "weight": 0.24240286803099198,
+          "contribution": 0.4827731151384448,
           "train_n": 2500,
           "features": [
             "h1_return",
@@ -494,13 +494,13 @@
       ],
       "signal": "WAIT",
       "probabilities": {
-        "bear": 0.22992161933111127,
-        "neutral": 0.5828317822031427,
-        "bull": 0.18724659846574604
+        "bear": 0.20540478613898155,
+        "neutral": 0.6279198436385409,
+        "bull": 0.16667537022247753
       },
-      "score": -4.267502086536523,
+      "score": -3.872941591650403,
       "phase": "NEUTRAL",
-      "expected_gross_bps": -0.7571050068825176,
+      "expected_gross_bps": -0.6634365891827722,
       "temperature": 1.0,
       "evidence": "UNPROVEN",
       "positive_validation_skill": true
@@ -513,57 +513,57 @@
         "samples": 4768,
         "folds": [
           {
-            "test_start": 1787079600000,
-            "train_label_max": 1787078700000,
-            "fit_cutoff": 1785465000000,
+            "test_start": 1787082300000,
+            "train_label_max": 1787081400000,
+            "fit_cutoff": 1785467700000,
             "train_n": 7144,
             "test_n": 1590
           },
           {
-            "test_start": 1788510600000,
-            "train_label_max": 1788509700000,
-            "fit_cutoff": 1786537800000,
+            "test_start": 1788513300000,
+            "train_label_max": 1788512400000,
+            "fit_cutoff": 1786540500000,
             "train_n": 8734,
             "test_n": 1589
           },
           {
-            "test_start": 1789940700000,
-            "train_label_max": 1789939800000,
-            "fit_cutoff": 1787610600000,
+            "test_start": 1789943400000,
+            "train_label_max": 1789942500000,
+            "fit_cutoff": 1787613300000,
             "train_n": 10323,
             "test_n": 1589
           }
         ],
-        "accuracy": 0.5645973154362416,
-        "balanced_accuracy": 0.3565432484183418,
-        "baseline_accuracy": 0.5656459731543624,
-        "log_loss": 0.9611388726783382,
-        "baseline_log_loss": 0.9936810192750012,
-        "brier": 0.5668377192868562,
+        "accuracy": 0.5673238255033557,
+        "balanced_accuracy": 0.36345267206141413,
+        "baseline_accuracy": 0.5652265100671141,
+        "log_loss": 0.9597877875389835,
+        "baseline_log_loss": 0.9939474736370121,
+        "brier": 0.5659992647540577,
         "trades": {
-          "n": 35,
-          "hit": 0.2857142857142857,
-          "net_bps": -3.781431184687601,
-          "return": -0.013186209127468929,
-          "drawdown": 0.02149756968488492
+          "n": 27,
+          "hit": 0.25925925925925924,
+          "net_bps": -3.313533172969618,
+          "return": -0.00893690416031645,
+          "drawdown": 0.015309740515056292
         },
         "stress_trades": {
-          "n": 2,
-          "hit": 0.0,
-          "net_bps": -9.577930466375664,
-          "return": -0.001914984613061832,
-          "drawdown": 0.001914984613061832
+          "n": 6,
+          "hit": 0.3333333333333333,
+          "net_bps": 1.0823411108808738,
+          "return": 0.0006411737978548882,
+          "drawdown": 0.002414373766788991
         },
-        "test_start": 1787079600000,
-        "test_end": 1791369900000,
+        "test_start": 1787082300000,
+        "test_end": 1791372600000,
         "evidence": "UNPROVEN"
       },
       "groups": [
         {
           "key": "flow",
           "name": "D\u00f2ng l\u1ec7nh",
-          "score": -9.553461203878873,
-          "phase": "NEUTRAL",
+          "score": -16.603096571703105,
+          "phase": "BEAR",
           "available": true,
           "weight": 0.0,
           "contribution": -0.0,
@@ -581,11 +581,11 @@
         {
           "key": "price",
           "name": "Ph\u1ea3n \u1ee9ng gi\u00e1",
-          "score": -17.963175743269556,
+          "score": -18.201742795083778,
           "phase": "BEAR",
           "available": true,
-          "weight": 0.3931960063238559,
-          "contribution": -7.063048963147151,
+          "weight": 0.3942542196112367,
+          "contribution": -7.176113901240205,
           "train_n": 2500,
           "features": [
             "ret_1",
@@ -601,27 +601,27 @@
         {
           "key": "derivatives",
           "name": "V\u1ecb th\u1ebf ph\u00e1i sinh",
-          "score": 0.08028298736040274,
+          "score": 1.0274097170321683,
           "phase": "NEUTRAL",
           "available": true,
-          "weight": 0.18257530013350465,
-          "contribution": 0.01465769051293989,
+          "weight": 0.14724108667800606,
+          "contribution": 0.15127692319935918,
           "train_n": 2500,
           "features": [
             "basis_pct",
             "basis_z",
             "mark_index_pct"
           ],
-          "coverage": 0.3
+          "coverage": 0.8
         },
         {
           "key": "cross_asset",
           "name": "SPY \u00d7 QQQ",
-          "score": 2.2413061071026057,
+          "score": 3.5531072749761554,
           "phase": "NEUTRAL",
           "available": true,
-          "weight": 0.239863785265699,
-          "contribution": 0.5376081667887591,
+          "weight": 0.21842341887957734,
+          "contribution": 0.7760818386461904,
           "train_n": 2500,
           "features": [
             "qqq_ret_1",
@@ -636,11 +636,11 @@
         {
           "key": "context",
           "name": "B\u1ed1i c\u1ea3nh H1/H4",
-          "score": 6.271374038714944,
+          "score": 9.429144578303559,
           "phase": "NEUTRAL",
           "available": true,
-          "weight": 0.1843649082769405,
-          "contribution": 1.1562212994180665,
+          "weight": 0.24008127483118,
+          "contribution": 2.2637610509266275,
           "train_n": 2500,
           "features": [
             "h1_return",
@@ -656,79 +656,79 @@
       ],
       "signal": "WAIT",
       "probabilities": {
-        "bear": 0.285970893655075,
-        "neutral": 0.4816038307541239,
-        "bull": 0.2324252755908011
+        "bear": 0.2678139647078681,
+        "neutral": 0.5042220114689442,
+        "bull": 0.22796402382318776
       },
-      "score": -5.354561806427391,
+      "score": -3.984994088468036,
       "phase": "NEUTRAL",
-      "expected_gross_bps": -1.362123295013167,
+      "expected_gross_bps": -1.0303484285368045,
       "temperature": 1.0,
       "evidence": "UNPROVEN",
       "positive_validation_skill": true
     }
   ],
   "collection": {
-    "collected_at": "2026-10-07T12:59:07.209000+00:00",
+    "collected_at": "2026-10-07T13:44:28.986000+00:00",
     "collector": "GitHub scheduled REST batch",
     "market": {
       "SPYUSDT/last": {
         "rows": 12000,
-        "latest_close": 1791377099999,
-        "source": "vision_historical",
+        "latest_close": 1791379799999,
+        "source": "rest",
         "latest_source": "rest",
-        "rest_ok": false,
-        "rest_error": "451 Client Error:  for url: https://fapi.binance.com/fapi/v1/klines?interval=15m&limit=1500&symbol=SPYUSDT&startTime=1791374400000"
+        "rest_ok": true,
+        "rest_error": null
       },
       "SPYUSDT/mark": {
         "rows": 12000,
-        "latest_close": 1791377099999,
-        "source": "vision_historical",
+        "latest_close": 1791379799999,
+        "source": "rest",
         "latest_source": "rest",
-        "rest_ok": false,
-        "rest_error": "451 Client Error:  for url: https://fapi.binance.com/fapi/v1/markPriceKlines?interval=15m&limit=1500&symbol=SPYUSDT&startTime=1791374400000"
+        "rest_ok": true,
+        "rest_error": null
       },
       "SPYUSDT/index": {
         "rows": 12000,
-        "latest_close": 1791377099999,
-        "source": "vision_historical",
+        "latest_close": 1791379799999,
+        "source": "rest",
         "latest_source": "rest",
-        "rest_ok": false,
-        "rest_error": "451 Client Error:  for url: https://fapi.binance.com/fapi/v1/indexPriceKlines?interval=15m&limit=1500&pair=SPYUSDT&startTime=1791374400000"
+        "rest_ok": true,
+        "rest_error": null
       },
       "QQQUSDT/last": {
         "rows": 12000,
-        "latest_close": 1791377099999,
-        "source": "vision_historical",
+        "latest_close": 1791379799999,
+        "source": "rest",
         "latest_source": "rest",
-        "rest_ok": false,
-        "rest_error": "451 Client Error:  for url: https://fapi.binance.com/fapi/v1/klines?interval=15m&limit=1500&symbol=QQQUSDT&startTime=1791374400000"
+        "rest_ok": true,
+        "rest_error": null
       }
     },
     "auxiliary": {
       "top_position": {
-        "ok": false,
-        "error": "451 Client Error:  for url: https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol=SPYUSDT&limit=500&period=15m"
+        "ok": true,
+        "records": 500
       },
       "top_account": {
-        "ok": false,
-        "error": "451 Client Error:  for url: https://fapi.binance.com/futures/data/topLongShortAccountRatio?symbol=SPYUSDT&limit=500&period=15m"
+        "ok": true,
+        "records": 500
       },
       "global_account": {
-        "ok": false,
-        "error": "451 Client Error:  for url: https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=SPYUSDT&limit=500&period=15m"
+        "ok": true,
+        "records": 500
       },
       "taker_ratio": {
-        "ok": false,
-        "error": "451 Client Error:  for url: https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=SPYUSDT&limit=500&period=15m"
+        "ok": true,
+        "records": 500
       },
       "open_interest": {
-        "ok": false,
-        "error": "451 Client Error:  for url: https://fapi.binance.com/futures/data/openInterestHist?symbol=SPYUSDT&limit=500&period=15m"
+        "ok": true,
+        "records": 500
       },
       "funding": {
-        "ok": false,
-        "error": "451 Client Error:  for url: https://fapi.binance.com/fapi/v1/fundingRate?symbol=SPYUSDT&limit=500"
+        "ok": true,
+        "records": 500
       }
     },
     "liquidation": "unavailable: no persistent WebSocket collector on hosted Actions"

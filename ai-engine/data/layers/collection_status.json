@@ -1,64 +1,64 @@
 {
-  "collected_at": "2026-10-07T12:59:07.209000+00:00",
+  "collected_at": "2026-10-07T13:44:28.986000+00:00",
   "collector": "GitHub scheduled REST batch",
   "market": {
     "SPYUSDT/last": {
       "rows": 12000,
-      "latest_close": 1791377099999,
-      "source": "vision_historical",
+      "latest_close": 1791379799999,
+      "source": "rest",
       "latest_source": "rest",
-      "rest_ok": false,
-      "rest_error": "451 Client Error:  for url: https://fapi.binance.com/fapi/v1/klines?interval=15m&limit=1500&symbol=SPYUSDT&startTime=1791374400000"
+      "rest_ok": true,
+      "rest_error": null
     },
     "SPYUSDT/mark": {
       "rows": 12000,
-      "latest_close": 1791377099999,
-      "source": "vision_historical",
+      "latest_close": 1791379799999,
+      "source": "rest",
       "latest_source": "rest",
-      "rest_ok": false,
-      "rest_error": "451 Client Error:  for url: https://fapi.binance.com/fapi/v1/markPriceKlines?interval=15m&limit=1500&symbol=SPYUSDT&startTime=1791374400000"
+      "rest_ok": true,
+      "rest_error": null
     },
     "SPYUSDT/index": {
       "rows": 12000,
-      "latest_close": 1791377099999,
-      "source": "vision_historical",
+      "latest_close": 1791379799999,
+      "source": "rest",
       "latest_source": "rest",
-      "rest_ok": false,
-      "rest_error": "451 Client Error:  for url: https://fapi.binance.com/fapi/v1/indexPriceKlines?interval=15m&limit=1500&pair=SPYUSDT&startTime=1791374400000"
+      "rest_ok": true,
+      "rest_error": null
     },
     "QQQUSDT/last": {
       "rows": 12000,
-      "latest_close": 1791377099999,
-      "source": "vision_historical",
+      "latest_close": 1791379799999,
+      "source": "rest",
       "latest_source": "rest",
-      "rest_ok": false,
-      "rest_error": "451 Client Error:  for url: https://fapi.binance.com/fapi/v1/klines?interval=15m&limit=1500&symbol=QQQUSDT&startTime=1791374400000"
+      "rest_ok": true,
+      "rest_error": null
     }
   },
   "auxiliary": {
     "top_position": {
-      "ok": false,
-      "error": "451 Client Error:  for url: https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol=SPYUSDT&limit=500&period=15m"
+      "ok": true,
+      "records": 500
     },
     "top_account": {
-      "ok": false,
-      "error": "451 Client Error:  for url: https://fapi.binance.com/futures/data/topLongShortAccountRatio?symbol=SPYUSDT&limit=500&period=15m"
+      "ok": true,
+      "records": 500
     },
     "global_account": {
-      "ok": false,
-      "error": "451 Client Error:  for url: https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=SPYUSDT&limit=500&period=15m"
+      "ok": true,
+      "records": 500
     },
     "taker_ratio": {
-      "ok": false,
-      "error": "451 Client Error:  for url: https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=SPYUSDT&limit=500&period=15m"
+      "ok": true,
+      "records": 500
     },
     "open_interest": {
-      "ok": false,
-      "error": "451 Client Error:  for url: https://fapi.binance.com/futures/data/openInterestHist?symbol=SPYUSDT&limit=500&period=15m"
+      "ok": true,
+      "records": 500
     },
     "funding": {
-      "ok": false,
-      "error": "451 Client Error:  for url: https://fapi.binance.com/fapi/v1/fundingRate?symbol=SPYUSDT&limit=500"
+      "ok": true,
+      "records": 500
     }
   },
   "liquidation": "unavailable: no persistent WebSocket collector on hosted Actions"
