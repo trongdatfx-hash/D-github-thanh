@@ -153,15 +153,9 @@ img,canvas,svg,iframe{max-width:100%}
  <div style="overflow:auto;margin-top:8px">
   <table id="matrixTable"><thead><tr><th>Factor</th><th>Current</th><th>Bias</th><th>Hit 1</th><th>Hit 2</th><th>Hit 4</th><th>Hit 8</th><th>Edge 4</th><th>Net bps 4</th><th>Hit 8 NO</th><th>N</th></tr></thead><tbody></tbody></table>
  </div>
- <h3 style="margin:14px 0 5px">Nghiên cứu OOS · hit thấp + DVP p95 · SPY × QQQ</h3>
+ <h3 style="margin:14px 0 5px">Nghiên cứu yếu tố hit rate thấp · SPY × QQQ</h3>
  <div style="overflow:auto"><table id="pairStudyTable"><thead><tr><th>Yếu tố (train)</th><th>r với SPY 1h</th><th>r với QQQ 1h</th><th>r với SPY−QQQ</th><th>Đảo chiều · SPY OOS</th><th>Đảo + QQQ xác nhận</th></tr></thead><tbody></tbody></table></div>
  <div id="pairStudyNote" class="muted" style="margin-top:7px"></div>
- <h3 style="margin:14px 0 5px">Thử nghiệm điểm vào · nến biến động mạnh Top Trader L/S</h3>
- <div style="overflow:auto"><table id="topLSEntryTable"><thead><tr><th>Giả thuyết</th><th>Train</th><th>OOS</th><th>Win OOS</th><th>Net TB/lệnh</th><th>Cộng dồn</th><th>SL / TP mạnh / hết hạn</th></tr></thead><tbody></tbody></table></div>
- <div id="topLSEntryNote" class="muted" style="margin-top:7px"></div>
- <h3 style="margin:14px 0 5px">Thử nghiệm Flow-leg · biên ±2σ · leg 8 nến M15</h3>
- <div style="overflow:auto"><table id="flowLegStudyTable"><thead><tr><th>Điều kiện</th><th>Train · mục tiêu kỳ vọng 9 nến</th><th>N OOS</th><th>Win OOS</th><th>Net TB/lệnh</th><th>Cộng dồn</th><th>SL / TP / hết 9 nến</th></tr></thead><tbody></tbody></table></div>
- <div id="flowLegStudyNote" class="muted" style="margin-top:7px"></div>
  <div id="matrixNote" class="muted" style="margin-top:7px"></div>
 </div>
 
@@ -177,7 +171,7 @@ img,canvas,svg,iframe{max-width:100%}
 </div>
 <script>
 const $=id=>document.getElementById(id);
-const TARGET_CANDLES=12000,PAGE_SIZE=1500,AUX_TARGET=5000,HORIZON=4,FOLD_SIZE=1200,EPOCHS=8,MAX_TRAIN_SAMPLES=2500,ROUND_TRIP_FEE=.0004,PCT_WINDOW=96,DIV_WINDOW=8,STRENGTH_LEN=8,STRENGTH_HALF_LIFE=2,STRENGTH_LOOKBACK=500,DVP_VOLUME_SMA_LEN=20,DVP_VOLUME_LOOKBACK=500,DVP_P95=.95;
+const TARGET_CANDLES=12000,PAGE_SIZE=1500,AUX_TARGET=5000,HORIZON=4,FOLD_SIZE=1200,EPOCHS=8,MAX_TRAIN_SAMPLES=2500,ROUND_TRIP_FEE=.0004,PCT_WINDOW=96,DIV_WINDOW=8,STRENGTH_LEN=8,STRENGTH_HALF_LIFE=2,STRENGTH_LOOKBACK=500;
 const FEATURES=["r1","r4","r16","bp","bv","ba","bz","mi","ti","cvd4","vol","mom","rng","vz","tbp","tsp","bpr","bslope","strength","strengthSlope","bullDiv","bearDiv","topLS","topLSSlope","topLSZ","topAcctLS","topAcctLSSlope","globalLS","globalLSSlope","takerRatio","takerRatioZ","oiDelta","oiZ","funding","fundingZ","liqNetZ","takerForce","priceResponse","flowPriceDiv","absorption"];
 let rows=[],featureRows=[],tradeSamples=[],model=null,liqByBucket=new Map(),live={last:NaN,index:NaN,mark:NaN,buy:0,sell:0,topLS:NaN,oi:NaN,funding:NaN,liqBuy:0,liqSell:0,liqBucket:Math.floor(Date.now()/900000)*900000},refreshBusy=false;
 
@@ -250,26 +244,6 @@ function calcStrengthLine(all){
  }
  return line;
 }
-function normalCdf(z){const a=Math.abs(Math.max(-8,Math.min(8,z))),t=1/(1+.2316419*a),d=.3989422804014327*Math.exp(-a*a/2),tail=d*t*(.319381530+t*(-.356563782+t*(1.781477937+t*(-1.821255978+t*1.330274429))));return z>=0?1-tail:tail}
-// DVP volume p: Φ((ln(volume/SMA20)-SMA500)/[SMA500(|deviation|)·√(π/2)]).
-// Prefix sums keep the rolling 500-bar calibration O(N), without look-ahead.
-function calcDvpVolumePercentile(all){
- const n=all.length,logR=Array(n).fill(NaN),prefix=Array(n+1).fill(0),mu=Array(n).fill(NaN),devPrefix=Array(n+1).fill(0),out=Array(n).fill(NaN);let volSum=0;
- for(let i=0;i<n;i++){
-  const v=Number(all[i].volume);volSum+=Number.isFinite(v)?v:0;if(i>=DVP_VOLUME_SMA_LEN)volSum-=Number(all[i-DVP_VOLUME_SMA_LEN].volume)||0;
-  if(i>=DVP_VOLUME_SMA_LEN-1&&v>0&&volSum>0)logR[i]=Math.log(v/(volSum/DVP_VOLUME_SMA_LEN));
-  prefix[i+1]=prefix[i]+(Number.isFinite(logR[i])?logR[i]:0);
- }
- const firstLog=DVP_VOLUME_SMA_LEN-1,firstMu=firstLog+DVP_VOLUME_LOOKBACK-1;
- for(let i=firstMu;i<n;i++)mu[i]=(prefix[i+1]-prefix[i+1-DVP_VOLUME_LOOKBACK])/DVP_VOLUME_LOOKBACK;
- for(let i=0;i<n;i++)devPrefix[i+1]=devPrefix[i]+(Number.isFinite(mu[i])&&Number.isFinite(logR[i])?Math.abs(logR[i]-mu[i]):0);
- const firstP=firstMu+DVP_VOLUME_LOOKBACK-1;
- for(let i=firstP;i<n;i++){
-  const sdA=(devPrefix[i+1]-devPrefix[i+1-DVP_VOLUME_LOOKBACK])/DVP_VOLUME_LOOKBACK,sd=sdA*1.2533141373155003;
-  if(sd>0&&Number.isFinite(mu[i])&&Number.isFinite(logR[i]))out[i]=normalCdf((logR[i]-mu[i])/sd);
- }
- return out;
-}
 function windowStats(data,i,n,get){
  if(i+1<n)return {mean:NaN,std:NaN};
  let sum=0,sq=0;for(let j=i-n+1;j<=i;j++){const v=get(data[j]);if(!Number.isFinite(v))return {mean:NaN,std:NaN};sum+=v;sq+=v*v}
@@ -303,7 +277,7 @@ function addNetflowRegimes(data){
  }
 }
 function features(data){
- const x=data.map(r=>({...r}));let cvd=0;const strength=calcStrengthLine(x),dvpVolumeP=calcDvpVolumePercentile(x);addNetflowRegimes(x);
+ const x=data.map(r=>({...r}));let cvd=0;const strength=calcStrengthLine(x);addNetflowRegimes(x);
  const qflow=x.map(r=>({netflowPct:r.qqqNetflowPct}));addNetflowRegimes(qflow);for(let i=0;i<x.length;i++){x[i].qqqFlowRegime=qflow[i].netflowRegime;x[i].qqqFlowRun=qflow[i].netflowRun;x[i].qqqFlowConflict=qflow[i].netflowConflict}
  const liqScale=(i)=>{const w=windowStats(x,i,PCT_WINDOW,q=>q.liqNet);return Number.isFinite(x[i].liqNet)?x[i].liqNet/w.std:0};
  for(let i=0;i<x.length;i++){
@@ -315,7 +289,7 @@ function features(data){
   r.vol=windowStats(x,i,32,q=>q.r1).std;r.mom=r.last/windowStats(x,i,32,q=>q.last).mean-1;r.rng=(r.high-r.low)/r.last*100;
   const vs=windowStats(x,i,PCT_WINDOW,q=>q.volume);r.vz=(r.volume-vs.mean)/vs.std;
   r.tbp=percentile(x,i,"tbuy",PCT_WINDOW);r.tsp=percentile(x,i,"tsell",PCT_WINDOW);r.bpr=percentile(x,i,"bp",PCT_WINDOW);r.bslope=i>=4?r.bp-x[i-4].bp:NaN;
-  r.strength=strength[i];r.strengthSlope=i>=4?strength[i]-strength[i-4]:NaN;r.dvpVolumeP=dvpVolumeP[i];r.dvpStrength95=Number.isFinite(r.strength)&&Math.abs(r.strength)>=DVP_P95?r.strength:0;r.dvpTakerVol95=Number.isFinite(r.dvpVolumeP)&&r.dvpVolumeP>=DVP_P95?Math.sign(r.ti):0;
+  r.strength=strength[i];r.strengthSlope=i>=4?strength[i]-strength[i-4]:NaN;
   const top=Number.isFinite(r.topLS)?r.topLS:1;r.topLS=top;r.topLSSlope=i>=4&&Number.isFinite(x[i-4].topLS)?top-x[i-4].topLS:0;
   const tz=windowStats(x,i,PCT_WINDOW,q=>q.topLS);r.topLSZ=Number.isFinite(r.topLS)?(r.topLS-tz.mean)/tz.std:0;
   r.topAcctLS=Number.isFinite(r.topAcctLS)?r.topAcctLS:1;
@@ -470,15 +444,15 @@ function aggregateLiquidations(forceOrders){
 function rowsFromCandles(k,m,i,aux,closedOnly=true,qqq=[]){
  const mm=new Map(m.map(q=>[Number(q[0]),+q[4]])),ii=new Map(i.map(q=>[Number(q[0]),+q[4]])),lm=new Map(aux.ls.map(q=>[Number(q.timestamp),Number(q.longShortRatio)])),am=new Map(aux.acct.map(q=>[Number(q.timestamp),Number(q.longShortRatio)])),gm=new Map(aux.globalLS.map(q=>[Number(q.timestamp),Number(q.longShortRatio)])),tm=new Map(aux.taker.map(q=>[Number(q.timestamp),Number(q.buySellRatio)])),om=new Map(aux.oi.map(q=>[Number(q.timestamp),Number(q.sumOpenInterestValue||q.sumOpenInterest)])),fm=aux.fr,liq=aggregateLiquidations(aux.fo);
  const qm=new Map(qqq.map(q=>[Number(q[0]),q]));
- let lastLS=1,lastLSObserved=false,lastAcct=1,lastGlobal=1,lastTaker=1,lastOI=NaN,lastFunding=0;
+ let lastLS=1,lastAcct=1,lastGlobal=1,lastTaker=1,lastOI=NaN,lastFunding=0;
  return k.map(q=>{
   const t=Number(q[0]),close=+q[4],mark=Number.isFinite(mm.get(t))?mm.get(t):close,index=Number.isFinite(ii.get(t))?ii.get(t):close;
-  if(lm.has(t)){lastLS=lm.get(t);lastLSObserved=true}if(am.has(t))lastAcct=am.get(t);if(gm.has(t))lastGlobal=gm.get(t);if(tm.has(t))lastTaker=tm.get(t);
+  if(lm.has(t))lastLS=lm.get(t);if(am.has(t))lastAcct=am.get(t);if(gm.has(t))lastGlobal=gm.get(t);if(tm.has(t))lastTaker=tm.get(t);
   const ov=om.get(t);if(Number.isFinite(ov))lastOI=ov;
   const fv=seriesValue(fm,t,"fundingRate");if(Number.isFinite(fv))lastFunding=fv;
   const l=liq.get(t)||liqByBucket.get(t)||{liqLong:0,liqShort:0,liqNet:0};
   const qq=qm.get(t),qClose=qq?Number(qq[4]):NaN,qVol=qq?Number(qq[5]):NaN,qBuy=qq?Number(qq[9]):NaN,spyQuote=Number(q[5])*close,spyNet=(2*Number(q[9])-Number(q[5]))*close,qqqQuote=qVol*qClose,qqqNet=(2*qBuy-qVol)*qClose,netflowPct=qq&&spyQuote+qqqQuote>0?100*(spyNet+qqqNet)/(spyQuote+qqqQuote):NaN,qqqNetflowPct=qq&&qVol>0?100*(2*qBuy-qVol)/qVol:NaN;
-  return {time:t,closeTime:+q[6],last:close,open:+q[1],high:+q[2],low:+q[3],volume:+q[5],tbuy:+q[9],tsell:+q[5]-+q[9],qqqLast:qClose,qqqNetflowPct,mark,index,basis:close-index,topLS:lastLS,topLSObserved:lastLSObserved,topLSUpdated:lm.has(t),topAcctLS:lastAcct,globalLS:lastGlobal,takerRatio:lastTaker,oi:lastOI,funding:lastFunding,liqLong:l.liqLong,liqShort:l.liqShort,liqNet:l.liqNet,netflowPct};
+  return {time:t,closeTime:+q[6],last:close,open:+q[1],high:+q[2],low:+q[3],volume:+q[5],tbuy:+q[9],tsell:+q[5]-+q[9],qqqLast:qClose,qqqNetflowPct,mark,index,basis:close-index,topLS:lastLS,topAcctLS:lastAcct,globalLS:lastGlobal,takerRatio:lastTaker,oi:lastOI,funding:lastFunding,liqLong:l.liqLong,liqShort:l.liqShort,liqNet:l.liqNet,netflowPct};
  }).filter(r=>Number.isFinite(r.last)&&(!closedOnly||r.closeTime<Date.now()));
 }
 async function getRecentKlines(kind,limit=20,symbol="SPYUSDT"){
@@ -562,8 +536,6 @@ function matrixFactorDefs(){
   ["OI Regime","oiDelta",v=>Math.tanh(v),"oi"],
   ["Funding","fundingZ",v=>-Math.tanh(v/2),"funding"],
   ["NetFlow cluster · SPY+QQQ proxy","netflowClusterSignal",v=>v,"netflow"],
-  ["DVP Strength |S|≥p95 · taker B/S","dvpStrength95",v=>v,"dvpStrength"],
-  ["DVP Volume ≥p95 × taker direction","dvpTakerVol95",v=>v,"dvpVol"],
   ["Liquidation","liqNetZ",v=>Math.tanh(v/2),"liq"],
   ["Basis","bz",v=>Math.tanh(v/2),"basis"],
   ["Flow/Price Divergence","flowPriceDiv",v=>v,"div"]
@@ -576,14 +548,8 @@ function matrixHit(rows,i,h,bias){
 }
 function matrixCurrentBias(r,kind,v){
  if(!Number.isFinite(v))return 0;
- if(kind==="taker"||kind==="price"||kind==="ls"||kind==="takerRatio"||kind==="oi"||kind==="funding"||kind==="liq"||kind==="basis"||kind==="div"||kind==="dvpStrength"||kind==="dvpVol")return v;
+ if(kind==="taker"||kind==="price"||kind==="ls"||kind==="takerRatio"||kind==="oi"||kind==="funding"||kind==="liq"||kind==="basis"||kind==="div")return v;
  return 0;
-}
-function matrixFactorValue(r,key,transform,kind){
- if(kind==="netflow")return Number(r.netflowClusterSignal);
- if(kind==="dvpStrength")return Number(r.dvpStrength95);
- if(kind==="dvpVol")return Number(r.dvpTakerVol95);
- const v=Number(r[key]);return Number.isFinite(v)?transform(v):NaN;
 }
 function liveLiquidationZ(){
  const bucket=Math.floor(Date.now()/900000)*900000;
@@ -603,9 +569,9 @@ function runLowHitPairStudy(rowsM,defs){
  const H=4,THR=.15,cut=Math.floor(rowsM.length*.6),body=document.querySelector("#pairStudyTable tbody");if(!body)return;
  const fmt=x=>Number.isFinite(x)?x.toFixed(2):"—",pct=x=>Number.isFinite(x)?x.toFixed(1)+"%":"—",bps=x=>Number.isFinite(x)?(x>=0?"+":"")+x.toFixed(1)+" bps":"—";let html="",shown=0;
  for(const [name,key,transform,kind] of defs){
-  const vals=rowsM.map(r=>matrixFactorValue(r,key,transform,kind));let trainN=0,trainWins=0,trainNext=0;
+  const vals=kind==="netflow"?rowsM.map(r=>Number(r.netflowClusterSignal)):rowsM.map(r=>{const v=Number(r[key]);return Number.isFinite(v)?transform(v):NaN});let trainN=0,trainWins=0,trainNext=0;
   for(let i=0;i<cut-H;i++){if(i<trainNext)continue;const v=vals[i];if(!Number.isFinite(v)||Math.abs(v)<THR)continue;const ret=rowsM[i+H].last/rowsM[i].last-1;if(!Number.isFinite(ret))continue;trainN++;if((v>0?1:-1)*ret>0)trainWins++;trainNext=i+H}
-  const trainHit=trainN?100*trainWins/trainN:NaN,isDvp=kind==="dvpStrength"||kind==="dvpVol";if(trainN<50||(!(trainHit<50)&&!isDvp))continue;
+  const trainHit=trainN?100*trainWins/trainN:NaN;if(trainN<50||!(trainHit<50))continue;
   let n=0,contraWins=0,contraSum=0,confirmN=0,confirmWins=0,confirmSum=0,next=cut;const corrSpy=[],corrQqq=[],corrSpread=[];
   for(let i=cut;i<rowsM.length-H;i++){if(i<next)continue;const v=vals[i];if(!Number.isFinite(v)||Math.abs(v)<THR)continue;const r=rowsM[i],spyFwd=rowsM[i+H].last/r.last-1,qqqNow=Number(r.qqqLast),qqqThen=Number(rowsM[i+H].qqqLast),qqqFwd=qqqNow>0&&qqqThen>0?qqqThen/qqqNow-1:NaN;if(!Number.isFinite(spyFwd))continue;
    const dir=v>0?1:-1,contra=-dir;n++;contraSum+=contra*spyFwd;if(contra*spyFwd>0)contraWins++;
@@ -616,84 +582,7 @@ function runLowHitPairStudy(rowsM,defs){
   html+="<tr><td>"+name+"<br><span class='muted'>train "+pct(trainHit)+" · N="+trainN+"</span></td>"+base+"<td>"+pct(100*contraWins/n)+" · N="+n+"<br><span class='muted'>"+bps(1e4*contraSum/n-ROUND_TRIP_FEE*1e4)+"</span></td><td>"+(confirmN?pct(100*confirmWins/confirmN)+" · N="+confirmN+"<br><span class='muted'>"+bps(1e4*confirmSum/confirmN-ROUND_TRIP_FEE*1e4)+"</span>":"— · N=0")+"</td></tr>";shown++;
  }
  body.innerHTML=html||"<tr><td colspan='6'>Không có yếu tố đủ mẫu train và hit rate dưới 50% trong lần chạy này.</td></tr>";
- $("pairStudyNote").textContent="Chia thời gian 60% train / 40% kiểm định cuối chuỗi; đưa yếu tố hit 4 nến <50% ở train (N≥50) và cả hai yếu tố DVP p95 vào kiểm định OOS. OOS dùng kết quả SPY và QQQ sau 4 nến, các mẫu cách nhau tối thiểu 4 nến. Hai hàng DVP dùng ngưỡng |S|≥0.95 hoặc volume percentile ≥0.95, lấy tối đa một mẫu/cụm và tránh chồng lấn theo horizon; ngưỡng được tính chỉ từ lịch sử đến thời điểm t. r là Pearson giữa giá trị yếu tố tại t và lợi suất tương lai 1 giờ; SPY−QQQ là lợi suất tương đối. Cột QQQ xác nhận chỉ xét regime taker-flow QQQ đã hình thành tại t (≥3 nến, không conflict), rồi đo kết quả SPY trên phần kiểm định. Đã trừ phí khứ hồi SPY ở bps; đây là nghiên cứu thử nghiệm, không tự đảo tín hiệu. "+shown+" yếu tố được đưa ra.";
-}
-function runTopLSEntryStudy(rowsM){
- const body=document.querySelector("#topLSEntryTable tbody"),note=$("topLSEntryNote");if(!body||!note)return;
- const observed=rowsM.map((r,i)=>r.topLSObserved&&Number.isFinite(Number(r.topLS))&&Number(r.topLS)>0?i:-1).filter(i=>i>=0);
- if(observed.length<120){body.innerHTML="<tr><td colspan='7'>Chưa đủ lịch sử Top Trader L/S thật để tính.</td></tr>";note.textContent="Cần ít nhất 120 mẫu Top L/S có quan sát trực tiếp; các giá trị mặc định 1 trước khi API có dữ liệu đã bị loại.";return}
- const first=observed[0],last=observed.at(-1),cut=first+Math.floor((last-first+1)*.6),deltas=Array(rowsM.length).fill(NaN),past=[];
- for(let i=first;i<=last;i++){
-  const r=rowsM[i],p=rowsM[i-1];if(r.topLSUpdated&&p?.topLSObserved&&Number(p.topLS)>0&&Number(r.topLS)>0)deltas[i]=Math.log(Number(r.topLS)/Number(p.topLS));
- }
- const quantile=(a,q)=>{if(!a.length)return NaN;const s=[...a].sort((x,y)=>x-y),pos=(s.length-1)*q,lo=Math.floor(pos),f=pos-lo;return s[lo]*(1-f)+(s[Math.min(lo+1,s.length-1)]||0)*f};
- const events=[];
- for(let i=first;i<=last;i++){
-  if(Number.isFinite(deltas[i])){
-   const threshold=quantile(past.slice(-500).map(Math.abs),.95);
-   if(past.length>=100&&Number.isFinite(threshold)&&threshold>0&&Math.abs(deltas[i])>=threshold&&i+2<rowsM.length){
-    const side=Math.sign(deltas[i]),signal=rowsM[i],confirm=rowsM[i+1],entry=rowsM[i+2];
-    if(side*(confirm.last-confirm.open)>0&&Number.isFinite(entry.open)&&entry.open>0){
-     events.push({i,side,entry:i+2,stopDist:1.5*(Number(signal.high)-Number(signal.low)),threshold,delta:deltas[i]});
-    }
-   }
-   past.push(deltas[i]);
-  }
- }
- const simulate=(sideMode,train)=>{
-  let n=0,w=0,net=0,eq=1,sl=0,tp=0,expiry=0,next=first;
-  for(const e of events){
-   if(e.i<next||((e.i<cut)!==train)||e.entry+16>rowsM.length||(train&&e.entry+16>cut))continue;
-   const dir=e.side*sideMode;if(!Number.isFinite(e.stopDist)||e.stopDist<=0)continue;
-   const entry=rowsM[e.entry].open,stop=entry-dir*e.stopDist;let exit=NaN,why="";
-   for(let j=e.entry;j<Math.min(rowsM.length,e.entry+16);j++){
-    const b=rowsM[j],hitStop=dir>0?b.low<=stop:b.high>=stop;
-    if(hitStop){exit=dir>0?Math.min(stop,Number(b.open)):Math.max(stop,Number(b.open));why="sl";break}
-    const strong=Number(b.strength)*dir>=.8&&Number(b.bslope)*dir>0&&Number(b.netflowRegime)===dir&&Number(b.netflowRun)>=NF_CLUSTER_MIN&&Number(b.netflowConflict)===0;
-    if(strong){exit=b.last;why="tp";break}
-    if(j===Math.min(rowsM.length,e.entry+16)-1){exit=b.last;why="expiry"}
-   }
-   if(!Number.isFinite(exit))continue;
-   const ret=dir*(exit/entry-1)-ROUND_TRIP_FEE;n++;if(ret>0)w++;net+=ret;eq*=Math.max(0,1+ret);if(why==="sl")sl++;else if(why==="tp")tp++;else expiry++;next=e.entry+16;
-  }
-  return {n,w,net,eq,sl,tp,expiry,hit:n?100*w/n:NaN,mean:n?net/n:NaN,comp:(eq-1)*100};
- };
- const fmt=(v,d=1)=>Number.isFinite(v)?v.toFixed(d):"—",pct=v=>Number.isFinite(v)?fmt(v)+"%":"—",bps=v=>Number.isFinite(v)?(v>=0?"+":"")+fmt(v*1e4)+" bp":"—";
- const modes=[["Theo biến động L/S (follow)",1],["Đảo chiều biến động L/S (fade)",-1]];let html="";
- for(const [name,mode] of modes){const tr=simulate(mode,true),oos=simulate(mode,false);html+="<tr><td>"+name+"</td><td>N="+tr.n+" · hit "+pct(tr.hit)+" · net "+bps(tr.mean)+"</td><td>N="+oos.n+"</td><td>"+pct(oos.hit)+"</td><td>"+bps(oos.mean)+"</td><td>"+pct(oos.comp)+"</td><td>"+oos.sl+" / "+oos.tp+" / "+oos.expiry+"</td></tr>"}
- body.innerHTML=html;
- const oosCount=events.filter(e=>e.i>=cut).length;
- note.textContent="Top L/S chỉ dùng điểm có quan sát API thật: "+new Date(rowsM[first].time).toLocaleDateString()+"–"+new Date(rowsM[last].time).toLocaleDateString()+"; N biến động hợp lệ="+past.length+", ngưỡng là |Δln(Top L/S)| ≥ phân vị 95% của tối đa 500 mẫu trước đó (warm-up 100). Lấy điểm khi cú nhảy đạt ngưỡng và nến sau đóng cùng hướng với giả thuyết; vào ở open nến kế tiếp. SL = 1,5×(High−Low) nến tín hiệu; TP khi strength ≥0,80, bslope cùng hướng, NetFlow regime cùng hướng đủ "+NF_CLUSTER_MIN+" nến và không conflict; tối đa 16 nến, phí khứ hồi 4 bp, xử lý gap qua SL theo giá mở cửa bất lợi và ưu tiên SL nếu cùng nến chạm điều kiện thoát. Train/OOS chia theo thời gian 60/40; OOS có "+oosCount+" điểm xác nhận trước lọc chồng lệnh. "+(oosCount<20?"OOS còn ít mẫu (<20), chỉ xem là thăm dò.":"OOS vẫn là kiểm định lịch sử, chưa chứng minh lợi nhuận tương lai.");
-}
-function runFlowLegStudy(rowsM){
- const body=document.querySelector("#flowLegStudyTable tbody"),note=$("flowLegStudyNote");if(!body||!note)return;
- const leg=Array(rowsM.length).fill(NaN),z=Array(rowsM.length).fill(NaN);
- for(let i=7;i<rowsM.length;i++){
-  let net=0,quote=0;for(let j=i-7;j<=i;j++){const r=rowsM[j],q=Number(r.volume)*Number(r.last);if(Number.isFinite(q)&&q>0){net+=(2*Number(r.tbuy)-Number(r.volume))*Number(r.last);quote+=q}}
-  if(quote>0)leg[i]=net/quote;
-  const past=leg.slice(Math.max(7,i-PCT_WINDOW),i).filter(Number.isFinite);if(past.length<48||!Number.isFinite(leg[i]))continue;
-  const mean=past.reduce((a,b)=>a+b,0)/past.length,sd=Math.sqrt(past.reduce((a,b)=>a+(b-mean)**2,0)/(past.length-1));if(sd>0)z[i]=(leg[i]-mean)/sd;
- }
- const valid=z.map((v,i)=>Number.isFinite(v)?i:-1).filter(i=>i>=0);if(valid.length<120){body.innerHTML="<tr><td colspan='7'>Chưa đủ mẫu để ước lượng Flow-leg.</td></tr>";note.textContent="Cần tối thiểu 120 nến có z-score hợp lệ.";return}
- const cut=valid[0]+Math.floor((valid.at(-1)-valid[0]+1)*.6),events=[];
- for(let i=valid[0]+1;i<valid.at(-1)-10;i++){
-  if(!Number.isFinite(z[i])||!Number.isFinite(z[i-1]))continue;
-  const dir=z[i]>=2&&z[i-1]<2?1:z[i]<=-2&&z[i-1]>-2?-1:0;if(!dir)continue;
-  const entry=i+1,from=Math.max(0,i-2);let lo=Infinity,hi=-Infinity;for(let j=from;j<=i;j++){lo=Math.min(lo,Number(rowsM[j].low));hi=Math.max(hi,Number(rowsM[j].high))}
-  const price=Number(rowsM[entry]?.open),stop=dir>0?lo:hi;if(!(price>0)||!Number.isFinite(stop)||(dir>0?stop>=price:stop<=price))continue;
-  events.push({i,entry,dir,price,stop});
- }
- const train=events.filter(e=>e.i<cut&&e.i+9<cut),trainReturns=train.map(e=>e.dir*(Number(rowsM[e.i+9].last)/e.price-1)).filter(Number.isFinite),target=trainReturns.length?trainReturns.reduce((a,b)=>a+b,0)/trainReturns.length:NaN;
- let n=0,w=0,sum=0,eq=1,sl=0,tp=0,expiry=0,next=valid[0];
- if(Number.isFinite(target)&&target>ROUND_TRIP_FEE){
-  for(const e of events){if(e.i<cut||e.i<next)continue;const targetPrice=e.price*(1+e.dir*target);let exit=NaN,why="";
-   for(let j=e.entry;j<=e.i+9;j++){const b=rowsM[j],hitSL=e.dir>0?b.low<=e.stop:b.high>=e.stop,hitTP=e.dir>0?b.high>=targetPrice:b.low<=targetPrice;if(hitSL){exit=e.dir>0?Math.min(e.stop,Number(b.open)):Math.max(e.stop,Number(b.open));why="sl";break}if(hitTP){exit=targetPrice;why="tp";break}if(j===e.i+9){exit=b.last;why="expiry"}}
-   if(!Number.isFinite(exit))continue;const ret=e.dir*(exit/e.price-1)-ROUND_TRIP_FEE;n++;if(ret>0)w++;sum+=ret;eq*=Math.max(0,1+ret);if(why==="sl")sl++;else if(why==="tp")tp++;else expiry++;next=e.i+10;
-  }
- }
- const fmt=v=>Number.isFinite(v)?v.toFixed(1):"—",pct=v=>Number.isFinite(v)?fmt(v)+"%":"—",bps=v=>Number.isFinite(v)?(v>=0?"+":"")+fmt(v*1e4)+" bp":"—";
- body.innerHTML="<tr><td>Vào cùng hướng flow-leg khi z-score vừa vượt ±2σ; không thêm xác nhận giá</td><td>N="+trainReturns.length+" · TP kỳ vọng "+bps(target)+" / 9 nến</td><td>"+n+"</td><td>"+pct(n?100*w/n:NaN)+"</td><td>"+bps(n?sum/n:NaN)+"</td><td>"+pct((eq-1)*100)+"</td><td>"+sl+" / "+tp+" / "+expiry+"</td></tr>";
- note.textContent="Flow-leg proxy = tổng (2×Taker Buy−Volume)×giá chia tổng Volume×giá trong 8 nến đóng; z-score so với tối đa 96 giá trị leg trước đó, tối thiểu 48, không dùng mẫu hiện tại để tính μ/σ. Tín hiệu là lần đầu z vượt +2 hoặc −2; vào open nến M15 kế tiếp theo hướng flow. SL đặt tại swing đối diện của nhóm 3 nến (tín hiệu và 2 nến trước). TP OOS đặt bằng lợi suất có hướng trung bình của nhóm train đến close nến thứ 9; dừng lệnh nếu SL/TP chạm, nếu không thoát close nến thứ 9. Phí khứ hồi 4 bp; khi cùng nến chạm SL và TP, ưu tiên SL. Chia thời gian 60/40; train chỉ gồm mẫu có đủ 9 nến trước điểm cắt. N OOS="+n+" sau lọc chồng lệnh. Đây là proxy vì mã hiện chưa có định nghĩa Flow-leg riêng; kết quả OOS là thăm dò, không bảo đảm lợi nhuận.";
+ $("pairStudyNote").textContent="Chia thời gian 60% train / 40% kiểm định cuối chuỗi; chỉ chọn yếu tố hit 4 nến <50% ở train (N≥50). OOS dùng kết quả SPY và QQQ sau 4 nến, các mẫu cách nhau tối thiểu 4 nến. r là Pearson giữa giá trị yếu tố tại t và lợi suất tương lai 1 giờ; SPY−QQQ là lợi suất tương đối. Cột QQQ xác nhận chỉ xét regime taker-flow QQQ đã hình thành tại t (≥3 nến, không conflict), rồi đo kết quả SPY trên phần kiểm định. Đã trừ phí khứ hồi SPY ở bps; đây là nghiên cứu thử nghiệm, không tự đảo tín hiệu. "+shown+" yếu tố được đưa ra.";
 }
 function runSignalMatrix(){
  if(!featureRows.length)return;
@@ -704,22 +593,20 @@ function runSignalMatrix(){
   const hit=n?100*w/n:NaN,exp=n?100*(nb*pUp[h]+(n-nb)*(1-pUp[h]))/n:NaN;
   return {n,hit,edge:hit-exp,bps:n?1e4*sum/n-FEE_BPS:NaN}};
  for(const [name,key,transform,kind] of defs){
-  const vals=rowsM.map(r=>matrixFactorValue(r,key,transform,kind));
-  const last=rowsM.at(-1),cur=kind==="liq"?Math.tanh(liveLiquidationZ()/2):kind==="netflow"?Number(last?.netflowRegime):vals.at(-1),episode=kind==="netflow"||kind==="dvpStrength"||kind==="dvpVol",res=HS.map(h=>evalH(vals,h,1,episode)),no8=evalH(vals,8,episode?1:8,episode),r4=res[2];
+  const vals=kind==="netflow"?rowsM.map(r=>Number(r.netflowClusterSignal)):rowsM.map(r=>{const v=Number(r[key]);return Number.isFinite(v)?transform(v):NaN});
+  const last=rowsM.at(-1),cur=kind==="liq"?Math.tanh(liveLiquidationZ()/2):kind==="netflow"?Number(last?.netflowRegime):vals.at(-1),res=HS.map(h=>evalH(vals,h,1,kind==="netflow")),no8=evalH(vals,8,kind==="netflow"?1:8,kind==="netflow"),r4=res[2];
   const cls=cur>THR?"matrixBull":cur<-THR?"matrixBear":"matrixNeutral",bias=kind==="netflow"?(Number.isFinite(cur)?(cur>0?"BULL · "+last.netflowRun+" bars"+((last.netflowConflict===1)?" · CONFLICT":""):cur<0?"BEAR · "+last.netflowRun+" bars"+((last.netflowConflict===1)?" · CONFLICT":""):"WAIT · building state"):"NO QQQ DATA"):cur>THR?"BULL":cur<-THR?"BEAR":"NEUTRAL";
   if(Number.isFinite(cur))usable++;
   const f1=x=>Number.isFinite(x)?x.toFixed(1):"—",sg=x=>Number.isFinite(x)?(x>=0?"+":"")+x.toFixed(1):"—";
-  const current=kind==="netflow"?(Number.isFinite(last?.netflowPct)?(last.netflowPct>=0?"+":"")+last.netflowPct.toFixed(2)+"% · "+last.netflowRun+"/"+NF_CLUSTER_MIN:"—"):kind==="dvpStrength"?"S "+(Number.isFinite(last?.strength)?last.strength.toFixed(2):"—")+" · "+(Math.abs(Number(last?.strength))>=DVP_P95?"P95":"below P95"):kind==="dvpVol"?(Number.isFinite(last?.dvpVolumeP)?(last.dvpVolumeP*100).toFixed(1)+"%ile":"—"):(Number.isFinite(cur)?cur.toFixed(2):"—");
+  const current=kind==="netflow"?(Number.isFinite(last?.netflowPct)?(last.netflowPct>=0?"+":"")+last.netflowPct.toFixed(2)+"% · "+last.netflowRun+"/"+NF_CLUSTER_MIN:"—"):(Number.isFinite(cur)?cur.toFixed(2):"—");
   html+="<tr><td>"+name+"</td><td>"+current+"</td><td class='"+cls+"'>"+bias+"</td>"+
    res.map(x=>"<td>"+(Number.isFinite(x.hit)?f1(x.hit)+"%":"—")+"</td>").join("")+
    "<td>"+sg(r4.edge)+"</td><td>"+sg(r4.bps)+"</td><td>"+(Number.isFinite(no8.hit)?f1(no8.hit)+"% ("+no8.n+")":"—")+"</td><td>"+res[0].n+"</td></tr>";
  }
  tbody.innerHTML=html;
  runLowHitPairStudy(rowsM,defs);
- runTopLSEntryStudy(rowsM);
- runFlowLegStudy(rowsM);
  const r=rowsM.at(-1),score=Number.isFinite(r?.impactScore)?r.impactScore:0;
- $("matrixNote").textContent="NetFlow V1 được lưu làm baseline (tag netflow-v1-baseline). DVP p95 là nghiên cứu độc lập: S từ taker buy/sell theo thang DVP |S|≥0.95; volume p95 dùng ln(volume/SMA20), μ và độ lệch tuyệt đối chuẩn hóa lookback 500 theo Pine. Tín hiệu p95 lấy mẫu theo cụm, không chồng lấp theo horizon; chưa đưa vào ML hoặc bộ lọc lệnh. NetFlow proxy SPYUSDT+QQQUSDT và Liquidation vẫn giữ nguyên. Current Impact "+(score>=0?"+":"")+score.toFixed(0)+" · "+usable+"/"+defs.length+" factors có dữ liệu.";
+ $("matrixNote").textContent="NetFlow proxy = taker delta notional SPYUSDT + QQQUSDT / tổng notional, EMA "+NF_EMA_SPAN+" nến, dead-band ±"+NF_DEADBAND_PCT.toFixed(1)+"% (RTH-equivalent; không phải bản Pine nguyên gốc). Cụm xác nhận từ "+NF_CLUSTER_MIN+" nến cùng regime, không conflict, một mẫu/cụm và không chồng lấp theo horizon. Hit/edge là thống kê lịch sử in-sample, chưa bật làm bộ lọc lệnh hay trọng số ML. Liquidation lấy từ Binance WebSocket. Current Impact "+(score>=0?"+":"")+score.toFixed(0)+" · "+usable+"/"+defs.length+" factors có dữ liệu.";
 }
 $("matrixRun").onclick=runSignalMatrix;
 </script>
