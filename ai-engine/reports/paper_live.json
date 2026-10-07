@@ -3,7 +3,7 @@
   "horizons": [
     {
       "bars": 1,
-      "mature_predictions": 1,
+      "mature_predictions": 2,
       "accuracy": 1.0,
       "trades": 0,
       "net_bps": null
