@@ -16,7 +16,9 @@ The repository can use the registered Windows runner `PC-SPY-AI` through reposit
 
 The PC installation uses the official GitHub runner with its release SHA-256 verified. It runs under the signed-in user's account without an administrator service, and a per-user Startup shortcut launches it at Windows sign-in. Collection stops while the PC sleeps, is shut down, is logged out, or loses Internet. No power setting is changed. Runner availability removes the hosted runner's Binance 451 restriction on this network; it does not make GitHub's M15 schedule a continuous daemon or guarantee punctual scheduling. Keep self-hosted workflows restricted to trusted main-branch code; do not add untrusted pull-request execution on this personal PC.
 
-Windows jobs require Python 3.12 already installed for the runner user and create a separate virtual environment in the job temporary directory. They do not run the setup-python PowerShell installer, change execution policy, or install dependencies into the user's existing Python environment. The PC's ordinary pip download cache can be reused across jobs.
+Windows jobs require Python 3.12 already installed for the runner user and reuse an isolated virtual environment in the runner tool cache, keyed by requirements hash. They do not run the setup-python PowerShell installer, change execution policy, or install dependencies into the user's existing Python environment.
+
+The installed [PC delivery watchdog](PC-RUNNER.md) polls once a minute and requests this workflow after each M15 close plus 60 seconds if the report is behind. It suppresses dispatch while another AI main run is active or the runner is offline, and retries uncertain requests no faster than every ten minutes. It starts at Windows login alongside the runner, using existing GitHub credentials only in memory. GitHub cron remains a backup. It improves schedule delivery while preserving the single GitHub writer and causal pipeline; it is not a liquidation/tick collector.
 
 ## Files and storage
 
@@ -62,11 +64,11 @@ Actual workflow forecast times are written into the journal. Forward paper evalu
 
 `generated_at` is measured after training and all horizon predictions finish, with freshness checked again at that moment. Journal records carry `generation_clock=forecast_ready`. Earlier records measured time at training start; they are preserved for audit but excluded from forward performance, since a retrain can cross an M15 entry boundary.
 
-Models are retrained approximately every four hours when the cache expires; inference/report updates run each scheduled M15. A changed training implementation forces a new fit on push. A runner failure or disabled schedule is visible through aging data; there is no independent external watchdog.
+Models are retrained approximately every four hours when the cache expires; inference/report updates run each M15. A changed training implementation forces a new fit on push. A runner failure remains visible through aging data; the PC delivery watchdog cannot collect while the PC is unavailable.
 
 ## Dashboard
 
-`ai-dashboard/index.html`, `layers-dashboard.js`, `layers.css` render backend JSON only; no browser model training remains. GitHub raw main is the primary report source, with a Pages-relative fallback. This matters because bot commits made with GITHUB_TOKEN need not trigger a branch-based Pages rebuild. The latest backend reports are therefore fetched separately from the static site build. Binance WebSocket updates the live price; it does not silently change backend model scores. Desktop, portrait and landscape layouts expose all horizons and horizontally scrollable group metrics.
+`ai-dashboard/index.html`, `layers-dashboard.js`, `layers.css` render backend JSON only; no browser model training remains. The public GitHub ref API resolves main's commit at most every 120 seconds automatically, then reports load from that immutable raw commit URL. This avoids mutable raw/main CDN caches returning old reports with HTTP 200. If commit lookup is rate limited/unavailable, the dashboard compares raw/main and Pages copies and takes the newer forecast. Lookup failures back off for ten minutes; manual Refresh retries immediately. No credential is embedded in the browser. Reports poll every minute; model display includes generation and candle times. Bot commits made with GITHUB_TOKEN need not rebuild Pages. Binance WebSocket updates the live price independently of backend scores. Desktop, portrait and landscape layouts expose all horizons and horizontally scrollable group metrics.
 
 ## Run and verify
 
@@ -77,6 +79,6 @@ python ai-engine/collect_layers.py
 python ai-engine/train_layers.py
 ```
 
-Use `AI_FORCE_TRAIN=1` for an explicit local forced fit. Browser smoke tests require Playwright and installed Edge: `node ai-dashboard/layers.browser.test.cjs`. They exercise deterministic reports, stale-data suppression, live price updates, report-source fallback and three viewport sizes; the independent chart iframe is a fixture in that test.
+Use `AI_FORCE_TRAIN=1` for an explicit local forced fit. Browser tests require Playwright and installed Edge: `node ai-dashboard/layers.browser.test.cjs` and `node ai-dashboard/layers-source.browser.test.cjs`. They exercise deterministic reports, stale-data suppression, live price updates, immutable commit loading, API backoff/source fallback and three viewport sizes; the independent chart iframe is a fixture in those tests.
 
 The previous dashboard can be recovered from Git commit `91d1655`; revert this pipeline commit for a complete rollback.

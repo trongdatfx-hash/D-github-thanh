@@ -82,13 +82,16 @@ jobs:
           git add ai-engine/reports/layers_latest.json ai-engine/reports/layers_validation.json ai-engine/reports/paper_live.json
           git diff --cached --quiet && exit 0
           git commit -m "data: update multi-layer AI observations and forecasts"
-          for attempt in 1 2 3; do
-            git fetch origin main
-            if ! git rebase origin/main; then
-              git rebase --abort
-              exit 1
+          for attempt in 1 2 3 4 5; do
+            if git fetch origin main; then
+              if ! git rebase origin/main; then
+                git rebase --abort
+                exit 1
+              fi
+              git push && exit 0
             fi
-            git push && exit 0
+            # GitHub transient 5xx failures need spacing, not a rapid retry burst.
+            if [ "$attempt" -lt 5 ]; then sleep "$((attempt * 15))"; fi
           done
           exit 1
       - name: Preserve collector inputs if publication fails

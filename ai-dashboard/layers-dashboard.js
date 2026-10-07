@@ -1,7 +1,7 @@
 (function(){
  'use strict';
- const $=id=>document.getElementById(id),ROOT='https://raw.githubusercontent.com/trongdatfx-hash/D-github-thanh/main/ai-engine/reports/';
- let report=null,paper=null,selected=4,busy=false,socket=null,retry=null;
+ const $=id=>document.getElementById(id),RAW='https://raw.githubusercontent.com/trongdatfx-hash/D-github-thanh/',ROOT=RAW+'main/ai-engine/reports/';
+ let report=null,paper=null,selected=4,busy=false,socket=null,retry=null,head=null,headFreshUntil=0;
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const num=(v,d=1)=>Number.isFinite(v)?v.toFixed(d):'—',pct=v=>Number.isFinite(v)?num(v*100)+'%':'—';
  const signed=v=>Number.isFinite(v)?(v>=0?'+':'')+num(v):'—';
@@ -34,17 +34,32 @@
   const c=report.collection?.market||{},aux=report.collection?.auxiliary||{},unavailable=Object.entries(aux).filter(([,v])=>!v.ok).map(([k])=>k);
   $('provenance').innerHTML='<p>Thu gần nhất: '+esc(report.collection?.collected_at||'—')+'<br>Xuất dự báo: '+date(report.generated_at)+' · Train: '+date(report.model_trained_at)+'<br>'+esc(report.dataset_rows)+' nến · '+esc(report.missing_bars)+' khoảng trống · '+(old?'Dữ liệu quá cũ':'Dữ liệu trong ngưỡng 45 phút')+'</p><p>Nguồn: '+esc(Object.entries(c).map(([k,v])=>k+': '+(v.source||'không tải được')).join(' · '))+'<br>Aux lỗi: '+esc(unavailable.join(', ')||'không có lỗi được báo')+' · Liquidation: chưa thu thường trực.</p>';
  }
+ async function resolveHead(force){
+  if(!force&&Date.now()<headFreshUntil)return;
+  try{
+   // At most 30 automatic public API requests/hour, below the usual 60/IP limit.
+   // Immutable commit URLs avoid the mutable raw/main CDN cache.
+   const response=await fetch('https://api.github.com/repos/trongdatfx-hash/D-github-thanh/git/ref/heads/main',{cache:'no-store',signal:AbortSignal.timeout(12000)});
+   if(!response.ok)throw Error('HTTP '+response.status);
+   const next=(await response.json()).object?.sha;if(!/^[a-f0-9]{40}$/.test(next))throw Error('Commit không hợp lệ');
+   head=next;headFreshUntil=Date.now()+120000;
+  }catch(e){head=null;headFreshUntil=Date.now()+600000;console.warn('Commit lookup unavailable',e.message)}
+ }
+ async function getJson(url){
+  const response=await fetch(url+'?t='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(12000)});
+  if(!response.ok)throw Error('HTTP '+response.status);return response.json();
+ }
  async function json(name){
-  // Bot commits do not necessarily rebuild branch-based Pages. Raw main delivers
-  // the newest generated report independently of the site build.
-  for(const url of [ROOT+name,'../ai-engine/reports/'+name]){
-   try{const response=await fetch(url+'?t='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(12000)});if(response.ok)return await response.json()}catch(e){console.warn('Report source unavailable',e.message)}
-  }
+  if(head){try{return await getJson(RAW+head+'/ai-engine/reports/'+name)}catch(e){console.warn('Commit report unavailable',e.message)}}
+  // If the public API/raw route is limited, pick the newer of both cached copies.
+  const results=await Promise.allSettled([getJson(ROOT+name),getJson('../ai-engine/reports/'+name)]);
+  const available=results.filter(r=>r.status==='fulfilled').map(r=>r.value);
+  if(available.length)return available.sort((a,b)=>(b.generated_at||b.data_as_of||0)-(a.generated_at||a.data_as_of||0))[0];
   throw Error('Không tải được '+name);
  }
- async function load(){
+ async function load(force=false){
   if(busy)return;busy=true;$('refresh').disabled=true;
-  try{const next=await json('layers_latest.json');if(next.schema_version!=='layers-v1'||!Array.isArray(next.horizons))throw Error('Kết quả chưa đúng phiên bản');report=next;try{paper=await json('paper_live.json')}catch(e){paper=null}render()}
+  try{await resolveHead(force);const next=await json('layers_latest.json');if(next.schema_version!=='layers-v1'||!Array.isArray(next.horizons))throw Error('Kết quả chưa đúng phiên bản');report=next;try{paper=await json('paper_live.json')}catch(e){paper=null}render()}
   catch(e){$('dataStatus').textContent='Không tải được kết quả · '+e.message;if(report)render()}
   finally{busy=false;$('refresh').disabled=false}
  }
@@ -56,7 +71,7 @@
   socket.onclose=()=>{$('socketStatus').textContent='mất kết nối';clearTimeout(retry);retry=setTimeout(connect,3000)};
   socket.onerror=()=>{$('socketStatus').textContent='lỗi stream'};
  }
- $('refresh').onclick=load;$('fullscreen').onclick=()=>{const panel=$('marketChart').closest('.panel');if(document.fullscreenElement)document.exitFullscreen?.();else panel.requestFullscreen?.().catch(()=>{})};
+ $('refresh').onclick=()=>load(true);$('fullscreen').onclick=()=>{const panel=$('marketChart').closest('.panel');if(document.fullscreenElement)document.exitFullscreen?.();else panel.requestFullscreen?.().catch(()=>{})};
  document.addEventListener('visibilitychange',()=>{if(!document.hidden){load();connect()}});
  load();connect();setInterval(load,60000);setInterval(render,15000);
 })();
