@@ -1,52 +1,52 @@
 {
-  "collected_at": "2026-10-07T12:46:59.868000+00:00",
+  "collected_at": "2026-10-07T12:48:05.769000+00:00",
   "collector": "GitHub scheduled REST batch",
   "market": {
     "SPYUSDT/last": {
       "rows": 12000,
       "latest_close": 1791377099999,
-      "source": "rest"
+      "source": "vision_historical"
     },
     "SPYUSDT/mark": {
       "rows": 12000,
       "latest_close": 1791377099999,
-      "source": "rest"
+      "source": "vision_historical"
     },
     "SPYUSDT/index": {
       "rows": 12000,
       "latest_close": 1791377099999,
-      "source": "rest"
+      "source": "vision_historical"
     },
     "QQQUSDT/last": {
       "rows": 12000,
       "latest_close": 1791377099999,
-      "source": "rest"
+      "source": "vision_historical"
     }
   },
   "auxiliary": {
     "top_position": {
-      "ok": true,
-      "records": 500
+      "ok": false,
+      "error": "451 Client Error:  for url: https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol=SPYUSDT&limit=500&period=15m"
     },
     "top_account": {
-      "ok": true,
-      "records": 500
+      "ok": false,
+      "error": "451 Client Error:  for url: https://fapi.binance.com/futures/data/topLongShortAccountRatio?symbol=SPYUSDT&limit=500&period=15m"
     },
     "global_account": {
-      "ok": true,
-      "records": 500
+      "ok": false,
+      "error": "451 Client Error:  for url: https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=SPYUSDT&limit=500&period=15m"
     },
     "taker_ratio": {
-      "ok": true,
-      "records": 500
+      "ok": false,
+      "error": "451 Client Error:  for url: https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=SPYUSDT&limit=500&period=15m"
     },
     "open_interest": {
-      "ok": true,
-      "records": 500
+      "ok": false,
+      "error": "451 Client Error:  for url: https://fapi.binance.com/futures/data/openInterestHist?symbol=SPYUSDT&limit=500&period=15m"
     },
     "funding": {
-      "ok": true,
-      "records": 500
+      "ok": false,
+      "error": "451 Client Error:  for url: https://fapi.binance.com/fapi/v1/fundingRate?symbol=SPYUSDT&limit=500"
     }
   },
   "liquidation": "unavailable: no persistent WebSocket collector on hosted Actions"
