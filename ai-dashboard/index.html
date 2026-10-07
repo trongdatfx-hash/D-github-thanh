@@ -106,6 +106,8 @@ img,canvas,svg,iframe{max-width:100%}
 @media(max-width:640px){.heroSub{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin-top:3px;font-size:11px}.heroSub span{padding:6px 5px}.heroSub b{font-size:14px}}
 @media(max-width:420px){.heroSub{grid-template-columns:repeat(2,minmax(0,1fr))}.heroSub b{font-size:13px}}
 @media(orientation:landscape) and (max-height:500px){.heroSub{gap:3px;margin-top:0}.heroSub span{padding:5px 6px}.heroSub b{font-size:13px!important}}
+#matrixV2Panel{margin-top:12px;min-width:0}#matrixV2Composite{font-size:24px;margin:8px 0;padding:10px}#matrixV2Table{min-width:960px;font-size:12px}#matrixV2Panel details{margin-top:8px;line-height:1.5}#matrixV2Panel summary{cursor:pointer}#matrixV2Status{margin:6px 0}
+@media(orientation:landscape) and (max-height:500px){html,body{height:auto;overflow-y:auto}.wrap{height:auto;padding-top:100dvh}.panel:has(.chartFrame),.impactHero{position:absolute;bottom:auto}}
 </style></head>
 <body><div class="wrap">
 <div class="top">
@@ -145,9 +147,16 @@ img,canvas,svg,iframe{max-width:100%}
  <button id="fsBtn" type="button" aria-label="Phóng to chart" title="Phóng to chart">⛶</button>\n <iframe class="chartFrame" src="../?embedded=1&yaxis=1" title="SPYUSDT price, Taker Buy/Sell and Top Trader L/S"></iframe>
 </div>
 
+<section class="panel" id="matrixV2Panel">
+ <div class="mlHeader"><b>Signal Matrix V2 · M15</b><button id="matrixV2Run">↻ Recalculate V2</button></div>
+ <div id="matrixV2Composite" class="signal WAIT">0 · NEUTRAL</div>
+ <div id="matrixV2Status" class="muted" role="status">Đang chờ lịch sử / live…</div>
+ <div style="overflow:auto"><table id="matrixV2Table"><thead><tr><th>Factor</th><th>Value [-1,1]</th><th>Phase</th><th>Score [-100,100]</th><th>Confidence</th><th>Hit 4</th><th>Edge 4</th><th>Net bps 4</th><th>N (cùng hướng)</th><th>Nguồn</th></tr></thead><tbody></tbody></table></div>
+ <details><summary>Công thức / giải thích V2</summary><p>Phase: BULL ≥ +0.15 (xanh), BEAR ≤ −0.15 (đỏ), còn lại NEUTRAL (vàng). Score = 100 × value × (0.25 + 0.75 × confidence); trong dead-band score = 0. Confidence = N/(N+50) × clamp((edge − 1.645×√(0.25/N))/0.10,0,1) × clamp(net bps/10,0,1). Score giữ hướng factor; lịch sử yếu chỉ giảm trọng số, không tự đảo hướng. Confidence là hệ số hỗ trợ, không phải xác suất thắng.</p><p>Composite = tổng score / 12; thiếu dữ liệu đóng góp 0. Phase tổng: ±15 điểm. Hit/edge/net bps dùng riêng hướng hiện tại, horizon 4 nến M15 đã đóng, mẫu cách nhau ≥4 nến, phí khứ hồi 4 bps; edge trừ tần suất tăng/giảm nền (flat không tính thắng). Chỉ dùng outcome đóng trước thời điểm quyết định. Aux trễ ít nhất 1 nến để giảm rủi ro timestamp báo cáo. Đây là hiệu quả lịch sử, chưa phải kết quả OOS của chiến lược V2.</p><p>Nến đang chạy là provisional; dữ liệu live chỉ thu khi tab mở và có kết nối. Kline SPY/QQQ tích lũy cả nến từ Binance; liquidation là mẫu WebSocket quan sát, có thể không đầy đủ. Snapshot nến đã đóng được lưu cục bộ khi khả dụng; không có backend thu 24/7. V1 bên dưới giữ nguyên để đối chiếu.</p></details>
+</section>
 <div class="panel" id="matrixPanel">
  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-  <div><b>Signal Matrix — M15</b><div class="muted">Đo độc lập từng yếu tố và kết quả sau 1 / 2 / 4 / 8 nến</div></div>
+  <div><b>Signal Matrix V1 — M15</b><div class="muted">Đo độc lập từng yếu tố và kết quả sau 1 / 2 / 4 / 8 nến</div></div>
   <button id="matrixRun">↻ Recalculate Matrix</button>
  </div>
  <div style="overflow:auto;margin-top:8px">
@@ -173,7 +182,7 @@ img,canvas,svg,iframe{max-width:100%}
 const $=id=>document.getElementById(id);
 const TARGET_CANDLES=12000,PAGE_SIZE=1500,AUX_TARGET=5000,HORIZON=4,FOLD_SIZE=1200,EPOCHS=8,MAX_TRAIN_SAMPLES=2500,ROUND_TRIP_FEE=.0004,PCT_WINDOW=96,DIV_WINDOW=8,STRENGTH_LEN=8,STRENGTH_HALF_LIFE=2,STRENGTH_LOOKBACK=500;
 const FEATURES=["r1","r4","r16","bp","bv","ba","bz","mi","ti","cvd4","vol","mom","rng","vz","tbp","tsp","bpr","bslope","strength","strengthSlope","bullDiv","bearDiv","topLS","topLSSlope","topLSZ","topAcctLS","topAcctLSSlope","globalLS","globalLSSlope","takerRatio","takerRatioZ","oiDelta","oiZ","funding","fundingZ","liqNetZ","takerForce","priceResponse","flowPriceDiv","absorption"];
-let rows=[],featureRows=[],tradeSamples=[],model=null,liqByBucket=new Map(),live={last:NaN,index:NaN,mark:NaN,buy:0,sell:0,topLS:NaN,oi:NaN,funding:NaN,liqBuy:0,liqSell:0,liqBucket:Math.floor(Date.now()/900000)*900000},refreshBusy=false;
+let rows=[],featureRows=[],tradeSamples=[],model=null,liqByBucket=new Map(),live={last:NaN,index:NaN,mark:NaN,buy:0,sell:0,topLS:NaN,oi:NaN,funding:NaN,liqBuy:0,liqSell:0,liqBucket:Math.floor(Date.now()/900000)*900000},refreshBusy=false,streamSocket=null;
 
 const say=s=>{$("log").textContent=s;const status=$("mlStatus");if(status)status.textContent=s};
 const pct=v=>(100*v).toFixed(1);
@@ -368,7 +377,7 @@ function predictLatest(){
  $("topls").textContent=Number.isFinite(r.topLS)?r.topLS.toFixed(3):"—";$("topls2").textContent=Number.isFinite(r.topLS)?r.topLS.toFixed(3):"—";renderImpact(r,true);
 }
 function train(){
- const fx=features(rows);featureRows=fx;runSignalMatrix();drawStrengthChart();if(fx.length)renderImpact(fx.at(-1),false);say("Impact Engine đã tính. Đang chạy walk-forward ML…");const ys=label(fx),valid=fx.map((r,i)=>ys[i]!==null&&FEATURES.every(k=>Number.isFinite(r[k]))),ix=fx.map((r,i)=>valid[i]?i:-1).filter(i=>i>=0);
+ const fx=features(rows);featureRows=fx;window.matrixV2Controller?.recalculate();runSignalMatrix();drawStrengthChart();if(fx.length)renderImpact(fx.at(-1),false);say("Impact Engine đã tính. Đang chạy walk-forward ML…");const ys=label(fx),valid=fx.map((r,i)=>ys[i]!==null&&FEATURES.every(k=>Number.isFinite(r[k]))),ix=fx.map((r,i)=>valid[i]?i:-1).filter(i=>i>=0);
  if(ix.length<300){say("Chưa đủ dữ liệu hợp lệ để train: "+ix.length);return}
  const initialTrain=Math.floor(ix.length*.6),X=matrix(fx),confusion=Array.from({length:3},()=>[0,0,0]);let correct=0,testCount=0,trades=0,agreementTrades=0,divergenceTrades=0,eq=1,nextTradeAfter=-1,impactCorrect=0,impactN=0,folds=0;tradeSamples=[];const params={directionalEdge:.58,minDirectionalMass:.05};
  for(let start=initialTrain;start<ix.length;start+=FOLD_SIZE){
@@ -451,8 +460,15 @@ function rowsFromCandles(k,m,i,aux,closedOnly=true,qqq=[]){
   const ov=om.get(t);if(Number.isFinite(ov))lastOI=ov;
   const fv=seriesValue(fm,t,"fundingRate");if(Number.isFinite(fv))lastFunding=fv;
   const l=liq.get(t)||liqByBucket.get(t)||{liqLong:0,liqShort:0,liqNet:0};
+  const v2Aux={},v2Available={};
+  for(const [key,series,field] of [["topLS",aux.ls,"longShortRatio"],["topAcctLS",aux.acct,"longShortRatio"],["globalLS",aux.globalLS,"longShortRatio"],["takerRatio",aux.taker,"buySellRatio"],["oi",aux.oi,"sumOpenInterestValue"],["funding",aux.fr,"fundingRate"]]){
+   let lo=0,hi=series.length-1,prior=null;while(lo<=hi){const mid=(lo+hi)>>1,z=series[mid];if(Number(z.timestamp??z.fundingTime)<=t-900000){prior=z;lo=mid+1}else hi=mid-1}
+   const age=prior?t-Number(prior.timestamp??prior.fundingTime):Infinity;
+   v2Aux[key]=prior&&age<=(key==="funding"?86400000:2700000)?Number(prior[field]??(key==="oi"?prior.sumOpenInterest:NaN)):NaN;
+  }
+  v2Available.bz=mm.has(t)&&ii.has(t);v2Available.liqNetZ=liqByBucket.has(t);
   const qq=qm.get(t),qClose=qq?Number(qq[4]):NaN,qVol=qq?Number(qq[5]):NaN,qBuy=qq?Number(qq[9]):NaN,spyQuote=Number(q[5])*close,spyNet=(2*Number(q[9])-Number(q[5]))*close,qqqQuote=qVol*qClose,qqqNet=(2*qBuy-qVol)*qClose,netflowPct=qq&&spyQuote+qqqQuote>0?100*(spyNet+qqqNet)/(spyQuote+qqqQuote):NaN,qqqNetflowPct=qq&&qVol>0?100*(2*qBuy-qVol)/qVol:NaN;
-  return {time:t,closeTime:+q[6],last:close,open:+q[1],high:+q[2],low:+q[3],volume:+q[5],tbuy:+q[9],tsell:+q[5]-+q[9],qqqLast:qClose,qqqNetflowPct,mark,index,basis:close-index,topLS:lastLS,topAcctLS:lastAcct,globalLS:lastGlobal,takerRatio:lastTaker,oi:lastOI,funding:lastFunding,liqLong:l.liqLong,liqShort:l.liqShort,liqNet:l.liqNet,netflowPct};
+  return {v2Aux,v2Available,time:t,closeTime:+q[6],last:close,open:+q[1],high:+q[2],low:+q[3],volume:+q[5],tbuy:+q[9],tsell:+q[5]-+q[9],qqqLast:qClose,qqqNetflowPct,mark,index,basis:close-index,topLS:lastLS,topAcctLS:lastAcct,globalLS:lastGlobal,takerRatio:lastTaker,oi:lastOI,funding:lastFunding,liqLong:l.liqLong,liqShort:l.liqShort,liqNet:l.liqNet,netflowPct};
  }).filter(r=>Number.isFinite(r.last)&&(!closedOnly||r.closeTime<Date.now()));
 }
 async function getRecentKlines(kind,limit=20,symbol="SPYUSDT"){
@@ -494,9 +510,10 @@ async function refreshAndTrain(){
 }
 function renderLive(){const r=rows.at(-1);if(!r)return;const lp=Number.isFinite(live.last)?live.last:r.last,ip=Number.isFinite(live.index)?live.index:r.index;const b=lp-ip;$("last").textContent=lp.toFixed(4);$("index").textContent=ip.toFixed(4);$("basis").textContent=(b>=0?"+":"")+b.toFixed(4);$("bp").textContent=(b/ip*100).toFixed(4)+"%";$("topls").textContent=Number.isFinite(live.topLS)?live.topLS.toFixed(3):(Number.isFinite(r.topLS)?r.topLS.toFixed(3):"—")}
 function connect(){
- const ws=new WebSocket("wss://fstream.binance.com/market/stream?streams=spyusdt@markPrice@1s/spyusdt@aggTrade/spyusdt@forceOrder");
- ws.onopen=()=>{$("conn").textContent="● Binance LIVE";$("conn").className="ok"};ws.onerror=()=>{$("conn").textContent="LIVE stream error";$("conn").className="warn"};ws.onclose=()=>{$("conn").textContent="reconnecting…";setTimeout(connect,2500)};
- ws.onmessage=e=>{try{const d=JSON.parse(e.data).data;if(d.e==="markPriceUpdate"){live.mark=+d.p;live.index=+d.i;live.funding=+d.r;live.last=live.last||+d.p;renderLive();predictLatest()}else if(d.e==="aggTrade"){live.last=+d.p;if(d.m)live.sell+=+d.q;else live.buy+=+d.q;renderLive();predictLatest()}else if(d.e==="forceOrder"){const o=d.o||{},q=Number(o.ap||o.p)*Number(o.z),bucket=Math.floor(Date.now()/900000)*900000;if(live.liqBucket!==bucket){live.liqBucket=bucket;live.liqBuy=0;live.liqSell=0}if(Number.isFinite(q)&&q>0){const bar=liqByBucket.get(bucket)||{liqLong:0,liqShort:0,liqNet:0};if(o.S==="SELL"){live.liqSell+=q;bar.liqLong+=q;bar.liqNet-=q}else if(o.S==="BUY"){live.liqBuy+=q;bar.liqShort+=q;bar.liqNet+=q}liqByBucket.set(bucket,bar);if(liqByBucket.size>12000)liqByBucket.delete(liqByBucket.keys().next().value)}predictLatest();runSignalMatrix()}}catch(_){}};setInterval(()=>{live.buy=live.sell=0;liveLiquidationZ()},15*60*1000);
+ if(streamSocket&&streamSocket.readyState<2)return;
+ const ws=streamSocket=new WebSocket("wss://fstream.binance.com/market/stream?streams=spyusdt@markPrice@1s/spyusdt@aggTrade/spyusdt@forceOrder/spyusdt@kline_15m/qqqusdt@kline_15m");
+ ws.onopen=()=>{window.matrixV2Controller?.connected();$("conn").textContent="● Binance LIVE";$("conn").className="ok"};ws.onerror=()=>{$("conn").textContent="LIVE stream error";$("conn").className="warn"};ws.onclose=()=>{window.matrixV2Controller?.disconnected();$("conn").textContent="reconnecting…";setTimeout(connect,2500)};
+ ws.onmessage=e=>{try{const d=JSON.parse(e.data).data;window.matrixV2Controller?.event(d);if(d.e==="markPriceUpdate"){live.mark=+d.p;live.index=+d.i;live.funding=+d.r;live.last=live.last||+d.p;renderLive();predictLatest()}else if(d.e==="aggTrade"){live.last=+d.p;if(d.m)live.sell+=+d.q;else live.buy+=+d.q;renderLive();predictLatest()}else if(d.e==="forceOrder"){const o=d.o||{},q=Number(o.ap||o.p)*Number(o.z),bucket=Math.floor(Date.now()/900000)*900000;if(live.liqBucket!==bucket){live.liqBucket=bucket;live.liqBuy=0;live.liqSell=0}if(Number.isFinite(q)&&q>0){const bar=liqByBucket.get(bucket)||{liqLong:0,liqShort:0,liqNet:0};if(o.S==="SELL"){live.liqSell+=q;bar.liqLong+=q;bar.liqNet-=q}else if(o.S==="BUY"){live.liqBuy+=q;bar.liqShort+=q;bar.liqNet+=q}liqByBucket.set(bucket,bar);if(liqByBucket.size>12000)liqByBucket.delete(liqByBucket.keys().next().value)}predictLatest();runSignalMatrix()}}catch(err){console.error("Live message error",err)}};
 }
 window.addEventListener("resize",drawStrengthChart);$("run").onclick=()=>{if(refreshBusy)return;refreshAndTrain()};loadHistory().then(()=>setInterval(refreshAndTrain,15*60*1000)).catch(e=>{console.error(e);say("Lỗi khởi động Binance/AI: "+e.message);$("matrixNote").textContent="Lỗi tải lịch sử Binance: "+e.message;$("conn").textContent="startup error";$("conn").className="warn";connect()});
 </script>
@@ -610,4 +627,6 @@ function runSignalMatrix(){
 }
 $("matrixRun").onclick=runSignalMatrix;
 </script>
+<script src="matrix-v2.js"></script>
+<script src="matrix-v2-live.js"></script>
 </body></html>
