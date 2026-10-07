@@ -1,14 +1,14 @@
 {
   "schema_version": "layers-v1",
-  "generated_at": 1791380676066,
-  "data_as_of": 1791379800000,
+  "generated_at": 1791381206485,
+  "data_as_of": 1791380700000,
   "model_trained_at": 1791380676066,
-  "lag_minutes": 14.6011,
+  "lag_minutes": 8.441416666666667,
   "stale": false,
   "live_rest_available": true,
   "collector_mode": "GitHub Actions M15 REST + historical archive fallback",
   "regime": "TREND",
-  "last": 776.1,
+  "last": 775.34,
   "dataset_rows": 12096,
   "missing_bars": 96,
   "historical_scope": "reconstructed market bars; auxiliary features only after recorded receipt; repeated OOS is research, not a locked final holdout",
@@ -76,11 +76,11 @@
         {
           "key": "flow",
           "name": "D\u00f2ng l\u1ec7nh",
-          "score": -2.96062248710528,
+          "score": 5.352480629794587,
           "phase": "NEUTRAL",
           "available": true,
           "weight": 0.1663667583467328,
-          "contribution": -0.4925491658681472,
+          "contribution": 0.8904748514926043,
           "train_n": 2500,
           "features": [
             "taker_imbalance",
@@ -95,11 +95,11 @@
         {
           "key": "price",
           "name": "Ph\u1ea3n \u1ee9ng gi\u00e1",
-          "score": -2.8587506073340956,
+          "score": -1.9459367378335228,
           "phase": "NEUTRAL",
           "available": true,
           "weight": 0.2708660614976063,
-          "contribution": -0.7743385178124764,
+          "contribution": -0.5270882201004663,
           "train_n": 2500,
           "features": [
             "ret_1",
@@ -115,27 +115,27 @@
         {
           "key": "derivatives",
           "name": "V\u1ecb th\u1ebf ph\u00e1i sinh",
-          "score": -1.1105246510945361,
+          "score": 0.22221803665161133,
           "phase": "NEUTRAL",
           "available": true,
           "weight": 0.12600076320470985,
-          "contribution": -0.13992695359555568,
+          "contribution": 0.027999642215955214,
           "train_n": 2500,
           "features": [
             "basis_pct",
             "basis_z",
             "mark_index_pct"
           ],
-          "coverage": 0.8
+          "coverage": 0.9
         },
         {
           "key": "cross_asset",
           "name": "SPY \u00d7 QQQ",
-          "score": -2.1672128339282977,
+          "score": -1.336964885177322,
           "phase": "NEUTRAL",
           "available": true,
           "weight": 0.2078342576607405,
-          "contribution": -0.45042107053231745,
+          "contribution": -0.2778671044293059,
           "train_n": 2500,
           "features": [
             "qqq_ret_1",
@@ -150,11 +150,11 @@
         {
           "key": "context",
           "name": "B\u1ed1i c\u1ea3nh H1/H4",
-          "score": 1.637664412890906,
+          "score": 1.253046170058618,
           "phase": "NEUTRAL",
           "available": true,
           "weight": 0.22893215929021046,
-          "contribution": 0.3749140502358499,
+          "contribution": 0.2868625654018477,
           "train_n": 2500,
           "features": [
             "h1_return",
@@ -170,13 +170,13 @@
       ],
       "signal": "WAIT",
       "probabilities": {
-        "bear": 0.09160894246244604,
-        "neutral": 0.8316053316508344,
-        "bull": 0.07678572588671956
+        "bear": 0.1245435143230981,
+        "neutral": 0.7469091540079974,
+        "bull": 0.12854733166890453
       },
-      "score": -1.482321657572648,
+      "score": 0.4003817345806432,
       "phase": "NEUTRAL",
-      "expected_gross_bps": -0.16685046829834438,
+      "expected_gross_bps": 0.0500522339093483,
       "temperature": 1.0,
       "evidence": "UNPROVEN",
       "positive_validation_skill": true
@@ -238,11 +238,11 @@
         {
           "key": "flow",
           "name": "D\u00f2ng l\u1ec7nh",
-          "score": -1.2790859126772247,
+          "score": 7.18002414852201,
           "phase": "NEUTRAL",
           "available": true,
           "weight": 0.14578972514883903,
-          "contribution": -0.1864775836509645,
+          "contribution": 1.046773747175051,
           "train_n": 2500,
           "features": [
             "taker_imbalance",
@@ -257,11 +257,11 @@
         {
           "key": "price",
           "name": "Ph\u1ea3n \u1ee9ng gi\u00e1",
-          "score": -0.6836295535343623,
+          "score": 4.141585467136122,
           "phase": "NEUTRAL",
           "available": true,
           "weight": 0.29057579527477584,
-          "contribution": -0.19864620119158727,
+          "contribution": 1.2034444908115327,
           "train_n": 2500,
           "features": [
             "ret_1",
@@ -277,27 +277,27 @@
         {
           "key": "derivatives",
           "name": "V\u1ecb th\u1ebf ph\u00e1i sinh",
-          "score": 0.0499926518647234,
+          "score": -4.478494889713748,
           "phase": "NEUTRAL",
           "available": true,
           "weight": 0.10646064874030856,
-          "contribution": 0.00532225014976685,
+          "contribution": -0.4767834713390823,
           "train_n": 2500,
           "features": [
             "basis_pct",
             "basis_z",
             "mark_index_pct"
           ],
-          "coverage": 0.8
+          "coverage": 0.9
         },
         {
           "key": "cross_asset",
           "name": "SPY \u00d7 QQQ",
-          "score": -2.4215883965435223,
+          "score": -4.994453713049907,
           "phase": "NEUTRAL",
           "available": true,
           "weight": 0.20165569570405184,
-          "contribution": -0.48832709281384334,
+          "contribution": -1.007160038166764,
           "train_n": 2500,
           "features": [
             "qqq_ret_1",
@@ -332,13 +332,13 @@
       ],
       "signal": "WAIT",
       "probabilities": {
-        "bear": 0.1356019190203173,
-        "neutral": 0.7294500868459382,
-        "bull": 0.1349479941337445
+        "bear": 0.1836514267587526,
+        "neutral": 0.6170070378091939,
+        "bull": 0.19934153543205352
       },
-      "score": -0.06539248865727876,
+      "score": 1.5690108673300922,
       "phase": "NEUTRAL",
-      "expected_gross_bps": 0.02437636040365901,
+      "expected_gross_bps": 0.23881727128208566,
       "temperature": 1.0,
       "evidence": "UNPROVEN",
       "positive_validation_skill": true
@@ -400,11 +400,11 @@
         {
           "key": "flow",
           "name": "D\u00f2ng l\u1ec7nh",
-          "score": -6.402917301698285,
-          "phase": "NEUTRAL",
+          "score": 19.754457492049227,
+          "phase": "BULL",
           "available": true,
           "weight": 0.13554784448604715,
-          "contribution": -0.8679016386676198,
+          "contribution": 2.6776741320385176,
           "train_n": 2500,
           "features": [
             "taker_imbalance",
@@ -419,11 +419,11 @@
         {
           "key": "price",
           "name": "Ph\u1ea3n \u1ee9ng gi\u00e1",
-          "score": -8.112192153930664,
+          "score": -2.4211405986207577,
           "phase": "NEUTRAL",
           "available": true,
           "weight": 0.29440478496277667,
-          "contribution": -2.388268186654681,
+          "contribution": -0.7127953773015926,
           "train_n": 2500,
           "features": [
             "ret_1",
@@ -439,27 +439,27 @@
         {
           "key": "derivatives",
           "name": "V\u1ecb th\u1ebf ph\u00e1i sinh",
-          "score": -1.5346289595740414,
+          "score": 1.982289611765431,
           "phase": "NEUTRAL",
           "available": true,
           "weight": 0.12049286778179949,
-          "contribution": -0.18491184432007549,
+          "contribution": 0.2388517600956867,
           "train_n": 2500,
           "features": [
             "basis_pct",
             "basis_z",
             "mark_index_pct"
           ],
-          "coverage": 0.8
+          "coverage": 0.9
         },
         {
           "key": "cross_asset",
           "name": "SPY \u00d7 QQQ",
-          "score": -4.415282738664233,
+          "score": 0.6393403005403364,
           "phase": "NEUTRAL",
           "available": true,
           "weight": 0.20715163473838477,
-          "contribution": -0.9146330371464685,
+          "contribution": 0.1324403884110609,
           "train_n": 2500,
           "features": [
             "qqq_ret_1",
@@ -474,11 +474,11 @@
         {
           "key": "context",
           "name": "B\u1ed1i c\u1ea3nh H1/H4",
-          "score": 1.9916146993637085,
+          "score": 1.3696358220116416,
           "phase": "NEUTRAL",
           "available": true,
           "weight": 0.24240286803099198,
-          "contribution": 0.4827731151384448,
+          "contribution": 0.33200365141360716,
           "train_n": 2500,
           "features": [
             "h1_return",
@@ -494,13 +494,13 @@
       ],
       "signal": "WAIT",
       "probabilities": {
-        "bear": 0.20540478613898155,
-        "neutral": 0.6279198436385409,
-        "bull": 0.16667537022247753
+        "bear": 0.2427041685464027,
+        "neutral": 0.48790991736062184,
+        "bull": 0.2693859140929755
       },
-      "score": -3.872941591650403,
+      "score": 2.6681745546572824,
       "phase": "NEUTRAL",
-      "expected_gross_bps": -0.6634365891827722,
+      "expected_gross_bps": 0.3786494615947805,
       "temperature": 1.0,
       "evidence": "UNPROVEN",
       "positive_validation_skill": true
@@ -562,8 +562,8 @@
         {
           "key": "flow",
           "name": "D\u00f2ng l\u1ec7nh",
-          "score": -16.603096571703105,
-          "phase": "BEAR",
+          "score": -12.378169411746121,
+          "phase": "NEUTRAL",
           "available": true,
           "weight": 0.0,
           "contribution": -0.0,
@@ -581,11 +581,11 @@
         {
           "key": "price",
           "name": "Ph\u1ea3n \u1ee9ng gi\u00e1",
-          "score": -18.201742795083778,
-          "phase": "BEAR",
+          "score": -13.471946120262146,
+          "phase": "NEUTRAL",
           "available": true,
           "weight": 0.3942542196112367,
-          "contribution": -7.176113901240205,
+          "contribution": -5.31137160428858,
           "train_n": 2500,
           "features": [
             "ret_1",
@@ -601,27 +601,27 @@
         {
           "key": "derivatives",
           "name": "V\u1ecb th\u1ebf ph\u00e1i sinh",
-          "score": 1.0274097170321683,
+          "score": 0.7842957973480225,
           "phase": "NEUTRAL",
           "available": true,
           "weight": 0.14724108667800606,
-          "contribution": 0.15127692319935918,
+          "contribution": 0.11548056547851605,
           "train_n": 2500,
           "features": [
             "basis_pct",
             "basis_z",
             "mark_index_pct"
           ],
-          "coverage": 0.8
+          "coverage": 0.9
         },
         {
           "key": "cross_asset",
           "name": "SPY \u00d7 QQQ",
-          "score": 3.5531072749761554,
+          "score": 1.8171758001201077,
           "phase": "NEUTRAL",
           "available": true,
           "weight": 0.21842341887957734,
-          "contribution": 0.7760818386461904,
+          "contribution": 0.3969137509674654,
           "train_n": 2500,
           "features": [
             "qqq_ret_1",
@@ -636,11 +636,11 @@
         {
           "key": "context",
           "name": "B\u1ed1i c\u1ea3nh H1/H4",
-          "score": 9.429144578303559,
+          "score": 9.656084642287285,
           "phase": "NEUTRAL",
           "available": true,
           "weight": 0.24008127483118,
-          "contribution": 2.2637610509266275,
+          "contribution": 2.31824511079811,
           "train_n": 2500,
           "features": [
             "h1_return",
@@ -656,25 +656,25 @@
       ],
       "signal": "WAIT",
       "probabilities": {
-        "bear": 0.2678139647078681,
-        "neutral": 0.5042220114689442,
-        "bull": 0.22796402382318776
+        "bear": 0.31573418488146265,
+        "neutral": 0.39333895200751956,
+        "bull": 0.29092686311101773
       },
-      "score": -3.984994088468036,
+      "score": -2.4807321770444926,
       "phase": "NEUTRAL",
-      "expected_gross_bps": -1.0303484285368045,
+      "expected_gross_bps": -0.8493165908183241,
       "temperature": 1.0,
       "evidence": "UNPROVEN",
       "positive_validation_skill": true
     }
   ],
   "collection": {
-    "collected_at": "2026-10-07T13:44:28.986000+00:00",
+    "collected_at": "2026-10-07T13:53:18.146000+00:00",
     "collector": "GitHub scheduled REST batch",
     "market": {
       "SPYUSDT/last": {
         "rows": 12000,
-        "latest_close": 1791379799999,
+        "latest_close": 1791380699999,
         "source": "rest",
         "latest_source": "rest",
         "rest_ok": true,
@@ -682,7 +682,7 @@
       },
       "SPYUSDT/mark": {
         "rows": 12000,
-        "latest_close": 1791379799999,
+        "latest_close": 1791380699999,
         "source": "rest",
         "latest_source": "rest",
         "rest_ok": true,
@@ -690,7 +690,7 @@
       },
       "SPYUSDT/index": {
         "rows": 12000,
-        "latest_close": 1791379799999,
+        "latest_close": 1791380699999,
         "source": "rest",
         "latest_source": "rest",
         "rest_ok": true,
@@ -698,7 +698,7 @@
       },
       "QQQUSDT/last": {
         "rows": 12000,
-        "latest_close": 1791379799999,
+        "latest_close": 1791380699999,
         "source": "rest",
         "latest_source": "rest",
         "rest_ok": true,
@@ -733,5 +733,5 @@
     },
     "liquidation": "unavailable: no persistent WebSocket collector on hosted Actions"
   },
-  "retrained_this_run": true
+  "retrained_this_run": false
 }

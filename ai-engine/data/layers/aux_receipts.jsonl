@@ -3014,3 +3014,8 @@
 {"kind":"open_interest","event_time":1791378000000,"observed_at":1791380671283,"available_at":1791380671283,"value":27707386.56115776,"source":"rest"}
 {"kind":"open_interest","event_time":1791378900000,"observed_at":1791380671283,"available_at":1791380671283,"value":27587342.0547508,"source":"rest"}
 {"kind":"open_interest","event_time":1791379800000,"observed_at":1791380671283,"available_at":1791380671283,"value":27458014.428,"source":"rest"}
+{"kind":"top_position","event_time":1791380700000,"observed_at":1791381199892,"available_at":1791381199892,"value":1.1675,"source":"rest"}
+{"kind":"top_account","event_time":1791380700000,"observed_at":1791381200071,"available_at":1791381200071,"value":1.0088,"source":"rest"}
+{"kind":"global_account","event_time":1791380700000,"observed_at":1791381200257,"available_at":1791381200257,"value":1.0593,"source":"rest"}
+{"kind":"taker_ratio","event_time":1791379800000,"observed_at":1791381200424,"available_at":1791381200424,"value":0.6703,"source":"rest"}
+{"kind":"open_interest","event_time":1791380700000,"observed_at":1791381200612,"available_at":1791381200612,"value":27808598.26080381,"source":"rest"}

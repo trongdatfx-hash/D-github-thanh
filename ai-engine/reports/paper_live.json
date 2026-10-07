@@ -17,8 +17,8 @@
     },
     {
       "bars": 4,
-      "mature_predictions": 0,
-      "accuracy": null,
+      "mature_predictions": 1,
+      "accuracy": 0.0,
       "trades": 0,
       "net_bps": null
     },
