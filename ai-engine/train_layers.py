@@ -248,6 +248,15 @@ def run(force=False):
                                                 bundle['positive_skill'], report['stale'], live_rest)
         else: item.update(score=0., phase='NEUTRAL', evidence='INSUFFICIENT_DATA')
         report['horizons'].append(item)
+    # A retrain can cross a candle boundary. The forecast does not exist at the
+    # start of training; forward audit must use readiness after all inference.
+    now = int(time.time() * 1000)
+    report['generated_at'] = now
+    report['generation_clock'] = 'forecast_ready'
+    report['lag_minutes'] = max(0., (now - report['data_as_of']) / 60000)
+    report['stale'] = report['lag_minutes'] > 45
+    if report['stale']:
+        for item in report['horizons']: item['signal'] = 'WAIT'
     report['collection'] = collection
     report = clean(report)
     report['retrained_this_run'] = retrained
@@ -262,14 +271,14 @@ def run(force=False):
     key = (report['data_as_of'], report['model_trained_at'])
     if not any((r['data_as_of'], r['model_trained_at']) == key for r in saved):
         saved.append({'generated_at': now, 'data_as_of': report['data_as_of'], 'model_trained_at': report['model_trained_at'],
-                      'stale': report['stale'], 'collector_live': live_rest, 'horizons': [{**{k: r[k] for k in ('bars', 'score', 'phase', 'signal', 'evidence')},
+                      'stale': report['stale'], 'collector_live': live_rest, 'generation_clock': 'forecast_ready', 'horizons': [{**{k: r[k] for k in ('bars', 'score', 'phase', 'signal', 'evidence')},
                        'probabilities': r.get('probabilities'),
                        'label_band': max((FEE_BPS + SLIPPAGE_BPS) / 10000, .5 * float(latest.volatility.iloc[0]) * np.sqrt(r['bars']))} for r in report['horizons']]})
     journal.write_text(''.join(json.dumps(r, separators=(',', ':')) + '\n' for r in saved[-2000:]))
     from paper_layers import evaluate_journal
     paper = evaluate_journal(saved, x, now)
     (REPORT / 'paper_live.json').write_text(json.dumps(clean(paper), indent=2, allow_nan=False), encoding='utf-8')
-    print(json.dumps({'stale': report['stale'], 'lag_minutes': lag, 'rows': len(x),
+    print(json.dumps({'stale': report['stale'], 'lag_minutes': report['lag_minutes'], 'rows': len(x),
                       'horizons': [{k: r[k] for k in ('minutes', 'score', 'signal', 'evidence')} for r in report['horizons']]}, indent=2))
     return report
 

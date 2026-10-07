@@ -58,6 +58,8 @@ Evidence is SUPPORTED only with >=200 OOS samples, log-loss below baseline, >=30
 
 Actual workflow forecast times are written into the journal. Forward paper evaluation enters at the first M15 open strictly **after generated_at**, uses contiguous bars, skips stale or collector-blocked forecasts, freezes the first forecast for each entry period, and counts non-overlapping actionable signals. This differs from nominal next-open historical OOS: GitHub scheduling and inference latency are real. Initial forward metrics have zero mature predictions and require future data. No historical predictions are fabricated to populate the live audit.
 
+`generated_at` is measured after training and all horizon predictions finish, with freshness checked again at that moment. Journal records carry `generation_clock=forecast_ready`. Earlier records measured time at training start; they are preserved for audit but excluded from forward performance, since a retrain can cross an M15 entry boundary.
+
 Models are retrained approximately every four hours when the cache expires; inference/report updates run each scheduled M15. A changed training implementation forces a new fit on push. A runner failure or disabled schedule is visible through aging data; there is no independent external watchdog.
 
 ## Dashboard

@@ -1,4 +1,5 @@
 import sys
+import json
 import unittest
 import tempfile
 from unittest.mock import patch
@@ -8,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import numpy as np
 import pandas as pd
 import collect_layers
+import train_layers
 from collect_layers import merge_first, collect_market
 from layer_config import FEATURES, STEP
 from layer_dataset import build_features, attach_aux, labels
@@ -30,6 +32,27 @@ def dataset(n=1300):
 
 
 class CausalTests(unittest.TestCase):
+    def test_forecast_clock_after_computation_and_stale_gate(self):
+        x = dataset(); decision = int(x.decision_at.iloc[-1])
+        bundle = {'positive_skill': True, 'class_means': np.array([-.003, 0., .003]), 'temperature': 1.}
+        parent = Path(__file__).resolve().parent
+        for delay in (STEP + 100, 46 * 60000):
+            with self.subTest(delay=delay), tempfile.TemporaryDirectory(dir=parent) as folder:
+                root = Path(folder); self.assertTrue(root.resolve().is_relative_to(parent))
+                data = root / 'data'; reports = root / 'reports'; models = root / 'models'
+                data.mkdir(); reports.mkdir()
+                (data / 'collection_status.json').write_text(json.dumps({'market': {'SPYUSDT/last': {'rest_ok': True}}}))
+                ready = decision + delay
+                with patch('layer_dataset.main', return_value=x), patch.object(train_layers, 'DATA', data), patch.object(train_layers, 'REPORT', reports), patch.object(train_layers, 'MODELS', models), patch.object(train_layers.time, 'time', side_effect=[(decision + STEP - 100) / 1000, ready / 1000]), patch.object(train_layers, 'evaluate_horizon', return_value=(bundle, {'evidence': 'SUPPORTED'}, pd.DataFrame())), patch.object(train_layers, 'predict', return_value=(np.array([[.1, .2, .7]]), {}, {})), patch.dict('os.environ', {'GITHUB_OUTPUT': ''}), patch('builtins.print'):
+                    report = train_layers.run(force=True)
+                record = json.loads((data / 'prediction_journal.jsonl').read_text().splitlines()[0])
+                self.assertEqual(report['generated_at'], ready)
+                self.assertEqual(record['generated_at'], ready)
+                self.assertEqual(record['generation_clock'], 'forecast_ready')
+                self.assertGreater((record['generated_at'] // STEP + 1) * STEP, decision + STEP)
+                expected = 'WAIT' if delay > 45 * 60000 else 'LONG'
+                self.assertTrue(all(h['signal'] == expected for h in report['horizons']))
+
     def test_live_gate_requires_access_freshness_and_economic_support(self):
         self.assertEqual(actionable_signal(30, 20, True, True, False, True), 'LONG')
         self.assertEqual(actionable_signal(-30, -20, True, True, False, True), 'SHORT')
@@ -109,7 +132,7 @@ class CausalTests(unittest.TestCase):
 
     def test_paper_uses_real_generation_time(self):
         m = market(20); m['market_available'] = True
-        r = {'generated_at': STEP + 1234, 'data_as_of': STEP, 'stale': False,
+        r = {'generated_at': STEP + 1234, 'data_as_of': STEP, 'stale': False, 'generation_clock': 'forecast_ready',
              'horizons': [{'bars': 1, 'signal': 'LONG', 'label_band': .0006,
                           'probabilities': {'bear': .1, 'neutral': .1, 'bull': .8}}]}
         pending = evaluate_journal([r], m, 3 * STEP - 1)['horizons'][0]
@@ -119,6 +142,7 @@ class CausalTests(unittest.TestCase):
         expected = (m['last'].iloc[2] / m.open.iloc[2] - 1) * 10000 - 6
         self.assertAlmostEqual(matured['net_bps'], expected)
         self.assertEqual(evaluate_journal([r, r], m, 4 * STEP)['horizons'][0]['mature_predictions'], 1)
+        self.assertEqual(evaluate_journal([{**r, 'generation_clock': 'training_start'}], m, 4 * STEP)['horizons'][0]['mature_predictions'], 0)
 
 
 if __name__ == '__main__':
