@@ -167,7 +167,22 @@ async function analyze(){
  const cotTrendLabel=!cot?'--':cotTrendScore>=40?'COT tăng xu hướng Long':cotTrendScore<=-40?'COT tăng xu hướng Short':cotTrendScore>=15?'COT hơi bullish':cotTrendScore<=-15?'COT hơi bearish':'COT trung tính';
  const cotTrendCls=cotTrendScore>0?'green':cotTrendScore<0?'red':'yellow';
  $('cot').innerHTML='<b>'+cotBias+'</b> · Report '+(cot?cot.reportDate:'--')+'<br><b>COT Trend Score:</b> <span class="'+cotTrendCls+'">'+cotTrendScore+'/100</span> · <b>'+cotTrend+'</b><br><b>Reversal Risk:</b> '+reversalRisk+' · History '+cotRows.length+' tuần'+(cotHasTrendHistory?'':' · ngắn, chỉ tính net + ΔNet 1W')+'<br>Non-commercial net: '+(cot?cot.nonCommercial.net.toLocaleString():'--')+' · COT Index '+(Number.isFinite(cotPct)?Math.round(cotPct*100)+'%':'chưa đủ lịch sử')+'<br>ΔNet 1W: '+(latestCot?d1.toLocaleString():'--')+' · ΔNet 4W: '+(cotRows.length>4?d4.toLocaleString():'chưa đủ lịch sử')+' · Persistence '+(cotRows.length>6?persist.toFixed(0)+'/10':'chưa đủ lịch sử')+'<br>Commercial net: '+(cot?cot.commercial.net.toLocaleString():'--')+' · Spread component '+spreadComp.toFixed(1)+'<br><span style="color:#8fa0bf">Nguồn: COT E-mini S&amp;P 500 (CFTC) · Dữ liệu tham chiếu cho SPY ETF. Dùng làm bộ lọc xu hướng vĩ mô; báo cáo tuần có độ trễ.</span>';
- $('filters').innerHTML='<b>'+(!weeklyFilterPass?'BLOCK':'PASS')+' · Weekly:</b> '+(rank<.25?'percentile dưới P25 — biên tuần đang nén, chờ breakout/xác nhận.':'percentile từ P25 trở lên.')+'<br><b>COT gate:</b> '+(cotTrendBias>0?'chỉ cho phép LONG':cotTrendBias<0?'chỉ cho phép SHORT':'trung tính, không khóa hướng')+'.<br><b>Rule signal:</b> '+rawDecision+' → <b>'+decision+'</b>'+(rawDecision!==decision?' vì bộ lọc tuần/COT chưa đồng thuận.':'.');
+ const weeklyExplanation=!weeklyFilterPass
+  ? 'BLOCK = khóa cả LONG và SHORT vì percentile dưới P25 (25%). Biên tuần còn hẹp so với lịch sử; chờ biên độ mở rộng và tín hiệu xác nhận. Khi Weekly còn BLOCK, COT cho phép một hướng cũng chưa đủ để vào lệnh.'
+  : 'PASS = percentile từ P25 (25%) trở lên, đã vượt điều kiện biên tuần. Vẫn cần tín hiệu đủ mạnh và phù hợp với COT.';
+ const cotExplanation=cotTrendBias>0
+  ? 'COT E-mini đang nghiêng tăng: cho phép tín hiệu LONG, chặn tín hiệu SHORT. Đây là điều kiện lọc hướng, không tự tạo lệnh LONG.'
+  : cotTrendBias<0
+  ? 'COT E-mini đang nghiêng giảm: cho phép tín hiệu SHORT, chặn tín hiệu LONG. Đây là điều kiện lọc hướng, không tự tạo lệnh SHORT.'
+  : 'COT E-mini trung tính: không chặn hướng LONG hay SHORT. Vẫn phải vượt điều kiện Weekly và có tín hiệu đủ mạnh.';
+ const signalExplanation=rawDecision==='WAIT'
+  ? 'Trước bộ lọc, hệ thống chưa có tín hiệu LONG/SHORT đủ điều kiện nên đã là WAIT. Sau bộ lọc vẫn WAIT: tiếp tục chờ, chưa có lệnh được cho phép.'
+  : rawDecision!==decision
+  ? (!weeklyFilterPass
+     ? 'Tín hiệu '+rawDecision+' ban đầu bị Weekly BLOCK nên chuyển thành WAIT.'
+     : 'Tín hiệu '+rawDecision+' ban đầu trái hướng COT cho phép nên chuyển thành WAIT.')
+  : 'Tín hiệu '+rawDecision+' vượt điều kiện Weekly và phù hợp hướng COT nên được giữ nguyên.';
+ $('filters').innerHTML='<b>'+(!weeklyFilterPass?'BLOCK':'PASS')+' · Weekly:</b> '+(wr.length?'Percentile hiện tại '+Math.round(rank*100)+'% · Ngưỡng P25: biên độ '+quant(.25).toFixed(2)+'%.':'Chưa có lịch sử biên tuần; đang dùng percentile mặc định 50%.')+'<br>'+weeklyExplanation+'<br><span style="color:#8fa0bf">Percentile so sánh biên độ tuần hiện tại với '+wr.length+' tuần đã hoàn tất (tối đa 52 tuần). P25 là mốc phân vị 25%, không phải giá giảm 25%.</span><br><br><b>COT gate (lọc hướng):</b> '+(cotTrendBias>0?'chỉ cho phép LONG':cotTrendBias<0?'chỉ cho phép SHORT':'trung tính, không khóa hướng')+'.<br>'+cotExplanation+'<br><br><b>Rule signal (trước → sau bộ lọc):</b> '+rawDecision+' → <b>'+decision+'</b>.<br>'+signalExplanation;
  const flowTxt=flow>=15?'Taker Buy chiếm ưu thế':flow<=-15?'Taker Sell chiếm ưu thế':'Taker cân bằng';
  const oiTxt=oiCh>=.3?'OI đang tăng':oiCh<=-.3?'OI đang giảm':'OI gần như ổn định';
  const lsTxt=lsCh>=.03?'Top Trader nghiêng Long':lsCh<=-.03?'Top Trader nghiêng Short':'Top Trader cân bằng';
