@@ -75,6 +75,7 @@ def collect_market(symbol, kind, now):
     else:
         endpoint = '/fapi/v1/klines' if kind == 'last' else '/fapi/v1/markPriceKlines'
         query['symbol'] = symbol
+    rest_error = None
     try:
         batches = []
         if not old.empty:
@@ -95,6 +96,7 @@ def collect_market(symbol, kind, now):
         new = pd.DataFrame(batches, columns=COLS)
         source = 'rest'
     except requests.RequestException as e:
+        rest_error = str(e)[:300]
         print(f'WARN {symbol}/{kind}: {e}; trying official archive')
         # Avoid downloading months of archives on every scheduled execution.
         legacy.SYMBOL = symbol
@@ -122,7 +124,9 @@ def collect_market(symbol, kind, now):
     result = pd.concat([old, new], ignore_index=True).drop_duplicates('time', keep='first').sort_values('time').tail(TARGET)
     path.parent.mkdir(parents=True, exist_ok=True)
     result.to_csv(path, index=False)
-    return {'rows': len(result), 'latest_close': int(result.close_time.max()) if len(result) else None, 'source': source}
+    return {'rows': len(result), 'latest_close': int(result.close_time.max()) if len(result) else None,
+            'source': source, 'latest_source': result.source.iloc[-1] if len(result) else None,
+            'rest_ok': source == 'rest', 'rest_error': rest_error}
 
 
 def collect_aux(now):

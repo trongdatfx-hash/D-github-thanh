@@ -8,17 +8,18 @@
  const date=v=>Number.isFinite(v)?new Date(v).toLocaleString('vi-VN'):'—';
  const cls=p=>p==='BULL'?'bull':p==='BEAR'?'bear':'neutral';
  function stale(){return !report||report.stale||Date.now()-report.data_as_of>45*60000||report.generated_at>Date.now()+60000}
+ function blocked(){return report?.live_rest_available===false||report?.collection?.market?.['SPYUSDT/last']?.source==='vision_historical'}
  function render(){
   if(!report)return;
-  const old=stale(),r=report.horizons.find(h=>h.bars===selected)||report.horizons[0];if(!r)return;
-  $('dataStatus').textContent=(old?'● DỮ LIỆU CŨ · WAIT':'● Dữ liệu nến đã đóng')+' · '+date(report.data_as_of);
-  $('dataStatus').className=old?'neutral':'bull';
+  const old=stale(),inhibited=old||blocked(),r=report.horizons.find(h=>h.bars===selected)||report.horizons[0];if(!r)return;
+  $('dataStatus').textContent=(blocked()?'● REST runner bị chặn · WAIT':old?'● DỮ LIỆU CŨ · WAIT':'● Dữ liệu nến đã đóng')+' · '+date(report.data_as_of);
+  $('dataStatus').className=inhibited?'neutral':'bull';
   $('selectedTitle').textContent='Dự báo '+r.minutes+' phút · dữ liệu '+date(report.data_as_of);
-  $('composite').className=cls(r.phase)+(old?' dim':'');$('composite').textContent=signed(r.score)+' · '+r.phase;
-  $('decision').textContent=(old?'WAIT':r.signal)+' · '+(r.evidence==='SUPPORTED'?'Có hỗ trợ OOS':r.evidence==='INSUFFICIENT_DATA'?'Chưa đủ dữ liệu':'Chưa chứng minh lợi thế OOS');
+  $('composite').className=cls(r.phase)+(inhibited?' dim':'');$('composite').textContent=signed(r.score)+' · '+r.phase;
+  $('decision').textContent=(inhibited?'WAIT':r.signal)+' · '+(r.evidence==='SUPPORTED'?'Có hỗ trợ OOS':r.evidence==='INSUFFICIENT_DATA'?'Chưa đủ dữ liệu':'Chưa chứng minh lợi thế OOS');
   const p=r.probabilities;
   $('explanation').textContent=p?'BULL '+pct(p.bull)+' · NEUTRAL '+pct(p.neutral)+' · BEAR '+pct(p.bear)+' | Lợi suất proxy trước chi phí '+signed(r.expected_gross_bps)+' bps':'Đang tích lũy đủ mẫu để train.';
-  $('horizons').innerHTML=report.horizons.map(h=>'<button class="horizon" data-bars="'+h.bars+'" aria-pressed="'+(h.bars===r.bars)+'">'+h.minutes+' phút<strong class="'+cls(h.phase)+'">'+signed(h.score)+' · '+esc(h.phase)+'</strong><small>'+esc(old?'WAIT':h.signal)+' · '+esc(h.evidence==='SUPPORTED'?'OOS hỗ trợ':'OOS chưa đủ hỗ trợ')+'</small></button>').join('');
+  $('horizons').innerHTML=report.horizons.map(h=>'<button class="horizon" data-bars="'+h.bars+'" aria-pressed="'+(h.bars===r.bars)+'">'+h.minutes+' phút<strong class="'+cls(h.phase)+'">'+signed(h.score)+' · '+esc(h.phase)+'</strong><small>'+esc(inhibited?'WAIT':h.signal)+' · '+esc(h.evidence==='SUPPORTED'?'OOS hỗ trợ':'OOS chưa đủ hỗ trợ')+'</small></button>').join('');
   document.querySelectorAll('[data-bars]').forEach(b=>b.onclick=()=>{selected=Number(b.dataset.bars);render()});
   const names={flow:'Dòng lệnh',price:'Phản ứng giá',derivatives:'Vị thế phái sinh',cross_asset:'SPY × QQQ',context:'Bối cảnh H1/H4'};
   const groups=Object.keys(names).map(k=>r.groups.find(g=>g.key===k)||{key:k,name:names[k],available:false,phase:'NEUTRAL',score:0,weight:0,contribution:0,train_n:0,coverage:0,features:[]});

@@ -18,6 +18,13 @@ def phase(score):
     return 'BULL' if score >= 15 else 'BEAR' if score <= -15 else 'NEUTRAL'
 
 
+def actionable_signal(score, gross_bps, supported, positive_skill, stale, live_rest):
+    economic = abs(gross_bps) > FEE_BPS + SLIPPAGE_BPS and np.sign(gross_bps) == np.sign(score)
+    if not stale and live_rest and supported and positive_skill and economic and abs(score) >= 15:
+        return 'LONG' if score > 0 else 'SHORT'
+    return 'WAIT'
+
+
 def temperature(p, t):
     z = np.log(np.clip(p, 1e-7, 1)) / t
     z -= z.max(axis=1, keepdims=True)
@@ -209,8 +216,12 @@ def run(force=False):
         if outputs: pd.concat(outputs, ignore_index=True).to_csv(REPORT / 'layers_oos.csv', index=False)
         joblib.dump(artifact, model_path)
     latest = x.iloc[-1:]; lag = max(0., (now - int(latest.decision_at.iloc[0])) / 60000)
+    collection = json.loads((DATA / 'collection_status.json').read_text()) if (DATA / 'collection_status.json').exists() else {}
+    primary = collection.get('market', {}).get('SPYUSDT/last', {})
+    live_rest = primary.get('rest_ok', primary.get('source') == 'rest')
     report = {'schema_version': VERSION, 'generated_at': now, 'data_as_of': int(latest.decision_at.iloc[0]),
               'model_trained_at': artifact['trained_at'], 'lag_minutes': lag, 'stale': lag > 45,
+              'live_rest_available': live_rest,
               'collector_mode': 'GitHub Actions M15 REST + historical archive fallback',
               'regime': latest.regime.iloc[0], 'last': float(latest['last'].iloc[0]),
               'dataset_rows': len(x), 'missing_bars': int((~x.market_available).sum()),
@@ -233,13 +244,11 @@ def run(force=False):
             item.update(probabilities={'bear': p[0], 'neutral': p[1], 'bull': p[2]}, score=score,
                         phase=phase(score), expected_gross_bps=gross, temperature=bundle['temperature'],
                         evidence=metrics.get('evidence', 'UNPROVEN'), positive_validation_skill=bundle['positive_skill'])
-            economic = abs(gross) > FEE_BPS + SLIPPAGE_BPS and np.sign(gross) == np.sign(score)
-            supported = metrics.get('evidence') == 'SUPPORTED' and bundle['positive_skill']
-            if not report['stale'] and supported and economic and abs(score) >= 15:
-                item['signal'] = 'LONG' if score > 0 else 'SHORT'
+            item['signal'] = actionable_signal(score, gross, metrics.get('evidence') == 'SUPPORTED',
+                                                bundle['positive_skill'], report['stale'], live_rest)
         else: item.update(score=0., phase='NEUTRAL', evidence='INSUFFICIENT_DATA')
         report['horizons'].append(item)
-    if (DATA / 'collection_status.json').exists(): report['collection'] = json.loads((DATA / 'collection_status.json').read_text())
+    report['collection'] = collection
     report = clean(report)
     report['retrained_this_run'] = retrained
     if os.environ.get('GITHUB_OUTPUT'):
@@ -253,7 +262,7 @@ def run(force=False):
     key = (report['data_as_of'], report['model_trained_at'])
     if not any((r['data_as_of'], r['model_trained_at']) == key for r in saved):
         saved.append({'generated_at': now, 'data_as_of': report['data_as_of'], 'model_trained_at': report['model_trained_at'],
-                      'stale': report['stale'], 'horizons': [{**{k: r[k] for k in ('bars', 'score', 'phase', 'signal', 'evidence')},
+                      'stale': report['stale'], 'collector_live': live_rest, 'horizons': [{**{k: r[k] for k in ('bars', 'score', 'phase', 'signal', 'evidence')},
                        'probabilities': r.get('probabilities'),
                        'label_band': max((FEE_BPS + SLIPPAGE_BPS) / 10000, .5 * float(latest.volatility.iloc[0]) * np.sqrt(r['bars']))} for r in report['horizons']]})
     journal.write_text(''.join(json.dumps(r, separators=(',', ':')) + '\n' for r in saved[-2000:]))

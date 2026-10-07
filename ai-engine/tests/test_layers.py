@@ -11,7 +11,7 @@ import collect_layers
 from collect_layers import merge_first, collect_market
 from layer_config import FEATURES, STEP
 from layer_dataset import build_features, attach_aux, labels
-from train_layers import training_indices, fit_bundle, predict, temperature
+from train_layers import training_indices, fit_bundle, predict, temperature, actionable_signal
 from paper_layers import evaluate_journal
 
 
@@ -30,6 +30,14 @@ def dataset(n=1300):
 
 
 class CausalTests(unittest.TestCase):
+    def test_live_gate_requires_access_freshness_and_economic_support(self):
+        self.assertEqual(actionable_signal(30, 20, True, True, False, True), 'LONG')
+        self.assertEqual(actionable_signal(-30, -20, True, True, False, True), 'SHORT')
+        self.assertEqual(actionable_signal(30, 20, True, True, False, False), 'WAIT')
+        self.assertEqual(actionable_signal(30, 20, True, True, True, True), 'WAIT')
+        self.assertEqual(actionable_signal(30, 20, False, True, False, True), 'WAIT')
+        self.assertEqual(actionable_signal(30, 4, True, True, False, True), 'WAIT')
+
     def test_collector_is_idempotent_and_archive_failure_preserves_data(self):
         import requests
         candle = [0, 100, 101, 99, 100, 1000, STEP - 1, 100000, 100, 500, 50000, 0]
