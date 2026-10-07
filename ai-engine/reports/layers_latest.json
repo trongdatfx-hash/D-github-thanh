@@ -1,9 +1,9 @@
 {
   "schema_version": "layers-v1",
-  "generated_at": 1791386279439,
+  "generated_at": 1791386488251,
   "data_as_of": 1791386100000,
   "model_trained_at": 1791381956629,
-  "lag_minutes": 2.99065,
+  "lag_minutes": 6.47085,
   "stale": false,
   "live_rest_available": true,
   "collector_mode": "GitHub Actions M15 REST + historical archive fallback",
@@ -670,7 +670,7 @@
   ],
   "generation_clock": "forecast_ready",
   "collection": {
-    "collected_at": "2026-10-07T15:17:52.923000+00:00",
+    "collected_at": "2026-10-07T15:21:21.260000+00:00",
     "collector": "GitHub scheduled REST batch",
     "market": {
       "SPYUSDT/last": {
