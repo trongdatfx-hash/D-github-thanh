@@ -153,7 +153,7 @@ img,canvas,svg,iframe{max-width:100%}
  <div style="overflow:auto;margin-top:8px">
   <table id="matrixTable"><thead><tr><th>Factor</th><th>Current</th><th>Bias</th><th>Hit 1</th><th>Hit 2</th><th>Hit 4</th><th>Hit 8</th><th>Edge 4</th><th>Net bps 4</th><th>Hit 8 NO</th><th>N</th></tr></thead><tbody></tbody></table>
  </div>
- <h3 style="margin:14px 0 5px">Nghiên cứu yếu tố hit rate thấp · SPY × QQQ</h3>
+ <h3 style="margin:14px 0 5px">Nghiên cứu OOS · hit thấp + DVP p95 · SPY × QQQ</h3>
  <div style="overflow:auto"><table id="pairStudyTable"><thead><tr><th>Yếu tố (train)</th><th>r với SPY 1h</th><th>r với QQQ 1h</th><th>r với SPY−QQQ</th><th>Đảo chiều · SPY OOS</th><th>Đảo + QQQ xác nhận</th></tr></thead><tbody></tbody></table></div>
  <div id="pairStudyNote" class="muted" style="margin-top:7px"></div>
  <div id="matrixNote" class="muted" style="margin-top:7px"></div>
@@ -599,7 +599,7 @@ function runLowHitPairStudy(rowsM,defs){
  for(const [name,key,transform,kind] of defs){
   const vals=rowsM.map(r=>matrixFactorValue(r,key,transform,kind));let trainN=0,trainWins=0,trainNext=0;
   for(let i=0;i<cut-H;i++){if(i<trainNext)continue;const v=vals[i];if(!Number.isFinite(v)||Math.abs(v)<THR)continue;const ret=rowsM[i+H].last/rowsM[i].last-1;if(!Number.isFinite(ret))continue;trainN++;if((v>0?1:-1)*ret>0)trainWins++;trainNext=i+H}
-  const trainHit=trainN?100*trainWins/trainN:NaN;if(trainN<50||!(trainHit<50))continue;
+  const trainHit=trainN?100*trainWins/trainN:NaN,isDvp=kind==="dvpStrength"||kind==="dvpVol";if(trainN<50||(!(trainHit<50)&&!isDvp))continue;
   let n=0,contraWins=0,contraSum=0,confirmN=0,confirmWins=0,confirmSum=0,next=cut;const corrSpy=[],corrQqq=[],corrSpread=[];
   for(let i=cut;i<rowsM.length-H;i++){if(i<next)continue;const v=vals[i];if(!Number.isFinite(v)||Math.abs(v)<THR)continue;const r=rowsM[i],spyFwd=rowsM[i+H].last/r.last-1,qqqNow=Number(r.qqqLast),qqqThen=Number(rowsM[i+H].qqqLast),qqqFwd=qqqNow>0&&qqqThen>0?qqqThen/qqqNow-1:NaN;if(!Number.isFinite(spyFwd))continue;
    const dir=v>0?1:-1,contra=-dir;n++;contraSum+=contra*spyFwd;if(contra*spyFwd>0)contraWins++;
@@ -610,7 +610,7 @@ function runLowHitPairStudy(rowsM,defs){
   html+="<tr><td>"+name+"<br><span class='muted'>train "+pct(trainHit)+" · N="+trainN+"</span></td>"+base+"<td>"+pct(100*contraWins/n)+" · N="+n+"<br><span class='muted'>"+bps(1e4*contraSum/n-ROUND_TRIP_FEE*1e4)+"</span></td><td>"+(confirmN?pct(100*confirmWins/confirmN)+" · N="+confirmN+"<br><span class='muted'>"+bps(1e4*confirmSum/confirmN-ROUND_TRIP_FEE*1e4)+"</span>":"— · N=0")+"</td></tr>";shown++;
  }
  body.innerHTML=html||"<tr><td colspan='6'>Không có yếu tố đủ mẫu train và hit rate dưới 50% trong lần chạy này.</td></tr>";
- $("pairStudyNote").textContent="Chia thời gian 60% train / 40% kiểm định cuối chuỗi; chỉ chọn yếu tố hit 4 nến <50% ở train (N≥50). OOS dùng kết quả SPY và QQQ sau 4 nến, các mẫu cách nhau tối thiểu 4 nến. Hai hàng DVP dùng ngưỡng |S|≥0.95 hoặc volume percentile ≥0.95, lấy tối đa một mẫu/cụm và tránh chồng lấn theo horizon; ngưỡng được tính chỉ từ lịch sử đến thời điểm t. r là Pearson giữa giá trị yếu tố tại t và lợi suất tương lai 1 giờ; SPY−QQQ là lợi suất tương đối. Cột QQQ xác nhận chỉ xét regime taker-flow QQQ đã hình thành tại t (≥3 nến, không conflict), rồi đo kết quả SPY trên phần kiểm định. Đã trừ phí khứ hồi SPY ở bps; đây là nghiên cứu thử nghiệm, không tự đảo tín hiệu. "+shown+" yếu tố được đưa ra.";
+ $("pairStudyNote").textContent="Chia thời gian 60% train / 40% kiểm định cuối chuỗi; đưa yếu tố hit 4 nến <50% ở train (N≥50) và cả hai yếu tố DVP p95 vào kiểm định OOS. OOS dùng kết quả SPY và QQQ sau 4 nến, các mẫu cách nhau tối thiểu 4 nến. Hai hàng DVP dùng ngưỡng |S|≥0.95 hoặc volume percentile ≥0.95, lấy tối đa một mẫu/cụm và tránh chồng lấn theo horizon; ngưỡng được tính chỉ từ lịch sử đến thời điểm t. r là Pearson giữa giá trị yếu tố tại t và lợi suất tương lai 1 giờ; SPY−QQQ là lợi suất tương đối. Cột QQQ xác nhận chỉ xét regime taker-flow QQQ đã hình thành tại t (≥3 nến, không conflict), rồi đo kết quả SPY trên phần kiểm định. Đã trừ phí khứ hồi SPY ở bps; đây là nghiên cứu thử nghiệm, không tự đảo tín hiệu. "+shown+" yếu tố được đưa ra.";
 }
 function runSignalMatrix(){
  if(!featureRows.length)return;
@@ -626,7 +626,7 @@ function runSignalMatrix(){
   const cls=cur>THR?"matrixBull":cur<-THR?"matrixBear":"matrixNeutral",bias=kind==="netflow"?(Number.isFinite(cur)?(cur>0?"BULL · "+last.netflowRun+" bars"+((last.netflowConflict===1)?" · CONFLICT":""):cur<0?"BEAR · "+last.netflowRun+" bars"+((last.netflowConflict===1)?" · CONFLICT":""):"WAIT · building state"):"NO QQQ DATA"):cur>THR?"BULL":cur<-THR?"BEAR":"NEUTRAL";
   if(Number.isFinite(cur))usable++;
   const f1=x=>Number.isFinite(x)?x.toFixed(1):"—",sg=x=>Number.isFinite(x)?(x>=0?"+":"")+x.toFixed(1):"—";
-  const current=kind==="netflow"?(Number.isFinite(last?.netflowPct)?(last.netflowPct>=0?"+":"")+last.netflowPct.toFixed(2)+"% · "+last.netflowRun+"/"+NF_CLUSTER_MIN:"—"):kind==="dvpStrength"?"S "+(Number.isFinite(last?.strength)?last.strength.toFixed(2):"—")+" · "+(Math.abs(Number(last?.strength))>=DVP_P95?"P95":"<P95"):kind==="dvpVol"?(Number.isFinite(last?.dvpVolumeP)?(last.dvpVolumeP*100).toFixed(1)+"%ile":"—"):(Number.isFinite(cur)?cur.toFixed(2):"—");
+  const current=kind==="netflow"?(Number.isFinite(last?.netflowPct)?(last.netflowPct>=0?"+":"")+last.netflowPct.toFixed(2)+"% · "+last.netflowRun+"/"+NF_CLUSTER_MIN:"—"):kind==="dvpStrength"?"S "+(Number.isFinite(last?.strength)?last.strength.toFixed(2):"—")+" · "+(Math.abs(Number(last?.strength))>=DVP_P95?"P95":"below P95"):kind==="dvpVol"?(Number.isFinite(last?.dvpVolumeP)?(last.dvpVolumeP*100).toFixed(1)+"%ile":"—"):(Number.isFinite(cur)?cur.toFixed(2):"—");
   html+="<tr><td>"+name+"</td><td>"+current+"</td><td class='"+cls+"'>"+bias+"</td>"+
    res.map(x=>"<td>"+(Number.isFinite(x.hit)?f1(x.hit)+"%":"—")+"</td>").join("")+
    "<td>"+sg(r4.edge)+"</td><td>"+sg(r4.bps)+"</td><td>"+(Number.isFinite(no8.hit)?f1(no8.hit)+"% ("+no8.n+")":"—")+"</td><td>"+res[0].n+"</td></tr>";
