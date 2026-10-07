@@ -4,33 +4,33 @@
     "samples": 4774,
     "folds": [
       {
-        "test_start": 1787083200000,
-        "train_label_max": 1787082300000,
-        "fit_cutoff": 1785471300000,
+        "test_start": 1787085000000,
+        "train_label_max": 1787084100000,
+        "fit_cutoff": 1785473100000,
         "train_n": 7159,
         "test_n": 1592
       },
       {
-        "test_start": 1788516000000,
-        "train_label_max": 1788515100000,
-        "fit_cutoff": 1786545900000,
+        "test_start": 1788517800000,
+        "train_label_max": 1788516900000,
+        "fit_cutoff": 1786547700000,
         "train_n": 8751,
         "test_n": 1591
       },
       {
-        "test_start": 1789947900000,
-        "train_label_max": 1789947000000,
-        "fit_cutoff": 1787619600000,
+        "test_start": 1789949700000,
+        "train_label_max": 1789948800000,
+        "fit_cutoff": 1787621400000,
         "train_n": 10342,
         "test_n": 1591
       }
     ],
     "accuracy": 0.8521156263091747,
-    "balanced_accuracy": 0.3338874251905016,
-    "baseline_accuracy": 0.8529534981147885,
-    "log_loss": 0.4855893663570417,
-    "baseline_log_loss": 0.5611585032147274,
-    "brier": 0.2463520812373814,
+    "balanced_accuracy": 0.3339664282709099,
+    "baseline_accuracy": 0.852744030163385,
+    "log_loss": 0.48594188051358334,
+    "baseline_log_loss": 0.5615795508039396,
+    "brier": 0.24659569652680544,
     "trades": {
       "n": 0,
       "hit": null,
@@ -45,8 +45,8 @@
       "return": 0.0,
       "drawdown": 0.0
     },
-    "test_start": 1787083200000,
-    "test_end": 1791378900000,
+    "test_start": 1787085000000,
+    "test_end": 1791380700000,
     "evidence": "UNPROVEN"
   },
   "2": {
@@ -54,33 +54,33 @@
     "samples": 4773,
     "folds": [
       {
-        "test_start": 1787083200000,
-        "train_label_max": 1787082300000,
-        "fit_cutoff": 1785470400000,
+        "test_start": 1787085000000,
+        "train_label_max": 1787084100000,
+        "fit_cutoff": 1785472200000,
         "train_n": 7157,
         "test_n": 1591
       },
       {
-        "test_start": 1788515100000,
-        "train_label_max": 1788514200000,
-        "fit_cutoff": 1786545000000,
+        "test_start": 1788516900000,
+        "train_label_max": 1788516000000,
+        "fit_cutoff": 1786546800000,
         "train_n": 8748,
         "test_n": 1591
       },
       {
-        "test_start": 1789947000000,
-        "train_label_max": 1789946100000,
-        "fit_cutoff": 1787618700000,
+        "test_start": 1789948800000,
+        "train_label_max": 1789947900000,
+        "fit_cutoff": 1787620500000,
         "train_n": 10339,
         "test_n": 1591
       }
     ],
-    "accuracy": 0.7527760318457993,
-    "balanced_accuracy": 0.3381434055413328,
-    "baseline_accuracy": 0.7525665200083804,
-    "log_loss": 0.6806748853378937,
-    "baseline_log_loss": 0.7606340521901132,
-    "brier": 0.37228077508823254,
+    "accuracy": 0.7529855436832181,
+    "balanced_accuracy": 0.33935323432994363,
+    "baseline_accuracy": 0.7521474963335428,
+    "log_loss": 0.681651232094502,
+    "baseline_log_loss": 0.7612699785483206,
+    "brier": 0.372871802197754,
     "trades": {
       "n": 0,
       "hit": null,
@@ -95,8 +95,8 @@
       "return": 0.0,
       "drawdown": 0.0
     },
-    "test_start": 1787083200000,
-    "test_end": 1791378000000,
+    "test_start": 1787085000000,
+    "test_end": 1791379800000,
     "evidence": "UNPROVEN"
   },
   "4": {
@@ -104,33 +104,33 @@
     "samples": 4772,
     "folds": [
       {
-        "test_start": 1787082300000,
-        "train_label_max": 1787081400000,
-        "fit_cutoff": 1785469500000,
+        "test_start": 1787084100000,
+        "train_label_max": 1787083200000,
+        "fit_cutoff": 1785471300000,
         "train_n": 7152,
         "test_n": 1591
       },
       {
-        "test_start": 1788514200000,
-        "train_label_max": 1788513300000,
-        "fit_cutoff": 1786543200000,
+        "test_start": 1788516000000,
+        "train_label_max": 1788515100000,
+        "fit_cutoff": 1786545000000,
         "train_n": 8743,
         "test_n": 1591
       },
       {
-        "test_start": 1789946100000,
-        "train_label_max": 1789945200000,
-        "fit_cutoff": 1787616900000,
+        "test_start": 1789947900000,
+        "train_label_max": 1789947000000,
+        "fit_cutoff": 1787618700000,
         "train_n": 10334,
         "test_n": 1590
       }
     ],
-    "accuracy": 0.6508801341156748,
-    "balanced_accuracy": 0.3405827677671724,
-    "baseline_accuracy": 0.6515088013411567,
-    "log_loss": 0.8476163712411375,
-    "baseline_log_loss": 0.9116116978060934,
-    "brier": 0.48672988016010504,
+    "accuracy": 0.6504610226320201,
+    "balanced_accuracy": 0.3398992014009892,
+    "baseline_accuracy": 0.6512992455993294,
+    "log_loss": 0.8473801805763205,
+    "baseline_log_loss": 0.9119168398248582,
+    "brier": 0.4867278350017242,
     "trades": {
       "n": 0,
       "hit": null,
@@ -145,8 +145,8 @@
       "return": 0.0,
       "drawdown": 0.0
     },
-    "test_start": 1787082300000,
-    "test_end": 1791376200000,
+    "test_start": 1787084100000,
+    "test_end": 1791378000000,
     "evidence": "UNPROVEN"
   },
   "8": {
@@ -154,49 +154,49 @@
     "samples": 4768,
     "folds": [
       {
-        "test_start": 1787082300000,
-        "train_label_max": 1787081400000,
-        "fit_cutoff": 1785467700000,
+        "test_start": 1787084100000,
+        "train_label_max": 1787083200000,
+        "fit_cutoff": 1785469500000,
         "train_n": 7144,
         "test_n": 1590
       },
       {
-        "test_start": 1788513300000,
-        "train_label_max": 1788512400000,
-        "fit_cutoff": 1786540500000,
+        "test_start": 1788515100000,
+        "train_label_max": 1788514200000,
+        "fit_cutoff": 1786542300000,
         "train_n": 8734,
         "test_n": 1589
       },
       {
-        "test_start": 1789943400000,
-        "train_label_max": 1789942500000,
-        "fit_cutoff": 1787613300000,
+        "test_start": 1789945200000,
+        "train_label_max": 1789944300000,
+        "fit_cutoff": 1787615100000,
         "train_n": 10323,
         "test_n": 1589
       }
     ],
-    "accuracy": 0.5673238255033557,
-    "balanced_accuracy": 0.36345267206141413,
-    "baseline_accuracy": 0.5652265100671141,
-    "log_loss": 0.9597877875389835,
-    "baseline_log_loss": 0.9939474736370121,
-    "brier": 0.5659992647540577,
+    "accuracy": 0.5696308724832215,
+    "balanced_accuracy": 0.364175765135841,
+    "baseline_accuracy": 0.56501677852349,
+    "log_loss": 0.9621397371111828,
+    "baseline_log_loss": 0.9941730945224596,
+    "brier": 0.5674860946929144,
     "trades": {
-      "n": 27,
-      "hit": 0.25925925925925924,
-      "net_bps": -3.313533172969618,
-      "return": -0.00893690416031645,
-      "drawdown": 0.015309740515056292
+      "n": 31,
+      "hit": 0.2903225806451613,
+      "net_bps": -3.368490744260127,
+      "return": -0.010420133471085169,
+      "drawdown": 0.017629778031589938
     },
     "stress_trades": {
       "n": 6,
       "hit": 0.3333333333333333,
-      "net_bps": 1.0823411108808738,
-      "return": 0.0006411737978548882,
-      "drawdown": 0.002414373766788991
+      "net_bps": -0.3894501302450047,
+      "return": -0.00024343811270421956,
+      "drawdown": 0.0032962844355445275
     },
-    "test_start": 1787082300000,
-    "test_end": 1791372600000,
+    "test_start": 1787084100000,
+    "test_end": 1791374400000,
     "evidence": "UNPROVEN"
   }
 }

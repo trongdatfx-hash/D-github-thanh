@@ -3,22 +3,22 @@
   "horizons": [
     {
       "bars": 1,
-      "mature_predictions": 2,
-      "accuracy": 1.0,
+      "mature_predictions": 0,
+      "accuracy": null,
       "trades": 0,
       "net_bps": null
     },
     {
       "bars": 2,
-      "mature_predictions": 2,
-      "accuracy": 1.0,
+      "mature_predictions": 0,
+      "accuracy": null,
       "trades": 0,
       "net_bps": null
     },
     {
       "bars": 4,
-      "mature_predictions": 1,
-      "accuracy": 0.0,
+      "mature_predictions": 0,
+      "accuracy": null,
       "trades": 0,
       "net_bps": null
     },
