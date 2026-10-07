@@ -3,15 +3,15 @@
   "horizons": [
     {
       "bars": 1,
-      "mature_predictions": 0,
-      "accuracy": null,
+      "mature_predictions": 1,
+      "accuracy": 1.0,
       "trades": 0,
       "net_bps": null
     },
     {
       "bars": 2,
-      "mature_predictions": 0,
-      "accuracy": null,
+      "mature_predictions": 1,
+      "accuracy": 1.0,
       "trades": 0,
       "net_bps": null
     },
