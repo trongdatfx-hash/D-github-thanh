@@ -16,8 +16,12 @@ permissions:
   contents: write
 jobs:
   ai:
+    if: github.repository == 'trongdatfx-hash/D-github-thanh' && github.ref == 'refs/heads/main'
     runs-on: ${{ vars.AI_RUNNER_LABEL || 'ubuntu-latest' }}
     timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,9 +42,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ai-engine/models/layers.joblib
-          key: layers-model-v1-${{ hashFiles('ai-engine/layer_config.py', 'ai-engine/train_layers.py', 'ai-engine/layer_dataset.py') }}-${{ steps.window.outputs.bucket }}
+          key: layers-model-v1-${{ runner.os }}-${{ hashFiles('ai-engine/layer_config.py', 'ai-engine/train_layers.py', 'ai-engine/layer_dataset.py') }}-${{ steps.window.outputs.bucket }}
           restore-keys: |
-            layers-model-v1-${{ hashFiles('ai-engine/layer_config.py', 'ai-engine/train_layers.py', 'ai-engine/layer_dataset.py') }}-
+            layers-model-v1-${{ runner.os }}-${{ hashFiles('ai-engine/layer_config.py', 'ai-engine/train_layers.py', 'ai-engine/layer_dataset.py') }}-
       - name: Collect closed bars, update dataset and forecast
         id: forecast
         env:

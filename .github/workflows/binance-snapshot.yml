@@ -12,7 +12,12 @@ permissions:
 
 jobs:
   snapshot:
+    if: github.repository == 'trongdatfx-hash/D-github-thanh' && github.ref == 'refs/heads/main'
     runs-on: ${{ vars.AI_RUNNER_LABEL || 'ubuntu-latest' }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Checkout
         uses: actions/checkout@v4
