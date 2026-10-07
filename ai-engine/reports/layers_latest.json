@@ -1,10 +1,11 @@
 {
   "schema_version": "layers-v1",
-  "generated_at": 1791377288294,
+  "generated_at": 1791377949956,
   "data_as_of": 1791377100000,
-  "model_trained_at": 1791377288294,
-  "lag_minutes": 3.1382333333333334,
+  "model_trained_at": 1791377949956,
+  "lag_minutes": 14.165933333333333,
   "stale": false,
+  "live_rest_available": false,
   "collector_mode": "GitHub Actions M15 REST + historical archive fallback",
   "regime": "TREND",
   "last": 776.38,
@@ -668,28 +669,40 @@
     }
   ],
   "collection": {
-    "collected_at": "2026-10-07T12:48:05.769000+00:00",
+    "collected_at": "2026-10-07T12:59:07.209000+00:00",
     "collector": "GitHub scheduled REST batch",
     "market": {
       "SPYUSDT/last": {
         "rows": 12000,
         "latest_close": 1791377099999,
-        "source": "vision_historical"
+        "source": "vision_historical",
+        "latest_source": "rest",
+        "rest_ok": false,
+        "rest_error": "451 Client Error:  for url: https://fapi.binance.com/fapi/v1/klines?interval=15m&limit=1500&symbol=SPYUSDT&startTime=1791374400000"
       },
       "SPYUSDT/mark": {
         "rows": 12000,
         "latest_close": 1791377099999,
-        "source": "vision_historical"
+        "source": "vision_historical",
+        "latest_source": "rest",
+        "rest_ok": false,
+        "rest_error": "451 Client Error:  for url: https://fapi.binance.com/fapi/v1/markPriceKlines?interval=15m&limit=1500&symbol=SPYUSDT&startTime=1791374400000"
       },
       "SPYUSDT/index": {
         "rows": 12000,
         "latest_close": 1791377099999,
-        "source": "vision_historical"
+        "source": "vision_historical",
+        "latest_source": "rest",
+        "rest_ok": false,
+        "rest_error": "451 Client Error:  for url: https://fapi.binance.com/fapi/v1/indexPriceKlines?interval=15m&limit=1500&pair=SPYUSDT&startTime=1791374400000"
       },
       "QQQUSDT/last": {
         "rows": 12000,
         "latest_close": 1791377099999,
-        "source": "vision_historical"
+        "source": "vision_historical",
+        "latest_source": "rest",
+        "rest_ok": false,
+        "rest_error": "451 Client Error:  for url: https://fapi.binance.com/fapi/v1/klines?interval=15m&limit=1500&symbol=QQQUSDT&startTime=1791374400000"
       }
     },
     "auxiliary": {
