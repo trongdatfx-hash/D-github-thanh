@@ -1,6 +1,5 @@
 {
   "reportDate": "2026-09-29",
-  "releaseDate": "2026-10-02",
   "contract": "E-MINI S&P 500",
   "code": "13874A",
   "openInterest": 1895922,
@@ -24,6 +23,1418 @@
     "commercialLong": 22538,
     "commercialShort": 16137
   },
-  "source": "CFTC CME Futures Only",
-  "sourceUrl": "https://www.cftc.gov/dea/futures/deacmesf.htm"
+  "history": [
+    {
+      "reportDate": "2026-09-29",
+      "oi": 1895922,
+      "ncLong": 209587,
+      "ncShort": 352086,
+      "commLong": 1410900,
+      "commShort": 1375619,
+      "spreads": 28572
+    },
+    {
+      "reportDate": "2026-09-22",
+      "oi": 1890653,
+      "ncLong": 218043,
+      "ncShort": 351271,
+      "commLong": 1388362,
+      "commShort": 1359482,
+      "spreads": 34061
+    },
+    {
+      "reportDate": "2026-09-15",
+      "oi": 2446519,
+      "ncLong": 240290,
+      "ncShort": 340751,
+      "commLong": 1825396,
+      "commShort": 1816205,
+      "spreads": 96393
+    },
+    {
+      "reportDate": "2026-09-08",
+      "oi": 2071836,
+      "ncLong": 251864,
+      "ncShort": 327900,
+      "commLong": 1506039,
+      "commShort": 1556056,
+      "spreads": 50471
+    },
+    {
+      "reportDate": "2026-09-01",
+      "oi": 2046914,
+      "ncLong": 246459,
+      "ncShort": 322400,
+      "commLong": 1496598,
+      "commShort": 1530711,
+      "spreads": 47158
+    },
+    {
+      "reportDate": "2026-08-25",
+      "oi": 2045669,
+      "ncLong": 241495,
+      "ncShort": 309489,
+      "commLong": 1493154,
+      "commShort": 1557219,
+      "spreads": 40332
+    },
+    {
+      "reportDate": "2026-08-18",
+      "oi": 2072358,
+      "ncLong": 275315,
+      "ncShort": 285875,
+      "commLong": 1482869,
+      "commShort": 1596422,
+      "spreads": 45644
+    },
+    {
+      "reportDate": "2026-08-11",
+      "oi": 2119506,
+      "ncLong": 291707,
+      "ncShort": 280427,
+      "commLong": 1504981,
+      "commShort": 1647421,
+      "spreads": 50255
+    },
+    {
+      "reportDate": "2026-08-04",
+      "oi": 2116079,
+      "ncLong": 282551,
+      "ncShort": 309809,
+      "commLong": 1526082,
+      "commShort": 1610458,
+      "spreads": 41958
+    },
+    {
+      "reportDate": "2026-07-28",
+      "oi": 1984408,
+      "ncLong": 257703,
+      "ncShort": 274899,
+      "commLong": 1429304,
+      "commShort": 1525233,
+      "spreads": 39633
+    },
+    {
+      "reportDate": "2026-07-21",
+      "oi": 1939493,
+      "ncLong": 256150,
+      "ncShort": 272934,
+      "commLong": 1387523,
+      "commShort": 1494442,
+      "spreads": 32370
+    },
+    {
+      "reportDate": "2026-07-14",
+      "oi": 1941500,
+      "ncLong": 256435,
+      "ncShort": 295373,
+      "commLong": 1386291,
+      "commShort": 1478822,
+      "spreads": 35595
+    },
+    {
+      "reportDate": "2026-07-07",
+      "oi": 1969636,
+      "ncLong": 244103,
+      "ncShort": 286994,
+      "commLong": 1435736,
+      "commShort": 1502199,
+      "spreads": 34908
+    },
+    {
+      "reportDate": "2026-06-30",
+      "oi": 1967167,
+      "ncLong": 249934,
+      "ncShort": 287526,
+      "commLong": 1422155,
+      "commShort": 1509889,
+      "spreads": 30486
+    },
+    {
+      "reportDate": "2026-06-23",
+      "oi": 1980254,
+      "ncLong": 251385,
+      "ncShort": 286833,
+      "commLong": 1444102,
+      "commShort": 1531232,
+      "spreads": 24622
+    },
+    {
+      "reportDate": "2026-06-16",
+      "oi": 2579920,
+      "ncLong": 262370,
+      "ncShort": 456348,
+      "commLong": 1944552,
+      "commShort": 1884349,
+      "spreads": 79602
+    },
+    {
+      "reportDate": "2026-06-09",
+      "oi": 2203164,
+      "ncLong": 267483,
+      "ncShort": 473127,
+      "commLong": 1605755,
+      "commShort": 1515095,
+      "spreads": 58596
+    },
+    {
+      "reportDate": "2026-06-02",
+      "oi": 2149231,
+      "ncLong": 269402,
+      "ncShort": 490170,
+      "commLong": 1564176,
+      "commShort": 1454102,
+      "spreads": 39597
+    },
+    {
+      "reportDate": "2026-05-26",
+      "oi": 2093621,
+      "ncLong": 254188,
+      "ncShort": 420019,
+      "commLong": 1532352,
+      "commShort": 1477423,
+      "spreads": 38439
+    },
+    {
+      "reportDate": "2026-05-19",
+      "oi": 2068443,
+      "ncLong": 270382,
+      "ncShort": 410987,
+      "commLong": 1494005,
+      "commShort": 1455197,
+      "spreads": 40598
+    },
+    {
+      "reportDate": "2026-05-12",
+      "oi": 2056229,
+      "ncLong": 265505,
+      "ncShort": 409340,
+      "commLong": 1493830,
+      "commShort": 1446018,
+      "spreads": 35875
+    },
+    {
+      "reportDate": "2026-05-05",
+      "oi": 1987685,
+      "ncLong": 256838,
+      "ncShort": 360723,
+      "commLong": 1441704,
+      "commShort": 1425342,
+      "spreads": 35963
+    },
+    {
+      "reportDate": "2026-04-28",
+      "oi": 1959933,
+      "ncLong": 244296,
+      "ncShort": 345736,
+      "commLong": 1426842,
+      "commShort": 1417891,
+      "spreads": 36747
+    },
+    {
+      "reportDate": "2026-04-21",
+      "oi": 1963317,
+      "ncLong": 235119,
+      "ncShort": 345225,
+      "commLong": 1442422,
+      "commShort": 1424075,
+      "spreads": 33453
+    },
+    {
+      "reportDate": "2026-04-14",
+      "oi": 1959076,
+      "ncLong": 236683,
+      "ncShort": 352445,
+      "commLong": 1448311,
+      "commShort": 1402643,
+      "spreads": 31890
+    },
+    {
+      "reportDate": "2026-04-07",
+      "oi": 1929090,
+      "ncLong": 233095,
+      "ncShort": 278761,
+      "commLong": 1415196,
+      "commShort": 1432724,
+      "spreads": 38626
+    },
+    {
+      "reportDate": "2026-03-31",
+      "oi": 1947769,
+      "ncLong": 241389,
+      "ncShort": 283868,
+      "commLong": 1428901,
+      "commShort": 1461799,
+      "spreads": 33807
+    },
+    {
+      "reportDate": "2026-03-24",
+      "oi": 1879423,
+      "ncLong": 214137,
+      "ncShort": 295028,
+      "commLong": 1391430,
+      "commShort": 1394751,
+      "spreads": 24859
+    },
+    {
+      "reportDate": "2026-03-17",
+      "oi": 2330659,
+      "ncLong": 208531,
+      "ncShort": 321588,
+      "commLong": 1744037,
+      "commShort": 1724917,
+      "spreads": 95790
+    },
+    {
+      "reportDate": "2026-03-10",
+      "oi": 1996720,
+      "ncLong": 198229,
+      "ncShort": 332734,
+      "commLong": 1486880,
+      "commShort": 1429758,
+      "spreads": 49968
+    },
+    {
+      "reportDate": "2026-03-03",
+      "oi": 2060733,
+      "ncLong": 208740,
+      "ncShort": 376956,
+      "commLong": 1556831,
+      "commShort": 1485159,
+      "spreads": 39973
+    },
+    {
+      "reportDate": "2026-02-24",
+      "oi": 2017196,
+      "ncLong": 201411,
+      "ncShort": 394894,
+      "commLong": 1509639,
+      "commShort": 1438143,
+      "spreads": 39224
+    },
+    {
+      "reportDate": "2026-02-17",
+      "oi": 1966090,
+      "ncLong": 196426,
+      "ncShort": 374257,
+      "commLong": 1449255,
+      "commShort": 1400366,
+      "spreads": 44668
+    },
+    {
+      "reportDate": "2026-02-10",
+      "oi": 1934958,
+      "ncLong": 242378,
+      "ncShort": 347507,
+      "commLong": 1383208,
+      "commShort": 1396087,
+      "spreads": 44599
+    },
+    {
+      "reportDate": "2026-02-03",
+      "oi": 1928476,
+      "ncLong": 248468,
+      "ncShort": 381409,
+      "commLong": 1380950,
+      "commShort": 1369658,
+      "spreads": 33086
+    },
+    {
+      "reportDate": "2026-01-27",
+      "oi": 1897461,
+      "ncLong": 245442,
+      "ncShort": 345229,
+      "commLong": 1345823,
+      "commShort": 1373953,
+      "spreads": 33519
+    },
+    {
+      "reportDate": "2026-01-20",
+      "oi": 1926910,
+      "ncLong": 246594,
+      "ncShort": 328370,
+      "commLong": 1361548,
+      "commShort": 1403471,
+      "spreads": 49112
+    },
+    {
+      "reportDate": "2026-01-13",
+      "oi": 1909351,
+      "ncLong": 247686,
+      "ncShort": 369813,
+      "commLong": 1349991,
+      "commShort": 1366491,
+      "spreads": 43595
+    },
+    {
+      "reportDate": "2026-01-06",
+      "oi": 1945513,
+      "ncLong": 227064,
+      "ncShort": 333152,
+      "commLong": 1406497,
+      "commShort": 1436875,
+      "spreads": 46679
+    },
+    {
+      "reportDate": "2025-12-30",
+      "oi": 1936495,
+      "ncLong": 224927,
+      "ncShort": 319342,
+      "commLong": 1399156,
+      "commShort": 1429066,
+      "spreads": 48030
+    },
+    {
+      "reportDate": "2025-12-23",
+      "oi": 1911017,
+      "ncLong": 240524,
+      "ncShort": 322344,
+      "commLong": 1379290,
+      "commShort": 1429910,
+      "spreads": 25382
+    },
+    {
+      "reportDate": "2025-12-16",
+      "oi": 2466313,
+      "ncLong": 247967,
+      "ncShort": 413986,
+      "commLong": 1800982,
+      "commShort": 1766111,
+      "spreads": 109920
+    },
+    {
+      "reportDate": "2025-12-09",
+      "oi": 2141031,
+      "ncLong": 227422,
+      "ncShort": 417867,
+      "commLong": 1563158,
+      "commShort": 1499216,
+      "spreads": 71924
+    },
+    {
+      "reportDate": "2025-12-02",
+      "oi": 2074887,
+      "ncLong": 226401,
+      "ncShort": 422068,
+      "commLong": 1507879,
+      "commShort": 1439983,
+      "spreads": 55540
+    },
+    {
+      "reportDate": "2025-11-25",
+      "oi": 2070962,
+      "ncLong": 243930,
+      "ncShort": 399208,
+      "commLong": 1483445,
+      "commShort": 1454078,
+      "spreads": 58057
+    },
+    {
+      "reportDate": "2025-11-18",
+      "oi": 2037320,
+      "ncLong": 226755,
+      "ncShort": 374160,
+      "commLong": 1486833,
+      "commShort": 1436869,
+      "spreads": 57464
+    },
+    {
+      "reportDate": "2025-11-10",
+      "oi": 1981117,
+      "ncLong": 228657,
+      "ncShort": 386587,
+      "commLong": 1441480,
+      "commShort": 1388589,
+      "spreads": 48156
+    },
+    {
+      "reportDate": "2025-11-04",
+      "oi": 1956133,
+      "ncLong": 221734,
+      "ncShort": 385679,
+      "commLong": 1430128,
+      "commShort": 1364304,
+      "spreads": 41360
+    },
+    {
+      "reportDate": "2025-10-28",
+      "oi": 1929734,
+      "ncLong": 220321,
+      "ncShort": 370456,
+      "commLong": 1414221,
+      "commShort": 1362351,
+      "spreads": 37151
+    },
+    {
+      "reportDate": "2025-10-21",
+      "oi": 1882544,
+      "ncLong": 222837,
+      "ncShort": 368187,
+      "commLong": 1372943,
+      "commShort": 1321366,
+      "spreads": 33116
+    },
+    {
+      "reportDate": "2025-10-14",
+      "oi": 1929048,
+      "ncLong": 213826,
+      "ncShort": 379509,
+      "commLong": 1424877,
+      "commShort": 1351994,
+      "spreads": 33100
+    },
+    {
+      "reportDate": "2025-10-07",
+      "oi": 1951558,
+      "ncLong": 229017,
+      "ncShort": 373108,
+      "commLong": 1434777,
+      "commShort": 1387333,
+      "spreads": 31709
+    },
+    {
+      "reportDate": "2025-09-30",
+      "oi": 1942253,
+      "ncLong": 224202,
+      "ncShort": 360891,
+      "commLong": 1439756,
+      "commShort": 1390189,
+      "spreads": 30926
+    },
+    {
+      "reportDate": "2025-09-23",
+      "oi": 1950977,
+      "ncLong": 228168,
+      "ncShort": 400717,
+      "commLong": 1440049,
+      "commShort": 1351412,
+      "spreads": 31033
+    },
+    {
+      "reportDate": "2025-09-16",
+      "oi": 2435899,
+      "ncLong": 220582,
+      "ncShort": 445656,
+      "commLong": 1774318,
+      "commShort": 1640299,
+      "spreads": 151800
+    },
+    {
+      "reportDate": "2025-09-09",
+      "oi": 2035158,
+      "ncLong": 235086,
+      "ncShort": 408751,
+      "commLong": 1488949,
+      "commShort": 1398108,
+      "spreads": 52719
+    },
+    {
+      "reportDate": "2025-09-02",
+      "oi": 1997661,
+      "ncLong": 223530,
+      "ncShort": 384590,
+      "commLong": 1489565,
+      "commShort": 1400644,
+      "spreads": 36450
+    },
+    {
+      "reportDate": "2025-08-26",
+      "oi": 2018365,
+      "ncLong": 223665,
+      "ncShort": 411417,
+      "commLong": 1501710,
+      "commShort": 1394065,
+      "spreads": 40431
+    },
+    {
+      "reportDate": "2025-08-19",
+      "oi": 1974585,
+      "ncLong": 221430,
+      "ncShort": 392928,
+      "commLong": 1464172,
+      "commShort": 1365382,
+      "spreads": 40895
+    },
+    {
+      "reportDate": "2025-08-12",
+      "oi": 1967857,
+      "ncLong": 222421,
+      "ncShort": 414478,
+      "commLong": 1459190,
+      "commShort": 1340439,
+      "spreads": 42300
+    },
+    {
+      "reportDate": "2025-08-05",
+      "oi": 1909338,
+      "ncLong": 231427,
+      "ncShort": 371073,
+      "commLong": 1396057,
+      "commShort": 1332374,
+      "spreads": 34372
+    },
+    {
+      "reportDate": "2025-07-29",
+      "oi": 1941931,
+      "ncLong": 232741,
+      "ncShort": 395922,
+      "commLong": 1418807,
+      "commShort": 1337055,
+      "spreads": 35583
+    },
+    {
+      "reportDate": "2025-07-22",
+      "oi": 1917043,
+      "ncLong": 219848,
+      "ncShort": 388329,
+      "commLong": 1421045,
+      "commShort": 1322877,
+      "spreads": 28461
+    },
+    {
+      "reportDate": "2025-07-15",
+      "oi": 1935859,
+      "ncLong": 231049,
+      "ncShort": 398827,
+      "commLong": 1423287,
+      "commShort": 1326452,
+      "spreads": 31387
+    },
+    {
+      "reportDate": "2025-07-08",
+      "oi": 1899046,
+      "ncLong": 231861,
+      "ncShort": 371879,
+      "commLong": 1382662,
+      "commShort": 1320740,
+      "spreads": 34037
+    },
+    {
+      "reportDate": "2025-07-01",
+      "oi": 1887354,
+      "ncLong": 243463,
+      "ncShort": 330272,
+      "commLong": 1365894,
+      "commShort": 1362850,
+      "spreads": 24599
+    },
+    {
+      "reportDate": "2025-06-24",
+      "oi": 1886352,
+      "ncLong": 211448,
+      "ncShort": 356223,
+      "commLong": 1382328,
+      "commShort": 1303778,
+      "spreads": 45971
+    },
+    {
+      "reportDate": "2025-06-17",
+      "oi": 2450146,
+      "ncLong": 220066,
+      "ncShort": 394213,
+      "commLong": 1844841,
+      "commShort": 1728570,
+      "spreads": 119269
+    },
+    {
+      "reportDate": "2025-06-10",
+      "oi": 2223909,
+      "ncLong": 216963,
+      "ncShort": 344631,
+      "commLong": 1683326,
+      "commShort": 1624621,
+      "spreads": 73905
+    },
+    {
+      "reportDate": "2025-06-03",
+      "oi": 2123862,
+      "ncLong": 253198,
+      "ncShort": 322613,
+      "commLong": 1567386,
+      "commShort": 1558340,
+      "spreads": 57812
+    },
+    {
+      "reportDate": "2025-05-27",
+      "oi": 2112166,
+      "ncLong": 259592,
+      "ncShort": 312562,
+      "commLong": 1561281,
+      "commShort": 1554812,
+      "spreads": 54300
+    },
+    {
+      "reportDate": "2025-05-20",
+      "oi": 2113668,
+      "ncLong": 246588,
+      "ncShort": 343157,
+      "commLong": 1571120,
+      "commShort": 1520023,
+      "spreads": 56416
+    },
+    {
+      "reportDate": "2025-05-13",
+      "oi": 2125890,
+      "ncLong": 243291,
+      "ncShort": 365485,
+      "commLong": 1572344,
+      "commShort": 1510675,
+      "spreads": 59977
+    },
+    {
+      "reportDate": "2025-05-06",
+      "oi": 2133652,
+      "ncLong": 251351,
+      "ncShort": 327756,
+      "commLong": 1579940,
+      "commShort": 1539758,
+      "spreads": 65050
+    },
+    {
+      "reportDate": "2025-04-29",
+      "oi": 2134084,
+      "ncLong": 240096,
+      "ncShort": 318762,
+      "commLong": 1592776,
+      "commShort": 1555023,
+      "spreads": 60490
+    },
+    {
+      "reportDate": "2025-04-22",
+      "oi": 2209656,
+      "ncLong": 260930,
+      "ncShort": 336865,
+      "commLong": 1646290,
+      "commShort": 1609894,
+      "spreads": 65991
+    },
+    {
+      "reportDate": "2025-04-15",
+      "oi": 2181908,
+      "ncLong": 254206,
+      "ncShort": 317303,
+      "commLong": 1623099,
+      "commShort": 1589120,
+      "spreads": 68676
+    },
+    {
+      "reportDate": "2025-04-08",
+      "oi": 2332802,
+      "ncLong": 321451,
+      "ncShort": 350138,
+      "commLong": 1677831,
+      "commShort": 1687782,
+      "spreads": 80592
+    },
+    {
+      "reportDate": "2025-04-01",
+      "oi": 2111750,
+      "ncLong": 300366,
+      "ncShort": 319388,
+      "commLong": 1504785,
+      "commShort": 1560984,
+      "spreads": 57167
+    },
+    {
+      "reportDate": "2025-03-25",
+      "oi": 2074351,
+      "ncLong": 263754,
+      "ncShort": 317116,
+      "commLong": 1496022,
+      "commShort": 1529859,
+      "spreads": 63328
+    },
+    {
+      "reportDate": "2025-03-18",
+      "oi": 2560662,
+      "ncLong": 342952,
+      "ncShort": 274641,
+      "commLong": 1754634,
+      "commShort": 1946369,
+      "spreads": 166865
+    },
+    {
+      "reportDate": "2025-03-11",
+      "oi": 2282648,
+      "ncLong": 378925,
+      "ncShort": 298312,
+      "commLong": 1552198,
+      "commShort": 1770212,
+      "spreads": 54185
+    },
+    {
+      "reportDate": "2025-03-04",
+      "oi": 2180944,
+      "ncLong": 366510,
+      "ncShort": 334407,
+      "commLong": 1483119,
+      "commShort": 1650434,
+      "spreads": 43668
+    },
+    {
+      "reportDate": "2025-02-25",
+      "oi": 2126872,
+      "ncLong": 300949,
+      "ncShort": 333728,
+      "commLong": 1489757,
+      "commShort": 1597560,
+      "spreads": 47650
+    },
+    {
+      "reportDate": "2025-02-18",
+      "oi": 2120653,
+      "ncLong": 313105,
+      "ncShort": 353071,
+      "commLong": 1475997,
+      "commShort": 1567982,
+      "spreads": 50258
+    },
+    {
+      "reportDate": "2025-02-11",
+      "oi": 2096517,
+      "ncLong": 333661,
+      "ncShort": 350770,
+      "commLong": 1436654,
+      "commShort": 1550264,
+      "spreads": 48281
+    },
+    {
+      "reportDate": "2025-02-04",
+      "oi": 2071863,
+      "ncLong": 306741,
+      "ncShort": 311558,
+      "commLong": 1423400,
+      "commShort": 1546861,
+      "spreads": 69934
+    },
+    {
+      "reportDate": "2025-01-28",
+      "oi": 2033094,
+      "ncLong": 252595,
+      "ncShort": 308749,
+      "commLong": 1444016,
+      "commShort": 1523319,
+      "spreads": 57411
+    },
+    {
+      "reportDate": "2025-01-21",
+      "oi": 2036469,
+      "ncLong": 263815,
+      "ncShort": 339530,
+      "commLong": 1453774,
+      "commShort": 1514207,
+      "spreads": 39393
+    },
+    {
+      "reportDate": "2025-01-14",
+      "oi": 2044090,
+      "ncLong": 256358,
+      "ncShort": 286900,
+      "commLong": 1462893,
+      "commShort": 1548553,
+      "spreads": 56403
+    },
+    {
+      "reportDate": "2025-01-07",
+      "oi": 2069259,
+      "ncLong": 264667,
+      "ncShort": 326870,
+      "commLong": 1485146,
+      "commShort": 1542343,
+      "spreads": 43922
+    },
+    {
+      "reportDate": "2024-12-31",
+      "oi": 2058648,
+      "ncLong": 259743,
+      "ncShort": 316545,
+      "commLong": 1474869,
+      "commShort": 1557039,
+      "spreads": 38455
+    },
+    {
+      "reportDate": "2024-12-24",
+      "oi": 2083230,
+      "ncLong": 274748,
+      "ncShort": 338539,
+      "commLong": 1490575,
+      "commShort": 1553952,
+      "spreads": 41158
+    },
+    {
+      "reportDate": "2024-12-17",
+      "oi": 2596020,
+      "ncLong": 313420,
+      "ncShort": 353282,
+      "commLong": 1793629,
+      "commShort": 1912100,
+      "spreads": 160474
+    },
+    {
+      "reportDate": "2024-12-10",
+      "oi": 2324611,
+      "ncLong": 288876,
+      "ncShort": 372209,
+      "commLong": 1654888,
+      "commShort": 1721689,
+      "spreads": 81468
+    },
+    {
+      "reportDate": "2024-12-03",
+      "oi": 2279466,
+      "ncLong": 257606,
+      "ncShort": 366216,
+      "commLong": 1646683,
+      "commShort": 1686695,
+      "spreads": 79475
+    },
+    {
+      "reportDate": "2024-11-26",
+      "oi": 2272398,
+      "ncLong": 266965,
+      "ncShort": 345859,
+      "commLong": 1626583,
+      "commShort": 1701009,
+      "spreads": 79119
+    },
+    {
+      "reportDate": "2024-11-19",
+      "oi": 2259351,
+      "ncLong": 348339,
+      "ncShort": 313428,
+      "commLong": 1556553,
+      "commShort": 1739420,
+      "spreads": 62505
+    },
+    {
+      "reportDate": "2024-11-12",
+      "oi": 2235256,
+      "ncLong": 360987,
+      "ncShort": 335986,
+      "commLong": 1540339,
+      "commShort": 1701482,
+      "spreads": 45780
+    },
+    {
+      "reportDate": "2024-11-05",
+      "oi": 2140451,
+      "ncLong": 374881,
+      "ncShort": 261441,
+      "commLong": 1448167,
+      "commShort": 1681369,
+      "spreads": 45067
+    },
+    {
+      "reportDate": "2024-10-29",
+      "oi": 2168363,
+      "ncLong": 366915,
+      "ncShort": 304217,
+      "commLong": 1476451,
+      "commShort": 1654059,
+      "spreads": 52655
+    },
+    {
+      "reportDate": "2024-10-22",
+      "oi": 2186686,
+      "ncLong": 360779,
+      "ncShort": 337798,
+      "commLong": 1514382,
+      "commShort": 1632424,
+      "spreads": 48285
+    },
+    {
+      "reportDate": "2024-10-15",
+      "oi": 2185413,
+      "ncLong": 350227,
+      "ncShort": 322092,
+      "commLong": 1522232,
+      "commShort": 1651629,
+      "spreads": 41611
+    },
+    {
+      "reportDate": "2024-10-08",
+      "oi": 2132773,
+      "ncLong": 322686,
+      "ncShort": 328330,
+      "commLong": 1514535,
+      "commShort": 1602202,
+      "spreads": 32465
+    },
+    {
+      "reportDate": "2024-10-01",
+      "oi": 2081475,
+      "ncLong": 310708,
+      "ncShort": 303163,
+      "commLong": 1485786,
+      "commShort": 1580266,
+      "spreads": 29276
+    },
+    {
+      "reportDate": "2024-09-24",
+      "oi": 2046032,
+      "ncLong": 289938,
+      "ncShort": 325691,
+      "commLong": 1464276,
+      "commShort": 1524195,
+      "spreads": 35478
+    },
+    {
+      "reportDate": "2024-09-17",
+      "oi": 2579860,
+      "ncLong": 298516,
+      "ncShort": 421464,
+      "commLong": 1860927,
+      "commShort": 1823182,
+      "spreads": 143155
+    },
+    {
+      "reportDate": "2024-09-10",
+      "oi": 2156591,
+      "ncLong": 337420,
+      "ncShort": 396808,
+      "commLong": 1469898,
+      "commShort": 1485152,
+      "spreads": 89789
+    },
+    {
+      "reportDate": "2024-09-03",
+      "oi": 2106791,
+      "ncLong": 322215,
+      "ncShort": 371034,
+      "commLong": 1451604,
+      "commShort": 1499250,
+      "spreads": 67158
+    },
+    {
+      "reportDate": "2024-08-27",
+      "oi": 2098974,
+      "ncLong": 302165,
+      "ncShort": 384073,
+      "commLong": 1442162,
+      "commShort": 1471325,
+      "spreads": 85251
+    },
+    {
+      "reportDate": "2024-08-20",
+      "oi": 2050976,
+      "ncLong": 277634,
+      "ncShort": 362437,
+      "commLong": 1438541,
+      "commShort": 1442880,
+      "spreads": 74637
+    },
+    {
+      "reportDate": "2024-08-13",
+      "oi": 2033008,
+      "ncLong": 285987,
+      "ncShort": 309438,
+      "commLong": 1441253,
+      "commShort": 1488771,
+      "spreads": 54868
+    },
+    {
+      "reportDate": "2024-08-06",
+      "oi": 2025834,
+      "ncLong": 326376,
+      "ncShort": 292386,
+      "commLong": 1407615,
+      "commShort": 1526190,
+      "spreads": 41016
+    },
+    {
+      "reportDate": "2024-07-30",
+      "oi": 2046205,
+      "ncLong": 335181,
+      "ncShort": 323225,
+      "commLong": 1405868,
+      "commShort": 1529270,
+      "spreads": 41704
+    },
+    {
+      "reportDate": "2024-07-23",
+      "oi": 2047183,
+      "ncLong": 336386,
+      "ncShort": 349607,
+      "commLong": 1418757,
+      "commShort": 1514154,
+      "spreads": 28496
+    },
+    {
+      "reportDate": "2024-07-16",
+      "oi": 2090007,
+      "ncLong": 333866,
+      "ncShort": 399310,
+      "commLong": 1449475,
+      "commShort": 1486645,
+      "spreads": 37041
+    },
+    {
+      "reportDate": "2024-07-09",
+      "oi": 2048220,
+      "ncLong": 309758,
+      "ncShort": 364769,
+      "commLong": 1434315,
+      "commShort": 1477393,
+      "spreads": 37492
+    },
+    {
+      "reportDate": "2024-07-02",
+      "oi": 2037086,
+      "ncLong": 317417,
+      "ncShort": 329225,
+      "commLong": 1410782,
+      "commShort": 1508795,
+      "spreads": 37720
+    },
+    {
+      "reportDate": "2024-06-25",
+      "oi": 1976080,
+      "ncLong": 271908,
+      "ncShort": 337155,
+      "commLong": 1400848,
+      "commShort": 1446947,
+      "spreads": 36363
+    },
+    {
+      "reportDate": "2024-06-18",
+      "oi": 2595590,
+      "ncLong": 314990,
+      "ncShort": 429100,
+      "commLong": 1859833,
+      "commShort": 1849694,
+      "spreads": 121561
+    },
+    {
+      "reportDate": "2024-06-11",
+      "oi": 2266096,
+      "ncLong": 270380,
+      "ncShort": 381794,
+      "commLong": 1606798,
+      "commShort": 1617849,
+      "spreads": 91608
+    },
+    {
+      "reportDate": "2024-06-04",
+      "oi": 2160026,
+      "ncLong": 265433,
+      "ncShort": 330433,
+      "commLong": 1534557,
+      "commShort": 1581649,
+      "spreads": 72363
+    },
+    {
+      "reportDate": "2024-05-28",
+      "oi": 2179731,
+      "ncLong": 330937,
+      "ncShort": 333145,
+      "commLong": 1503708,
+      "commShort": 1609652,
+      "spreads": 56015
+    },
+    {
+      "reportDate": "2024-05-21",
+      "oi": 2148201,
+      "ncLong": 304226,
+      "ncShort": 327000,
+      "commLong": 1501724,
+      "commShort": 1593706,
+      "spreads": 53755
+    },
+    {
+      "reportDate": "2024-05-14",
+      "oi": 2081097,
+      "ncLong": 273398,
+      "ncShort": 298682,
+      "commLong": 1477881,
+      "commShort": 1550928,
+      "spreads": 51814
+    },
+    {
+      "reportDate": "2024-05-07",
+      "oi": 2030975,
+      "ncLong": 262778,
+      "ncShort": 272473,
+      "commLong": 1436696,
+      "commShort": 1531825,
+      "spreads": 51309
+    },
+    {
+      "reportDate": "2024-04-30",
+      "oi": 2006204,
+      "ncLong": 272813,
+      "ncShort": 229680,
+      "commLong": 1392147,
+      "commShort": 1542740,
+      "spreads": 62164
+    },
+    {
+      "reportDate": "2024-04-23",
+      "oi": 2067890,
+      "ncLong": 320552,
+      "ncShort": 252874,
+      "commLong": 1402033,
+      "commShort": 1591984,
+      "spreads": 56906
+    },
+    {
+      "reportDate": "2024-04-16",
+      "oi": 2100522,
+      "ncLong": 348567,
+      "ncShort": 274453,
+      "commLong": 1406577,
+      "commShort": 1592920,
+      "spreads": 59055
+    },
+    {
+      "reportDate": "2024-04-09",
+      "oi": 2091937,
+      "ncLong": 285690,
+      "ncShort": 348604,
+      "commLong": 1478906,
+      "commShort": 1520830,
+      "spreads": 44228
+    },
+    {
+      "reportDate": "2024-04-02",
+      "oi": 2089222,
+      "ncLong": 290089,
+      "ncShort": 368211,
+      "commLong": 1476688,
+      "commShort": 1497300,
+      "spreads": 46745
+    },
+    {
+      "reportDate": "2024-03-26",
+      "oi": 2110848,
+      "ncLong": 296031,
+      "ncShort": 465470,
+      "commLong": 1503611,
+      "commShort": 1428882,
+      "spreads": 40252
+    },
+    {
+      "reportDate": "2024-03-19",
+      "oi": 2094749,
+      "ncLong": 258169,
+      "ncShort": 452338,
+      "commLong": 1539140,
+      "commShort": 1429039,
+      "spreads": 35452
+    },
+    {
+      "reportDate": "2024-03-12",
+      "oi": 2678339,
+      "ncLong": 280718,
+      "ncShort": 520545,
+      "commLong": 1911694,
+      "commShort": 1769963,
+      "spreads": 194227
+    },
+    {
+      "reportDate": "2024-03-05",
+      "oi": 2377697,
+      "ncLong": 285210,
+      "ncShort": 489650,
+      "commLong": 1741608,
+      "commShort": 1620932,
+      "spreads": 86286
+    },
+    {
+      "reportDate": "2024-02-27",
+      "oi": 2344340,
+      "ncLong": 298538,
+      "ncShort": 522761,
+      "commLong": 1716692,
+      "commShort": 1575478,
+      "spreads": 65654
+    },
+    {
+      "reportDate": "2024-02-20",
+      "oi": 2322953,
+      "ncLong": 271870,
+      "ncShort": 490400,
+      "commLong": 1722121,
+      "commShort": 1578768,
+      "spreads": 66850
+    },
+    {
+      "reportDate": "2024-02-13",
+      "oi": 2338964,
+      "ncLong": 292466,
+      "ncShort": 508244,
+      "commLong": 1738023,
+      "commShort": 1585511,
+      "spreads": 53736
+    },
+    {
+      "reportDate": "2024-02-06",
+      "oi": 2297385,
+      "ncLong": 278713,
+      "ncShort": 511675,
+      "commLong": 1721991,
+      "commShort": 1560153,
+      "spreads": 40882
+    },
+    {
+      "reportDate": "2024-01-30",
+      "oi": 2308955,
+      "ncLong": 284559,
+      "ncShort": 510521,
+      "commLong": 1715110,
+      "commShort": 1572916,
+      "spreads": 44339
+    },
+    {
+      "reportDate": "2024-01-23",
+      "oi": 2271312,
+      "ncLong": 280085,
+      "ncShort": 469558,
+      "commLong": 1682777,
+      "commShort": 1571642,
+      "spreads": 45931
+    },
+    {
+      "reportDate": "2024-01-16",
+      "oi": 2217057,
+      "ncLong": 260119,
+      "ncShort": 429365,
+      "commLong": 1632215,
+      "commShort": 1529781,
+      "spreads": 61258
+    },
+    {
+      "reportDate": "2024-01-09",
+      "oi": 2209328,
+      "ncLong": 272247,
+      "ncShort": 389296,
+      "commLong": 1602234,
+      "commShort": 1586739,
+      "spreads": 55951
+    },
+    {
+      "reportDate": "2024-01-02",
+      "oi": 2221215,
+      "ncLong": 257321,
+      "ncShort": 471409,
+      "commLong": 1650902,
+      "commShort": 1523556,
+      "spreads": 42672
+    },
+    {
+      "reportDate": "2023-12-26",
+      "oi": 2155313,
+      "ncLong": 251044,
+      "ncShort": 443506,
+      "commLong": 1601298,
+      "commShort": 1480509,
+      "spreads": 41911
+    },
+    {
+      "reportDate": "2023-12-19",
+      "oi": 2156203,
+      "ncLong": 248763,
+      "ncShort": 444158,
+      "commLong": 1608749,
+      "commShort": 1485311,
+      "spreads": 42741
+    },
+    {
+      "reportDate": "2023-12-12",
+      "oi": 2670454,
+      "ncLong": 257533,
+      "ncShort": 322616,
+      "commLong": 1888239,
+      "commShort": 1866744,
+      "spreads": 218066
+    },
+    {
+      "reportDate": "2023-12-05",
+      "oi": 2314400,
+      "ncLong": 264209,
+      "ncShort": 311470,
+      "commLong": 1706068,
+      "commShort": 1706163,
+      "spreads": 82489
+    },
+    {
+      "reportDate": "2023-11-28",
+      "oi": 2279894,
+      "ncLong": 281709,
+      "ncShort": 346736,
+      "commLong": 1671401,
+      "commShort": 1649442,
+      "spreads": 67979
+    },
+    {
+      "reportDate": "2023-11-21",
+      "oi": 2240214,
+      "ncLong": 246961,
+      "ncShort": 327041,
+      "commLong": 1665197,
+      "commShort": 1631226,
+      "spreads": 65844
+    },
+    {
+      "reportDate": "2023-11-14",
+      "oi": 2192899,
+      "ncLong": 274348,
+      "ncShort": 327181,
+      "commLong": 1593850,
+      "commShort": 1582793,
+      "spreads": 61720
+    },
+    {
+      "reportDate": "2023-11-07",
+      "oi": 2177947,
+      "ncLong": 272240,
+      "ncShort": 325661,
+      "commLong": 1595826,
+      "commShort": 1560482,
+      "spreads": 54952
+    },
+    {
+      "reportDate": "2023-10-31",
+      "oi": 2174689,
+      "ncLong": 283793,
+      "ncShort": 279456,
+      "commLong": 1566648,
+      "commShort": 1600624,
+      "spreads": 63983
+    },
+    {
+      "reportDate": "2023-10-24",
+      "oi": 2158452,
+      "ncLong": 282604,
+      "ncShort": 272419,
+      "commLong": 1562074,
+      "commShort": 1596810,
+      "spreads": 65367
+    },
+    {
+      "reportDate": "2023-10-17",
+      "oi": 2112419,
+      "ncLong": 219942,
+      "ncShort": 283120,
+      "commLong": 1579970,
+      "commShort": 1536860,
+      "spreads": 70216
+    },
+    {
+      "reportDate": "2023-10-10",
+      "oi": 2073930,
+      "ncLong": 210930,
+      "ncShort": 305379,
+      "commLong": 1558642,
+      "commShort": 1489212,
+      "spreads": 63278
+    }
+  ],
+  "source": "CFTC Legacy Futures Only annual archives",
+  "sourceUrl": "https://www.cftc.gov/MarketReports/CommitmentsofTraders/HistoricalCompressed/index.htm",
+  "sourceUrls": [
+    "https://www.cftc.gov/files/dea/history/deacot2023.zip",
+    "https://www.cftc.gov/files/dea/history/deacot2024.zip",
+    "https://www.cftc.gov/files/dea/history/deacot2025.zip",
+    "https://www.cftc.gov/files/dea/history/deacot2026.zip"
+  ]
 }

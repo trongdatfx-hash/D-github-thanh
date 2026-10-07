@@ -48,10 +48,12 @@ function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
 function pct(x){return (x*100).toFixed(0)+'%'}
 async function getLocal(path){let r=await fetch(path,{cache:'no-store'});if(!r.ok)throw Error(path+' HTTP '+r.status);return r.json()}
 async function getCOTBundle(){
+ const ac=new AbortController();
+ const timer=setTimeout(()=>ac.abort(),9000);
  try{
   const where=encodeURIComponent("cftc_contract_market_code='13874A'");
   const url='https://publicreporting.cftc.gov/resource/6dca-aqww.json?$limit=200&$where='+where+'&$order=report_date_as_yyyy_mm_dd DESC';
-  const r=await fetch(url,{cache:'no-store'});
+  const r=await fetch(url,{cache:'no-store',signal:ac.signal});
   if(!r.ok)throw Error('CFTC API HTTP '+r.status);
   const rows=await r.json();
   const history=(Array.isArray(rows)?rows:[]).map(x=>({
@@ -66,12 +68,16 @@ async function getCOTBundle(){
   const q=history[0];
   return {reportDate:q.reportDate,openInterest:q.oi,nonCommercial:{long:q.ncLong,short:q.ncShort,net:q.ncLong-q.ncShort,prevNet:history[1]?(history[1].ncLong-history[1].ncShort):q.ncLong-q.ncShort},commercial:{long:q.commLong,short:q.commShort,net:q.commLong-q.commShort},history,source:'CFTC API'};
  }catch(e){
+  console.warn('CFTC API failed; using bundled CFTC history',e);
   const local=await getLocal('./cot-sp500.json');
+  if(Array.isArray(local.history)&&local.history.length>=26){
+   return {...local,history:local.history,source:'local history'};
+  }
   const current={reportDate:local.reportDate,oi:local.openInterest,ncLong:local.nonCommercial.long,ncShort:local.nonCommercial.short,commLong:local.commercial.long,commShort:local.commercial.short};
   const prevDate=new Date(Date.parse(local.reportDate+'T00:00:00Z')-7*86400000).toISOString().slice(0,10);
   const previous={reportDate:prevDate,oi:local.openInterest-(local.change?.openInterest||0),ncLong:local.nonCommercial.long-(local.change?.nonCommercialLong||0),ncShort:local.nonCommercial.short-(local.change?.nonCommercialShort||0),commLong:local.commercial.long-(local.change?.commercialLong||0),commShort:local.commercial.short-(local.change?.commercialShort||0)};
   return {...local,history:[current,previous],source:'local snapshot'};
- }
+ }finally{clearTimeout(timer)}
 }
 function renderBars(el,items){$(el).innerHTML=items.map(x=>'<div class="row"><span>'+x[0]+'</span><div class="bar"><div class="fill '+(x[2]||'')+'" style="width:'+clamp(Math.abs(x[1]),0,100)+'%"></div></div><b>'+Math.round(x[1])+'</b></div>').join('')}
 async function analyze(){
@@ -166,7 +172,7 @@ async function analyze(){
  const oiTxt=oiCh>=.3?'OI đang tăng':oiCh<=-.3?'OI đang giảm':'OI gần như ổn định';
  const lsTxt=lsCh>=.03?'Top Trader nghiêng Long':lsCh<=-.03?'Top Trader nghiêng Short':'Top Trader cân bằng';
  $('weekly').innerHTML=weeklyText; $('reason').innerHTML='<b>'+decision+'</b> — '+state+'. '+flowTxt+', '+oiTxt+', '+lsTxt+'. Funding '+(funding*100).toFixed(4)+'%. COT '+cotBias+' / '+cotTrend+' '+cotTrendScore+'/100 · Reversal '+reversalRisk+'. Giá M15 5 nến: '+ret5.toFixed(2)+'%; 20 nến: '+ret20.toFixed(2)+'%. <br><br><b>Lưu ý:</b> Đây là AI Rule Engine Giai đoạn 1 + Historical Weekly Reaction, chưa phải mô hình ML được huấn luyện. WAIT được ưu tiên khi tín hiệu chưa đủ mạnh.';
- $('status').textContent='Cập nhật '+new Date().toLocaleTimeString('vi-VN')+' · Price Binance OK · Taker '+(t.length?'OK':'--')+' · OI '+(o.length?'OK':'--')+' · L/S '+(ls.length?'OK':'--')+' · COT '+(cot?(cot.source==='CFTC API'?'HISTORY OK':'LOCAL FALLBACK'):'--');
+ $('status').textContent='Cập nhật '+new Date().toLocaleTimeString('vi-VN')+' · Price Binance OK · Taker '+(t.length?'OK':'--')+' · OI '+(o.length?'OK':'--')+' · L/S '+(ls.length?'OK':'--')+' · COT '+(cot?(cot.source==='CFTC API'?'HISTORY OK':cot.source==='local history'?'LOCAL HISTORY OK':'LOCAL FALLBACK')+' · '+cotRows.length+' tuần · Report '+cot.reportDate:'--');
 }
 $('refresh').onclick=()=>analyze().catch(e=>{$('reason').textContent='Lỗi phân tích: '+e.message;$('status').textContent='Lỗi: '+e.message});
 analyze().catch(e=>{$('reason').textContent='Lỗi phân tích/dữ liệu: '+e.message;$('status').textContent='Lỗi: '+e.message});
