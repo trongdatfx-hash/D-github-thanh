@@ -1,10 +1,10 @@
 {
-  "collected_at": "2026-10-07T16:02:40.124000+00:00",
+  "collected_at": "2026-10-07T16:17:14.423000+00:00",
   "collector": "GitHub scheduled REST batch",
   "market": {
     "SPYUSDT/last": {
       "rows": 12000,
-      "latest_close": 1791388799999,
+      "latest_close": 1791389699999,
       "source": "rest",
       "latest_source": "rest",
       "rest_ok": true,
@@ -12,7 +12,7 @@
     },
     "SPYUSDT/mark": {
       "rows": 12000,
-      "latest_close": 1791388799999,
+      "latest_close": 1791389699999,
       "source": "rest",
       "latest_source": "rest",
       "rest_ok": true,
@@ -20,7 +20,7 @@
     },
     "SPYUSDT/index": {
       "rows": 12000,
-      "latest_close": 1791388799999,
+      "latest_close": 1791389699999,
       "source": "rest",
       "latest_source": "rest",
       "rest_ok": true,
@@ -28,7 +28,7 @@
     },
     "QQQUSDT/last": {
       "rows": 12000,
-      "latest_close": 1791388799999,
+      "latest_close": 1791389699999,
       "source": "rest",
       "latest_source": "rest",
       "rest_ok": true,
