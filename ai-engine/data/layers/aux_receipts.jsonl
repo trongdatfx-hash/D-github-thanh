@@ -3053,3 +3053,9 @@
 {"kind":"top_account","event_time":1791387000000,"observed_at":1791387134726,"available_at":1791387134726,"value":1.0313,"source":"rest"}
 {"kind":"global_account","event_time":1791387000000,"observed_at":1791387134901,"available_at":1791387134901,"value":1.0657,"source":"rest"}
 {"kind":"open_interest","event_time":1791387000000,"observed_at":1791387135218,"available_at":1791387135218,"value":28038928.73484765,"source":"rest"}
+{"kind":"top_position","event_time":1791387900000,"observed_at":1791388055574,"available_at":1791388055574,"value":1.1892,"source":"rest"}
+{"kind":"top_account","event_time":1791387900000,"observed_at":1791388055786,"available_at":1791388055786,"value":1.0292,"source":"rest"}
+{"kind":"global_account","event_time":1791387900000,"observed_at":1791388055972,"available_at":1791388055972,"value":1.1022,"source":"rest"}
+{"kind":"taker_ratio","event_time":1791386100000,"observed_at":1791388056157,"available_at":1791388056157,"value":1.2384,"source":"rest"}
+{"kind":"taker_ratio","event_time":1791387000000,"observed_at":1791388056157,"available_at":1791388056157,"value":0.9295,"source":"rest"}
+{"kind":"open_interest","event_time":1791387900000,"observed_at":1791388056328,"available_at":1791388056328,"value":28399003.2215,"source":"rest"}
