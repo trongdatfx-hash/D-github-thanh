@@ -27,10 +27,17 @@ jobs:
         with:
           fetch-depth: 0
       - uses: actions/setup-python@v5
+        if: runner.os != 'Windows'
         with:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: ai-engine/requirements.txt
+      - name: Isolate existing Windows Python 3.12
+        if: runner.os == 'Windows'
+        run: |
+          python -c "import sys; assert sys.version_info[:2] == (3, 12), 'Install Python 3.12 for this runner user'"
+          python -m venv "$RUNNER_TEMP/ai-python"
+          python -c "import os, pathlib; p = pathlib.Path(os.environ['RUNNER_TEMP']) / 'ai-python' / 'Scripts'; open(os.environ['GITHUB_PATH'], 'a').write(str(p) + '\n')"
       - run: pip install -r ai-engine/requirements.txt
       - name: Check causal dataset and purged evaluation
         run: python -m unittest discover -s ai-engine/tests -v

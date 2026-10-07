@@ -16,6 +16,8 @@ The repository can use the registered Windows runner `PC-SPY-AI` through reposit
 
 The PC installation uses the official GitHub runner with its release SHA-256 verified. It runs under the signed-in user's account without an administrator service, and a per-user Startup shortcut launches it at Windows sign-in. Collection stops while the PC sleeps, is shut down, is logged out, or loses Internet. No power setting is changed. Runner availability removes the hosted runner's Binance 451 restriction on this network; it does not make GitHub's M15 schedule a continuous daemon or guarantee punctual scheduling. Keep self-hosted workflows restricted to trusted main-branch code; do not add untrusted pull-request execution on this personal PC.
 
+Windows jobs require Python 3.12 already installed for the runner user and create a separate virtual environment in the job temporary directory. They do not run the setup-python PowerShell installer, change execution policy, or install dependencies into the user's existing Python environment. The PC's ordinary pip download cache can be reused across jobs.
+
 ## Files and storage
 
 - `collect_layers.py`: incremental/idempotent REST collection, existing price-history bootstrap, official archive fallback.
