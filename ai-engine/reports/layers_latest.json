@@ -1,9 +1,9 @@
 {
   "schema_version": "layers-v1",
-  "generated_at": 1791418210753,
+  "generated_at": 1791418569312,
   "data_as_of": 1791390600000,
-  "model_trained_at": 1791418204711,
-  "lag_minutes": 460.17921666666666,
+  "model_trained_at": 1791418562190,
+  "lag_minutes": 466.1552,
   "stale": true,
   "live_rest_available": false,
   "collector_mode": "GitHub Actions M15 REST + historical archive fallback",
@@ -176,7 +176,7 @@
       },
       "score": -3.3747006434840103,
       "phase": "NEUTRAL",
-      "expected_gross_bps": -0.410279419383911,
+      "expected_gross_bps": -0.41027941938391094,
       "temperature": 1.0,
       "evidence": "UNPROVEN",
       "positive_validation_skill": true
@@ -495,12 +495,12 @@
       "signal": "WAIT",
       "probabilities": {
         "bear": 0.2262074612912276,
-        "neutral": 0.6030747859459061,
+        "neutral": 0.603074785945906,
         "bull": 0.17071775276286635
       },
       "score": -5.548970852836124,
       "phase": "NEUTRAL",
-      "expected_gross_bps": -0.9706935078130821,
+      "expected_gross_bps": -0.9706935078130822,
       "temperature": 1.0,
       "evidence": "UNPROVEN",
       "positive_validation_skill": true
@@ -670,7 +670,7 @@
   ],
   "generation_clock": "forecast_ready",
   "collection": {
-    "collected_at": "2026-10-08T00:10:00.312000+00:00",
+    "collected_at": "2026-10-08T00:15:57.883000+00:00",
     "collector": "GitHub scheduled REST batch",
     "market": {
       "SPYUSDT/last": {

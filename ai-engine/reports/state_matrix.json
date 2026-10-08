@@ -1,8 +1,8 @@
 {
   "schema_version": "state-matrix-v1",
-  "generated_at": 1791418210753,
+  "generated_at": 1791418569312,
   "data_as_of": 1791390600000,
-  "model_trained_at": 1791418204711,
+  "model_trained_at": 1791418562190,
   "stale": true,
   "live_rest_available": false,
   "phases": [
