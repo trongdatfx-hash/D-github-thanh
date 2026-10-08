@@ -85,21 +85,22 @@ export function regression(a){
 }
 // Linearly weighted least squares on PRIOR closes, predicting the current bar.
 // Recent observations receive weights 1..window; bands use weighted residual sigma.
-export function weightedPriceBands(bars,step,{window=50,mult=2}={}){
-  if(!Array.isArray(bars)||!Object.values(STEPS).includes(step)||!Number.isInteger(window)||window<3||!Number.isFinite(mult)||mult<=0)throw Error('Tham số WLR giá không hợp lệ');
+export function weightedPriceBands(bars,step,{window=50,mult=2,strength=[],strengthBoost=2}={}){
+  if(!Array.isArray(bars)||!Array.isArray(strength)||!Object.values(STEPS).includes(step)||!Number.isInteger(window)||window<3||!Number.isFinite(mult)||mult<=0||!Number.isFinite(strengthBoost)||strengthBoost<0)throw Error('Tham số WLR giá không hợp lệ');
+  const strengthMap=new Map(strength.map(x=>[x.t,x]));
   let history=[],prev=null;
   return bars.map(b=>{
     if(prev!==null&&b.t-prev!==step)history=[];prev=b.t;
     let mid=null,upper=null,lower=null,sigma=null;
     if(history.length>=window){
-      const y=history.slice(-window),sw=window*(window+1)/2;
+      const sample=history.slice(-window),y=sample.map(x=>x.c),weights=sample.map((x,i)=>{const s=strengthMap.get(x.t),m=Number.isFinite(s?.adjusted)?Math.min(1,Math.abs(s.adjusted)):0,confidence=Number.isFinite(s?.confidence)?Math.max(0,Math.min(1,s.confidence)):1;return (i+1)*(1+strengthBoost*m*confidence);}),sw=weights.reduce((s,w)=>s+w,0);
       let sx=0,sy=0,sxx=0,sxy=0;
-      for(let i=0;i<window;i++){const w=i+1;sx+=w*i;sy+=w*y[i];sxx+=w*i*i;sxy+=w*i*y[i];}
+      for(let i=0;i<window;i++){const w=weights[i];sx+=w*i;sy+=w*y[i];sxx+=w*i*i;sxy+=w*i*y[i];}
       const den=sw*sxx-sx*sx,slope=(sw*sxy-sx*sy)/den,intercept=(sy-slope*sx)/sw;
-      let sse=0;for(let i=0;i<window;i++){const e=y[i]-intercept-slope*i;sse+=(i+1)*e*e;}
+      let sse=0;for(let i=0;i<window;i++){const e=y[i]-intercept-slope*i;sse+=weights[i]*e*e;}
       sigma=Math.sqrt(sse/sw);mid=intercept+slope*window;upper=mid+mult*sigma;lower=mid-mult*sigma;
     }
-    history.push(b.c);if(history.length>window)history.shift();
+    history.push({t:b.t,c:b.c});if(history.length>window)history.shift();
     return {t:b.t,mid,upper,lower,sigma};
   });
 }

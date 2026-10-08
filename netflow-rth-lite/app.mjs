@@ -46,13 +46,12 @@ function flowData(data,key){const palette=flowColors[key];return data.map(x=>Num
 function alignmentData(data){return data.map(x=>({time:x.t/1000,value:x.score,color:x.state==='THUẬN MUA'?`rgba(26,224,163,${.48+.45*x.intensity})`:x.state==='THUẬN BÁN'?`rgba(255,77,112,${.48+.45*x.intensity})`:`rgba(245,166,35,${.58+.35*x.intensity})`}));}
 function render(fit=false){
   const range=chart.timeScale().getVisibleLogicalRange();
-  const p=rows[$('symbol').value]??[],signals=maps[$('signal').value]??new Map();
+  const p=rows[$('symbol').value]??[],signalRows=rows[$('signal').value]??[],signals=maps[$('signal').value]??new Map();
   price.setData(p.map(x=>{const color=candlePalette(signals.get(x.t));return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color:color.body,wickColor:color.wick,borderColor:color.border};}));
-  const priceBands=weightedPriceBands(p,STEPS[$('interval').value]);priceBandMap=new Map(priceBands.map(x=>[x.t,x]));
+  const priceBands=weightedPriceBands(p,STEPS[$('interval').value],{strength:$('strength-weight').checked?signalRows:[]});priceBandMap=new Map(priceBands.map(x=>[x.t,x]));
   series.priceMid.setData(lineData(priceBands,'mid'));series.priceUpper.setData(lineData(priceBands,'upper'));series.priceLower.setData(lineData(priceBands,'lower'));
   for(const key of Object.keys(colors))series[key].setData(flowData(rows[key]??[],key));
   const alignment=flowAlignment(rows.SPYUSDT??[],rows.QQQUSDT??[]);alignmentMap=new Map(alignment.map(x=>[x.t,x]));series.alignment.setData(alignmentData(alignment));
-  const signalRows=rows[$('signal').value]??[];
   series.strength.setData(lineData(signalRows,'adjusted'));
   strengthMarks.setMarkers(signalRows.filter(x=>Number.isFinite(x.adjusted)&&x.adjusted>.95).map(x=>({time:x.t/1000,position:'inBar',color:'#7dffd9',shape:'circle',text:''})));
   for(const key of ['mid','upper','lower'])series[key].setData(lineData(signalRows,key));
@@ -74,7 +73,7 @@ function showTooltip(t){
   const text=[new Date(t).toLocaleString('vi-VN',{timeZone:'America/New_York'})+' ET',p?`${$('symbol').value} · O ${fmt(p.o)} H ${fmt(p.h)} L ${fmt(p.l)} C ${fmt(p.c)}`:'Không có nến giá tại timestamp này'];
   for(const key of Object.keys(colors)){const b=maps[key]?.get(t);text.push(`${key} · BuyQ ${fmt(b?.buy)} · SellQ ${fmt(b?.sell)} · NetQ ${fmt(b?.net)} USDT · NF ${fmt(b?.nf)}%`);}
   const alignment=alignmentMap.get(t);text.push(`SPY↔QQQ · ${alignment?.state??'—'} · SPY NF ${fmt(alignment?.spyNf)}% · QQQ NF ${fmt(alignment?.qqqNf)}%`);
-  const priceBand=priceBandMap.get(t);text.push(`WLR giá 50 · ${fmt(priceBand?.mid)} [${fmt(priceBand?.lower)}, ${fmt(priceBand?.upper)}] · σ ${fmt(priceBand?.sigma)}`);
+  const priceBand=priceBandMap.get(t);text.push(`${$('strength-weight').checked?'SWLR':'WLR'} giá 50 · ${fmt(priceBand?.mid)} [${fmt(priceBand?.lower)}, ${fmt(priceBand?.upper)}] · σ ${fmt(priceBand?.sigma)}`);
   text.push(`${s?.session??'—'} · Strength gốc ${fmt(s?.raw)} → RTH ${fmt(s?.adjusted)} · Regression ${fmt(s?.mid)} [${fmt(s?.lower)}, ${fmt(s?.upper)}] · đủ mẫu ${fmt((s?.confidence??0)*100)}%`,s?.reason??'Thiếu timestamp chung');
   $('tooltip').replaceChildren(...text.map(value=>{const div=document.createElement('div');div.textContent=value;return div;}));
 }
@@ -123,6 +122,7 @@ async function toggleFullChart(){
 if(init()){
   $('refresh').onclick=()=>refresh();for(const id of ['interval','days'])$(id).onchange=()=>refresh(true);
   for(const id of ['symbol','signal'])$(id).onchange=()=>render(false);
+  $('strength-weight').onchange=()=>render(false);
   for(const id of ['spy','qqq','composite','alignment','price-bands','show-strength','bands','markers'])$(id).onchange=toggle;
   $('fit').onclick=fitChart;$('chart-fit').onclick=fitChart;$('fullscreen').onclick=toggleFullChart;
   document.addEventListener('fullscreenchange',syncFullChart);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.querySelector('.chart-card').classList.contains('fullscreen-fallback')){document.querySelector('.chart-card').classList.remove('fullscreen-fallback');syncFullChart();}});

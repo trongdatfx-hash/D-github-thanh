@@ -37,6 +37,8 @@ test('price WLR uses linear weights, prior bars only and resets on gaps',()=>{
   assert.deepEqual(weightedPriceBands(bars.slice(0,60),STEPS['15m']),full.slice(0,60));
   const future=bars.map((x,i)=>i>=60?{...x,c:9999}:x);assert.deepEqual(weightedPriceBands(future,STEPS['15m']).slice(0,60),full.slice(0,60));
   const gap=[...bars.slice(0,55),{t:bars[55].t+STEPS['15m'],c:bars[55].c}];assert.equal(weightedPriceBands(gap,STEPS['15m']).at(-1).mid,null);
+  const curved=bars.map((x,i)=>({...x,c:x.c+(i===45?20:0)})),strength=curved.map((x,i)=>({t:x.t,adjusted:i===45?1:0,confidence:1}));
+  const plain=weightedPriceBands(curved,STEPS['15m'])[50],weighted=weightedPriceBands(curved,STEPS['15m'],{strength})[50];assert.notEqual(weighted.mid,plain.mid);assert(weighted.mid>plain.mid);
 });
 test('NY DST, RTH edges and weekend',()=>{
   assert.equal(sessionAt(Date.parse('2026-10-07T13:30:00Z')).session,'RTH');assert.equal(sessionAt(Date.parse('2026-10-07T20:00:00Z')).session,'POST');assert.equal(sessionAt(Date.parse('2026-01-07T14:30:00Z')).session,'RTH');assert.equal(sessionAt(Date.parse('2026-10-10T14:30:00Z')).session,'WEEKEND');assert.equal(modelStatus.trained,false);
