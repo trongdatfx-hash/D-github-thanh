@@ -1,8 +1,8 @@
 {
   "schema_version": "state-matrix-v1",
-  "generated_at": 1791466209495,
-  "data_as_of": 1791466200000,
-  "model_trained_at": 1791466202727,
+  "generated_at": 1791487810047,
+  "data_as_of": 1791487800000,
+  "model_trained_at": 1791487802791,
   "stale": false,
   "live_rest_available": false,
   "live_market_available": true,
@@ -21,7 +21,7 @@
       "minutes": 15,
       "bars": 1,
       "phase": "NEUTRAL",
-      "score": 0.12293249888242902,
+      "score": 0.11175681716584784,
       "signal": "WAIT",
       "groups": [
         {
@@ -30,7 +30,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.1699927865145959,
+          "weight": 0.1727001130347736,
           "coverage": 0.3333333333333333
         },
         {
@@ -39,7 +39,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.26294919671456324,
+          "weight": 0.2624689064487983,
           "coverage": 0.14285714285714285
         },
         {
@@ -48,8 +48,8 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.1218475149572449,
-          "coverage": 0.1
+          "weight": 0.12432571967900016,
+          "coverage": 0.0
         },
         {
           "key": "cross_asset",
@@ -57,7 +57,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.2126144769950896,
+          "weight": 0.20907687496353106,
           "coverage": 0.3333333333333333
         },
         {
@@ -66,7 +66,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.23259602481850633,
+          "weight": 0.2314283858738968,
           "coverage": 0.2857142857142857
         }
       ]
@@ -75,7 +75,7 @@
       "minutes": 30,
       "bars": 2,
       "phase": "NEUTRAL",
-      "score": 0.13413816230717635,
+      "score": 0.12297372833985354,
       "signal": "WAIT",
       "groups": [
         {
@@ -84,7 +84,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.1488915787460099,
+          "weight": 0.14886664095349986,
           "coverage": 0.3333333333333333
         },
         {
@@ -93,7 +93,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.28793279436948377,
+          "weight": 0.28797570021018504,
           "coverage": 0.14285714285714285
         },
         {
@@ -102,8 +102,8 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.1038968473198123,
-          "coverage": 0.1
+          "weight": 0.10384995484255906,
+          "coverage": 0.0
         },
         {
           "key": "cross_asset",
@@ -111,7 +111,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.1890196295350231,
+          "weight": 0.18901427178392025,
           "coverage": 0.3333333333333333
         },
         {
@@ -120,7 +120,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.2702591500296709,
+          "weight": 0.27029343220983587,
           "coverage": 0.2857142857142857
         }
       ]
@@ -129,7 +129,7 @@
       "minutes": 60,
       "bars": 4,
       "phase": "NEUTRAL",
-      "score": 0.6039592886701722,
+      "score": 0.6040268456375869,
       "signal": "WAIT",
       "groups": [
         {
@@ -138,7 +138,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.15716244449002575,
+          "weight": 0.1571777993293316,
           "coverage": 0.3333333333333333
         },
         {
@@ -147,7 +147,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.28920508649743965,
+          "weight": 0.2891731115223944,
           "coverage": 0.14285714285714285
         },
         {
@@ -156,8 +156,8 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.10936487460646124,
-          "coverage": 0.1
+          "weight": 0.10939736216951929,
+          "coverage": 0.0
         },
         {
           "key": "cross_asset",
@@ -165,7 +165,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.19111050455207174,
+          "weight": 0.19111369093309857,
           "coverage": 0.3333333333333333
         },
         {
@@ -174,7 +174,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.25315708985400165,
+          "weight": 0.2531380360456562,
           "coverage": 0.2857142857142857
         }
       ]
@@ -183,7 +183,7 @@
       "minutes": 120,
       "bars": 8,
       "phase": "NEUTRAL",
-      "score": 1.3772253946926383,
+      "score": 1.3773796192609185,
       "signal": "WAIT",
       "groups": [
         {
@@ -201,7 +201,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.46367649973882147,
+          "weight": 0.46361888248316163,
           "coverage": 0.14285714285714285
         },
         {
@@ -210,8 +210,8 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.07931825694963178,
-          "coverage": 0.1
+          "weight": 0.07936428079239317,
+          "coverage": 0.0
         },
         {
           "key": "cross_asset",
@@ -219,7 +219,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.11944240976626477,
+          "weight": 0.11947761424623338,
           "coverage": 0.3333333333333333
         },
         {
@@ -228,7 +228,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.3375628335452821,
+          "weight": 0.3375392224782118,
           "coverage": 0.2857142857142857
         }
       ]

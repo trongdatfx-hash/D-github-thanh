@@ -1,18 +1,18 @@
 {
   "schema_version": "layers-v1",
-  "generated_at": 1791466209495,
-  "data_as_of": 1791466200000,
-  "model_trained_at": 1791466202727,
-  "lag_minutes": 0.15825,
+  "generated_at": 1791487810047,
+  "data_as_of": 1791487800000,
+  "model_trained_at": 1791487802791,
+  "lag_minutes": 0.16745,
   "stale": false,
   "live_rest_available": false,
   "live_market_available": true,
   "feature_ready": false,
   "collector_mode": "GitHub-hosted official WebSocket closed-M15 batch",
   "regime": "RANGE",
-  "last": 775.65,
-  "dataset_rows": 12145,
-  "missing_bars": 145,
+  "last": 774.42,
+  "dataset_rows": 12168,
+  "missing_bars": 168,
   "historical_scope": "reconstructed market bars; auxiliary features only after recorded receipt; repeated OOS is research, not a locked final holdout",
   "costs": {
     "fee_bps": 4.0,
@@ -32,30 +32,30 @@
             "test_start": 1787122800000,
             "train_label_max": 1787121900000,
             "fit_cutoff": 1785511800000,
-            "train_n": 7156,
+            "train_n": 7155,
             "test_n": 1591
           },
           {
             "test_start": 1788554700000,
             "train_label_max": 1788553800000,
             "fit_cutoff": 1786585500000,
-            "train_n": 8747,
+            "train_n": 8746,
             "test_n": 1591
           },
           {
             "test_start": 1789986600000,
             "train_label_max": 1789985700000,
             "fit_cutoff": 1787659200000,
-            "train_n": 10338,
+            "train_n": 10337,
             "test_n": 1590
           }
         ],
         "accuracy": 0.8524727577535625,
         "balanced_accuracy": 0.33396920461424356,
         "baseline_accuracy": 0.8531014249790444,
-        "log_loss": 0.4852384895020962,
-        "baseline_log_loss": 0.5607349874045477,
-        "brier": 0.24626711233395532,
+        "log_loss": 0.48524359790638394,
+        "baseline_log_loss": 0.5607610404898221,
+        "brier": 0.24626896610146568,
         "trades": {
           "n": 0,
           "hit": null,
@@ -81,8 +81,8 @@
           "score": 0.0,
           "phase": "NEUTRAL",
           "available": false,
-          "weight": 0.1699927865145959,
-          "contribution": 0.02089763803822703,
+          "weight": 0.1727001130347736,
+          "contribution": 0.01930041495694845,
           "train_n": 2500,
           "features": [
             "taker_imbalance",
@@ -100,8 +100,8 @@
           "score": 0.0,
           "phase": "NEUTRAL",
           "available": false,
-          "weight": 0.26294919671456324,
-          "contribution": 0.03232500183124938,
+          "weight": 0.2624689064487983,
+          "contribution": 0.02933268958971837,
           "train_n": 2500,
           "features": [
             "ret_1",
@@ -120,15 +120,15 @@
           "score": 0.0,
           "phase": "NEUTRAL",
           "available": false,
-          "weight": 0.1218475149572449,
-          "contribution": 0.0149790194963086,
+          "weight": 0.12432571967900016,
+          "contribution": 0.013894246723178473,
           "train_n": 2500,
           "features": [
             "basis_pct",
             "basis_z",
             "mark_index_pct"
           ],
-          "coverage": 0.1
+          "coverage": 0.0
         },
         {
           "key": "cross_asset",
@@ -136,8 +136,8 @@
           "score": 0.0,
           "phase": "NEUTRAL",
           "available": false,
-          "weight": 0.2126144769950896,
-          "contribution": 0.026137228955587673,
+          "weight": 0.20907687496353106,
+          "contribution": 0.02336576608890617,
           "train_n": 2500,
           "features": [
             "qqq_ret_1",
@@ -155,8 +155,8 @@
           "score": 0.0,
           "phase": "NEUTRAL",
           "available": false,
-          "weight": 0.23259602481850633,
-          "contribution": 0.028593610561059107,
+          "weight": 0.2314283858738968,
+          "contribution": 0.02586369980709637,
           "train_n": 2500,
           "features": [
             "h1_return",
@@ -172,13 +172,13 @@
       ],
       "signal": "WAIT",
       "probabilities": {
-        "bear": 0.1152212784979884,
-        "neutral": 0.768328118015199,
-        "bull": 0.11645060348681269
+        "bear": 0.11533303531515424,
+        "neutral": 0.768216361198033,
+        "bull": 0.11645060348681271
       },
-      "score": 0.12293249888242902,
+      "score": 0.11175681716584784,
       "phase": "NEUTRAL",
-      "expected_gross_bps": 0.016418824188161037,
+      "expected_gross_bps": 0.014217369638614764,
       "temperature": 1.0,
       "evidence": "UNPROVEN",
       "positive_validation_skill": true
@@ -194,30 +194,30 @@
             "test_start": 1787122800000,
             "train_label_max": 1787121900000,
             "fit_cutoff": 1785510900000,
-            "train_n": 7154,
+            "train_n": 7153,
             "test_n": 1591
           },
           {
             "test_start": 1788554700000,
             "train_label_max": 1788553800000,
-            "fit_cutoff": 1786584600000,
-            "train_n": 8745,
+            "fit_cutoff": 1786585500000,
+            "train_n": 8744,
             "test_n": 1590
           },
           {
             "test_start": 1789985700000,
             "train_label_max": 1789984800000,
             "fit_cutoff": 1787658300000,
-            "train_n": 10335,
+            "train_n": 10334,
             "test_n": 1590
           }
         ],
-        "accuracy": 0.7530915950534479,
-        "balanced_accuracy": 0.3390015873195236,
+        "accuracy": 0.7535107943827289,
+        "balanced_accuracy": 0.33966331780021836,
         "baseline_accuracy": 0.7520435967302452,
-        "log_loss": 0.6813828801363727,
-        "baseline_log_loss": 0.7611389186234313,
-        "brier": 0.37281070399144467,
+        "log_loss": 0.6812219199511521,
+        "baseline_log_loss": 0.761078970966231,
+        "brier": 0.3727670549055806,
         "trades": {
           "n": 0,
           "hit": null,
@@ -243,8 +243,8 @@
           "score": 0.0,
           "phase": "NEUTRAL",
           "available": false,
-          "weight": 0.1488915787460099,
-          "contribution": 0.019972042756004,
+          "weight": 0.14886664095349986,
+          "contribution": 0.01830668586348262,
           "train_n": 2500,
           "features": [
             "taker_imbalance",
@@ -262,8 +262,8 @@
           "score": 0.0,
           "phase": "NEUTRAL",
           "available": false,
-          "weight": 0.28793279436948377,
-          "contribution": 0.038622775904692645,
+          "weight": 0.28797570021018504,
+          "contribution": 0.0354134455261272,
           "train_n": 2500,
           "features": [
             "ret_1",
@@ -282,15 +282,15 @@
           "score": 0.0,
           "phase": "NEUTRAL",
           "available": false,
-          "weight": 0.1038968473198123,
-          "contribution": 0.013936532168988902,
+          "weight": 0.10384995484255906,
+          "contribution": 0.012770816134915203,
           "train_n": 2500,
           "features": [
             "basis_pct",
             "basis_z",
             "mark_index_pct"
           ],
-          "coverage": 0.1
+          "coverage": 0.0
         },
         {
           "key": "cross_asset",
@@ -298,8 +298,8 @@
           "score": 0.0,
           "phase": "NEUTRAL",
           "available": false,
-          "weight": 0.1890196295350231,
-          "contribution": 0.025354745745811272,
+          "weight": 0.18901427178392025,
+          "contribution": 0.023243789710711577,
           "train_n": 2500,
           "features": [
             "qqq_ret_1",
@@ -317,8 +317,8 @@
           "score": 0.0,
           "phase": "NEUTRAL",
           "available": false,
-          "weight": 0.2702591500296709,
-          "contribution": 0.036252065731679516,
+          "weight": 0.27029343220983587,
+          "contribution": 0.033238991104619725,
           "train_n": 2500,
           "features": [
             "h1_return",
@@ -334,13 +334,13 @@
       ],
       "signal": "WAIT",
       "probabilities": {
-        "bear": 0.16275430359937404,
-        "neutral": 0.6731500111781802,
-        "bull": 0.1640956852224458
+        "bear": 0.1627724986025713,
+        "neutral": 0.673225265511459,
+        "bull": 0.16400223588596985
       },
-      "score": 0.13413816230717635,
+      "score": 0.12297372833985354,
       "phase": "NEUTRAL",
-      "expected_gross_bps": 0.040482032209794426,
+      "expected_gross_bps": 0.03939997939487235,
       "temperature": 1.0,
       "evidence": "UNPROVEN",
       "positive_validation_skill": true
@@ -350,41 +350,41 @@
       "minutes": 60,
       "evaluation": {
         "status": "OOS_READY",
-        "samples": 4770,
+        "samples": 4769,
         "folds": [
           {
-            "test_start": 1787121900000,
-            "train_label_max": 1787121000000,
-            "fit_cutoff": 1785509100000,
+            "test_start": 1787122800000,
+            "train_label_max": 1787121900000,
+            "fit_cutoff": 1785510000000,
             "train_n": 7149,
             "test_n": 1590
           },
           {
-            "test_start": 1788552900000,
-            "train_label_max": 1788552000000,
-            "fit_cutoff": 1786582800000,
+            "test_start": 1788553800000,
+            "train_label_max": 1788552900000,
+            "fit_cutoff": 1786583700000,
             "train_n": 8739,
             "test_n": 1590
           },
           {
-            "test_start": 1789983900000,
-            "train_label_max": 1789983000000,
-            "fit_cutoff": 1787655600000,
+            "test_start": 1789984800000,
+            "train_label_max": 1789983900000,
+            "fit_cutoff": 1787656500000,
             "train_n": 10329,
-            "test_n": 1590
+            "test_n": 1589
           }
         ],
-        "accuracy": 0.649475890985325,
-        "balanced_accuracy": 0.34110676037428084,
-        "baseline_accuracy": 0.650104821802935,
-        "log_loss": 0.8486811915170263,
-        "baseline_log_loss": 0.9121443351025151,
-        "brier": 0.4876964595324301,
+        "accuracy": 0.6481442650450828,
+        "balanced_accuracy": 0.34006755897316115,
+        "baseline_accuracy": 0.6502411407003564,
+        "log_loss": 0.8491497212965604,
+        "baseline_log_loss": 0.9120927841631137,
+        "brier": 0.48792995855155713,
         "trades": {
-          "n": 0,
-          "hit": null,
-          "net_bps": null,
-          "return": 0.0,
+          "n": 1,
+          "hit": 1.0,
+          "net_bps": 22.400126222785094,
+          "return": 0.0022400126222785754,
           "drawdown": 0.0
         },
         "stress_trades": {
@@ -394,7 +394,7 @@
           "return": 0.0,
           "drawdown": 0.0
         },
-        "test_start": 1787121900000,
+        "test_start": 1787122800000,
         "test_end": 1791414000000,
         "evidence": "UNPROVEN"
       },
@@ -405,8 +405,8 @@
           "score": 0.0,
           "phase": "NEUTRAL",
           "available": false,
-          "weight": 0.15716244449002575,
-          "contribution": 0.09491971817986139,
+          "weight": 0.1571777993293316,
+          "contribution": 0.09493961033315335,
           "train_n": 2500,
           "features": [
             "taker_imbalance",
@@ -424,8 +424,8 @@
           "score": 0.0,
           "phase": "NEUTRAL",
           "available": false,
-          "weight": 0.28920508649743965,
-          "contribution": 0.17466809832078928,
+          "weight": 0.2891731115223944,
+          "contribution": 0.1746683223960772,
           "train_n": 2500,
           "features": [
             "ret_1",
@@ -444,15 +444,15 @@
           "score": 0.0,
           "phase": "NEUTRAL",
           "available": false,
-          "weight": 0.10936487460646124,
-          "contribution": 0.06605193187282092,
+          "weight": 0.10939736216951929,
+          "contribution": 0.0660789435923271,
           "train_n": 2500,
           "features": [
             "basis_pct",
             "basis_z",
             "mark_index_pct"
           ],
-          "coverage": 0.1
+          "coverage": 0.0
         },
         {
           "key": "cross_asset",
@@ -460,8 +460,8 @@
           "score": 0.0,
           "phase": "NEUTRAL",
           "available": false,
-          "weight": 0.19111050455207174,
-          "contribution": 0.11542296438666697,
+          "weight": 0.19111369093309857,
+          "contribution": 0.1154377998924757,
           "train_n": 2500,
           "features": [
             "qqq_ret_1",
@@ -479,8 +479,8 @@
           "score": 0.0,
           "phase": "NEUTRAL",
           "available": false,
-          "weight": 0.25315708985400165,
-          "contribution": 0.15289657591003372,
+          "weight": 0.2531380360456562,
+          "contribution": 0.15290216942355078,
           "train_n": 2500,
           "features": [
             "h1_return",
@@ -496,13 +496,13 @@
       ],
       "signal": "WAIT",
       "probabilities": {
-        "bear": 0.20680013421317528,
-        "neutral": 0.5803601386869478,
-        "bull": 0.212839727099877
+        "bear": 0.20682326621923935,
+        "neutral": 0.5803131991051454,
+        "bull": 0.21286353467561522
       },
-      "score": 0.6039592886701722,
+      "score": 0.6040268456375869,
       "phase": "NEUTRAL",
-      "expected_gross_bps": 0.08862306772572891,
+      "expected_gross_bps": 0.089273713052179,
       "temperature": 1.0,
       "evidence": "UNPROVEN",
       "positive_validation_skill": true
@@ -517,37 +517,37 @@
           {
             "test_start": 1787121900000,
             "train_label_max": 1787121000000,
-            "fit_cutoff": 1785507300000,
-            "train_n": 7141,
+            "fit_cutoff": 1785508200000,
+            "train_n": 7140,
             "test_n": 1589
           },
           {
             "test_start": 1788552000000,
             "train_label_max": 1788551100000,
             "fit_cutoff": 1786580100000,
-            "train_n": 8730,
+            "train_n": 8729,
             "test_n": 1589
           },
           {
             "test_start": 1789982100000,
             "train_label_max": 1789981200000,
             "fit_cutoff": 1787652900000,
-            "train_n": 10319,
+            "train_n": 10318,
             "test_n": 1588
           }
         ],
-        "accuracy": 0.5667226185480487,
-        "balanced_accuracy": 0.3652948264386739,
+        "accuracy": 0.5631556861099455,
+        "balanced_accuracy": 0.3652927361445439,
         "baseline_accuracy": 0.5637851447754931,
-        "log_loss": 0.9623216902879621,
-        "baseline_log_loss": 0.9947528381152753,
-        "brier": 0.5673721698130193,
+        "log_loss": 0.9642199547450346,
+        "baseline_log_loss": 0.9947823527374503,
+        "brier": 0.5684724224440885,
         "trades": {
-          "n": 40,
+          "n": 48,
           "hit": 0.25,
-          "net_bps": -8.248652744936296,
-          "return": -0.03251596966413628,
-          "drawdown": 0.032755635162319274
+          "net_bps": -8.236592902291887,
+          "return": -0.03883495623418165,
+          "drawdown": 0.039073056390698135
         },
         "stress_trades": {
           "n": 2,
@@ -586,8 +586,8 @@
           "score": 0.0,
           "phase": "NEUTRAL",
           "available": false,
-          "weight": 0.46367649973882147,
-          "contribution": 0.638587050362502,
+          "weight": 0.46361888248316163,
+          "contribution": 0.6385791998368296,
           "train_n": 2500,
           "features": [
             "ret_1",
@@ -606,15 +606,15 @@
           "score": 0.0,
           "phase": "NEUTRAL",
           "available": false,
-          "weight": 0.07931825694963178,
-          "contribution": 0.10923911773378917,
+          "weight": 0.07936428079239317,
+          "contribution": 0.10931474286074314,
           "train_n": 2500,
           "features": [
             "basis_pct",
             "basis_z",
             "mark_index_pct"
           ],
-          "coverage": 0.1
+          "coverage": 0.0
         },
         {
           "key": "cross_asset",
@@ -622,8 +622,8 @@
           "score": 0.0,
           "phase": "NEUTRAL",
           "available": false,
-          "weight": 0.11944240976626477,
-          "contribution": 0.1644991199333845,
+          "weight": 0.11947761424623338,
+          "contribution": 0.1645660308206798,
           "train_n": 2500,
           "features": [
             "qqq_ret_1",
@@ -641,8 +641,8 @@
           "score": 0.0,
           "phase": "NEUTRAL",
           "available": false,
-          "weight": 0.3375628335452821,
-          "contribution": 0.4649001066629684,
+          "weight": 0.3375392224782118,
+          "contribution": 0.4649196457426658,
           "train_n": 2500,
           "features": [
             "h1_return",
@@ -658,13 +658,13 @@
       ],
       "signal": "WAIT",
       "probabilities": {
-        "bear": 0.22875377897211963,
-        "neutral": 0.5287201881088344,
-        "bull": 0.242526032919046
+        "bear": 0.2287793952967525,
+        "neutral": 0.5286674132138858,
+        "bull": 0.2425531914893617
       },
-      "score": 1.3772253946926383,
+      "score": 1.3773796192609185,
       "phase": "NEUTRAL",
-      "expected_gross_bps": 0.18117742297351963,
+      "expected_gross_bps": 0.18121264155092723,
       "temperature": 1.0,
       "evidence": "UNPROVEN",
       "positive_validation_skill": true
@@ -672,7 +672,7 @@
   ],
   "generation_clock": "forecast_ready",
   "collection": {
-    "collected_at": "2026-10-08T13:30:00.502000+00:00",
+    "collected_at": "2026-10-08T19:30:00.624000+00:00",
     "collector": "GitHub-hosted official WebSocket closed-M15 batch",
     "archive": {
       "SPYUSDT/last": {
@@ -692,7 +692,7 @@
         "errors": []
       }
     },
-    "archive_bucket": 497629,
+    "archive_bucket": 497635,
     "websocket": {
       "closed_bars": {
         "SPYUSDT": 1,
@@ -703,7 +703,7 @@
     "market": {
       "SPYUSDT/last": {
         "rows": 12000,
-        "latest_close": 1791466199999,
+        "latest_close": 1791487799999,
         "source": "websocket_closed",
         "latest_source": "websocket_closed",
         "rest_ok": false,
@@ -712,7 +712,7 @@
       },
       "QQQUSDT/last": {
         "rows": 12000,
-        "latest_close": 1791466199999,
+        "latest_close": 1791487799999,
         "source": "websocket_closed",
         "latest_source": "websocket_closed",
         "rest_ok": false,
