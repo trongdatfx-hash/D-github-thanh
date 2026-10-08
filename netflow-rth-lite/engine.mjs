@@ -86,15 +86,14 @@ export function regression(a){
 }
 // Linearly weighted least squares on PRIOR closes, predicting the current bar.
 // Recent observations receive weights 1..window; bands use weighted residual sigma.
-export function weightedPriceBands(bars,step,{window=50,mult=2,factors=[],factorBoost=30}={}){
-  if(!Array.isArray(bars)||!Array.isArray(factors)||!Object.values(STEPS).includes(step)||!Number.isInteger(window)||window<3||!Number.isFinite(mult)||mult<=0||!Number.isFinite(factorBoost)||factorBoost<0)throw Error('Tham số WLR giá không hợp lệ');
-  const factorMap=new Map(factors.map(x=>[x.t,x]));
+export function weightedPriceBands(bars,step,{window=50,mult=2}={}){
+  if(!Array.isArray(bars)||!Object.values(STEPS).includes(step)||!Number.isInteger(window)||window<3||!Number.isFinite(mult)||mult<=0)throw Error('Tham số WLR giá không hợp lệ');
   let history=[],prev=null;
   return bars.map(b=>{
     if(prev!==null&&b.t-prev!==step)history=[];prev=b.t;
     let mid=null,upper=null,lower=null,sigma=null;
     if(history.length>=window){
-      const sample=history.slice(-window),y=sample.map(x=>x.c),weights=sample.map((x,i)=>{const coefficient=factorMap.get(x.t)?.coefficient,c=Number.isFinite(coefficient)?Math.max(0,Math.min(1,coefficient)):0;return (i+1)*(1+factorBoost*c);}),sw=weights.reduce((s,w)=>s+w,0);
+      const sample=history.slice(-window),y=sample.map(x=>x.c),weights=sample.map((x,i)=>i+1),sw=window*(window+1)/2;
       let sx=0,sy=0,sxx=0,sxy=0;
       for(let i=0;i<window;i++){const w=weights[i];sx+=w*i;sy+=w*y[i];sxx+=w*i*i;sxy+=w*i*y[i];}
       const den=sw*sxx-sx*sx,slope=(sw*sxy-sx*sy)/den,intercept=(sy-slope*sx)/sw;

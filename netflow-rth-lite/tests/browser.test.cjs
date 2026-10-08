@@ -33,7 +33,7 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   assert(await page.locator('#chart canvas').count()>0);
   await page.locator('#symbol').selectOption('QQQUSDT');await page.locator('#signal').selectOption('SPYUSDT');
   assert((await page.locator('#tooltip').innerText()).includes('QQQUSDT · O'));
-  for(const id of ['spy','qqq','composite','alignment','price-bands','phase-weight','show-strength','bands','markers']){await page.locator('#'+id).uncheck();await page.locator('#'+id).check();}
+  for(const id of ['spy','qqq','composite','alignment','price-bands','phase-width','show-strength','bands','markers']){await page.locator('#'+id).uncheck();await page.locator('#'+id).check();}
   for(const interval of fixtureRoot||process.env.NETFLOW_LIVE?['5m','30m','1h','15m']:['15m']){
    await page.locator('#interval').selectOption(interval);await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('TRADING'),{},{timeout:120000});
    assert(!(await page.locator('#net').innerText()).includes('—'));
