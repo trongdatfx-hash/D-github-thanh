@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {STEPS,parseKlines,composite,calculateStrength,analyze,regression,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
+import {STEPS,parseKlines,composite,flowAlignment,calculateStrength,analyze,regression,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
 import {load} from '../data.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL(p,import.meta.url),'utf8').replace(/^\uFEFF/,''));
 const now=read('../../netflow-ml/tests/fixtures/time.json').serverTime;
@@ -12,6 +12,11 @@ test('real Binance fixtures use quote fields, exclude unclosed bars',()=>{
 test('composite sums quote volumes at intersection only',()=>{
   const c=composite(a,b.slice(1)),x=c[0],aa=a.find(y=>y.t===x.t),bb=b.find(y=>y.t===x.t);
   assert.equal(x.q,aa.q+bb.q);assert.equal(x.net,aa.net+bb.net);assert(Math.abs(x.nf-(aa.nf*aa.q+bb.nf*bb.q)/(aa.q+bb.q))<1e-10);assert.equal(c.some(x=>x.t===b[0].t),false);assert.equal(x.o,undefined);
+});
+test('SPY/QQQ alignment distinguishes agreement and divergence',()=>{
+  const x={t:1,net:10,nf:20},y={t:1,net:5,nf:10};assert.equal(flowAlignment([x],[y])[0].state,'THUẬN MUA');
+  assert.equal(flowAlignment([{...x,net:-10}],[y])[0].state,'NGHỊCH · SPY bán / QQQ mua');
+  assert.equal(flowAlignment([x],[{...y,net:-5}])[0].score,.45);assert.equal(flowAlignment([x],[{...y,t:2}]).length,0);
 });
 test('session calibration and regression are prefix-causal',()=>{
   const full=analyze(a,STEPS['15m']);assert(full.some(x=>x.adjusted!==null));

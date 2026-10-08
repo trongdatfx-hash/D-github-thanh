@@ -31,6 +31,20 @@ export function composite(a,b){
     return [{t:x.t,end:x.end,day:x.day,session:x.session,q,buy,sell,net,nf:q>0?100*net/q:null}];
   });
 }
+export function flowAlignment(spy,qqq){
+  const other=new Map(qqq.map(x=>[x.t,x]));
+  return spy.flatMap(a=>{
+    const b=other.get(a.t);if(!b)return [];
+    let state,score;
+    if(a.net>0&&b.net>0){state='THUẬN MUA';score=1;}
+    else if(a.net<0&&b.net<0){state='THUẬN BÁN';score=-1;}
+    else if(a.net>0&&b.net<0){state='NGHỊCH · SPY mua / QQQ bán';score=.45;}
+    else if(a.net<0&&b.net>0){state='NGHỊCH · SPY bán / QQQ mua';score=-.45;}
+    else{state='TRUNG TÍNH';score=0;}
+    const intensity=Math.min(1,Math.min(Math.abs(a.nf??0),Math.abs(b.nf??0))/50);
+    return [{t:a.t,state,score,intensity,spyNet:a.net,qqqNet:b.net,spyNf:a.nf,qqqNf:b.nf}];
+  });
+}
 export function normCDF(z){
   z=Math.max(-8,Math.min(8,z));
   const a=Math.abs(z),t=1/(1+.2316419*a),d=.3989422804014327*Math.exp(-a*a/2);
