@@ -4,7 +4,7 @@ This pipeline uses GitHub-hosted CPU runners and GitHub Pages. It does not place
 
 ## Operation
 
-`.github/workflows/ai-engine.yml` requests execution at UTC minutes 7, 22, 37, 52. Each run collects closed SPY/QQQ M15 bars and auxiliary observations, constructs a causal dataset, generates four horizon forecasts, and publishes compact results to main. Schedule delivery can be delayed or dropped; this is all-day scheduled collection, not a persistent 24/7 WebSocket daemon. The next run paginates missing recent bars. `binance-snapshot.yml` is now manual recovery; COT collection remains weekly. Writers share a concurrency group to avoid simultaneous data commits.
+`.github/workflows/ai-engine.yml` requests execution every five minutes (UTC minutes 2, 7, 12, …, 57). Each run collects closed SPY/QQQ M15 bars and auxiliary observations, constructs a causal dataset, generates four horizon forecasts, and publishes compact results to main. Schedule delivery can be delayed or dropped; this is all-day scheduled collection, not a persistent 24/7 WebSocket daemon. The next run paginates missing recent bars. `binance-snapshot.yml` is now manual recovery; COT collection remains weekly. Writers share a concurrency group to avoid simultaneous data commits.
 
 All active AI/market workflows are fixed to GitHub-hosted `ubuntu-latest`; the old `AI_RUNNER_LABEL` variable is ignored. No self-hosted runner, PC watchdog, local Python service, or local data recording is required. `pc_dispatcher.py` is retired and exits before credentials, polling, or filesystem writes. Existing separately installed copies on a PC are outside the repo and unnecessary; this change does not uninstall them.
 
@@ -15,7 +15,7 @@ Liquidation is explicitly unavailable: hosted batch jobs cannot continuously obs
 ### GitHub limits and configuration
 
 - Pages serves static HTML/CSS/JS/JSON and compressed model files. It cannot run a Python server, continuous ML worker, or permanent exchange socket. The independent chart/live-price WebSocket runs in the visitor's browser, subject to that visitor's provider access.
-- Actions cron has a minimum interval of **5 minutes**; this pipeline requests **15 minutes** at UTC 7/22/37/52. Delivery may be delayed/dropped, especially at busy times. It runs only on default `main`; public-repo schedules can be disabled after 60 days of inactivity. This is a batch research pipeline, not a real-time execution service.
+- Actions cron has a minimum interval of **5 minutes**; this pipeline requests **5 minutes** at UTC 2/7/12/…/57. Delivery may be delayed/dropped, especially at busy times. It runs only on default `main`; public-repo schedules can be disabled after 60 days of inactivity. This is a batch research pipeline, not a real-time execution service.
 - Jobs need Actions enabled and `GITHUB_TOKEN` with `contents: write` to publish. Branch rules may reject bot pushes. Tokens/secrets must stay in Actions Secrets and must never be committed or embedded in browser JS. There is no new PAT or exchange key required by this pipeline.
 - Commits made with `GITHUB_TOKEN` do not trigger a Pages rebuild. The existing UI resolves the immutable main commit and reads reports from raw GitHub directly, with Pages as a fallback; thus each data update does not require a site build. UI changes pushed by the maintainer use the existing Pages deployment. GitHub API rate limits/shared IPs and raw CDN outages may temporarily force fallback; stale copies remain WAIT.
 - Models use two CPU threads, shallow 80-tree XGBoost fits and capped training samples. Retrain is approximately four hours with an Actions model cache; cache eviction causes a new hosted fit. Manual **Run workflow → force_train** forces training. Workflow timeout is 20 minutes. Public outputs are public; never add private account/order data.
@@ -70,7 +70,7 @@ Actual workflow forecast times are written into the journal. Forward paper evalu
 
 `generated_at` is measured after training and all horizon predictions finish, with freshness checked again at that moment. Journal records carry `generation_clock=forecast_ready`. Earlier records measured time at training start; they are preserved for audit but excluded from forward performance, since a retrain can cross an M15 entry boundary.
 
-Models are retrained approximately every four hours when the cache expires; inference/report updates run each M15. A changed training implementation forces a new fit on push. A hosted runner failure remains visible through aging data; no PC watchdog is needed or invoked.
+Models are retrained approximately every four hours when the cache expires; inference/report updates run every five minutes using the latest closed M15 candle. A changed training implementation forces a new fit on push. A hosted runner failure remains visible through aging data; no PC watchdog is needed or invoked.
 
 ## Dashboard
 
