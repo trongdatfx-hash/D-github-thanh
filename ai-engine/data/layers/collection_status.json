@@ -1,5 +1,5 @@
 {
-  "collected_at": "2026-10-08T23:30:03.333000+00:00",
+  "collected_at": "2026-10-08T23:45:03.442000+00:00",
   "collector": "GitHub-hosted official WebSocket closed-M15 batch",
   "archive": {
     "SPYUSDT/last": {
@@ -30,7 +30,7 @@
   "market": {
     "SPYUSDT/last": {
       "rows": 12000,
-      "latest_close": 1791502199999,
+      "latest_close": 1791503099999,
       "source": "websocket_closed",
       "latest_source": "websocket_closed",
       "rest_ok": false,
@@ -39,7 +39,7 @@
     },
     "QQQUSDT/last": {
       "rows": 12000,
-      "latest_close": 1791502199999,
+      "latest_close": 1791503099999,
       "source": "websocket_closed",
       "latest_source": "websocket_closed",
       "rest_ok": false,
