@@ -6,31 +6,31 @@
       {
         "test_start": 1787122800000,
         "train_label_max": 1787121900000,
-        "fit_cutoff": 1785510900000,
-        "train_n": 7157,
+        "fit_cutoff": 1785511800000,
+        "train_n": 7156,
         "test_n": 1591
       },
       {
         "test_start": 1788554700000,
         "train_label_max": 1788553800000,
         "fit_cutoff": 1786585500000,
-        "train_n": 8748,
+        "train_n": 8747,
         "test_n": 1591
       },
       {
         "test_start": 1789986600000,
         "train_label_max": 1789985700000,
         "fit_cutoff": 1787659200000,
-        "train_n": 10339,
+        "train_n": 10338,
         "test_n": 1590
       }
     ],
     "accuracy": 0.8524727577535625,
     "balanced_accuracy": 0.33396920461424356,
     "baseline_accuracy": 0.8531014249790444,
-    "log_loss": 0.4852362362026198,
-    "baseline_log_loss": 0.5608149087987526,
-    "brier": 0.24628367702228013,
+    "log_loss": 0.4852384895020962,
+    "baseline_log_loss": 0.5607349874045477,
+    "brier": 0.24626711233395532,
     "trades": {
       "n": 0,
       "hit": null,
@@ -51,36 +51,36 @@
   },
   "2": {
     "status": "OOS_READY",
-    "samples": 4772,
+    "samples": 4771,
     "folds": [
       {
-        "test_start": 1787121900000,
-        "train_label_max": 1787121000000,
-        "fit_cutoff": 1785510000000,
+        "test_start": 1787122800000,
+        "train_label_max": 1787121900000,
+        "fit_cutoff": 1785510900000,
         "train_n": 7154,
         "test_n": 1591
       },
       {
-        "test_start": 1788553800000,
-        "train_label_max": 1788552900000,
-        "fit_cutoff": 1786583700000,
+        "test_start": 1788554700000,
+        "train_label_max": 1788553800000,
+        "fit_cutoff": 1786584600000,
         "train_n": 8745,
-        "test_n": 1591
+        "test_n": 1590
       },
       {
         "test_start": 1789985700000,
         "train_label_max": 1789984800000,
         "fit_cutoff": 1787658300000,
-        "train_n": 10336,
+        "train_n": 10335,
         "test_n": 1590
       }
     ],
-    "accuracy": 0.7531433361274099,
-    "balanced_accuracy": 0.3390916885129677,
-    "baseline_accuracy": 0.7518860016764459,
-    "log_loss": 0.682306957537145,
-    "baseline_log_loss": 0.7613614333563145,
-    "brier": 0.3734327436907767,
+    "accuracy": 0.7530915950534479,
+    "balanced_accuracy": 0.3390015873195236,
+    "baseline_accuracy": 0.7520435967302452,
+    "log_loss": 0.6813828801363727,
+    "baseline_log_loss": 0.7611389186234313,
+    "brier": 0.37281070399144467,
     "trades": {
       "n": 0,
       "hit": null,
@@ -95,7 +95,7 @@
       "return": 0.0,
       "drawdown": 0.0
     },
-    "test_start": 1787121900000,
+    "test_start": 1787122800000,
     "test_end": 1791415800000,
     "evidence": "UNPROVEN"
   },
@@ -107,30 +107,30 @@
         "test_start": 1787121900000,
         "train_label_max": 1787121000000,
         "fit_cutoff": 1785509100000,
-        "train_n": 7150,
+        "train_n": 7149,
         "test_n": 1590
       },
       {
         "test_start": 1788552900000,
         "train_label_max": 1788552000000,
         "fit_cutoff": 1786582800000,
-        "train_n": 8740,
+        "train_n": 8739,
         "test_n": 1590
       },
       {
         "test_start": 1789983900000,
         "train_label_max": 1789983000000,
         "fit_cutoff": 1787655600000,
-        "train_n": 10330,
+        "train_n": 10329,
         "test_n": 1590
       }
     ],
-    "accuracy": 0.6496855345911949,
-    "balanced_accuracy": 0.3412142525810959,
+    "accuracy": 0.649475890985325,
+    "balanced_accuracy": 0.34110676037428084,
     "baseline_accuracy": 0.650104821802935,
-    "log_loss": 0.8486915550438896,
-    "baseline_log_loss": 0.9121815462156693,
-    "brier": 0.4877034410360063,
+    "log_loss": 0.8486811915170263,
+    "baseline_log_loss": 0.9121443351025151,
+    "brier": 0.4876964595324301,
     "trades": {
       "n": 0,
       "hit": null,
@@ -151,51 +151,51 @@
   },
   "8": {
     "status": "OOS_READY",
-    "samples": 4767,
+    "samples": 4766,
     "folds": [
       {
-        "test_start": 1787121000000,
-        "train_label_max": 1787120100000,
-        "fit_cutoff": 1785506400000,
+        "test_start": 1787121900000,
+        "train_label_max": 1787121000000,
+        "fit_cutoff": 1785507300000,
         "train_n": 7141,
         "test_n": 1589
       },
       {
-        "test_start": 1788551100000,
-        "train_label_max": 1788550200000,
-        "fit_cutoff": 1786579200000,
+        "test_start": 1788552000000,
+        "train_label_max": 1788551100000,
+        "fit_cutoff": 1786580100000,
         "train_n": 8730,
         "test_n": 1589
       },
       {
-        "test_start": 1789981200000,
-        "train_label_max": 1789980300000,
-        "fit_cutoff": 1787652000000,
+        "test_start": 1789982100000,
+        "train_label_max": 1789981200000,
+        "fit_cutoff": 1787652900000,
         "train_n": 10319,
-        "test_n": 1589
+        "test_n": 1588
       }
     ],
-    "accuracy": 0.564925529683239,
-    "balanced_accuracy": 0.3664452530933117,
-    "baseline_accuracy": 0.5636668764422068,
-    "log_loss": 0.9632309636645369,
-    "baseline_log_loss": 0.9947930121769,
-    "brier": 0.56810274404218,
+    "accuracy": 0.5667226185480487,
+    "balanced_accuracy": 0.3652948264386739,
+    "baseline_accuracy": 0.5637851447754931,
+    "log_loss": 0.9623216902879621,
+    "baseline_log_loss": 0.9947528381152753,
+    "brier": 0.5673721698130193,
     "trades": {
-      "n": 46,
-      "hit": 0.2826086956521739,
-      "net_bps": -5.8040662904746165,
-      "return": -0.026399139334834842,
-      "drawdown": 0.02882164715257518
+      "n": 40,
+      "hit": 0.25,
+      "net_bps": -8.248652744936296,
+      "return": -0.03251596966413628,
+      "drawdown": 0.032755635162319274
     },
     "stress_trades": {
-      "n": 3,
+      "n": 2,
       "hit": 0.0,
-      "net_bps": -8.12672394303085,
-      "return": -0.002436518983719549,
-      "drawdown": 0.002436518983719549
+      "net_bps": -6.127742192102428,
+      "return": -0.0012252200437271599,
+      "drawdown": 0.0012252200437271599
     },
-    "test_start": 1787121000000,
+    "test_start": 1787121900000,
     "test_end": 1791410400000,
     "evidence": "UNPROVEN"
   }
