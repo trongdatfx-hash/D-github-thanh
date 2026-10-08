@@ -42,7 +42,8 @@ export function flowAlignment(spy,qqq){
     else if(a.net<0&&b.net>0){state='NGHỊCH · SPY bán / QQQ mua';score=-.45;}
     else{state='TRUNG TÍNH';score=0;}
     const intensity=Math.min(1,Math.min(Math.abs(a.nf??0),Math.abs(b.nf??0))/50);
-    return [{t:a.t,state,score,intensity,spyNet:a.net,qqqNet:b.net,spyNf:a.nf,qqqNf:b.nf}];
+    const phaseDen=Math.abs(a.nf??0)+Math.abs(b.nf??0),phase=phaseDen>0?Math.abs((a.nf??0)-(b.nf??0))/phaseDen:0,phaseCoefficient=phase*intensity;
+    return [{t:a.t,state,score,intensity,phase,phaseCoefficient,spyNet:a.net,qqqNet:b.net,spyNf:a.nf,qqqNf:b.nf}];
   });
 }
 export function normCDF(z){
@@ -85,15 +86,15 @@ export function regression(a){
 }
 // Linearly weighted least squares on PRIOR closes, predicting the current bar.
 // Recent observations receive weights 1..window; bands use weighted residual sigma.
-export function weightedPriceBands(bars,step,{window=50,mult=2,strength=[],strengthBoost=2}={}){
-  if(!Array.isArray(bars)||!Array.isArray(strength)||!Object.values(STEPS).includes(step)||!Number.isInteger(window)||window<3||!Number.isFinite(mult)||mult<=0||!Number.isFinite(strengthBoost)||strengthBoost<0)throw Error('Tham số WLR giá không hợp lệ');
-  const strengthMap=new Map(strength.map(x=>[x.t,x]));
+export function weightedPriceBands(bars,step,{window=50,mult=2,factors=[],factorBoost=30}={}){
+  if(!Array.isArray(bars)||!Array.isArray(factors)||!Object.values(STEPS).includes(step)||!Number.isInteger(window)||window<3||!Number.isFinite(mult)||mult<=0||!Number.isFinite(factorBoost)||factorBoost<0)throw Error('Tham số WLR giá không hợp lệ');
+  const factorMap=new Map(factors.map(x=>[x.t,x]));
   let history=[],prev=null;
   return bars.map(b=>{
     if(prev!==null&&b.t-prev!==step)history=[];prev=b.t;
     let mid=null,upper=null,lower=null,sigma=null;
     if(history.length>=window){
-      const sample=history.slice(-window),y=sample.map(x=>x.c),weights=sample.map((x,i)=>{const s=strengthMap.get(x.t),adjusted=Number.isFinite(s?.adjusted),value=adjusted?s.adjusted:s?.raw,m=Number.isFinite(value)?Math.min(1,Math.abs(value)):0,confidence=adjusted&&Number.isFinite(s.confidence)?Math.max(0,Math.min(1,s.confidence)):Number.isFinite(s?.raw)?.35:0;return (i+1)*(1+strengthBoost*m*confidence);}),sw=weights.reduce((s,w)=>s+w,0);
+      const sample=history.slice(-window),y=sample.map(x=>x.c),weights=sample.map((x,i)=>{const coefficient=factorMap.get(x.t)?.coefficient,c=Number.isFinite(coefficient)?Math.max(0,Math.min(1,coefficient)):0;return (i+1)*(1+factorBoost*c);}),sw=weights.reduce((s,w)=>s+w,0);
       let sx=0,sy=0,sxx=0,sxy=0;
       for(let i=0;i<window;i++){const w=weights[i];sx+=w*i;sy+=w*y[i];sxx+=w*i*i;sxy+=w*i*y[i];}
       const den=sw*sxx-sx*sx,slope=(sw*sxy-sx*sy)/den,intercept=(sy-slope*sx)/sw;

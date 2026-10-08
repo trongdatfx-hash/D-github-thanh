@@ -14,8 +14,8 @@ test('composite sums quote volumes at intersection only',()=>{
   assert.equal(x.q,aa.q+bb.q);assert.equal(x.net,aa.net+bb.net);assert(Math.abs(x.nf-(aa.nf*aa.q+bb.nf*bb.q)/(aa.q+bb.q))<1e-10);assert.equal(c.some(x=>x.t===b[0].t),false);assert.equal(x.o,undefined);
 });
 test('SPY/QQQ alignment distinguishes agreement and divergence',()=>{
-  const x={t:1,net:10,nf:20},y={t:1,net:5,nf:10};assert.equal(flowAlignment([x],[y])[0].state,'THUẬN MUA');
-  assert.equal(flowAlignment([{...x,net:-10}],[y])[0].state,'NGHỊCH · SPY bán / QQQ mua');
+  const x={t:1,net:10,nf:20},y={t:1,net:5,nf:10},same=flowAlignment([x],[x])[0];assert.equal(flowAlignment([x],[y])[0].state,'THUẬN MUA');assert.equal(same.phaseCoefficient,0);
+  const opposite=flowAlignment([{...x,net:-10,nf:-20}],[y])[0];assert.equal(opposite.state,'NGHỊCH · SPY bán / QQQ mua');assert.equal(opposite.phase,1);assert.equal(opposite.phaseCoefficient,.2);
   assert.equal(flowAlignment([x],[{...y,net:-5}])[0].score,.45);assert.equal(flowAlignment([x],[{...y,t:2}]).length,0);
 });
 test('session calibration and regression are prefix-causal',()=>{
@@ -37,9 +37,8 @@ test('price WLR uses linear weights, prior bars only and resets on gaps',()=>{
   assert.deepEqual(weightedPriceBands(bars.slice(0,60),STEPS['15m']),full.slice(0,60));
   const future=bars.map((x,i)=>i>=60?{...x,c:9999}:x);assert.deepEqual(weightedPriceBands(future,STEPS['15m']).slice(0,60),full.slice(0,60));
   const gap=[...bars.slice(0,55),{t:bars[55].t+STEPS['15m'],c:bars[55].c}];assert.equal(weightedPriceBands(gap,STEPS['15m']).at(-1).mid,null);
-  const curved=bars.map((x,i)=>({...x,c:x.c+(i===45?20:0)})),strength=curved.map((x,i)=>({t:x.t,adjusted:i===45?1:0,confidence:1}));
-  const plain=weightedPriceBands(curved,STEPS['15m'])[50],weighted=weightedPriceBands(curved,STEPS['15m'],{strength})[50],strong=weightedPriceBands(curved,STEPS['15m'],{strength,strengthBoost:30})[50];assert.notEqual(weighted.mid,plain.mid);assert(weighted.mid>plain.mid);assert(Math.abs(strong.mid-plain.mid)>Math.abs(weighted.mid-plain.mid));
-  const rawOnly=strength.map(x=>({t:x.t,raw:x.adjusted})),rawWeighted=weightedPriceBands(curved,STEPS['15m'],{strength:rawOnly,strengthBoost:30})[50];assert.notEqual(rawWeighted.mid,plain.mid);assert(Math.abs(rawWeighted.mid-plain.mid)<Math.abs(strong.mid-plain.mid));
+  const curved=bars.map((x,i)=>({...x,c:x.c+(i===45?20:0)})),factors=curved.map((x,i)=>({t:x.t,coefficient:i===45?1:0}));
+  const plain=weightedPriceBands(curved,STEPS['15m'])[50],weighted=weightedPriceBands(curved,STEPS['15m'],{factors,factorBoost:2})[50],strong=weightedPriceBands(curved,STEPS['15m'],{factors,factorBoost:30})[50];assert.notEqual(weighted.mid,plain.mid);assert(weighted.mid>plain.mid);assert(Math.abs(strong.mid-plain.mid)>Math.abs(weighted.mid-plain.mid));
 });
 test('NY DST, RTH edges and weekend',()=>{
   assert.equal(sessionAt(Date.parse('2026-10-07T13:30:00Z')).session,'RTH');assert.equal(sessionAt(Date.parse('2026-10-07T20:00:00Z')).session,'POST');assert.equal(sessionAt(Date.parse('2026-01-07T14:30:00Z')).session,'RTH');assert.equal(sessionAt(Date.parse('2026-10-10T14:30:00Z')).session,'WEEKEND');assert.equal(modelStatus.trained,false);
