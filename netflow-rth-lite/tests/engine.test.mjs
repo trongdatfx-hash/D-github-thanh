@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {STEPS,parseKlines,composite,analyze,regression,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
+import {STEPS,parseKlines,composite,calculateStrength,analyze,regression,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
 import {load} from '../data.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL(p,import.meta.url),'utf8').replace(/^\uFEFF/,''));
 const now=read('../../netflow-ml/tests/fixtures/time.json').serverTime;
@@ -16,13 +16,14 @@ test('composite sums quote volumes at intersection only',()=>{
 test('session calibration and regression are prefix-causal',()=>{
   const full=analyze(a,STEPS['15m']);assert(full.some(x=>x.adjusted!==null));
   for(const n of [200,600,900])assert.deepEqual(analyze(a.slice(0,n),STEPS['15m']),full.slice(0,n));
-  const mutated=a.map((x,i)=>i>=900?{...x,nf:99}:x);assert.deepEqual(analyze(mutated,STEPS['15m']).slice(0,900),full.slice(0,900));
-  const altered=a.map((x,i)=>i===850?{...x,nf:100}:x),f=analyze(altered,STEPS['15m']);assert.equal(f[850].mid,full[850].mid);assert.equal(f[850].upper,full[850].upper);
+  const mutated=a.map((x,i)=>i>=900?{...x,net:x.q}:x);assert.deepEqual(analyze(mutated,STEPS['15m']).slice(0,900),full.slice(0,900));
+  const altered=a.map((x,i)=>i===850?{...x,net:x.q}:x),f=analyze(altered,STEPS['15m']);assert.equal(f[850].mid,full[850].mid);assert.equal(f[850].upper,full[850].upper);
 });
-test('EWMA half-life, regression fit, gaps and zero-volume',()=>{
-  const pair=analyze([{...a[0],nf:0},{...a[1],nf:100}],STEPS['15m']);assert.equal(pair[1].raw,100*(1-2**(-.5)));
+test('DVP smoothing chain, regression fit, gaps and zero-volume',()=>{
+  const strength=calculateStrength(a,STEPS['15m']);assert.equal(strength.findIndex(Number.isFinite),506);assert(strength.filter(Number.isFinite).every(x=>x>=-1&&x<=1));
+  for(const n of [200,600,900])assert.deepEqual(calculateStrength(a.slice(0,n),STEPS['15m']),strength.slice(0,n));
   const r=regression(Array.from({length:50},(_,i)=>3+2*i));assert.equal(r.mid,103);assert.equal(r.sigma,0);
-  const gap=analyze([a[0],a[10]],STEPS['15m']);assert.equal(gap[1].raw,a[10].nf);assert.equal(gap[1].rthSamples,0);
+  const gap=analyze([a[0],a[10]],STEPS['15m']);assert.equal(gap[1].raw,null);assert.equal(gap[1].rthSamples,0);
   const k=[...spy[0]];k[7]='0';k[10]='0';assert.equal(parseKlines([k],now,STEPS['15m'])[0].nf,null);k[10]='1';assert.throws(()=>parseKlines([k],now,STEPS['15m']));
 });
 test('NY DST, RTH edges and weekend',()=>{

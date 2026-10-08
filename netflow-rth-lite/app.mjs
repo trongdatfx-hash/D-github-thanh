@@ -9,7 +9,7 @@ function init(){
   if(!L){status('Không tải được thư viện chart cục bộ. Kiểm tra network hoặc tải lại trang.',true);return false;}
   chart=L.createChart($('chart'),{autoSize:true,layout:{background:{type:'solid',color:'#0e1726'},textColor:'#91a5bd',attributionLogo:true},grid:{vertLines:{color:'#1a283a'},horzLines:{color:'#1a283a'}},crosshair:{mode:L.CrosshairMode.Normal,vertLine:{visible:true,labelVisible:true},horzLine:{visible:true,labelVisible:true}},timeScale:{timeVisible:true,secondsVisible:false,rightOffset:5},rightPriceScale:{autoScale:true},handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},handleScale:{mouseWheel:true,pinch:true,axisPressedMouseMove:true},localization:{locale:'vi-VN',timeFormatter:t=>new Date(t*1000).toLocaleString('en-US',{timeZone:'America/New_York',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'})}});
   price=chart.addSeries(L.CandlestickSeries,{priceLineVisible:false,borderVisible:false},0);
-  for(const key of Object.keys(colors))series[key]=chart.addSeries(L.LineSeries,{color:colors[key],lineWidth:key==='COMPOSITE'?2:1,title:key.replace('USDT','')+' NF%',priceLineVisible:false,priceFormat:{type:'custom',formatter:v=>fmt(v)+'%'}},1);
+  for(const key of Object.keys(colors))series[key]=chart.addSeries(L.LineSeries,{color:colors[key],lineWidth:key==='COMPOSITE'?2:1,title:key.replace('USDT','')+' NetFlowQ',priceLineVisible:false,priceFormat:{type:'custom',formatter:v=>fmt(v)}},1);
   series.strength=chart.addSeries(L.LineSeries,{color:'#f8bc62',lineWidth:2,title:'Strength → RTH',priceLineVisible:false},2);
   for(const key of ['mid','upper','lower'])series[key]=chart.addSeries(L.LineSeries,{color:key==='mid'?'#7c98b9':'#8596ad',lineWidth:1,lineStyle:key==='mid'?L.LineStyle.Dotted:L.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,title:key==='mid'?'Regression':key==='upper'?'+2σ':'−2σ'},2);
   series.strength.createPriceLine({price:0,color:'#4c6078',lineWidth:1,lineStyle:L.LineStyle.Dotted,axisLabelVisible:false});
@@ -28,7 +28,7 @@ function render(fit=false){
   const range=chart.timeScale().getVisibleLogicalRange();
   const p=rows[$('symbol').value]??[],signals=maps[$('signal').value]??new Map();
   price.setData(p.map(x=>{const color=candleColor(signals.get(x.t));return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color,wickColor:color,borderColor:color};}));
-  for(const key of Object.keys(colors))series[key].setData(lineData(rows[key]??[],'nf'));
+  for(const key of Object.keys(colors))series[key].setData(lineData(rows[key]??[],'net'));
   const signalRows=rows[$('signal').value]??[];
   series.strength.setData(lineData(signalRows,'adjusted'));
   for(const key of ['mid','upper','lower'])series[key].setData(lineData(signalRows,key));
@@ -44,7 +44,7 @@ function showTooltip(t){
   const p=maps[$('symbol').value]?.get(t),s=maps[$('signal').value]?.get(t);metrics(s);
   const text=[new Date(t).toLocaleString('vi-VN',{timeZone:'America/New_York'})+' ET',p?`${$('symbol').value} · O ${fmt(p.o)} H ${fmt(p.h)} L ${fmt(p.l)} C ${fmt(p.c)}`:'Không có nến giá tại timestamp này'];
   for(const key of Object.keys(colors)){const b=maps[key]?.get(t);text.push(`${key} · BuyQ ${fmt(b?.buy)} · SellQ ${fmt(b?.sell)} · NetQ ${fmt(b?.net)} USDT · NF ${fmt(b?.nf)}%`);}
-  text.push(`${s?.session??'—'} · EWMA ${fmt(s?.raw)} → Strength ${fmt(s?.adjusted)} · Regression ${fmt(s?.mid)} [${fmt(s?.lower)}, ${fmt(s?.upper)}] · đủ mẫu ${fmt((s?.confidence??0)*100)}%`,s?.reason??'Thiếu timestamp chung');
+  text.push(`${s?.session??'—'} · Strength gốc ${fmt(s?.raw)} → RTH ${fmt(s?.adjusted)} · Regression ${fmt(s?.mid)} [${fmt(s?.lower)}, ${fmt(s?.upper)}] · đủ mẫu ${fmt((s?.confidence??0)*100)}%`,s?.reason??'Thiếu timestamp chung');
   $('tooltip').replaceChildren(...text.map(value=>{const div=document.createElement('div');div.textContent=value;return div;}));
 }
 function toggle(){
