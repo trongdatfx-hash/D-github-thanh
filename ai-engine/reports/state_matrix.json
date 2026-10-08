@@ -1,7 +1,7 @@
 {
   "schema_version": "state-matrix-v1",
-  "generated_at": 1791440112632,
-  "data_as_of": 1791440100000,
+  "generated_at": 1791454505734,
+  "data_as_of": 1791454500000,
   "model_trained_at": 1791440105741,
   "stale": false,
   "live_rest_available": false,
@@ -40,7 +40,7 @@
           "score": 0.0,
           "available": false,
           "weight": 0.26848709746461746,
-          "coverage": 0.14285714285714285
+          "coverage": 0.2857142857142857
         },
         {
           "key": "derivatives",
@@ -94,7 +94,7 @@
           "score": 0.0,
           "available": false,
           "weight": 0.2958607081790885,
-          "coverage": 0.14285714285714285
+          "coverage": 0.2857142857142857
         },
         {
           "key": "derivatives",
@@ -148,7 +148,7 @@
           "score": 0.0,
           "available": false,
           "weight": 0.3102177312122362,
-          "coverage": 0.14285714285714285
+          "coverage": 0.2857142857142857
         },
         {
           "key": "derivatives",
@@ -202,7 +202,7 @@
           "score": 0.0,
           "available": false,
           "weight": 0.4126074494055764,
-          "coverage": 0.14285714285714285
+          "coverage": 0.2857142857142857
         },
         {
           "key": "derivatives",

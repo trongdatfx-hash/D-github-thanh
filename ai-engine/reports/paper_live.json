@@ -3,28 +3,28 @@
   "horizons": [
     {
       "bars": 1,
-      "mature_predictions": 6,
-      "accuracy": 0.6666666666666666,
+      "mature_predictions": 8,
+      "accuracy": 0.75,
       "trades": 0,
       "net_bps": null
     },
     {
       "bars": 2,
-      "mature_predictions": 5,
-      "accuracy": 0.4,
+      "mature_predictions": 8,
+      "accuracy": 0.5,
       "trades": 0,
       "net_bps": null
     },
     {
       "bars": 4,
-      "mature_predictions": 3,
-      "accuracy": 0.0,
+      "mature_predictions": 8,
+      "accuracy": 0.125,
       "trades": 0,
       "net_bps": null
     },
     {
       "bars": 8,
-      "mature_predictions": 1,
+      "mature_predictions": 8,
       "accuracy": 0.0,
       "trades": 0,
       "net_bps": null

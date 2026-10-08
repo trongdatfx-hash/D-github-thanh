@@ -1,18 +1,18 @@
 {
   "schema_version": "layers-v1",
-  "generated_at": 1791440112632,
-  "data_as_of": 1791440100000,
+  "generated_at": 1791454505734,
+  "data_as_of": 1791454500000,
   "model_trained_at": 1791440105741,
-  "lag_minutes": 0.21053333333333332,
+  "lag_minutes": 0.09556666666666666,
   "stale": false,
   "live_rest_available": false,
   "live_market_available": true,
   "feature_ready": false,
   "collector_mode": "GitHub-hosted official WebSocket closed-M15 batch",
   "regime": "RANGE",
-  "last": 776.67,
-  "dataset_rows": 12149,
-  "missing_bars": 149,
+  "last": 774.98,
+  "dataset_rows": 12134,
+  "missing_bars": 134,
   "historical_scope": "reconstructed market bars; auxiliary features only after recorded receipt; repeated OOS is research, not a locked final holdout",
   "costs": {
     "fee_bps": 4.0,
@@ -112,7 +112,7 @@
             "range_pct",
             "absorption"
           ],
-          "coverage": 0.14285714285714285
+          "coverage": 0.2857142857142857
         },
         {
           "key": "derivatives",
@@ -274,7 +274,7 @@
             "range_pct",
             "absorption"
           ],
-          "coverage": 0.14285714285714285
+          "coverage": 0.2857142857142857
         },
         {
           "key": "derivatives",
@@ -436,7 +436,7 @@
             "range_pct",
             "absorption"
           ],
-          "coverage": 0.14285714285714285
+          "coverage": 0.2857142857142857
         },
         {
           "key": "derivatives",
@@ -598,7 +598,7 @@
             "range_pct",
             "absorption"
           ],
-          "coverage": 0.14285714285714285
+          "coverage": 0.2857142857142857
         },
         {
           "key": "derivatives",
@@ -672,27 +672,27 @@
   ],
   "generation_clock": "forecast_ready",
   "collection": {
-    "collected_at": "2026-10-08T06:15:03.501000+00:00",
+    "collected_at": "2026-10-08T10:15:03.470000+00:00",
     "collector": "GitHub-hosted official WebSocket closed-M15 batch",
     "archive": {
       "SPYUSDT/last": {
-        "recovered_rows": 0,
+        "recovered_rows": 96,
         "errors": []
       },
       "QQQUSDT/last": {
-        "recovered_rows": 0,
+        "recovered_rows": 96,
         "errors": []
       },
       "SPYUSDT/mark": {
-        "recovered_rows": 0,
+        "recovered_rows": 96,
         "errors": []
       },
       "SPYUSDT/index": {
-        "recovered_rows": 0,
+        "recovered_rows": 96,
         "errors": []
       }
     },
-    "archive_bucket": 497622,
+    "archive_bucket": 497626,
     "websocket": {
       "closed_bars": {
         "SPYUSDT": 1,
@@ -703,7 +703,7 @@
     "market": {
       "SPYUSDT/last": {
         "rows": 12000,
-        "latest_close": 1791440099999,
+        "latest_close": 1791454499999,
         "source": "websocket_closed",
         "latest_source": "websocket_closed",
         "rest_ok": false,
@@ -712,7 +712,7 @@
       },
       "QQQUSDT/last": {
         "rows": 12000,
-        "latest_close": 1791440099999,
+        "latest_close": 1791454499999,
         "source": "websocket_closed",
         "latest_source": "websocket_closed",
         "rest_ok": false,
@@ -756,5 +756,5 @@
     },
     "liquidation": "unavailable: not collected by this bounded candle stream"
   },
-  "retrained_this_run": true
+  "retrained_this_run": false
 }
