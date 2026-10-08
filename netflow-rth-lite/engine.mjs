@@ -83,6 +83,26 @@ export function regression(a){
   const sigma=Math.sqrt(a.reduce((s,y,i)=>s+(y-intercept-slope*i)**2,0)/(n-2));
   const mid=intercept+slope*n;return {mid,upper:mid+2*sigma,lower:mid-2*sigma,sigma};
 }
+// Linearly weighted least squares on PRIOR closes, predicting the current bar.
+// Recent observations receive weights 1..window; bands use weighted residual sigma.
+export function weightedPriceBands(bars,step,{window=50,mult=2}={}){
+  if(!Array.isArray(bars)||!Object.values(STEPS).includes(step)||!Number.isInteger(window)||window<3||!Number.isFinite(mult)||mult<=0)throw Error('Tham số WLR giá không hợp lệ');
+  let history=[],prev=null;
+  return bars.map(b=>{
+    if(prev!==null&&b.t-prev!==step)history=[];prev=b.t;
+    let mid=null,upper=null,lower=null,sigma=null;
+    if(history.length>=window){
+      const y=history.slice(-window),sw=window*(window+1)/2;
+      let sx=0,sy=0,sxx=0,sxy=0;
+      for(let i=0;i<window;i++){const w=i+1;sx+=w*i;sy+=w*y[i];sxx+=w*i*i;sxy+=w*i*y[i];}
+      const den=sw*sxx-sx*sx,slope=(sw*sxy-sx*sy)/den,intercept=(sy-slope*sx)/sw;
+      let sse=0;for(let i=0;i<window;i++){const e=y[i]-intercept-slope*i;sse+=(i+1)*e*e;}
+      sigma=Math.sqrt(sse/sw);mid=intercept+slope*window;upper=mid+mult*sigma;lower=mid-mult*sigma;
+    }
+    history.push(b.c);if(history.length>window)history.shift();
+    return {t:b.t,mid,upper,lower,sigma};
+  });
+}
 // Replace this adapter with a versioned model ONLY after dataset/backtest validation.
 export const modelStatus={trained:false,method:'DVP Strength chain on NetFlowQ/quote volume; past-only session location/scale → RTH'};
 export function analyze(bars,step,{minSamples=26,window=500,regWindow=50,strength=calculateStrength(bars,step)}={}){
