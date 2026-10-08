@@ -1,8 +1,8 @@
 {
   "schema_version": "state-matrix-v1",
-  "generated_at": 1791454505734,
-  "data_as_of": 1791454500000,
-  "model_trained_at": 1791440105741,
+  "generated_at": 1791455406181,
+  "data_as_of": 1791455400000,
+  "model_trained_at": 1791455401852,
   "stale": false,
   "live_rest_available": false,
   "live_market_available": true,
@@ -21,7 +21,7 @@
       "minutes": 15,
       "bars": 1,
       "phase": "NEUTRAL",
-      "score": 0.08937548877220453,
+      "score": 0.21587979137309143,
       "signal": "WAIT",
       "groups": [
         {
@@ -30,7 +30,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.16951615248358665,
+          "weight": 0.1700149772415689,
           "coverage": 0.3333333333333333
         },
         {
@@ -39,7 +39,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.26848709746461746,
+          "weight": 0.26290264495999466,
           "coverage": 0.2857142857142857
         },
         {
@@ -48,17 +48,17 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.12440674694242329,
+          "weight": 0.12190530974244494,
           "coverage": 0.1
         },
         {
           "key": "cross_asset",
           "name": "SPY \u00d7 QQQ",
           "phase": "NEUTRAL",
-          "score": 0.0,
-          "available": false,
-          "weight": 0.20983833286697218,
-          "coverage": 0.3333333333333333
+          "score": 0.5187809467315674,
+          "available": true,
+          "weight": 0.21260514842430978,
+          "coverage": 0.5
         },
         {
           "key": "context",
@@ -66,7 +66,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.22775167024240045,
+          "weight": 0.23257191963168175,
           "coverage": 0.2857142857142857
         }
       ]
@@ -75,7 +75,7 @@
       "minutes": 30,
       "bars": 2,
       "phase": "NEUTRAL",
-      "score": 0.1005811354492625,
+      "score": -2.9786659177758135,
       "signal": "WAIT",
       "groups": [
         {
@@ -84,7 +84,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.1439175054554004,
+          "weight": 0.14891653393231424,
           "coverage": 0.3333333333333333
         },
         {
@@ -93,7 +93,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.2958607081790885,
+          "weight": 0.2878898586025023,
           "coverage": 0.2857142857142857
         },
         {
@@ -102,17 +102,17 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.10244249209875765,
+          "weight": 0.10394377250397414,
           "coverage": 0.1
         },
         {
           "key": "cross_asset",
           "name": "SPY \u00d7 QQQ",
-          "phase": "NEUTRAL",
-          "score": 0.0,
-          "available": false,
-          "weight": 0.20155177826023019,
-          "coverage": 0.3333333333333333
+          "phase": "BEAR",
+          "score": -16.381435340366295,
+          "available": true,
+          "weight": 0.18902499102308945,
+          "coverage": 0.5
         },
         {
           "key": "context",
@@ -120,7 +120,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.25622751600652327,
+          "weight": 0.2702248439381198,
           "coverage": 0.2857142857142857
         }
       ]
@@ -129,7 +129,7 @@
       "minutes": 60,
       "bars": 4,
       "phase": "NEUTRAL",
-      "score": 0.6485519400648593,
+      "score": 0.13824684110922414,
       "signal": "WAIT",
       "groups": [
         {
@@ -138,7 +138,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.14447488629223632,
+          "weight": 0.1571818314239505,
           "coverage": 0.3333333333333333
         },
         {
@@ -147,7 +147,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.3102177312122362,
+          "weight": 0.2891647150734148,
           "coverage": 0.2857142857142857
         },
         {
@@ -156,17 +156,17 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.10655966260444638,
+          "weight": 0.10940589322123398,
           "coverage": 0.1
         },
         {
           "key": "cross_asset",
           "name": "SPY \u00d7 QQQ",
           "phase": "NEUTRAL",
-          "score": 0.0,
-          "available": false,
-          "weight": 0.19218461005591767,
-          "coverage": 0.3333333333333333
+          "score": -1.879911152719127,
+          "available": true,
+          "weight": 0.19111452765887188,
+          "coverage": 0.5
         },
         {
           "key": "context",
@@ -174,7 +174,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.2465631098351634,
+          "weight": 0.2531330326225288,
           "coverage": 0.2857142857142857
         }
       ]
@@ -183,7 +183,7 @@
       "minutes": 120,
       "bars": 8,
       "phase": "NEUTRAL",
-      "score": 1.343333706481578,
+      "score": 0.90462403641417,
       "signal": "WAIT",
       "groups": [
         {
@@ -201,7 +201,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.4126074494055764,
+          "weight": 0.4637339769365152,
           "coverage": 0.2857142857142857
         },
         {
@@ -210,17 +210,17 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.15406778127212573,
+          "weight": 0.07927234498317767,
           "coverage": 0.1
         },
         {
           "key": "cross_asset",
           "name": "SPY \u00d7 QQQ",
           "phase": "NEUTRAL",
-          "score": 0.0,
-          "available": false,
-          "weight": 0.20313029708656655,
-          "coverage": 0.3333333333333333
+          "score": -2.579531150446268,
+          "available": true,
+          "weight": 0.11940729086253192,
+          "coverage": 0.5
         },
         {
           "key": "context",
@@ -228,7 +228,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.23019447223573122,
+          "weight": 0.3375863872177751,
           "coverage": 0.2857142857142857
         }
       ]
