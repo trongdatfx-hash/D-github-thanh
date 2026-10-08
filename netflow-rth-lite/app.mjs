@@ -2,7 +2,7 @@ import {STEPS,composite,flowAlignment,analyze} from './engine.mjs';
 import {load} from './data.mjs';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—';
 const L=window.LightweightCharts;
-let chart,price,series={},marks,cache=null,rows={},maps={},alignmentMap=new Map(),controller,generation=0,loading=false,lastSuccess=null;
+let chart,price,series={},marks,strengthMarks,cache=null,rows={},maps={},alignmentMap=new Map(),controller,generation=0,loading=false,lastSuccess=null;
 const colors={SPYUSDT:'#5ba8ff',QQQUSDT:'#c194ff',COMPOSITE:'#38dfba'};
 const flowColors={
   SPYUSDT:{up:'rgba(39,211,164,.38)',down:'rgba(255,91,116,.38)'},
@@ -24,6 +24,7 @@ function init(){
   series.COMPOSITE.createPriceLine({price:0,color:'#60748c',lineWidth:1,lineStyle:L.LineStyle.Solid,axisLabelVisible:false});
   chart.panes()[0].setStretchFactor(.50);chart.panes()[1].setStretchFactor(.24);chart.panes()[2].setStretchFactor(.26);
   marks=L.createSeriesMarkers(price,[]);
+  strengthMarks=L.createSeriesMarkers(series.strength,[]);
   chart.subscribeCrosshairMove(p=>{if(p.time)showTooltip(p.time*1000);});
   return true;
 }
@@ -47,6 +48,7 @@ function render(fit=false){
   const alignment=flowAlignment(rows.SPYUSDT??[],rows.QQQUSDT??[]);alignmentMap=new Map(alignment.map(x=>[x.t,x]));series.alignment.setData(alignmentData(alignment));
   const signalRows=rows[$('signal').value]??[];
   series.strength.setData(lineData(signalRows,'adjusted'));
+  strengthMarks.setMarkers(signalRows.filter(x=>Number.isFinite(x.adjusted)&&x.adjusted>.95).map(x=>({time:x.t/1000,position:'inBar',color:'#7dffd9',shape:'circle',text:''})));
   for(const key of ['mid','upper','lower'])series[key].setData(lineData(signalRows,key));
   let previousDay=null,previousSession=null;
   marks.setMarkers(p.flatMap(x=>{let text=null;if(x.session==='RTH'&&previousSession!=='RTH')text='RTH';else if(x.day!==previousDay)text=x.day.slice(5);previousDay=x.day;previousSession=x.session;return text?[{time:x.t/1000,position:'aboveBar',color:text==='RTH'?'#f8bc62':'#788ca5',shape:'circle',text}]:[];}));
@@ -66,6 +68,7 @@ function showTooltip(t){
 }
 function toggle(){
   for(const [id,key] of [['spy','SPYUSDT'],['qqq','QQQUSDT'],['composite','COMPOSITE'],['show-strength','strength']])series[key].applyOptions({visible:$(id).checked});
+  strengthMarks.applyOptions({visible:$('show-strength').checked});
   series.alignment.applyOptions({visible:$('alignment').checked});
   for(const key of ['mid','upper','lower'])series[key].applyOptions({visible:$('bands').checked});
   marks.applyOptions({visible:$('markers').checked});

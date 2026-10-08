@@ -25,7 +25,7 @@ Tối đa 500 mẫu raw Strength quá khứ mỗi phiên, tối thiểu 26 mẫu
 
 OLS trên 50 adjusted Strength hợp lệ liên tiếp trước nến hiện tại; dự báo tại chỉ số 50; residual sigma = sqrt(SSE/(50−2)); biên prediction center ±2 sigma. Không dùng nến hiện tại hoặc tương lai để fit, không vẽ hồi quy fit cả đoạn ngược về quá khứ. Strength, hồi quy và biên nằm ở pane Strength riêng dưới cùng như bố cục ban đầu. Biên không phải biên giá hoặc khoảng tin cậy 95%. Không có hồi quy khi chuỗi hiệu chỉnh chưa đủ liên tiếp.
 
-Nến giá dùng gradient theo adjusted Strength của nguồn đang chọn. Khi Strength gần 0, màu gần xám; `|Strength|` càng tiến đến 1, màu càng bão hòa về xanh (`Strength > 0`) hoặc đỏ (`Strength < 0`). Độ đủ mẫu chỉ điều chỉnh nhẹ cường độ để tín hiệu 26 mẫu vẫn nhìn rõ; đây không phải xác suất thắng. Chưa đủ hiệu chỉnh thì nến xám. Pane Strength dùng đường xanh khi dương, đỏ khi âm và đường 0 sáng, liền nét, có nhãn trên trục để thấy điểm đổi dấu rõ trên desktop lẫn mobile.
+Nến giá dùng gradient theo adjusted Strength của nguồn đang chọn. Khi Strength gần 0, màu gần xám; `|Strength|` càng tiến đến 1, màu càng bão hòa về xanh (`Strength > 0`) hoặc đỏ (`Strength < 0`). Độ đủ mẫu chỉ điều chỉnh nhẹ cường độ để tín hiệu 26 mẫu vẫn nhìn rõ; đây không phải xác suất thắng. Chưa đủ hiệu chỉnh thì nến xám. Pane Strength dùng đường xanh khi dương, đỏ khi âm và đường 0 sáng, liền nét, có nhãn trên trục để thấy điểm đổi dấu rõ trên desktop lẫn mobile. Chấm tròn xanh trên đường đánh dấu từng nến có adjusted Strength > 0.95 và tự ẩn khi tắt Strength.
 
 ## Chart & kiểm định
 
