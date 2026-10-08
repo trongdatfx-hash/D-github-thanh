@@ -17,7 +17,7 @@ function init(){
   for(const key of Object.keys(colors))series[key]=chart.addSeries(L.HistogramSeries,{base:0,color:flowColors[key].up,title:key.replace('USDT','')+' Taker NetFlow',priceLineVisible:false,priceFormat:{type:'custom',formatter:v=>fmt(v)}},1);
   series.alignment=chart.addSeries(L.HistogramSeries,{priceScaleId:'alignment',base:0,color:'#f5a623',title:'SPY↔QQQ',priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',formatter:()=>''}},1);
   series.alignment.priceScale().applyOptions({scaleMargins:{top:.80,bottom:.02}});
-  series.strength=chart.addSeries(L.LineSeries,{color:'#ffd166',lineWidth:3,title:'Strength → RTH',priceLineVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:4},2);
+  series.strength=chart.addSeries(L.BaselineSeries,{baseValue:{type:'price',price:0},topLineColor:'#1ae0a3',topFillColor1:'rgba(26,224,163,0)',topFillColor2:'rgba(26,224,163,0)',bottomLineColor:'#ff4d70',bottomFillColor1:'rgba(255,77,112,0)',bottomFillColor2:'rgba(255,77,112,0)',lineWidth:3,title:'Strength → RTH',priceLineVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:4},2);
   for(const key of ['mid','upper','lower'])series[key]=chart.addSeries(L.LineSeries,{color:key==='mid'?'#9db5d1':'#8596ad',lineWidth:key==='mid'?2:1,lineStyle:key==='mid'?L.LineStyle.Dotted:L.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,title:key==='mid'?'Strength regression':key==='upper'?'+2σ':'−2σ'},2);
   series.strength.createPriceLine({price:0,color:'#d7e5f3',lineWidth:2,lineStyle:L.LineStyle.Solid,axisLabelVisible:true,title:'0'});
   series.strength.priceScale().applyOptions({scaleMargins:{top:.08,bottom:.08}});
