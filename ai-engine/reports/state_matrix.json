@@ -1,0 +1,235 @@
+{
+  "schema_version": "state-matrix-v1",
+  "generated_at": 1791418210753,
+  "data_as_of": 1791390600000,
+  "model_trained_at": 1791418204711,
+  "stale": true,
+  "live_rest_available": false,
+  "phases": [
+    "BEAR",
+    "NEUTRAL",
+    "BULL"
+  ],
+  "thresholds": {
+    "bear_max": -15,
+    "bull_min": 15
+  },
+  "horizons": [
+    {
+      "minutes": 15,
+      "bars": 1,
+      "phase": "NEUTRAL",
+      "score": -3.3747006434840103,
+      "signal": "WAIT",
+      "groups": [
+        {
+          "key": "flow",
+          "name": "D\u00f2ng l\u1ec7nh",
+          "phase": "NEUTRAL",
+          "score": 1.17360387662341,
+          "available": true,
+          "weight": 0.1697703194626856,
+          "coverage": 1.0
+        },
+        {
+          "key": "price",
+          "name": "Ph\u1ea3n \u1ee9ng gi\u00e1",
+          "phase": "NEUTRAL",
+          "score": -6.715860568069099,
+          "available": true,
+          "weight": 0.2700480064907168,
+          "coverage": 1.0
+        },
+        {
+          "key": "derivatives",
+          "name": "V\u1ecb th\u1ebf ph\u00e1i sinh",
+          "phase": "NEUTRAL",
+          "score": -0.9060695632387761,
+          "available": true,
+          "weight": 0.12195204261196194,
+          "coverage": 0.9
+        },
+        {
+          "key": "cross_asset",
+          "name": "SPY \u00d7 QQQ",
+          "phase": "NEUTRAL",
+          "score": -1.2921251837955867,
+          "available": true,
+          "weight": 0.20998653125665734,
+          "coverage": 1.0
+        },
+        {
+          "key": "context",
+          "name": "B\u1ed1i c\u1ea3nh H1/H4",
+          "phase": "NEUTRAL",
+          "score": -6.039670289745039,
+          "available": true,
+          "weight": 0.22824310017797844,
+          "coverage": 1.0
+        }
+      ]
+    },
+    {
+      "minutes": 30,
+      "bars": 2,
+      "phase": "NEUTRAL",
+      "score": -9.199364695355813,
+      "signal": "WAIT",
+      "groups": [
+        {
+          "key": "flow",
+          "name": "D\u00f2ng l\u1ec7nh",
+          "phase": "NEUTRAL",
+          "score": -2.328617836108539,
+          "available": true,
+          "weight": 0.14318379780953194,
+          "coverage": 1.0
+        },
+        {
+          "key": "price",
+          "name": "Ph\u1ea3n \u1ee9ng gi\u00e1",
+          "phase": "BEAR",
+          "score": -18.543723778239602,
+          "available": true,
+          "weight": 0.2949613324989454,
+          "coverage": 1.0
+        },
+        {
+          "key": "derivatives",
+          "name": "V\u1ecb th\u1ebf ph\u00e1i sinh",
+          "phase": "NEUTRAL",
+          "score": -4.458629373152773,
+          "available": true,
+          "weight": 0.10590536800323867,
+          "coverage": 0.9
+        },
+        {
+          "key": "cross_asset",
+          "name": "SPY \u00d7 QQQ",
+          "phase": "NEUTRAL",
+          "score": -3.76518247762192,
+          "available": true,
+          "weight": 0.19857228096041069,
+          "coverage": 1.0
+        },
+        {
+          "key": "context",
+          "name": "B\u1ed1i c\u1ea3nh H1/H4",
+          "phase": "NEUTRAL",
+          "score": -8.456106609942115,
+          "available": true,
+          "weight": 0.2573772207278733,
+          "coverage": 1.0
+        }
+      ]
+    },
+    {
+      "minutes": 60,
+      "bars": 4,
+      "phase": "NEUTRAL",
+      "score": -5.548970852836124,
+      "signal": "WAIT",
+      "groups": [
+        {
+          "key": "flow",
+          "name": "D\u00f2ng l\u1ec7nh",
+          "phase": "NEUTRAL",
+          "score": -2.1050735994417424,
+          "available": true,
+          "weight": 0.1509723969002161,
+          "coverage": 1.0
+        },
+        {
+          "key": "price",
+          "name": "Ph\u1ea3n \u1ee9ng gi\u00e1",
+          "phase": "NEUTRAL",
+          "score": -3.148864256573683,
+          "available": true,
+          "weight": 0.30132745541637646,
+          "coverage": 1.0
+        },
+        {
+          "key": "derivatives",
+          "name": "V\u1ecb th\u1ebf ph\u00e1i sinh",
+          "phase": "NEUTRAL",
+          "score": 0.6118997657939884,
+          "available": true,
+          "weight": 0.10624538369113419,
+          "coverage": 0.9
+        },
+        {
+          "key": "cross_asset",
+          "name": "SPY \u00d7 QQQ",
+          "phase": "NEUTRAL",
+          "score": -7.224272083874464,
+          "available": true,
+          "weight": 0.1895382293391124,
+          "coverage": 1.0
+        },
+        {
+          "key": "context",
+          "name": "B\u1ed1i c\u1ea3nh H1/H4",
+          "phase": "NEUTRAL",
+          "score": -11.821611401760745,
+          "available": true,
+          "weight": 0.2519165346531608,
+          "coverage": 1.0
+        }
+      ]
+    },
+    {
+      "minutes": 120,
+      "bars": 8,
+      "phase": "NEUTRAL",
+      "score": -8.471872769213384,
+      "signal": "WAIT",
+      "groups": [
+        {
+          "key": "flow",
+          "name": "D\u00f2ng l\u1ec7nh",
+          "phase": "NEUTRAL",
+          "score": -1.6821846616593694,
+          "available": true,
+          "weight": 0.0,
+          "coverage": 1.0
+        },
+        {
+          "key": "price",
+          "name": "Ph\u1ea3n \u1ee9ng gi\u00e1",
+          "phase": "NEUTRAL",
+          "score": -3.5125167224561187,
+          "available": true,
+          "weight": 0.40776826340554495,
+          "coverage": 1.0
+        },
+        {
+          "key": "derivatives",
+          "name": "V\u1ecb th\u1ebf ph\u00e1i sinh",
+          "phase": "NEUTRAL",
+          "score": -11.025118827819824,
+          "available": true,
+          "weight": 0.13657139406085406,
+          "coverage": 0.9
+        },
+        {
+          "key": "cross_asset",
+          "name": "SPY \u00d7 QQQ",
+          "phase": "BEAR",
+          "score": -18.663175682174796,
+          "available": true,
+          "weight": 0.16678274340728017,
+          "coverage": 1.0
+        },
+        {
+          "key": "context",
+          "name": "B\u1ed1i c\u1ea3nh H1/H4",
+          "phase": "NEUTRAL",
+          "score": -8.381295204162598,
+          "available": true,
+          "weight": 0.2888775991263208,
+          "coverage": 1.0
+        }
+      ]
+    }
+  ]
+}
