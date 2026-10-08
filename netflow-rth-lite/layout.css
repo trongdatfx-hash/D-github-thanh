@@ -1,4 +1,5 @@
 #chart{height:700px}
 #strength-readout{top:calc(74% + 10px);right:58px;left:auto;flex-direction:column;align-items:flex-end;gap:4px}
 #strength-composite{min-width:42px;text-align:center;border-style:dashed!important}
-@media(max-width:650px){#chart{height:630px}#strength-readout{right:48px;top:calc(74% + 8px);font-size:10px;gap:3px}#strength-readout span{padding:2px 5px}}
+#live-indicator{position:absolute;z-index:4;right:58px;bottom:28px;padding:4px 8px;border:1px solid currentColor;border-radius:999px;background:rgba(14,23,38,.9);box-shadow:0 2px 8px rgba(0,0,0,.3);pointer-events:none;font-size:10px;font-weight:800;letter-spacing:.35px}#live-indicator.live{color:#1ae0a3}#live-indicator.offline{color:#ff4d70}
+@media(max-width:650px){#chart{height:630px}#strength-readout{right:48px;top:calc(74% + 8px);font-size:10px;gap:3px}#strength-readout span{padding:2px 5px}#live-indicator{right:48px;bottom:26px;padding:3px 6px;font-size:9px}}

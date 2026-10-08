@@ -31,6 +31,8 @@ Nến giá dùng gradient theo adjusted Strength của nguồn đang chọn. Khi
 
 TradingView Lightweight Charts 5.0.9 được lưu cục bộ, Apache 2.0, giữ NOTICE/LICENSE và attribution. Ba pane đồng bộ: candlestick giá; Taker NetFlowQ SPY/QQQ/composite cùng dải đồng thuận; adjusted Strength + OLS ±2σ. Wheel/pinch zoom, drag pan, normal crosshair xuyên pane, tooltip OHLC cùng quote flows và trạng thái đồng thuận, fit + auto scale từng trục, toggle từng nguồn/alignment/Strength/bands/day-RTH markers, responsive mobile. Nút **Full chart** mở riêng card biểu đồ bằng Fullscreen API; nếu trình duyệt mobile không hỗ trợ thì dùng lớp phủ `100dvh`. Trong chế độ này chart tự chiếm phần còn lại của màn hình, toggle cuộn ngang, tooltip giới hạn chiều cao và có nút Fit/Thu nhỏ ngay trong card. CSV xuất nguồn Strength đang chọn, toàn lịch sử đã tải. Marker RTH là nến đầu có nhãn RTH, nên H1 không thể đánh dấu chính xác 09:30.
 
+Góc dưới phải chart có trạng thái kết nối: **LIVE** màu xanh sau lần tải Binance thành công; **KHÔNG LIVE** màu đỏ khi API/CORS/mạng lỗi, chưa kết nối hoặc lần cập nhật gần nhất đã quá 150 giây.
+
 `node --test tests/engine.test.mjs` dùng fixture Binance thật từ `../netflow-ml/tests/fixtures/` chỉ để kiểm thử. Kiểm tra quote fields, composite, causal prefix/future mutation, chuỗi làm mượt DVP, regression, gaps, zero volume, DST, symbol validation, pagination. `tests/browser.test.cjs` kiểm chart desktop/mobile/fullscreen và trường hợp API bị chặn; chạy với NODE_PATH trỏ runtime có Playwright.
 
 ## ML tương lai
