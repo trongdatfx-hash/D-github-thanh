@@ -1,0 +1,43 @@
+name: Diagnose official market data access
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/market-access.yml']
+permissions:
+  contents: read
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install requests==2.32.4 websocket-client==1.8.0
+      - name: Check official REST and public market stream
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, time, requests, websocket
+          result = {}
+          try:
+              r = requests.get('https://fapi.binance.com/fapi/v1/klines', params={'symbol': 'SPYUSDT', 'interval': '15m', 'limit': 2}, timeout=15)
+              result['rest'] = {'status': r.status_code, 'body': r.text[:600]}
+          except Exception as e:
+              result['rest'] = {'error': str(e)[:300]}
+          try:
+              ws = websocket.create_connection('wss://fstream.binance.com/market/stream?streams=spyusdt@kline_15m/qqqusdt@kline_15m/spyusdt@markPrice@1s', timeout=15)
+              result['websocket'] = {'events': []}
+              until = time.monotonic() + 15
+              while time.monotonic() < until and len(result['websocket']['events']) < 5:
+                  result['websocket']['events'].append(json.loads(ws.recv()))
+              ws.close()
+          except Exception as e:
+              result['websocket'] = {'error': str(e)[:300]}
+          print(json.dumps(result, indent=2))
+          PY
