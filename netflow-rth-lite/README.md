@@ -11,7 +11,7 @@ M5/M15/M30/H1; lịch sử 7/14/30 ngày, phân trang 1000 nến/request. Chỉ 
 
 BuyQ = kline[10] (taker buy quote asset volume). Quote volume Q = kline[7]. SellQ = Q − BuyQ. NetFlowQ = 2×BuyQ − Q. NF% = 100×NetFlowQ/Q; Q=0 thì NF% để trống.
 
-SPY/QQQ tính riêng; composite chỉ lấy timestamp giao nhau, cộng Q/BuyQ/SellQ/NetFlowQ rồi NF% = 100×ΣNetFlowQ/ΣQ. Tương đương quote-volume weighted NF%; không trung bình đơn giản và không có OHLC composite. Pane giữa hiển thị Taker NetFlowQ (USDT) của SPY/QQQ/composite; NF% vẫn có trong tooltip và CSV. Dropdown giá chọn symbol nến riêng. Dropdown nguồn Strength chọn nguồn tô màu nến và nguồn pane Strength, kể cả composite.
+SPY/QQQ tính riêng; composite chỉ lấy timestamp giao nhau, cộng Q/BuyQ/SellQ/NetFlowQ rồi NF% = 100×ΣNetFlowQ/ΣQ. Tương đương quote-volume weighted NF%; không trung bình đơn giản và không có OHLC composite. Pane giữa hiển thị Taker NetFlowQ (USDT) của SPY/QQQ/composite dưới dạng nến cột quanh mốc 0: xanh khi BuyQ > SellQ, đỏ khi SellQ > BuyQ. Ba nguồn dùng độ trong suốt khác nhau khi chồng lên nhau; có thể bật/tắt riêng. NF% vẫn có trong tooltip và CSV. Dropdown giá chọn symbol nến riêng. Dropdown nguồn Strength chọn nguồn tô màu nến và nguồn pane Strength, kể cả composite.
 
 ## Strength & phiên
 
