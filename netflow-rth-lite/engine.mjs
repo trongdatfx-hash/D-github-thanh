@@ -93,7 +93,7 @@ export function weightedPriceBands(bars,step,{window=50,mult=2,strength=[],stren
     if(prev!==null&&b.t-prev!==step)history=[];prev=b.t;
     let mid=null,upper=null,lower=null,sigma=null;
     if(history.length>=window){
-      const sample=history.slice(-window),y=sample.map(x=>x.c),weights=sample.map((x,i)=>{const s=strengthMap.get(x.t),m=Number.isFinite(s?.adjusted)?Math.min(1,Math.abs(s.adjusted)):0,confidence=Number.isFinite(s?.confidence)?Math.max(0,Math.min(1,s.confidence)):1;return (i+1)*(1+strengthBoost*m*confidence);}),sw=weights.reduce((s,w)=>s+w,0);
+      const sample=history.slice(-window),y=sample.map(x=>x.c),weights=sample.map((x,i)=>{const s=strengthMap.get(x.t),adjusted=Number.isFinite(s?.adjusted),value=adjusted?s.adjusted:s?.raw,m=Number.isFinite(value)?Math.min(1,Math.abs(value)):0,confidence=adjusted&&Number.isFinite(s.confidence)?Math.max(0,Math.min(1,s.confidence)):Number.isFinite(s?.raw)?.35:0;return (i+1)*(1+strengthBoost*m*confidence);}),sw=weights.reduce((s,w)=>s+w,0);
       let sx=0,sy=0,sxx=0,sxy=0;
       for(let i=0;i<window;i++){const w=weights[i];sx+=w*i;sy+=w*y[i];sxx+=w*i*i;sxy+=w*i*y[i];}
       const den=sw*sxx-sx*sx,slope=(sw*sxy-sx*sy)/den,intercept=(sy-slope*sx)/sw;

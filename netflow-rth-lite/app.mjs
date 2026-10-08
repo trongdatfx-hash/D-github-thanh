@@ -2,7 +2,7 @@ import {STEPS,composite,flowAlignment,analyze,weightedPriceBands} from './engine
 import {load} from './data.mjs';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
-let chart,price,series={},marks,strengthMarks,cache=null,rows={},maps={},alignmentMap=new Map(),priceBandMap=new Map(),controller,generation=0,loading=false,lastSuccess=null;
+let chart,price,series={},marks,strengthMarks,cache=null,rows={},maps={},alignmentMap=new Map(),priceBandMap=new Map(),flowBandMap=new Map(),controller,generation=0,loading=false,lastSuccess=null;
 const colors={SPYUSDT:'#5ba8ff',QQQUSDT:'#c194ff',COMPOSITE:'#38dfba'};
 const flowTitles={SPYUSDT:'S Taker NF',QQQUSDT:'Q Taker NF',COMPOSITE:'C Taker NF'};
 const flowColors={
@@ -17,6 +17,7 @@ function init(){
   chart=L.createChart($('chart'),{autoSize:true,layout:{background:{type:'solid',color:'#0e1726'},textColor:'#91a5bd',attributionLogo:true},grid:{vertLines:{color:'#1a283a'},horzLines:{color:'#1a283a'}},crosshair:{mode:L.CrosshairMode.Normal,vertLine:{visible:true,labelVisible:true},horzLine:{visible:true,labelVisible:true}},timeScale:{timeVisible:true,secondsVisible:false,rightOffset:5},rightPriceScale:{autoScale:true},handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},handleScale:{mouseWheel:true,pinch:true,axisPressedMouseMove:true},localization:{locale:'vi-VN',timeFormatter:t=>new Date(t*1000).toLocaleString('en-US',{timeZone:'America/New_York',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'})}});
   price=chart.addSeries(L.CandlestickSeries,{priceLineVisible:false,borderVisible:false},0);
   series.priceMid=chart.addSeries(L.LineSeries,{color:'#f6c85f',lineWidth:2,priceLineVisible:false,lastValueVisible:false,title:''},0);
+  series.flowMid=chart.addSeries(L.LineSeries,{color:'#ff78d1',lineWidth:3,priceLineVisible:false,lastValueVisible:false,title:''},0);
   for(const key of ['priceUpper','priceLower'])series[key]=chart.addSeries(L.LineSeries,{color:'#4aa3ff',lineWidth:1,lineStyle:L.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,title:''},0);
   for(const key of Object.keys(colors))series[key]=chart.addSeries(L.HistogramSeries,{base:0,color:flowColors[key].up,title:flowTitles[key],priceLineVisible:false,priceFormat:{type:'custom',formatter:fmtK}},1);
   series.alignment=chart.addSeries(L.HistogramSeries,{priceScaleId:'alignment',base:0,color:'#f5a623',title:'SPY↔QQQ',priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',formatter:()=>''}},1);
@@ -48,8 +49,9 @@ function render(fit=false){
   const range=chart.timeScale().getVisibleLogicalRange();
   const p=rows[$('symbol').value]??[],signalRows=rows[$('signal').value]??[],signals=maps[$('signal').value]??new Map();
   price.setData(p.map(x=>{const color=candlePalette(signals.get(x.t));return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color:color.body,wickColor:color.wick,borderColor:color.border};}));
-  const priceBands=weightedPriceBands(p,STEPS[$('interval').value],{strength:$('strength-weight').checked?signalRows:[]});priceBandMap=new Map(priceBands.map(x=>[x.t,x]));
+  const priceBands=weightedPriceBands(p,STEPS[$('interval').value]),flowBands=weightedPriceBands(p,STEPS[$('interval').value],{strength:signalRows,strengthBoost:30});priceBandMap=new Map(priceBands.map(x=>[x.t,x]));flowBandMap=new Map(flowBands.map(x=>[x.t,x]));
   series.priceMid.setData(lineData(priceBands,'mid'));series.priceUpper.setData(lineData(priceBands,'upper'));series.priceLower.setData(lineData(priceBands,'lower'));
+  series.flowMid.setData(lineData(flowBands,'mid'));
   for(const key of Object.keys(colors))series[key].setData(flowData(rows[key]??[],key));
   const alignment=flowAlignment(rows.SPYUSDT??[],rows.QQQUSDT??[]);alignmentMap=new Map(alignment.map(x=>[x.t,x]));series.alignment.setData(alignmentData(alignment));
   series.strength.setData(lineData(signalRows,'adjusted'));
@@ -73,7 +75,7 @@ function showTooltip(t){
   const text=[new Date(t).toLocaleString('vi-VN',{timeZone:'America/New_York'})+' ET',p?`${$('symbol').value} · O ${fmt(p.o)} H ${fmt(p.h)} L ${fmt(p.l)} C ${fmt(p.c)}`:'Không có nến giá tại timestamp này'];
   for(const key of Object.keys(colors)){const b=maps[key]?.get(t);text.push(`${key} · BuyQ ${fmt(b?.buy)} · SellQ ${fmt(b?.sell)} · NetQ ${fmt(b?.net)} USDT · NF ${fmt(b?.nf)}%`);}
   const alignment=alignmentMap.get(t);text.push(`SPY↔QQQ · ${alignment?.state??'—'} · SPY NF ${fmt(alignment?.spyNf)}% · QQQ NF ${fmt(alignment?.qqqNf)}%`);
-  const priceBand=priceBandMap.get(t);text.push(`${$('strength-weight').checked?'SWLR':'WLR'} giá 50 · ${fmt(priceBand?.mid)} [${fmt(priceBand?.lower)}, ${fmt(priceBand?.upper)}] · σ ${fmt(priceBand?.sigma)}`);
+  const priceBand=priceBandMap.get(t),flowBand=flowBandMap.get(t);text.push(`WLR giá 50 · ${fmt(priceBand?.mid)} [${fmt(priceBand?.lower)}, ${fmt(priceBand?.upper)}] · σ ${fmt(priceBand?.sigma)}`,`WLR dòng tiền ×30 · ${fmt(flowBand?.mid)} · phân kỳ ${fmt(Number.isFinite(flowBand?.mid)&&Number.isFinite(priceBand?.mid)?flowBand.mid-priceBand.mid:null)}`);
   text.push(`${s?.session??'—'} · Strength gốc ${fmt(s?.raw)} → RTH ${fmt(s?.adjusted)} · Regression ${fmt(s?.mid)} [${fmt(s?.lower)}, ${fmt(s?.upper)}] · đủ mẫu ${fmt((s?.confidence??0)*100)}%`,s?.reason??'Thiếu timestamp chung');
   $('tooltip').replaceChildren(...text.map(value=>{const div=document.createElement('div');div.textContent=value;return div;}));
 }
@@ -82,6 +84,7 @@ function toggle(){
   strengthMarks.applyOptions({visible:$('show-strength').checked});
   series.alignment.applyOptions({visible:$('alignment').checked});
   for(const key of ['priceMid','priceUpper','priceLower'])series[key].applyOptions({visible:$('price-bands').checked});
+  series.flowMid.applyOptions({visible:$('strength-weight').checked});
   updateStrengthLabels();
   for(const key of ['mid','upper','lower'])series[key].applyOptions({visible:$('bands').checked});
   marks.applyOptions({visible:$('markers').checked});
@@ -122,8 +125,7 @@ async function toggleFullChart(){
 if(init()){
   $('refresh').onclick=()=>refresh();for(const id of ['interval','days'])$(id).onchange=()=>refresh(true);
   for(const id of ['symbol','signal'])$(id).onchange=()=>render(false);
-  $('strength-weight').onchange=()=>render(false);
-  for(const id of ['spy','qqq','composite','alignment','price-bands','show-strength','bands','markers'])$(id).onchange=toggle;
+  for(const id of ['spy','qqq','composite','alignment','price-bands','strength-weight','show-strength','bands','markers'])$(id).onchange=toggle;
   $('fit').onclick=fitChart;$('chart-fit').onclick=fitChart;$('fullscreen').onclick=toggleFullChart;
   document.addEventListener('fullscreenchange',syncFullChart);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.querySelector('.chart-card').classList.contains('fullscreen-fallback')){document.querySelector('.chart-card').classList.remove('fullscreen-fallback');syncFullChart();}});
   $('export').onclick=exportCSV;
