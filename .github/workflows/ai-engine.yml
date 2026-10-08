@@ -1,6 +1,11 @@
 name: SPYUSDT Multi-layer AI
 on:
   workflow_dispatch:
+    inputs:
+      force_train:
+        description: Force a fresh CPU model fit
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths:
@@ -17,7 +22,7 @@ permissions:
 jobs:
   ai:
     if: github.repository == 'trongdatfx-hash/D-github-thanh' && github.ref == 'refs/heads/main'
-    runs-on: ${{ vars.AI_RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
       run:
@@ -28,18 +33,10 @@ jobs:
           ref: main
           fetch-depth: 0
       - uses: actions/setup-python@v5
-        if: runner.os != 'Windows'
         with:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: ai-engine/requirements.txt
-      - name: Reuse isolated Windows Python 3.12 environment
-        if: runner.os == 'Windows'
-        env:
-          AI_ENV_KEY: ${{ hashFiles('ai-engine/requirements.txt') }}
-        run: |
-          python -c "import sys; assert sys.version_info[:2] == (3, 12), 'Install Python 3.12 for this runner user'"
-          python -c "import os, pathlib, venv; p = pathlib.Path(os.environ['RUNNER_TOOL_CACHE']) / ('spy-ai-python312-' + os.environ['AI_ENV_KEY']); venv.EnvBuilder(with_pip=True).create(p); open(os.environ['GITHUB_PATH'], 'a').write(str(p / 'Scripts') + '\n')"
       - run: pip install -r ai-engine/requirements.txt
       - name: Check causal dataset and purged evaluation
         run: python -m unittest discover -s ai-engine/tests -v
@@ -58,11 +55,12 @@ jobs:
         id: forecast
         env:
           BINANCE_REST_BASE: ${{ vars.BINANCE_REST_BASE || 'https://fapi.binance.com' }}
-          AI_FORCE_TRAIN: ${{ github.event_name == 'push' && '1' || '0' }}
+          AI_FORCE_TRAIN: ${{ (github.event_name == 'push' || inputs.force_train) && '1' || '0' }}
         run: |
           cd ai-engine
           python collect_layers.py
           python train_layers.py
+          python publish_layers.py
       - name: Save auditable dataset and model for this run
         if: steps.forecast.outputs.retrained == 'true'
         uses: actions/upload-artifact@v4
@@ -72,7 +70,9 @@ jobs:
             ai-engine/data/layers/dataset.csv
             ai-engine/reports/layers_oos.csv
             ai-engine/models/layers.joblib
-          retention-days: 3
+            ai-engine/models/layers.native.json.gz
+            ai-engine/reports/model_manifest.json
+          retention-days: 7
       - name: Publish collector state and dashboard results
         run: |
           git config user.name "github-actions[bot]"
@@ -80,6 +80,7 @@ jobs:
           git add ai-engine/data/layers/*_last.csv ai-engine/data/layers/*_mark.csv ai-engine/data/layers/*_index.csv
           git add ai-engine/data/layers/aux_receipts.jsonl ai-engine/data/layers/prediction_journal.jsonl ai-engine/data/layers/collection_status.json
           git add ai-engine/reports/layers_latest.json ai-engine/reports/layers_validation.json ai-engine/reports/paper_live.json
+          git add ai-engine/reports/state_matrix.json ai-engine/reports/model_manifest.json ai-engine/models/layers.native.json.gz
           git diff --cached --quiet && exit 0
           git commit -m "data: update multi-layer AI observations and forecasts"
           for attempt in 1 2 3 4 5; do
@@ -108,4 +109,7 @@ jobs:
             ai-engine/reports/layers_latest.json
             ai-engine/reports/layers_validation.json
             ai-engine/reports/paper_live.json
+            ai-engine/reports/state_matrix.json
+            ai-engine/reports/model_manifest.json
+            ai-engine/models/layers.native.json.gz
           retention-days: 7

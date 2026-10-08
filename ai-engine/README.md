@@ -6,19 +6,21 @@ This pipeline uses GitHub-hosted CPU runners and GitHub Pages. It does not place
 
 `.github/workflows/ai-engine.yml` requests execution at UTC minutes 7, 22, 37, 52. Each run collects closed SPY/QQQ M15 bars and auxiliary observations, constructs a causal dataset, generates four horizon forecasts, and publishes compact results to main. Schedule delivery can be delayed or dropped; this is all-day scheduled collection, not a persistent 24/7 WebSocket daemon. The next run paginates missing recent bars. `binance-snapshot.yml` is now manual recovery; COT collection remains weekly. Writers share a concurrency group to avoid simultaneous data commits.
 
-The pipeline itself requires no GPU or paid service. Fresh collection additionally requires a runner/network permitted by the data provider. The first verified hosted run encountered Binance HTTP 451; successful workflow completion therefore must not be read as successful live collection. The dashboard exposes this condition and enforces WAIT. Optional repository variable `BINANCE_REST_BASE` selects the user's existing permitted Binance REST endpoint. The default is `https://fapi.binance.com`. Optional repository variable `AI_RUNNER_LABEL` selects an existing permitted self-hosted GitHub runner label; the default remains ubuntu-latest. No external proxy or new server has been provisioned. A hosted runner can face geographic/API restrictions; in that case the collector tries official Binance Vision daily archives and retains existing observations. The dashboard displays freshness, collector errors and source. Forecasts older than 45 minutes always display WAIT. Archive fallback cannot provide real-time data.
+All active AI/market workflows are fixed to GitHub-hosted `ubuntu-latest`; the old `AI_RUNNER_LABEL` variable is ignored. No self-hosted runner, PC watchdog, local Python service, or local data recording is required. `pc_dispatcher.py` is retired and exits before credentials, polling, or filesystem writes. Existing separately installed copies on a PC are outside the repo and unnecessary; this change does not uninstall them.
 
-The collector never fabricates liquidation events: liquidation is explicitly unavailable because hosted batch jobs cannot observe every WebSocket event. Ratios, OI and funding are polled every run when their endpoints work.
+Fresh SPYUSDT/QQQUSDT market collection still depends on Binance permitting the hosted runner's network. Public market endpoints and official Binance Vision archives need no API secret. `BINANCE_REST_BASE` may select an existing, permitted provider endpoint compatible with Binance Futures; changing this variable cannot guarantee removal of a provider restriction. No proxy, alternate instrument, testnet prices, or fabricated data is substituted. Binance HTTP 451 was observed on an earlier hosted run. The collector tries official daily archives, preserves first-stored historical observations, and publishes the source/errors. Archive candles usually lag by at least one day. Archive-only or >45-minute-old forecasts always remain WAIT even if model training and the workflow succeed.
 
-### Windows PC runner
+Liquidation is explicitly unavailable: hosted batch jobs cannot continuously observe a WebSocket feed. OI, long/short ratios and funding are polled when accessible, and can train only after enough observations have accumulated with genuine receipt timestamps.
 
-The repository can use the registered Windows runner `PC-SPY-AI` through repository variable `AI_RUNNER_LABEL=spy-ai-pc`. Its custom label is the only scheduling label, keeping ordinary self-hosted jobs from selecting this PC accidentally. The AI and manual recovery workflows accept only this repository's main branch and explicitly use Git for Windows Bash. Model caches are separated by operating system. COT and Pages continue to use hosted runners.
+### GitHub limits and configuration
 
-The PC installation uses the official GitHub runner with its release SHA-256 verified. It runs under the signed-in user's account without an administrator service, and a per-user Startup shortcut launches it at Windows sign-in. Collection stops while the PC sleeps, is shut down, is logged out, or loses Internet. No power setting is changed. Runner availability removes the hosted runner's Binance 451 restriction on this network; it does not make GitHub's M15 schedule a continuous daemon or guarantee punctual scheduling. Keep self-hosted workflows restricted to trusted main-branch code; do not add untrusted pull-request execution on this personal PC.
+- Pages serves static HTML/CSS/JS/JSON and compressed model files. It cannot run a Python server, continuous ML worker, or permanent exchange socket. The independent chart/live-price WebSocket runs in the visitor's browser, subject to that visitor's provider access.
+- Actions cron has a minimum interval of **5 minutes**; this pipeline requests **15 minutes** at UTC 7/22/37/52. Delivery may be delayed/dropped, especially at busy times. It runs only on default `main`; public-repo schedules can be disabled after 60 days of inactivity. This is a batch research pipeline, not a real-time execution service.
+- Jobs need Actions enabled and `GITHUB_TOKEN` with `contents: write` to publish. Branch rules may reject bot pushes. Tokens/secrets must stay in Actions Secrets and must never be committed or embedded in browser JS. There is no new PAT or exchange key required by this pipeline.
+- Commits made with `GITHUB_TOKEN` do not trigger a Pages rebuild. The existing UI resolves the immutable main commit and reads reports from raw GitHub directly, with Pages as a fallback; thus each data update does not require a site build. UI changes pushed by the maintainer use the existing Pages deployment. GitHub API rate limits/shared IPs and raw CDN outages may temporarily force fallback; stale copies remain WAIT.
+- Models use two CPU threads, shallow 80-tree XGBoost fits and capped training samples. Retrain is approximately four hours with an Actions model cache; cache eviction causes a new hosted fit. Manual **Run workflow → force_train** forces training. Workflow timeout is 20 minutes. Public outputs are public; never add private account/order data.
 
-Windows jobs require Python 3.12 already installed for the runner user and reuse an isolated virtual environment in the runner tool cache, keyed by requirements hash. They do not run the setup-python PowerShell installer, change execution policy, or install dependencies into the user's existing Python environment.
-
-The installed [PC delivery watchdog](PC-RUNNER.md) polls once a minute and requests this workflow after each M15 close plus 60 seconds if the report is behind. It suppresses dispatch while another AI main run is active or the runner is offline, and retries uncertain requests no faster than every ten minutes. It starts at Windows login alongside the runner, using existing GitHub credentials only in memory. GitHub cron remains a backup. It improves schedule delivery while preserving the single GitHub writer and causal pipeline; it is not a liquidation/tick collector.
+Official references: [Pages static hosting](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages), [Actions schedules](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule), [GITHUB_TOKEN and Pages](https://docs.github.com/en/actions/concepts/security/github_token), [Binance REST and rate limits](https://developers.binance.com/docs/derivatives/usds-margined-futures/general-info).
 
 ## Files and storage
 
@@ -30,9 +32,13 @@ The installed [PC delivery watchdog](PC-RUNNER.md) polls once a minute and reque
 - `train_layers.py`: tree models, chronological calibration, validation and forecasts.
 - `paper_layers.py`: evaluation of frozen forecasts generated before the measured outcome.
 - `data/layers/prediction_journal.jsonl`: up to 2000 frozen snapshots (four horizons each).
-- `reports/layers_latest.json`, `layers_validation.json`, `paper_live.json`: compact public outputs.
+- `reports/layers_latest.json`, `layers_validation.json`, `paper_live.json`: compact public outputs read directly by the dashboard.
+- `reports/state_matrix.json`: four horizons × five groups, BULL/NEUTRAL/BEAR phases, scores, weights, availability, timestamps and WAIT state.
+- `models/layers.native.json.gz`: actual portable XGBoost trees plus selected features, priors, class-return means, calibration, weights and evaluation. JSON is compressed deterministically and committed only when its bytes change (normally on retraining). The full model is not downloaded for ordinary dashboard rendering.
+- `reports/model_manifest.json`: model path, SHA-256, byte size, class order and training timestamp matched to the forecast. Models and results are published in the same atomic Git commit.
+- `publish_layers.py`: verifies forecast/model timestamps, exports the matrix/model and writes a hosted-run collection/freshness summary.
 
-Generated dataset CSV, full OOS predictions and model joblib are excluded from Git. Model cache uses four-hour windows and a code hash. An artifact is uploaded only when models retrain and retained three days, avoiding large binary/dataset commits every M15. Raw observations and compact reports remain in Git history. Dependencies are pinned, the smaller xgboost-cpu package is used, and pip is cached. Treat joblib files only from this trusted workflow as loadable models.
+Generated dataset CSV, full OOS predictions and executable model joblib are excluded from Git. Portable compressed JSON models are included. Only the current model file is retained in the tree, but Git history accumulates past models; monitor repository size and archive/compact history if needed. Model cache uses four-hour windows and a code hash. An artifact is uploaded only when models retrain and retained seven days, avoiding large binary/dataset commits every M15. Raw observations and compact reports remain in Git history. Dependencies are pinned, the smaller xgboost-cpu package is used, and pip is cached. Treat joblib files only from this trusted workflow as loadable models.
 
 Each job checks out current main after acquiring the shared writer concurrency slot, rather than an older push-trigger snapshot. This keeps receipt history and frozen forecasts produced by an earlier scheduled run. A publication conflict aborts its rebase cleanly and fails instead of silently replacing observations. Failure artifacts preserve raw collector inputs, receipt/journal files and reports for seven days; artifact names include the retry attempt. Forecasts from a failed publication are audit data and are not automatically inserted into the live journal later.
 
@@ -64,7 +70,7 @@ Actual workflow forecast times are written into the journal. Forward paper evalu
 
 `generated_at` is measured after training and all horizon predictions finish, with freshness checked again at that moment. Journal records carry `generation_clock=forecast_ready`. Earlier records measured time at training start; they are preserved for audit but excluded from forward performance, since a retrain can cross an M15 entry boundary.
 
-Models are retrained approximately every four hours when the cache expires; inference/report updates run each M15. A changed training implementation forces a new fit on push. A runner failure remains visible through aging data; the PC delivery watchdog cannot collect while the PC is unavailable.
+Models are retrained approximately every four hours when the cache expires; inference/report updates run each M15. A changed training implementation forces a new fit on push. A hosted runner failure remains visible through aging data; no PC watchdog is needed or invoked.
 
 ## Dashboard
 
@@ -77,8 +83,13 @@ pip install -r ai-engine/requirements.txt
 python -m unittest discover -s ai-engine/tests -v
 python ai-engine/collect_layers.py
 python ai-engine/train_layers.py
+python ai-engine/publish_layers.py
 ```
 
-Use `AI_FORCE_TRAIN=1` for an explicit local forced fit. Browser tests require Playwright and installed Edge: `node ai-dashboard/layers.browser.test.cjs` and `node ai-dashboard/layers-source.browser.test.cjs`. They exercise deterministic reports, stale-data suppression, live price updates, immutable commit loading, API backoff/source fallback and three viewport sizes; the independent chart iframe is a fixture in those tests.
+These commands are for optional development/verification only; production runs entirely on hosted Actions. Use manual `force_train` or `AI_FORCE_TRAIN=1` for a forced fit. Browser tests require Playwright and installed Edge: `node ai-dashboard/layers.browser.test.cjs` and `node ai-dashboard/layers-source.browser.test.cjs`. They exercise deterministic reports, stale-data suppression, live price updates, immutable commit loading, API backoff/source fallback and three viewport sizes; the independent chart iframe is a fixture in those tests.
 
 The previous dashboard can be recovered from Git commit `91d1655`; revert this pipeline commit for a complete rollback.
+
+## Rollback of the hosted-only migration
+
+Branch `backup/pc-ai-20261008` preserves the pre-migration head `e768e29`. Revert the migration code commit to restore the previous workflow selection without deleting later market observations. The active chart iframe target and root chart implementation are unchanged.
