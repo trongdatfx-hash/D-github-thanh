@@ -6,7 +6,7 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: repository-data-main
+  group: repository-cot-main
   cancel-in-progress: false
 jobs:
   snapshot:
