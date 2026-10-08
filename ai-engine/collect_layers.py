@@ -157,6 +157,9 @@ def collect_aux(now):
 
 
 def main():
+    if os.environ.get('AI_MARKET_SOURCE') == 'websocket':
+        from collect_stream import main as stream
+        return stream()
     DATA.mkdir(parents=True, exist_ok=True)
     now = int(time.time() * 1000); status = {'collected_at': iso(now), 'collector': 'GitHub scheduled REST batch', 'market': {}}
     for symbol, kind in [('SPYUSDT', 'last'), ('SPYUSDT', 'mark'), ('SPYUSDT', 'index'), ('QQQUSDT', 'last')]:

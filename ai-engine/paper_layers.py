@@ -9,7 +9,7 @@ def evaluate_journal(journal, market, now):
     for h in HORIZONS:
         n = 0; wins = 0; returns = []; next_trade = -1; seen = set()
         for record in sorted(journal, key=lambda r: r['generated_at']):
-            if record['stale'] or record.get('collector_live') is False or record.get('generation_clock') != 'forecast_ready': continue
+            if record['stale'] or record.get('collector_live') is False or record.get('feature_ready') is False or record.get('generation_clock') != 'forecast_ready': continue
             entry_time = (record['generated_at'] // STEP + 1) * STEP
             if entry_time in seen: continue
             seen.add(entry_time)

@@ -8,11 +8,11 @@
  const date=v=>Number.isFinite(v)?new Date(v).toLocaleString('vi-VN'):'—';
  const cls=p=>p==='BULL'?'bull':p==='BEAR'?'bear':'neutral';
  function stale(){return !report||report.stale||Date.now()-report.data_as_of>45*60000||report.generated_at>Date.now()+60000}
- function blocked(){return report?.live_rest_available===false||report?.collection?.market?.['SPYUSDT/last']?.source==='vision_historical'}
+ function blocked(){return (report?.live_market_available??report?.live_rest_available)===false||(!(report?.live_market_available)&&report?.collection?.market?.['SPYUSDT/last']?.source==='vision_historical')}
  function render(){
   if(!report)return;
-  const old=stale(),inhibited=old||blocked(),r=report.horizons.find(h=>h.bars===selected)||report.horizons[0];if(!r)return;
-  $('dataStatus').textContent=(blocked()?'● REST runner bị chặn · WAIT':old?'● DỮ LIỆU CŨ · WAIT':'● Dữ liệu nến đã đóng')+' · '+date(report.data_as_of);
+  const old=stale(),warming=report.feature_ready===false,inhibited=old||blocked()||warming,r=report.horizons.find(h=>h.bars===selected)||report.horizons[0];if(!r)return;
+  $('dataStatus').textContent=(blocked()?'● REST runner bị chặn · WAIT':old?'● DỮ LIỆU CŨ · WAIT':warming?'● Dữ liệu mới · chờ đủ nến cho feature · WAIT':'● Dữ liệu nến đã đóng')+' · '+date(report.data_as_of);
   $('dataStatus').className=inhibited?'neutral':'bull';
   $('selectedTitle').textContent='Dự báo '+r.minutes+' phút · dữ liệu '+date(report.data_as_of);
   $('composite').className=cls(r.phase)+(inhibited?' dim':'');$('composite').textContent=signed(r.score)+' · '+r.phase;

@@ -23,7 +23,7 @@ jobs:
   ai:
     if: github.repository == 'trongdatfx-hash/D-github-thanh' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     defaults:
       run:
         shell: bash
@@ -54,6 +54,7 @@ jobs:
       - name: Collect closed bars, update dataset and forecast
         id: forecast
         env:
+          AI_MARKET_SOURCE: websocket
           BINANCE_REST_BASE: ${{ vars.BINANCE_REST_BASE || 'https://fapi.binance.com' }}
           AI_FORCE_TRAIN: ${{ (github.event_name == 'push' || inputs.force_train) && '1' || '0' }}
         run: |

@@ -4,13 +4,19 @@ This pipeline uses GitHub-hosted CPU runners and GitHub Pages. It does not place
 
 ## Operation
 
-`.github/workflows/ai-engine.yml` requests execution every five minutes (UTC minutes 2, 7, 12, …, 57). Each run collects closed SPY/QQQ M15 bars and auxiliary observations, constructs a causal dataset, generates four horizon forecasts, and publishes compact results to main. Schedule delivery can be delayed or dropped; this is all-day scheduled collection, not a persistent 24/7 WebSocket daemon. The next run paginates missing recent bars. `binance-snapshot.yml` is now manual recovery; COT collection remains weekly. Writers share a concurrency group to avoid simultaneous data commits.
+`.github/workflows/ai-engine.yml` requests execution every five minutes (UTC minutes 2, 7, 12, …, 57). Each run listens to the official public market WebSocket until both SPY/QQQ M15 candles close (at most 16 minutes), constructs a causal dataset, generates four horizon forecasts, and publishes compact results to main. Schedule delivery can be delayed or dropped; this is bounded stream batches with scheduled follow-up, not a guaranteed persistent 24/7 daemon. The next run paginates missing recent bars. `binance-snapshot.yml` is now manual recovery; COT collection remains weekly. Writers share a concurrency group to avoid simultaneous data commits.
 
 All active AI/market workflows are fixed to GitHub-hosted `ubuntu-latest`; the old `AI_RUNNER_LABEL` variable is ignored. No self-hosted runner, PC watchdog, local Python service, or local data recording is required. `pc_dispatcher.py` is retired and exits before credentials, polling, or filesystem writes. Existing separately installed copies on a PC are outside the repo and unnecessary; this change does not uninstall them.
 
-Fresh SPYUSDT/QQQUSDT market collection still depends on Binance permitting the hosted runner's network. Public market endpoints and official Binance Vision archives need no API secret. `BINANCE_REST_BASE` may select an existing, permitted provider endpoint compatible with Binance Futures; changing this variable cannot guarantee removal of a provider restriction. No proxy, alternate instrument, testnet prices, or fabricated data is substituted. Binance HTTP 451 was observed on an earlier hosted run. The collector tries official daily archives, preserves first-stored historical observations, and publishes the source/errors. Archive candles usually lag by at least one day. Archive-only or >45-minute-old forecasts always remain WAIT even if model training and the workflow succeed.
+### Hosted public-stream collection (451 fix)
 
-Liquidation is explicitly unavailable: hosted batch jobs cannot continuously observe a WebSocket feed. OI, long/short ratios and funding are polled when accessible, and can train only after enough observations have accumulated with genuine receipt timestamps.
+Verified hosted Ubuntu and macOS both return HTTP 451 from Binance Futures REST, while the documented public market stream sends real SPYUSDT/QQQUSDT kline events. The active workflows set `AI_MARKET_SOURCE=websocket` and use `wss://fstream.binance.com/market/stream`; they do not request restricted REST routes. No proxy, credential, PC, instrument substitution, or testnet data is used. [Official stream documentation](https://developers.binance.com/en/docs/products/derivatives-trading-usds-futures/websocket-market-streams/Connect).
+
+Only kline events marked `x=true` with valid final M15 timestamps/OHLC/volumes are stored. Forming candles never enter model features. Each job waits until the next SPY and QQQ candle close or its 16-minute stream budget expires, then trains/infers and commits results. The five-minute cron requests a follow-up; the existing single-writer concurrency slot serializes runs, so score updates follow M15 closes, not every price tick. There can still be gaps during job startup, scheduler delays, connection failures, and outages.
+
+Missing recent archive days are checked hourly and merged without rewriting first-stored bars. Archives publish the next day and cannot immediately backfill same-day connection gaps. Missing timestamps stay explicit; rolling features need fresh contiguous candles to warm up (32 past returns for volatility). During warmup signals remain WAIT and forward accuracy excludes unready forecasts.
+
+`live_market_available` distinguishes a successfully received closed stream candle from `live_rest_available`; REST remains unavailable. Historical mark/index files are preserved, but new mark/index values, OI, L/S, and funding history are not fabricated or filled forward. A currently unavailable group uses its trained prior and displays its missing coverage. Liquidation is not collected. The original REST collector remains an optional development path; production selects the public stream.
 
 ### GitHub limits and configuration
 
@@ -18,13 +24,14 @@ Liquidation is explicitly unavailable: hosted batch jobs cannot continuously obs
 - Actions cron has a minimum interval of **5 minutes**; this pipeline requests **5 minutes** at UTC 2/7/12/…/57. Delivery may be delayed/dropped, especially at busy times. It runs only on default `main`; public-repo schedules can be disabled after 60 days of inactivity. This is a batch research pipeline, not a real-time execution service.
 - Jobs need Actions enabled and `GITHUB_TOKEN` with `contents: write` to publish. Branch rules may reject bot pushes. Tokens/secrets must stay in Actions Secrets and must never be committed or embedded in browser JS. There is no new PAT or exchange key required by this pipeline.
 - Commits made with `GITHUB_TOKEN` do not trigger a Pages rebuild. The existing UI resolves the immutable main commit and reads reports from raw GitHub directly, with Pages as a fallback; thus each data update does not require a site build. UI changes pushed by the maintainer use the existing Pages deployment. GitHub API rate limits/shared IPs and raw CDN outages may temporarily force fallback; stale copies remain WAIT.
-- Models use two CPU threads, shallow 80-tree XGBoost fits and capped training samples. Retrain is approximately four hours with an Actions model cache; cache eviction causes a new hosted fit. Manual **Run workflow → force_train** forces training. Workflow timeout is 20 minutes. Public outputs are public; never add private account/order data.
+- Models use two CPU threads, shallow 80-tree XGBoost fits and capped training samples. Retrain is approximately four hours with an Actions model cache; cache eviction causes a new hosted fit. Manual **Run workflow → force_train** forces training. Workflow timeout is 25 minutes. Public outputs are public; never add private account/order data.
 
 Official references: [Pages static hosting](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages), [Actions schedules](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule), [GITHUB_TOKEN and Pages](https://docs.github.com/en/actions/concepts/security/github_token), [Binance REST and rate limits](https://developers.binance.com/docs/derivatives/usds-margined-futures/general-info).
 
 ## Files and storage
 
-- `collect_layers.py`: incremental/idempotent REST collection, existing price-history bootstrap, official archive fallback.
+- `collect_layers.py`: source selector and optional REST research collector.
+- `collect_stream.py`: bounded official closed-M15 stream collection, first-stored merge, hourly archive recovery.
 - `data/layers/*_{last,mark,index}.csv`: up to 12,000 immutable first-stored market bars per source. `received_at` is when this collector obtained them, and `source` distinguishes retrospective bootstrap/archive from REST.
 - `data/layers/aux_receipts.jsonl`: per-kind event time, **actual response receipt time**, and availability time. First observations are preserved; later downloads cannot rewrite or backdate their values.
 - `data/layers/aux_observations.jsonl`: preserved initial collection trial, excluded from training because its receipt times were recorded at request start rather than response completion. The verified stream uses the separate aux_receipts file.
@@ -70,7 +77,7 @@ Actual workflow forecast times are written into the journal. Forward paper evalu
 
 `generated_at` is measured after training and all horizon predictions finish, with freshness checked again at that moment. Journal records carry `generation_clock=forecast_ready`. Earlier records measured time at training start; they are preserved for audit but excluded from forward performance, since a retrain can cross an M15 entry boundary.
 
-Models are retrained approximately every four hours when the cache expires; inference/report updates run every five minutes using the latest closed M15 candle. A changed training implementation forces a new fit on push. A hosted runner failure remains visible through aging data; no PC watchdog is needed or invoked.
+Models are retrained approximately every four hours when the cache expires; inference/report updates follow received M15 closes; cron requests follow-ups every five minutes. A changed training implementation forces a new fit on push. A hosted runner failure remains visible through aging data; no PC watchdog is needed or invoked.
 
 ## Dashboard
 

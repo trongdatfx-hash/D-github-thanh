@@ -46,6 +46,8 @@ def publish():
     matrix = {'schema_version': 'state-matrix-v1', 'generated_at': report['generated_at'],
               'data_as_of': report['data_as_of'], 'model_trained_at': artifact['trained_at'],
               'stale': report['stale'], 'live_rest_available': report['live_rest_available'],
+              'live_market_available': report.get('live_market_available', report['live_rest_available']),
+              'feature_ready': report.get('feature_ready', True),
               'phases': ['BEAR', 'NEUTRAL', 'BULL'],
               'thresholds': {'bear_max': -15, 'bull_min': 15},
               'horizons': []}
@@ -67,7 +69,7 @@ def publish():
         with open(summary, 'a', encoding='utf-8') as stream:
             stream.write('## Hosted AI publication\n'
                          f"- Candle time (ms): {report['data_as_of']}\n"
-                         f"- Live REST available: {report['live_rest_available']}\n"
+                         f"- Live market available: {report.get('live_market_available', report['live_rest_available'])}\n"
                          f"- Stale: {report['stale']}\n"
                          f"- Portable model: {len(compressed):,} bytes\n"
                          '- Archive-only or stale forecasts remain WAIT.\n')

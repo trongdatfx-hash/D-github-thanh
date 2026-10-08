@@ -219,10 +219,13 @@ def run(force=False):
     collection = json.loads((DATA / 'collection_status.json').read_text()) if (DATA / 'collection_status.json').exists() else {}
     primary = collection.get('market', {}).get('SPYUSDT/last', {})
     live_rest = primary.get('rest_ok', primary.get('source') == 'rest')
+    live_market = live_rest or primary.get('websocket_ok', False)
+    feature_ready = bool(np.isfinite(float(latest.volatility.iloc[0])))
     report = {'schema_version': VERSION, 'generated_at': now, 'data_as_of': int(latest.decision_at.iloc[0]),
               'model_trained_at': artifact['trained_at'], 'lag_minutes': lag, 'stale': lag > 45,
               'live_rest_available': live_rest,
-              'collector_mode': 'GitHub Actions M15 REST + historical archive fallback',
+              'live_market_available': live_market, 'feature_ready': feature_ready,
+              'collector_mode': collection.get('collector', 'GitHub Actions M15 batch'),
               'regime': latest.regime.iloc[0], 'last': float(latest['last'].iloc[0]),
               'dataset_rows': len(x), 'missing_bars': int((~x.market_available).sum()),
               'historical_scope': 'reconstructed market bars; auxiliary features only after recorded receipt; repeated OOS is research, not a locked final holdout',
@@ -245,7 +248,7 @@ def run(force=False):
                         phase=phase(score), expected_gross_bps=gross, temperature=bundle['temperature'],
                         evidence=metrics.get('evidence', 'UNPROVEN'), positive_validation_skill=bundle['positive_skill'])
             item['signal'] = actionable_signal(score, gross, metrics.get('evidence') == 'SUPPORTED',
-                                                bundle['positive_skill'], report['stale'], live_rest)
+                                                bundle['positive_skill'], report['stale'] or not feature_ready, live_market)
         else: item.update(score=0., phase='NEUTRAL', evidence='INSUFFICIENT_DATA')
         report['horizons'].append(item)
     # A retrain can cross a candle boundary. The forecast does not exist at the
@@ -271,9 +274,9 @@ def run(force=False):
     key = (report['data_as_of'], report['model_trained_at'])
     if not any((r['data_as_of'], r['model_trained_at']) == key for r in saved):
         saved.append({'generated_at': now, 'data_as_of': report['data_as_of'], 'model_trained_at': report['model_trained_at'],
-                      'stale': report['stale'], 'collector_live': live_rest, 'generation_clock': 'forecast_ready', 'horizons': [{**{k: r[k] for k in ('bars', 'score', 'phase', 'signal', 'evidence')},
+                      'stale': report['stale'], 'collector_live': live_market, 'feature_ready': feature_ready, 'generation_clock': 'forecast_ready', 'horizons': [{**{k: r[k] for k in ('bars', 'score', 'phase', 'signal', 'evidence')},
                        'probabilities': r.get('probabilities'),
-                       'label_band': max((FEE_BPS + SLIPPAGE_BPS) / 10000, .5 * float(latest.volatility.iloc[0]) * np.sqrt(r['bars']))} for r in report['horizons']]})
+                       'label_band': max((FEE_BPS + SLIPPAGE_BPS) / 10000, .5 * float(latest.volatility.iloc[0]) * np.sqrt(r['bars'])) if feature_ready else None} for r in report['horizons']]})
     journal.write_text(''.join(json.dumps(r, separators=(',', ':')) + '\n' for r in saved[-2000:]))
     from paper_layers import evaluate_journal
     paper = evaluate_journal(saved, x, now)
