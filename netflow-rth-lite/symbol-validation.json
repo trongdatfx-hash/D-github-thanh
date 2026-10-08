@@ -1,0 +1,174 @@
+[
+  {
+    "symbol": "QQQUSDT",
+    "pair": "QQQUSDT",
+    "contractType": "TRADIFI_PERPETUAL",
+    "deliveryDate": 4133404800000,
+    "onboardDate": 1775482200000,
+    "status": "TRADING",
+    "maintMarginPercent": "2.5000",
+    "requiredMarginPercent": "5.0000",
+    "baseAsset": "QQQ",
+    "quoteAsset": "USDT",
+    "marginAsset": "USDT",
+    "pricePrecision": 5,
+    "quantityPrecision": 2,
+    "baseAssetPrecision": 8,
+    "quotePrecision": 8,
+    "underlyingType": "EQUITY",
+    "underlyingSubType": [
+      "TradFi"
+    ],
+    "triggerProtect": "0.0300",
+    "liquidationFee": "0.015000",
+    "marketTakeBound": "0.03",
+    "maxMoveOrderLimit": 10000,
+    "filters": [
+      {
+        "maxPrice": "20000",
+        "filterType": "PRICE_FILTER",
+        "tickSize": "0.01000",
+        "minPrice": "0.01000"
+      },
+      {
+        "stepSize": "0.01",
+        "filterType": "LOT_SIZE",
+        "minQty": "0.01",
+        "maxQty": "20000"
+      },
+      {
+        "filterType": "MARKET_LOT_SIZE",
+        "maxQty": "2000",
+        "minQty": "0.01",
+        "stepSize": "0.01"
+      },
+      {
+        "filterType": "MAX_NUM_ORDERS",
+        "limit": 200
+      },
+      {
+        "notional": "5",
+        "filterType": "MIN_NOTIONAL"
+      },
+      {
+        "multiplierDecimal": "4",
+        "filterType": "PERCENT_PRICE",
+        "multiplierUp": "1.0300",
+        "multiplierDown": "0.9700"
+      },
+      {
+        "filterType": "POSITION_RISK_CONTROL",
+        "positionControlSide": "NONE"
+      }
+    ],
+    "orderTypes": [
+      "LIMIT",
+      "MARKET",
+      "STOP",
+      "STOP_MARKET",
+      "TAKE_PROFIT",
+      "TAKE_PROFIT_MARKET",
+      "TRAILING_STOP_MARKET"
+    ],
+    "timeInForce": [
+      "GTC",
+      "IOC",
+      "FOK",
+      "GTX",
+      "GTD"
+    ],
+    "permissionSets": [
+      "GRID",
+      "COPY",
+      "RPI",
+      "DCA",
+      "PSB"
+    ]
+  },
+  {
+    "symbol": "SPYUSDT",
+    "pair": "SPYUSDT",
+    "contractType": "TRADIFI_PERPETUAL",
+    "deliveryDate": 4133404800000,
+    "onboardDate": 1775482800000,
+    "status": "TRADING",
+    "maintMarginPercent": "2.5000",
+    "requiredMarginPercent": "5.0000",
+    "baseAsset": "SPY",
+    "quoteAsset": "USDT",
+    "marginAsset": "USDT",
+    "pricePrecision": 5,
+    "quantityPrecision": 2,
+    "baseAssetPrecision": 8,
+    "quotePrecision": 8,
+    "underlyingType": "EQUITY",
+    "underlyingSubType": [
+      "TradFi"
+    ],
+    "triggerProtect": "0.0300",
+    "liquidationFee": "0.015000",
+    "marketTakeBound": "0.03",
+    "maxMoveOrderLimit": 10000,
+    "filters": [
+      {
+        "maxPrice": "20000",
+        "filterType": "PRICE_FILTER",
+        "tickSize": "0.01000",
+        "minPrice": "0.01000"
+      },
+      {
+        "maxQty": "20000",
+        "stepSize": "0.01",
+        "minQty": "0.01",
+        "filterType": "LOT_SIZE"
+      },
+      {
+        "minQty": "0.01",
+        "filterType": "MARKET_LOT_SIZE",
+        "stepSize": "0.01",
+        "maxQty": "2000"
+      },
+      {
+        "filterType": "MAX_NUM_ORDERS",
+        "limit": 200
+      },
+      {
+        "filterType": "MIN_NOTIONAL",
+        "notional": "5"
+      },
+      {
+        "multiplierUp": "1.0300",
+        "multiplierDecimal": "4",
+        "filterType": "PERCENT_PRICE",
+        "multiplierDown": "0.9700"
+      },
+      {
+        "filterType": "POSITION_RISK_CONTROL",
+        "positionControlSide": "NONE"
+      }
+    ],
+    "orderTypes": [
+      "LIMIT",
+      "MARKET",
+      "STOP",
+      "STOP_MARKET",
+      "TAKE_PROFIT",
+      "TAKE_PROFIT_MARKET",
+      "TRAILING_STOP_MARKET"
+    ],
+    "timeInForce": [
+      "GTC",
+      "IOC",
+      "FOK",
+      "GTX",
+      "GTD"
+    ],
+    "permissionSets": [
+      "GRID",
+      "COPY",
+      "RPI",
+      "DCA",
+      "PSB"
+    ]
+  }
+]
