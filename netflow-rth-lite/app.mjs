@@ -1,8 +1,8 @@
-import {STEPS,composite,analyze,calculateFlowLeg} from './engine.mjs';
+import {STEPS,composite,analyze} from './engine.mjs';
 import {load} from './data.mjs';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—';
 const L=window.LightweightCharts;
-let chart,price,series={},marks,cache=null,rows={},maps={},flowLegMap=new Map(),controller,generation=0,loading=false,lastSuccess=null;
+let chart,price,series={},marks,cache=null,rows={},maps={},controller,generation=0,loading=false,lastSuccess=null;
 const colors={SPYUSDT:'#5ba8ff',QQQUSDT:'#c194ff',COMPOSITE:'#38dfba'};
 const flowColors={
   SPYUSDT:{up:'rgba(39,211,164,.38)',down:'rgba(255,91,116,.38)'},
@@ -12,17 +12,15 @@ const flowColors={
 function status(text,error=false){$('status').textContent=text;$('status').classList.toggle('error',error);}
 function init(){
   if(!L){status('Không tải được thư viện chart cục bộ. Kiểm tra network hoặc tải lại trang.',true);return false;}
-  chart=L.createChart($('chart'),{autoSize:true,layout:{background:{type:'solid',color:'#0e1726'},textColor:'#91a5bd',attributionLogo:true},grid:{vertLines:{color:'#1a283a'},horzLines:{color:'#1a283a'}},crosshair:{mode:L.CrosshairMode.Normal,vertLine:{visible:true,labelVisible:true},horzLine:{visible:true,labelVisible:true}},timeScale:{timeVisible:true,secondsVisible:false,rightOffset:5},rightPriceScale:{autoScale:true},handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},handleScale:{mouseWheel:true,pinch:true,axisPressedMouseMove:true},localization:{locale:'vi-VN',timeFormatter:t=>new Date(t*1000).toLocaleString('en-US',{timeZone:'America/New_York',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'})}});
+  chart=L.createChart($('chart'),{autoSize:true,layout:{background:{type:'solid',color:'#0e1726'},textColor:'#91a5bd',attributionLogo:true},grid:{vertLines:{color:'#1a283a'},horzLines:{color:'#1a283a'}},crosshair:{mode:L.CrosshairMode.Normal,vertLine:{visible:true,labelVisible:true},horzLine:{visible:true,labelVisible:true}},timeScale:{timeVisible:true,secondsVisible:false,rightOffset:5},rightPriceScale:{autoScale:true},leftPriceScale:{visible:true,autoScale:true,borderColor:'#43536a',scaleMargins:{top:.08,bottom:.08}},handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},handleScale:{mouseWheel:true,pinch:true,axisPressedMouseMove:true},localization:{locale:'vi-VN',timeFormatter:t=>new Date(t*1000).toLocaleString('en-US',{timeZone:'America/New_York',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'})}});
   price=chart.addSeries(L.CandlestickSeries,{priceLineVisible:false,borderVisible:false},0);
-  series.flowUp=chart.addSeries(L.LineSeries,{color:'#16e0a5',lineWidth:3,title:'Flow-Leg +Strength',priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false},0);
-  series.flowDown=chart.addSeries(L.LineSeries,{color:'#ff4d70',lineWidth:3,title:'Flow-Leg −Strength',priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false},0);
   for(const key of Object.keys(colors))series[key]=chart.addSeries(L.HistogramSeries,{base:0,color:flowColors[key].up,title:key.replace('USDT','')+' Taker NetFlow',priceLineVisible:false,priceFormat:{type:'custom',formatter:v=>fmt(v)}},1);
-  series.strength=chart.addSeries(L.LineSeries,{color:'#ffd166',lineWidth:3,title:'Strength → RTH',priceLineVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:4},2);
-  for(const key of ['mid','upper','lower'])series[key]=chart.addSeries(L.LineSeries,{color:key==='mid'?'#7c98b9':'#8596ad',lineWidth:1,lineStyle:key==='mid'?L.LineStyle.Dotted:L.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,title:key==='mid'?'Regression':key==='upper'?'+2σ':'−2σ'},2);
+  series.strength=chart.addSeries(L.LineSeries,{priceScaleId:'left',color:'#ffd166',lineWidth:3,title:'Strength → RTH',priceLineVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:4},0);
+  for(const key of ['mid','upper','lower'])series[key]=chart.addSeries(L.LineSeries,{priceScaleId:'left',color:key==='mid'?'#9db5d1':'#8596ad',lineWidth:key==='mid'?2:1,lineStyle:key==='mid'?L.LineStyle.Dotted:L.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,title:key==='mid'?'Strength regression':key==='upper'?'+2σ':'−2σ'},0);
   series.strength.createPriceLine({price:0,color:'#d7e5f3',lineWidth:2,lineStyle:L.LineStyle.Solid,axisLabelVisible:true,title:'0'});
-  series.strength.priceScale().applyOptions({scaleMargins:{top:.12,bottom:.12}});
+  series.strength.priceScale().applyOptions({scaleMargins:{top:.08,bottom:.08}});
   series.COMPOSITE.createPriceLine({price:0,color:'#60748c',lineWidth:1,lineStyle:L.LineStyle.Solid,axisLabelVisible:false});
-  chart.panes()[0].setStretchFactor(.50);chart.panes()[1].setStretchFactor(.23);chart.panes()[2].setStretchFactor(.27);
+  chart.panes()[0].setStretchFactor(.72);chart.panes()[1].setStretchFactor(.28);
   marks=L.createSeriesMarkers(price,[]);
   chart.subscribeCrosshairMove(p=>{if(p.time)showTooltip(p.time*1000);});
   return true;
@@ -38,13 +36,10 @@ function candlePalette(x){
 }
 function lineData(data,key){return data.map(x=>Number.isFinite(x[key])?{time:x.t/1000,value:x[key]}:{time:x.t/1000});}
 function flowData(data,key){const palette=flowColors[key];return data.map(x=>Number.isFinite(x.net)?{time:x.t/1000,value:x.net,color:x.net>=0?palette.up:palette.down}:{time:x.t/1000});}
-function legData(data,sign){return data.map(x=>x.sign===sign&&Number.isFinite(x.value)?{time:x.t/1000,value:x.value}:{time:x.t/1000});}
 function render(fit=false){
   const range=chart.timeScale().getVisibleLogicalRange();
   const p=rows[$('symbol').value]??[],signals=maps[$('signal').value]??new Map();
   price.setData(p.map(x=>{const color=candlePalette(signals.get(x.t));return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color:color.body,wickColor:color.wick,borderColor:color.border};}));
-  const leg=calculateFlowLeg(p,rows[$('signal').value]??[],STEPS[$('interval').value]);flowLegMap=new Map(leg.map(x=>[x.t,x]));
-  series.flowUp.setData(legData(leg,1));series.flowDown.setData(legData(leg,-1));
   for(const key of Object.keys(colors))series[key].setData(flowData(rows[key]??[],key));
   const signalRows=rows[$('signal').value]??[];
   series.strength.setData(lineData(signalRows,'adjusted'));
@@ -61,13 +56,11 @@ function showTooltip(t){
   const p=maps[$('symbol').value]?.get(t),s=maps[$('signal').value]?.get(t);metrics(s);
   const text=[new Date(t).toLocaleString('vi-VN',{timeZone:'America/New_York'})+' ET',p?`${$('symbol').value} · O ${fmt(p.o)} H ${fmt(p.h)} L ${fmt(p.l)} C ${fmt(p.c)}`:'Không có nến giá tại timestamp này'];
   for(const key of Object.keys(colors)){const b=maps[key]?.get(t);text.push(`${key} · BuyQ ${fmt(b?.buy)} · SellQ ${fmt(b?.sell)} · NetQ ${fmt(b?.net)} USDT · NF ${fmt(b?.nf)}%`);}
-  const leg=flowLegMap.get(t);text.push(`Flow-Leg ${leg?.sign>0?'xanh (+Strength)':leg?.sign<0?'đỏ (−Strength)':'—'} · mức ${fmt(leg?.value)} · dốc flow chuẩn hóa ${fmt(leg?.flowSlope)} · Taker NetFlow ${fmt(leg?.net)} USDT`);
   text.push(`${s?.session??'—'} · Strength gốc ${fmt(s?.raw)} → RTH ${fmt(s?.adjusted)} · Regression ${fmt(s?.mid)} [${fmt(s?.lower)}, ${fmt(s?.upper)}] · đủ mẫu ${fmt((s?.confidence??0)*100)}%`,s?.reason??'Thiếu timestamp chung');
   $('tooltip').replaceChildren(...text.map(value=>{const div=document.createElement('div');div.textContent=value;return div;}));
 }
 function toggle(){
   for(const [id,key] of [['spy','SPYUSDT'],['qqq','QQQUSDT'],['composite','COMPOSITE'],['show-strength','strength']])series[key].applyOptions({visible:$(id).checked});
-  for(const key of ['flowUp','flowDown'])series[key].applyOptions({visible:$('flow-leg').checked});
   for(const key of ['mid','upper','lower'])series[key].applyOptions({visible:$('bands').checked});
   marks.applyOptions({visible:$('markers').checked});
 }
@@ -95,7 +88,7 @@ function exportCSV(){
   const csv=[keys.join(','),...data.map(x=>keys.map(k=>x[k]??'').join(','))].join('\n');
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download=`${source}-${$('interval').value}-quote-netflow.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
-function fitChart(){for(let pane=0;pane<3;pane++)chart.priceScale('right',pane).applyOptions({autoScale:true});chart.timeScale().fitContent();}
+function fitChart(){for(let pane=0;pane<2;pane++)chart.priceScale('right',pane).applyOptions({autoScale:true});series.strength.priceScale().applyOptions({autoScale:true});chart.timeScale().fitContent();}
 function isFullChart(){const card=document.querySelector('.chart-card');return document.fullscreenElement===card||card.classList.contains('fullscreen-fallback');}
 function syncFullChart(){const active=isFullChart();$('fullscreen').textContent=active?'✕ Thu nhỏ':'⛶ Full chart';$('fullscreen').setAttribute('aria-pressed',String(active));document.body.classList.toggle('chart-fullscreen',active);setTimeout(()=>window.dispatchEvent(new Event('resize')),50);}
 async function toggleFullChart(){
@@ -107,7 +100,7 @@ async function toggleFullChart(){
 if(init()){
   $('refresh').onclick=()=>refresh();for(const id of ['interval','days'])$(id).onchange=()=>refresh(true);
   for(const id of ['symbol','signal'])$(id).onchange=()=>render(false);
-  for(const id of ['spy','qqq','composite','flow-leg','show-strength','bands','markers'])$(id).onchange=toggle;
+  for(const id of ['spy','qqq','composite','show-strength','bands','markers'])$(id).onchange=toggle;
   $('fit').onclick=fitChart;$('chart-fit').onclick=fitChart;$('fullscreen').onclick=toggleFullChart;
   document.addEventListener('fullscreenchange',syncFullChart);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.querySelector('.chart-card').classList.contains('fullscreen-fallback')){document.querySelector('.chart-card').classList.remove('fullscreen-fallback');syncFullChart();}});
   $('export').onclick=exportCSV;

@@ -95,27 +95,3 @@ export function analyze(bars,step,{minSamples=26,window=500,regWindow=50,strengt
     return result;
   });
 }
-// Causal Flow-Leg overlay. Strength's Schmitt sign defines each leg; the
-// per-bar slope is smoothed Taker NetFlowQ, normalized by past/current
-// |NetFlowQ| and converted to price units with ATR.
-export function calculateFlowLeg(priceBars,signalBars,step,{deadband=.15,flowLen=50,atrLen=14,halfLife=2,scale=.18}={}){
-  if(!Object.values(STEPS).includes(step)||!Number.isFinite(deadband)||deadband<0||deadband>=1||![flowLen,atrLen].every(x=>Number.isInteger(x)&&x>0)||!Number.isFinite(halfLife)||halfLife<0||!Number.isFinite(scale)||scale<=0)throw Error('Tham số Flow-Leg không hợp lệ');
-  const byTime=new Map(signalBars.map(x=>[x.t,x])),alpha=halfLife>0?1-2**(-1/Math.max(1,halfLife)):1;
-  let absFlow=[],trueRanges=[],prevClose=null,prevTime=null,sign=0,level=null,ewFlow=null;
-  return priceBars.map(b=>{
-    if(prevTime!==null&&b.t-prevTime!==step){absFlow=[];trueRanges=[];prevClose=null;sign=0;level=null;ewFlow=null;}
-    prevTime=b.t;
-    const tr=prevClose===null?b.h-b.l:Math.max(b.h-b.l,Math.abs(b.h-prevClose),Math.abs(b.l-prevClose));prevClose=b.c;
-    trueRanges.push(tr);if(trueRanges.length>atrLen)trueRanges.shift();
-    const s=byTime.get(b.t),strength=s?.adjusted;
-    if(!Number.isFinite(strength)||!Number.isFinite(s?.net)){sign=0;level=null;ewFlow=null;return {t:b.t,value:null,sign:0,net:s?.net??null,flowSlope:null};}
-    absFlow.push(Math.abs(s.net));if(absFlow.length>flowLen)absFlow.shift();
-    const meanAbs=absFlow.reduce((sum,x)=>sum+x,0)/absFlow.length,atr=trueRanges.reduce((sum,x)=>sum+x,0)/trueRanges.length;
-    const rawSign=strength>deadband?1:strength<-deadband?-1:0,nextSign=rawSign||sign;
-    if(nextSign===0||meanAbs<=0||atr<=0){sign=nextSign;level=null;ewFlow=null;return {t:b.t,value:null,sign,net:s.net,flowSlope:null};}
-    const flow=Math.max(-3,Math.min(3,s.net/meanAbs)),newLeg=nextSign!==sign||level===null;
-    sign=nextSign;ewFlow=newLeg||ewFlow===null?flow:ewFlow+alpha*(flow-ewFlow);
-    level=newLeg?b.c:level+atr*scale*ewFlow;
-    return {t:b.t,value:level,sign,net:s.net,flowSlope:ewFlow};
-  });
-}
