@@ -1,65 +1,85 @@
 {
-  "collected_at": "2026-10-08T00:15:57.883000+00:00",
-  "collector": "GitHub scheduled REST batch",
+  "collected_at": "2026-10-08T00:30:03.352000+00:00",
+  "collector": "GitHub-hosted official WebSocket closed-M15 batch",
+  "archive": {
+    "SPYUSDT/last": {
+      "recovered_rows": 0,
+      "errors": []
+    },
+    "QQQUSDT/last": {
+      "recovered_rows": 0,
+      "errors": []
+    },
+    "SPYUSDT/mark": {
+      "recovered_rows": 0,
+      "errors": []
+    },
+    "SPYUSDT/index": {
+      "recovered_rows": 0,
+      "errors": []
+    }
+  },
+  "archive_bucket": 497616,
+  "websocket": {
+    "closed_bars": {
+      "SPYUSDT": 1,
+      "QQQUSDT": 1
+    },
+    "errors": []
+  },
   "market": {
     "SPYUSDT/last": {
       "rows": 12000,
-      "latest_close": 1791390599999,
-      "source": "vision_historical",
-      "latest_source": "rest",
+      "latest_close": 1791419399999,
+      "source": "websocket_closed",
+      "latest_source": "websocket_closed",
       "rest_ok": false,
-      "rest_error": "451 Client Error:  for url: https://fapi.binance.com/fapi/v1/klines?interval=15m&limit=1500&symbol=SPYUSDT&startTime=1791387900000"
-    },
-    "SPYUSDT/mark": {
-      "rows": 12000,
-      "latest_close": 1791390599999,
-      "source": "vision_historical",
-      "latest_source": "rest",
-      "rest_ok": false,
-      "rest_error": "451 Client Error:  for url: https://fapi.binance.com/fapi/v1/markPriceKlines?interval=15m&limit=1500&symbol=SPYUSDT&startTime=1791387900000"
-    },
-    "SPYUSDT/index": {
-      "rows": 12000,
-      "latest_close": 1791390599999,
-      "source": "vision_historical",
-      "latest_source": "rest",
-      "rest_ok": false,
-      "rest_error": "451 Client Error:  for url: https://fapi.binance.com/fapi/v1/indexPriceKlines?interval=15m&limit=1500&pair=SPYUSDT&startTime=1791387900000"
+      "rest_requested": false,
+      "websocket_ok": true
     },
     "QQQUSDT/last": {
       "rows": 12000,
-      "latest_close": 1791390599999,
-      "source": "vision_historical",
-      "latest_source": "rest",
+      "latest_close": 1791419399999,
+      "source": "websocket_closed",
+      "latest_source": "websocket_closed",
       "rest_ok": false,
-      "rest_error": "451 Client Error:  for url: https://fapi.binance.com/fapi/v1/klines?interval=15m&limit=1500&symbol=QQQUSDT&startTime=1791387900000"
+      "rest_requested": false,
+      "websocket_ok": true
+    },
+    "SPYUSDT/mark": {
+      "source": "vision_historical",
+      "live_available": false
+    },
+    "SPYUSDT/index": {
+      "source": "vision_historical",
+      "live_available": false
     }
   },
   "auxiliary": {
     "top_position": {
       "ok": false,
-      "error": "451 Client Error:  for url: https://fapi.binance.com/futures/data/topLongShortPositionRatio?symbol=SPYUSDT&limit=500&period=15m"
+      "error": "REST-only history unavailable in hosted stream mode"
     },
     "top_account": {
       "ok": false,
-      "error": "451 Client Error:  for url: https://fapi.binance.com/futures/data/topLongShortAccountRatio?symbol=SPYUSDT&limit=500&period=15m"
+      "error": "REST-only history unavailable in hosted stream mode"
     },
     "global_account": {
       "ok": false,
-      "error": "451 Client Error:  for url: https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=SPYUSDT&limit=500&period=15m"
+      "error": "REST-only history unavailable in hosted stream mode"
     },
     "taker_ratio": {
       "ok": false,
-      "error": "451 Client Error:  for url: https://fapi.binance.com/futures/data/takerlongshortRatio?symbol=SPYUSDT&limit=500&period=15m"
+      "error": "REST-only history unavailable in hosted stream mode"
     },
     "open_interest": {
       "ok": false,
-      "error": "451 Client Error:  for url: https://fapi.binance.com/futures/data/openInterestHist?symbol=SPYUSDT&limit=500&period=15m"
+      "error": "REST-only history unavailable in hosted stream mode"
     },
     "funding": {
       "ok": false,
-      "error": "451 Client Error:  for url: https://fapi.binance.com/fapi/v1/fundingRate?symbol=SPYUSDT&limit=500"
+      "error": "REST-only history unavailable in hosted stream mode"
     }
   },
-  "liquidation": "unavailable: no persistent WebSocket collector on hosted Actions"
+  "liquidation": "unavailable: not collected by this bounded candle stream"
 }
