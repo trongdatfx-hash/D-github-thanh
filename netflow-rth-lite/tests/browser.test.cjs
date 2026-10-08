@@ -28,6 +28,7 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   });
   await page.goto('http://netflow.test/');await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('TRADING'),{},{timeout:120000});
   assert(!(await page.locator('#net').innerText()).includes('—'));assert((await page.locator('.badge').innerText()).includes('chưa train'));
+  const strengthReadout=await page.locator('#strength-readout').innerText();assert.match(strengthReadout,/SPY -?\d/);assert.match(strengthReadout,/QQQ -?\d/);
   assert(await page.locator('#chart canvas').count()>0);
   await page.locator('#symbol').selectOption('QQQUSDT');await page.locator('#signal').selectOption('SPYUSDT');
   assert((await page.locator('#tooltip').innerText()).includes('QQQUSDT · O'));
