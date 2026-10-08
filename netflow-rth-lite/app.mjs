@@ -95,11 +95,21 @@ function exportCSV(){
   const csv=[keys.join(','),...data.map(x=>keys.map(k=>x[k]??'').join(','))].join('\n');
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download=`${source}-${$('interval').value}-quote-netflow.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
+function fitChart(){for(let pane=0;pane<3;pane++)chart.priceScale('right',pane).applyOptions({autoScale:true});chart.timeScale().fitContent();}
+function isFullChart(){const card=document.querySelector('.chart-card');return document.fullscreenElement===card||card.classList.contains('fullscreen-fallback');}
+function syncFullChart(){const active=isFullChart();$('fullscreen').textContent=active?'✕ Thu nhỏ':'⛶ Full chart';$('fullscreen').setAttribute('aria-pressed',String(active));document.body.classList.toggle('chart-fullscreen',active);setTimeout(()=>window.dispatchEvent(new Event('resize')),50);}
+async function toggleFullChart(){
+  const card=document.querySelector('.chart-card');
+  if(document.fullscreenElement===card){await document.exitFullscreen();return;}
+  if(card.classList.contains('fullscreen-fallback')){card.classList.remove('fullscreen-fallback');syncFullChart();return;}
+  try{if(!card.requestFullscreen)throw Error('Fullscreen API unavailable');await card.requestFullscreen({navigationUI:'hide'});}catch{card.classList.add('fullscreen-fallback');syncFullChart();}
+}
 if(init()){
   $('refresh').onclick=()=>refresh();for(const id of ['interval','days'])$(id).onchange=()=>refresh(true);
   for(const id of ['symbol','signal'])$(id).onchange=()=>render(false);
   for(const id of ['spy','qqq','composite','flow-leg','show-strength','bands','markers'])$(id).onchange=toggle;
-  $('fit').onclick=()=>{chart.priceScale('right',0).applyOptions({autoScale:true});chart.priceScale('right',1).applyOptions({autoScale:true});chart.priceScale('right',2).applyOptions({autoScale:true});chart.timeScale().fitContent();};
+  $('fit').onclick=fitChart;$('chart-fit').onclick=fitChart;$('fullscreen').onclick=toggleFullChart;
+  document.addEventListener('fullscreenchange',syncFullChart);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.querySelector('.chart-card').classList.contains('fullscreen-fallback')){document.querySelector('.chart-card').classList.remove('fullscreen-fallback');syncFullChart();}});
   $('export').onclick=exportCSV;
   refresh(true);setInterval(()=>{if(!document.hidden&&!loading)refresh();},60000);
 }

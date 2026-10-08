@@ -42,6 +42,10 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
    await page.mouse.down();await page.mouse.move(box.x+box.width*.65,box.y+80,{steps:10});await page.mouse.up();await page.locator('#fit').click();
    if(process.env.NETFLOW_SCREENSHOTS)await page.screenshot({path:path.join(process.env.NETFLOW_SCREENSHOTS,`rth-${width}.png`),fullPage:true});
   }
+  await page.locator('#fullscreen').click();await page.waitForFunction(()=>document.querySelector('#fullscreen').textContent.includes('Thu nhỏ'));
+  const fullBox=await page.locator('.chart-card').boundingBox();assert(Math.abs(fullBox.width-390)<2);assert(Math.abs(fullBox.height-844)<2);assert((await page.locator('#chart').boundingBox()).height>450);assert(await page.evaluate(()=>document.body.classList.contains('chart-fullscreen')));
+  await page.locator('#chart-fit').click();if(process.env.NETFLOW_SCREENSHOTS)await page.screenshot({path:path.join(process.env.NETFLOW_SCREENSHOTS,'rth-fullscreen-390.png')});
+  await page.locator('#fullscreen').click();await page.waitForFunction(()=>document.querySelector('#fullscreen').textContent.includes('Full chart'));
   const download=page.waitForEvent('download');await page.locator('#export').click();assert((await download).suggestedFilename().includes('quote-netflow'));
   const cdp=await page.context().newCDPSession(page);await cdp.send('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:2});
   await page.locator('#chart').scrollIntoViewIfNeeded();const touchBox=await page.locator('#chart').boundingBox();
@@ -50,7 +54,7 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x+35,y,id:1}]});await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
   await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:x-35,y,id:1},{x:x+35,y,id:2}]});
   await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x-65,y,id:1},{x:x+65,y,id:2}]});await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
-  assert.deepEqual(errors,[]);console.log('Chart passed: desktop/mobile, 4 timeframes where available, controls, tooltip, wheel/drag, fit, CSV. API statuses:',JSON.stringify(requests));
+  assert.deepEqual(errors,[]);console.log('Chart passed: desktop/mobile/fullscreen, 4 timeframes where available, controls, tooltip, wheel/drag, fit, CSV. API statuses:',JSON.stringify(requests));
   if(!process.env.NETFLOW_LIVE){
    failure=451;await page.locator('#refresh').click();await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('HTTP 451'));assert((await page.locator('#status').innerText()).includes('Dữ liệu cũ chưa cập nhật'));
    await page.locator('#days').selectOption('7');await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('Không có dữ liệu thay thế'));assert.equal(await page.locator('#net').innerText(),'—');assert(await page.locator('#export').isDisabled());
