@@ -1,0 +1,4 @@
+#chart{height:700px}
+#strength-readout{top:calc(74% + 10px);right:58px;left:auto;flex-direction:column;align-items:flex-end;gap:4px}
+#strength-composite{min-width:42px;text-align:center;border-style:dashed!important}
+@media(max-width:650px){#chart{height:630px}#strength-readout{right:48px;top:calc(74% + 8px);font-size:10px;gap:3px}#strength-readout span{padding:2px 5px}}
