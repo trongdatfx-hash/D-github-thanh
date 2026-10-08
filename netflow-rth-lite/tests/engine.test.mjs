@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {STEPS,parseKlines,composite,calculateStrength,analyze,regression,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
+import {STEPS,parseKlines,composite,calculateStrength,analyze,calculateFlowLeg,regression,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
 import {load} from '../data.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL(p,import.meta.url),'utf8').replace(/^\uFEFF/,''));
 const now=read('../../netflow-ml/tests/fixtures/time.json').serverTime;
@@ -25,6 +25,13 @@ test('DVP smoothing chain, regression fit, gaps and zero-volume',()=>{
   const r=regression(Array.from({length:50},(_,i)=>3+2*i));assert.equal(r.mid,103);assert.equal(r.sigma,0);
   const gap=analyze([a[0],a[10]],STEPS['15m']);assert.equal(gap[1].raw,null);assert.equal(gap[1].rthSamples,0);
   const k=[...spy[0]];k[7]='0';k[10]='0';assert.equal(parseKlines([k],now,STEPS['15m'])[0].nf,null);k[10]='1';assert.throws(()=>parseKlines([k],now,STEPS['15m']));
+});
+test('Flow-Leg uses Strength Schmitt sign and causal Taker NetFlow slope',()=>{
+  const analyzed=analyze(a,STEPS['15m']),leg=calculateFlowLeg(a,analyzed,STEPS['15m']);assert(leg.some(x=>Number.isFinite(x.value)));
+  assert.deepEqual(calculateFlowLeg(a.slice(0,900),analyzed.slice(0,900),STEPS['15m']),leg.slice(0,900));
+  const later=analyzed.map((x,i)=>i>=900?{...x,net:x.net*100}:x);assert.deepEqual(calculateFlowLeg(a,later,STEPS['15m']).slice(0,900),leg.slice(0,900));
+  const price=a.slice(0,4),signal=price.map((x,i)=>({...x,adjusted:[.3,.05,.02,-.4][i],net:100}));
+  assert.deepEqual(calculateFlowLeg(price,signal,STEPS['15m']).map(x=>x.sign),[1,1,1,-1]);
 });
 test('NY DST, RTH edges and weekend',()=>{
   assert.equal(sessionAt(Date.parse('2026-10-07T13:30:00Z')).session,'RTH');assert.equal(sessionAt(Date.parse('2026-10-07T20:00:00Z')).session,'POST');assert.equal(sessionAt(Date.parse('2026-01-07T14:30:00Z')).session,'RTH');assert.equal(sessionAt(Date.parse('2026-10-10T14:30:00Z')).session,'WEEKEND');assert.equal(modelStatus.trained,false);

@@ -1,8 +1,8 @@
-import {STEPS,composite,analyze} from './engine.mjs';
+import {STEPS,composite,analyze,calculateFlowLeg} from './engine.mjs';
 import {load} from './data.mjs';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—';
 const L=window.LightweightCharts;
-let chart,price,series={},marks,cache=null,rows={},maps={},controller,generation=0,loading=false,lastSuccess=null;
+let chart,price,series={},marks,cache=null,rows={},maps={},flowLegMap=new Map(),controller,generation=0,loading=false,lastSuccess=null;
 const colors={SPYUSDT:'#5ba8ff',QQQUSDT:'#c194ff',COMPOSITE:'#38dfba'};
 const flowColors={
   SPYUSDT:{up:'rgba(39,211,164,.38)',down:'rgba(255,91,116,.38)'},
@@ -14,6 +14,8 @@ function init(){
   if(!L){status('Không tải được thư viện chart cục bộ. Kiểm tra network hoặc tải lại trang.',true);return false;}
   chart=L.createChart($('chart'),{autoSize:true,layout:{background:{type:'solid',color:'#0e1726'},textColor:'#91a5bd',attributionLogo:true},grid:{vertLines:{color:'#1a283a'},horzLines:{color:'#1a283a'}},crosshair:{mode:L.CrosshairMode.Normal,vertLine:{visible:true,labelVisible:true},horzLine:{visible:true,labelVisible:true}},timeScale:{timeVisible:true,secondsVisible:false,rightOffset:5},rightPriceScale:{autoScale:true},handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},handleScale:{mouseWheel:true,pinch:true,axisPressedMouseMove:true},localization:{locale:'vi-VN',timeFormatter:t=>new Date(t*1000).toLocaleString('en-US',{timeZone:'America/New_York',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'})}});
   price=chart.addSeries(L.CandlestickSeries,{priceLineVisible:false,borderVisible:false},0);
+  series.flowUp=chart.addSeries(L.LineSeries,{color:'#16e0a5',lineWidth:3,title:'Flow-Leg +Strength',priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false},0);
+  series.flowDown=chart.addSeries(L.LineSeries,{color:'#ff4d70',lineWidth:3,title:'Flow-Leg −Strength',priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false},0);
   for(const key of Object.keys(colors))series[key]=chart.addSeries(L.HistogramSeries,{base:0,color:flowColors[key].up,title:key.replace('USDT','')+' Taker NetFlow',priceLineVisible:false,priceFormat:{type:'custom',formatter:v=>fmt(v)}},1);
   series.strength=chart.addSeries(L.LineSeries,{color:'#ffd166',lineWidth:3,title:'Strength → RTH',priceLineVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:4},2);
   for(const key of ['mid','upper','lower'])series[key]=chart.addSeries(L.LineSeries,{color:key==='mid'?'#7c98b9':'#8596ad',lineWidth:1,lineStyle:key==='mid'?L.LineStyle.Dotted:L.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,title:key==='mid'?'Regression':key==='upper'?'+2σ':'−2σ'},2);
@@ -36,10 +38,13 @@ function candlePalette(x){
 }
 function lineData(data,key){return data.map(x=>Number.isFinite(x[key])?{time:x.t/1000,value:x[key]}:{time:x.t/1000});}
 function flowData(data,key){const palette=flowColors[key];return data.map(x=>Number.isFinite(x.net)?{time:x.t/1000,value:x.net,color:x.net>=0?palette.up:palette.down}:{time:x.t/1000});}
+function legData(data,sign){return data.map(x=>x.sign===sign&&Number.isFinite(x.value)?{time:x.t/1000,value:x.value}:{time:x.t/1000});}
 function render(fit=false){
   const range=chart.timeScale().getVisibleLogicalRange();
   const p=rows[$('symbol').value]??[],signals=maps[$('signal').value]??new Map();
   price.setData(p.map(x=>{const color=candlePalette(signals.get(x.t));return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color:color.body,wickColor:color.wick,borderColor:color.border};}));
+  const leg=calculateFlowLeg(p,rows[$('signal').value]??[],STEPS[$('interval').value]);flowLegMap=new Map(leg.map(x=>[x.t,x]));
+  series.flowUp.setData(legData(leg,1));series.flowDown.setData(legData(leg,-1));
   for(const key of Object.keys(colors))series[key].setData(flowData(rows[key]??[],key));
   const signalRows=rows[$('signal').value]??[];
   series.strength.setData(lineData(signalRows,'adjusted'));
@@ -56,11 +61,13 @@ function showTooltip(t){
   const p=maps[$('symbol').value]?.get(t),s=maps[$('signal').value]?.get(t);metrics(s);
   const text=[new Date(t).toLocaleString('vi-VN',{timeZone:'America/New_York'})+' ET',p?`${$('symbol').value} · O ${fmt(p.o)} H ${fmt(p.h)} L ${fmt(p.l)} C ${fmt(p.c)}`:'Không có nến giá tại timestamp này'];
   for(const key of Object.keys(colors)){const b=maps[key]?.get(t);text.push(`${key} · BuyQ ${fmt(b?.buy)} · SellQ ${fmt(b?.sell)} · NetQ ${fmt(b?.net)} USDT · NF ${fmt(b?.nf)}%`);}
+  const leg=flowLegMap.get(t);text.push(`Flow-Leg ${leg?.sign>0?'xanh (+Strength)':leg?.sign<0?'đỏ (−Strength)':'—'} · mức ${fmt(leg?.value)} · dốc flow chuẩn hóa ${fmt(leg?.flowSlope)} · Taker NetFlow ${fmt(leg?.net)} USDT`);
   text.push(`${s?.session??'—'} · Strength gốc ${fmt(s?.raw)} → RTH ${fmt(s?.adjusted)} · Regression ${fmt(s?.mid)} [${fmt(s?.lower)}, ${fmt(s?.upper)}] · đủ mẫu ${fmt((s?.confidence??0)*100)}%`,s?.reason??'Thiếu timestamp chung');
   $('tooltip').replaceChildren(...text.map(value=>{const div=document.createElement('div');div.textContent=value;return div;}));
 }
 function toggle(){
   for(const [id,key] of [['spy','SPYUSDT'],['qqq','QQQUSDT'],['composite','COMPOSITE'],['show-strength','strength']])series[key].applyOptions({visible:$(id).checked});
+  for(const key of ['flowUp','flowDown'])series[key].applyOptions({visible:$('flow-leg').checked});
   for(const key of ['mid','upper','lower'])series[key].applyOptions({visible:$('bands').checked});
   marks.applyOptions({visible:$('markers').checked});
 }
@@ -91,7 +98,7 @@ function exportCSV(){
 if(init()){
   $('refresh').onclick=()=>refresh();for(const id of ['interval','days'])$(id).onchange=()=>refresh(true);
   for(const id of ['symbol','signal'])$(id).onchange=()=>render(false);
-  for(const id of ['spy','qqq','composite','show-strength','bands','markers'])$(id).onchange=toggle;
+  for(const id of ['spy','qqq','composite','flow-leg','show-strength','bands','markers'])$(id).onchange=toggle;
   $('fit').onclick=()=>{chart.priceScale('right',0).applyOptions({autoScale:true});chart.priceScale('right',1).applyOptions({autoScale:true});chart.priceScale('right',2).applyOptions({autoScale:true});chart.timeScale().fitContent();};
   $('export').onclick=exportCSV;
   refresh(true);setInterval(()=>{if(!document.hidden&&!loading)refresh();},60000);

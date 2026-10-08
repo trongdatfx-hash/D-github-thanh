@@ -25,11 +25,17 @@ OLS trên 50 adjusted Strength hợp lệ liên tiếp trước nến hiện t�
 
 Nến giá dùng gradient theo adjusted Strength của nguồn đang chọn. Khi Strength gần 0, màu gần xám; `|Strength|` càng tiến đến 1, màu càng bão hòa về xanh (`Strength > 0`) hoặc đỏ (`Strength < 0`). Độ đủ mẫu chỉ điều chỉnh nhẹ cường độ để tín hiệu 26 mẫu vẫn nhìn rõ; đây không phải xác suất thắng. Chưa đủ hiệu chỉnh thì nến xám. Pane Strength dùng đường vàng dày hơn và đường 0 sáng, liền nét, có nhãn trên trục để thấy điểm đổi dấu rõ trên desktop lẫn mobile.
 
+## Flow-Leg trên chart giá
+
+Pine gốc chia leg bằng dấu Strength qua Schmitt dead-band ±0.15, nhưng Flow-Leg đầy đủ của Pine dùng OLS giá và nhiều cổng/rail. Bản web này triển khai yêu cầu cụ thể: ranh và màu leg theo adjusted Strength của nguồn đang chọn; **độ dốc từng nến lấy từ Taker NetFlowQ của chính nguồn đó**. Trong dead-band, leg giữ dấu trước; Strength mất dữ liệu thì ngắt leg. Xanh là leg Strength dương, đỏ là leg Strength âm. Vì màu và slope là hai biến riêng, leg xanh có thể dốc xuống hoặc leg đỏ dốc lên khi Taker NetFlow tức thời xung đột với regime tích lũy.
+
+Để đổi USDT sang trục giá mà không làm đường văng khỏi chart: `flowNorm = clamp(NetFlowQ / mean_past,current(|NetFlowQ|,50), ±3)`; làm mượt EWMA half-life 2; `ΔFlowLegPrice = ATR14 × 0.18 × EWMA(flowNorm)`. Mọi mẫu dùng đến nến hiện tại, không dùng tương lai. Đường được neo lại tại close khi dấu Strength lật. Đây là overlay trực quan của flow lên giá, không phải OLS/rail hỗ trợ-kháng cự đầy đủ của Pine và không phải dự báo giá.
+
 ## Chart & kiểm định
 
 TradingView Lightweight Charts 5.0.9 được lưu cục bộ, Apache 2.0, giữ NOTICE/LICENSE và attribution. Ba pane đồng bộ: candlestick giá, Taker NetFlowQ SPY/QQQ/composite, adjusted Strength + OLS ±2σ. Wheel/pinch zoom, drag pan, normal crosshair xuyên pane, tooltip OHLC cùng quote flows của cả ba nguồn, fit + auto scale từng pane, toggle từng nguồn/Strength/bands/day-RTH markers, responsive mobile. CSV xuất nguồn Strength đang chọn, toàn lịch sử đã tải. Marker RTH là nến đầu có nhãn RTH, nên H1 không thể đánh dấu chính xác 09:30.
 
-`node --test tests/engine.test.mjs` dùng fixture Binance thật từ `../netflow-ml/tests/fixtures/` chỉ để kiểm thử. Kiểm tra quote fields, composite, causal prefix/future mutation, chuỗi làm mượt DVP, regression, gaps, zero volume, DST, symbol validation, pagination. `tests/browser.test.cjs` kiểm chart desktop/mobile và trường hợp API bị chặn; chạy với NODE_PATH trỏ runtime có Playwright.
+`node --test tests/engine.test.mjs` dùng fixture Binance thật từ `../netflow-ml/tests/fixtures/` chỉ để kiểm thử. Kiểm tra quote fields, composite, causal prefix/future mutation, chuỗi làm mượt DVP, Flow-Leg causal + Schmitt sign, regression, gaps, zero volume, DST, symbol validation, pagination. `tests/browser.test.cjs` kiểm chart desktop/mobile và trường hợp API bị chặn; chạy với NODE_PATH trỏ runtime có Playwright.
 
 ## ML tương lai
 
