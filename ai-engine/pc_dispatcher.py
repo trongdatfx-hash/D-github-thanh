@@ -142,39 +142,7 @@ def log(directory, value):
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--state-dir', type=Path, required=True)
-    parser.add_argument('--once', action='store_true')
-    args = parser.parse_args()
-    args.state_dir.mkdir(parents=True, exist_ok=True)
-    lock = acquire_lock(args.state_dir)
-    if lock is None:
-        return  # Existing instance continues; Startup/manual launches are safe.
-    path = args.state_dir / 'watchdog-state.json'
-    state = load_state(path)
-    previous = None
-    while True:
-        client = None
-        try:
-            client = Github()
-            action = tick(state, path, client, time.time())
-            if action != previous or action == 'dispatch':
-                log(args.state_dir, {'action': action, 'target_close': state['target_close'],
-                                     'report_data_as_of': state['report_data_as_of']})
-            previous = action
-        except Exception as error:
-            safe = f'HTTP {error.code}' if isinstance(error, urllib.error.HTTPError) else type(error).__name__
-            state.update(heartbeat_at=time.time(), action='error', error=safe)
-            save_state(path, state)
-            if previous != safe:
-                log(args.state_dir, {'action': 'error', 'error': safe})
-            previous = safe
-        finally:
-            if client is not None:
-                client.close()
-        if args.once:
-            return
-        time.sleep(POLL_SECONDS)
+    print("PC watchdog retired. GitHub-hosted Actions now owns collection and ML.")
 
 
 if __name__ == '__main__':
