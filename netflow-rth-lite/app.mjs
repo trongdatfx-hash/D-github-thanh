@@ -16,10 +16,12 @@ class VariableWidthLineRenderer{
     const bars=this.data?.bars,range=this.data?.visibleRange;if(!bars?.length||!range)return;
     target.useBitmapCoordinateSpace(({context,horizontalPixelRatio,verticalPixelRatio})=>{
       context.save();context.strokeStyle=this.options.color;context.lineCap='round';context.lineJoin='round';
-      const start=Math.max(1,range.from),end=Math.min(bars.length,range.to);
+      // Both endpoints must be inside the visible range; off-screen custom bars can carry stale x coordinates.
+      const start=Math.max(1,range.from+1),end=Math.min(bars.length,range.to);
       for(let i=start;i<end;i++){
         const previous=bars[i-1],current=bars[i],a=previous.originalData,b=current.originalData;
         if(!Number.isFinite(a?.value)||!Number.isFinite(b?.value))continue;
+        const xGap=current.x-previous.x;if(!Number.isFinite(xGap)||xGap<=0||xGap>Math.max(2,this.data.barSpacing*1.6))continue;
         const y1=priceToCoordinate(a.value),y2=priceToCoordinate(b.value);if(y1===null||y2===null)continue;
         context.beginPath();context.lineWidth=Math.max(1,Math.round((b.width??1)*verticalPixelRatio));
         context.moveTo(previous.x*horizontalPixelRatio,y1*verticalPixelRatio);context.lineTo(current.x*horizontalPixelRatio,y2*verticalPixelRatio);context.stroke();
@@ -46,6 +48,9 @@ function init(){
   series.priceMid=chart.addCustomSeries(new VariableWidthLineSeries,{color:'#f6c85f',baseLineVisible:false,priceLineVisible:false,lastValueVisible:false,title:''},0);
   for(const key of ['priceUpper','priceLower'])series[key]=chart.addSeries(L.LineSeries,{color:'#4aa3ff',lineWidth:1,lineStyle:L.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,title:''},0);
   for(const key of Object.keys(colors))series[key]=chart.addSeries(L.HistogramSeries,{base:0,color:flowColors[key].up,title:flowTitles[key],priceLineVisible:false,priceFormat:{type:'custom',formatter:fmtK}},1);
+  series.relative=chart.addSeries(L.HistogramSeries,{priceScaleId:'relative',base:0,color:'rgba(245,166,35,.65)',title:'S−Q Relative',priceLineVisible:false,lastValueVisible:true,priceFormat:{type:'custom',formatter:x=>`${fmt(x)}%`}},1);
+  series.relative.priceScale().applyOptions({scaleMargins:{top:.58,bottom:.20}});
+  series.relative.createPriceLine({price:0,color:'#65768b',lineWidth:1,lineStyle:L.LineStyle.Dotted,axisLabelVisible:false});
   series.alignment=chart.addSeries(L.HistogramSeries,{priceScaleId:'alignment',base:0,color:'#f5a623',title:'SPY↔QQQ',priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',formatter:()=>''}},1);
   series.alignment.priceScale().applyOptions({scaleMargins:{top:.80,bottom:.02}});
   series.strength=chart.addSeries(L.BaselineSeries,{baseValue:{type:'price',price:0},topLineColor:'#1ae0a3',topFillColor1:'rgba(26,224,163,0)',topFillColor2:'rgba(26,224,163,0)',bottomLineColor:'#ff4d70',bottomFillColor1:'rgba(255,77,112,0)',bottomFillColor2:'rgba(255,77,112,0)',lineWidth:3,title:'',priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:4},2);
@@ -69,18 +74,20 @@ function candlePalette(x){
   return {body:mixColor([91,105,124],target,intensity),wick:mixColor([112,126,145],target,Math.min(1,intensity+.1)),border:mixColor([74,89,108],target,Math.min(1,intensity+.06))};
 }
 function lineData(data,key){return data.map(x=>Number.isFinite(x[key])?{time:x.t/1000,value:x[key]}:{time:x.t/1000});}
-function phaseLineWidth(x){return x>=.4?9:x>=.2?6:x>=.08?3:1;}
-function priceLineData(data,alignment){const variable=$('phase-width').checked;return data.map(x=>Number.isFinite(x.mid)?{time:x.t/1000,value:x.mid,width:variable?phaseLineWidth(alignment.get(x.t)?.phaseCoefficient??0):2}:{time:x.t/1000});}
+function oppositionLineWidth(x){return Math.round((1+8*Math.max(0,Math.min(1,x))**.7)*10)/10;}
+function priceLineData(data,alignment){const variable=$('phase-width').checked;return data.map(x=>Number.isFinite(x.mid)?{time:x.t/1000,value:x.mid,width:variable?oppositionLineWidth(alignment.get(x.t)?.opposition??0):2}:{time:x.t/1000});}
 function flowData(data,key){const palette=flowColors[key];return data.map(x=>Number.isFinite(x.net)?{time:x.t/1000,value:x.net,color:x.net>=0?palette.up:palette.down}:{time:x.t/1000});}
+function relativeData(data){return data.map(x=>{const alpha=.28+.62*x.volumeConfidence,color=x.relative>0?`rgba(245,166,35,${alpha})`:x.relative<0?`rgba(169,124,255,${alpha})`:'rgba(112,126,145,.3)';return Number.isFinite(x.relative)?{time:x.t/1000,value:x.relative,color}:{time:x.t/1000};});}
 function alignmentData(data){return data.map(x=>({time:x.t/1000,value:x.score,color:x.state==='THUẬN MUA'?`rgba(26,224,163,${.48+.45*x.intensity})`:x.state==='THUẬN BÁN'?`rgba(255,77,112,${.48+.45*x.intensity})`:`rgba(245,166,35,${.58+.35*x.intensity})`}));}
 function render(fit=false){
   const range=chart.timeScale().getVisibleLogicalRange();
   const p=rows[$('symbol').value]??[],signalRows=rows[$('signal').value]??[],signals=maps[$('signal').value]??new Map();
   price.setData(p.map(x=>{const color=candlePalette(signals.get(x.t));return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color:color.body,wickColor:color.wick,borderColor:color.border};}));
-  const alignment=flowAlignment(rows.SPYUSDT??[],rows.QQQUSDT??[]);alignmentMap=new Map(alignment.map(x=>[x.t,x]));
+  const alignment=flowAlignment(rows.SPYUSDT??[],rows.QQQUSDT??[],{step:STEPS[$('interval').value]});alignmentMap=new Map(alignment.map(x=>[x.t,x]));
   const priceBands=weightedPriceBands(p,STEPS[$('interval').value]);priceBandMap=new Map(priceBands.map(x=>[x.t,x]));
   series.priceMid.setData(priceLineData(priceBands,alignmentMap));series.priceUpper.setData(lineData(priceBands,'upper'));series.priceLower.setData(lineData(priceBands,'lower'));
   for(const key of Object.keys(colors))series[key].setData(flowData(rows[key]??[],key));
+  series.relative.setData(relativeData(alignment));
   series.alignment.setData(alignmentData(alignment));
   series.strength.setData(lineData(signalRows,'adjusted'));
   strengthMarks.setMarkers(signalRows.filter(x=>Number.isFinite(x.adjusted)&&x.adjusted>.95).map(x=>({time:x.t/1000,position:'inBar',color:'#7dffd9',shape:'circle',text:''})));
@@ -102,14 +109,16 @@ function showTooltip(t){
   const p=maps[$('symbol').value]?.get(t),s=maps[$('signal').value]?.get(t);metrics(s);
   const text=[new Date(t).toLocaleString('vi-VN',{timeZone:'America/New_York'})+' ET',p?`${$('symbol').value} · O ${fmt(p.o)} H ${fmt(p.h)} L ${fmt(p.l)} C ${fmt(p.c)}`:'Không có nến giá tại timestamp này'];
   for(const key of Object.keys(colors)){const b=maps[key]?.get(t);text.push(`${key} · BuyQ ${fmt(b?.buy)} · SellQ ${fmt(b?.sell)} · NetQ ${fmt(b?.net)} USDT · NF ${fmt(b?.nf)}%`);}
-  const alignment=alignmentMap.get(t);text.push(`SPY↔QQQ · ${alignment?.state??'—'} · SPY NF ${fmt(alignment?.spyNf)}% · QQQ NF ${fmt(alignment?.qqqNf)}% · tách pha ${fmt((alignment?.phaseCoefficient??0)*100)}%`);
-  const priceBand=priceBandMap.get(t),lineWidth=$('phase-width').checked?phaseLineWidth(alignment?.phaseCoefficient??0):2;text.push(`WLR giá 50 · ${fmt(priceBand?.mid)} [${fmt(priceBand?.lower)}, ${fmt(priceBand?.upper)}] · σ ${fmt(priceBand?.sigma)} · nét ${lineWidth}px`);
+  const alignment=alignmentMap.get(t);text.push(`Dải SPY↔QQQ · ${alignment?.state??'—'} · SPY NF ${fmt(alignment?.spyNf)}% · QQQ NF ${fmt(alignment?.qqqNf)}%`);
+  text.push(`Flow mượt · SPY ${fmt(alignment?.smoothSpyNf)}% · QQQ ${fmt(alignment?.smoothQqqNf)}% · ${alignment?.detailState??'—'} · Common ${fmt(alignment?.commonNf)}% · Relative ${fmt(alignment?.relative)}% · đối nghịch ${fmt((alignment?.opposition??0)*100)}%`);
+  const priceBand=priceBandMap.get(t),lineWidth=$('phase-width').checked?oppositionLineWidth(alignment?.opposition??0):2;text.push(`WLR giá 50 · ${fmt(priceBand?.mid)} [${fmt(priceBand?.lower)}, ${fmt(priceBand?.upper)}] · σ ${fmt(priceBand?.sigma)} · nét ${fmt(lineWidth)}px`);
   text.push(`${s?.session??'—'} · Strength gốc ${fmt(s?.raw)} → RTH ${fmt(s?.adjusted)} · Regression ${fmt(s?.mid)} [${fmt(s?.lower)}, ${fmt(s?.upper)}] · đủ mẫu ${fmt((s?.confidence??0)*100)}%`,s?.reason??'Thiếu timestamp chung');
   $('tooltip').replaceChildren(...text.map(value=>{const div=document.createElement('div');div.textContent=value;return div;}));
 }
 function toggle(){
   for(const [id,key] of [['spy','SPYUSDT'],['qqq','QQQUSDT'],['composite','COMPOSITE'],['show-strength','strength']])series[key].applyOptions({visible:$(id).checked});
   strengthMarks.applyOptions({visible:$('show-strength').checked});
+  series.relative.applyOptions({visible:$('relative').checked});
   series.alignment.applyOptions({visible:$('alignment').checked});
   for(const key of ['priceMid','priceUpper','priceLower'])series[key].applyOptions({visible:$('price-bands').checked});
   updateStrengthLabels();
@@ -140,7 +149,7 @@ function exportCSV(){
   const csv=[keys.join(','),...data.map(x=>keys.map(k=>x[k]??'').join(','))].join('\n');
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download=`${source}-${$('interval').value}-quote-netflow.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
-function fitChart(){for(let pane=0;pane<3;pane++)chart.priceScale('right',pane).applyOptions({autoScale:true});series.alignment.priceScale().applyOptions({autoScale:true});chart.timeScale().fitContent();}
+function fitChart(){for(let pane=0;pane<3;pane++)chart.priceScale('right',pane).applyOptions({autoScale:true});series.relative.priceScale().applyOptions({autoScale:true});series.alignment.priceScale().applyOptions({autoScale:true});chart.timeScale().fitContent();}
 function isFullChart(){const card=document.querySelector('.chart-card');return document.fullscreenElement===card||card.classList.contains('fullscreen-fallback');}
 function syncFullChart(){const active=isFullChart();$('fullscreen').textContent=active?'✕ Thu nhỏ':'⛶ Full chart';$('fullscreen').setAttribute('aria-pressed',String(active));document.body.classList.toggle('chart-fullscreen',active);setTimeout(()=>window.dispatchEvent(new Event('resize')),50);}
 async function toggleFullChart(){
@@ -152,7 +161,7 @@ async function toggleFullChart(){
 if(init()){
   $('refresh').onclick=()=>refresh();for(const id of ['interval','days'])$(id).onchange=()=>refresh(true);
   for(const id of ['symbol','signal'])$(id).onchange=()=>render(false);
-  for(const id of ['spy','qqq','composite','alignment','price-bands','show-strength','bands','markers'])$(id).onchange=toggle;
+  for(const id of ['spy','qqq','composite','relative','alignment','price-bands','show-strength','bands','markers'])$(id).onchange=toggle;
   $('phase-width').onchange=()=>render(false);
   $('fit').onclick=fitChart;$('chart-fit').onclick=fitChart;$('fullscreen').onclick=toggleFullChart;
   document.addEventListener('fullscreenchange',syncFullChart);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.querySelector('.chart-card').classList.contains('fullscreen-fallback')){document.querySelector('.chart-card').classList.remove('fullscreen-fallback');syncFullChart();}});

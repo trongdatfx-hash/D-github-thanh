@@ -31,10 +31,21 @@ export function composite(a,b){
     return [{t:x.t,end:x.end,day:x.day,session:x.session,q,buy,sell,net,nf:q>0?100*net/q:null}];
   });
 }
-export function flowAlignment(spy,qqq){
+function thresholdSign(value,threshold){return value>threshold?1:value< -threshold?-1:0;}
+function detailedFlowState(spy,qqq,threshold){
+  const s=thresholdSign(spy,threshold),q=thresholdSign(qqq,threshold);
+  if(s>0&&q>0)return 'THUẬN MUA';if(s<0&&q<0)return 'THUẬN BÁN';
+  if(s>0&&q<0)return 'NGHỊCH · SPY mua / QQQ bán';if(s<0&&q>0)return 'NGHỊCH · SPY bán / QQQ mua';
+  if(s>0)return 'SPY DẪN MUA';if(s<0)return 'SPY DẪN BÁN';if(q>0)return 'QQQ DẪN MUA';if(q<0)return 'QQQ DẪN BÁN';return 'TRUNG TÍNH';
+}
+function causalPercentile(history,value){return history.length<20?.35:history.reduce((n,x)=>n+(x<=value),0)/history.length;}
+export function flowAlignment(spy,qqq,{halfLife=2,step=null,neutralThreshold=5,volumeWindow=100}={}){
+  if(!Number.isFinite(halfLife)||halfLife<=0||!Number.isFinite(neutralThreshold)||neutralThreshold<0||!Number.isInteger(volumeWindow)||volumeWindow<20)throw Error('Tham số SPY/QQQ flow không hợp lệ');
   const other=new Map(qqq.map(x=>[x.t,x]));
+  const alpha=1-2**(-1/halfLife),spyVolumes=[],qqqVolumes=[];let smoothSpy=null,smoothQqq=null,previous=null;
   return spy.flatMap(a=>{
     const b=other.get(a.t);if(!b)return [];
+    if(step!==null&&previous!==null&&a.t-previous!==step){smoothSpy=null;smoothQqq=null;spyVolumes.length=0;qqqVolumes.length=0;}previous=a.t;
     let state,score;
     if(a.net>0&&b.net>0){state='THUẬN MUA';score=1;}
     else if(a.net<0&&b.net<0){state='THUẬN BÁN';score=-1;}
@@ -42,8 +53,15 @@ export function flowAlignment(spy,qqq){
     else if(a.net<0&&b.net>0){state='NGHỊCH · SPY bán / QQQ mua';score=-.45;}
     else{state='TRUNG TÍNH';score=0;}
     const intensity=Math.min(1,Math.min(Math.abs(a.nf??0),Math.abs(b.nf??0))/50);
-    const phaseDen=Math.abs(a.nf??0)+Math.abs(b.nf??0),phase=phaseDen>0?Math.abs((a.nf??0)-(b.nf??0))/phaseDen:0,phaseCoefficient=phase*intensity;
-    return [{t:a.t,state,score,intensity,phase,phaseCoefficient,spyNet:a.net,qqqNet:b.net,spyNf:a.nf,qqqNf:b.nf}];
+    const valid=Number.isFinite(a.nf)&&Number.isFinite(b.nf);
+    if(valid){smoothSpy=smoothSpy===null?a.nf:smoothSpy+alpha*(a.nf-smoothSpy);smoothQqq=smoothQqq===null?b.nf:smoothQqq+alpha*(b.nf-smoothQqq);}else{smoothSpy=null;smoothQqq=null;}
+    const totalQ=(a.q??0)+(b.q??0),commonNf=totalQ>0?100*((a.net??0)+(b.net??0))/totalQ:null;
+    const relative=valid?(smoothSpy-smoothQqq)/2:null;
+    const opposition=valid?Math.min(1,Math.sqrt(Math.max(0,-smoothSpy*smoothQqq))/50):0;
+    const agreement=valid?Math.min(1,Math.sqrt(Math.max(0,smoothSpy*smoothQqq))/50):0;
+    const volumeConfidence=Math.min(causalPercentile(spyVolumes,a.q??0),causalPercentile(qqqVolumes,b.q??0));
+    spyVolumes.push(a.q??0);qqqVolumes.push(b.q??0);if(spyVolumes.length>volumeWindow)spyVolumes.shift();if(qqqVolumes.length>volumeWindow)qqqVolumes.shift();
+    return [{t:a.t,state,score,intensity,detailState:valid?detailedFlowState(smoothSpy,smoothQqq,neutralThreshold):'TRUNG TÍNH',smoothSpyNf:smoothSpy,smoothQqqNf:smoothQqq,commonNf,relative,opposition,agreement,volumeConfidence,spyNet:a.net,qqqNet:b.net,spyNf:a.nf,qqqNf:b.nf}];
   });
 }
 export function normCDF(z){

@@ -14,9 +14,18 @@ test('composite sums quote volumes at intersection only',()=>{
   assert.equal(x.q,aa.q+bb.q);assert.equal(x.net,aa.net+bb.net);assert(Math.abs(x.nf-(aa.nf*aa.q+bb.nf*bb.q)/(aa.q+bb.q))<1e-10);assert.equal(c.some(x=>x.t===b[0].t),false);assert.equal(x.o,undefined);
 });
 test('SPY/QQQ alignment distinguishes agreement and divergence',()=>{
-  const x={t:1,net:10,nf:20},y={t:1,net:5,nf:10},same=flowAlignment([x],[x])[0];assert.equal(flowAlignment([x],[y])[0].state,'THUẬN MUA');assert.equal(same.phaseCoefficient,0);
-  const opposite=flowAlignment([{...x,net:-10,nf:-20}],[y])[0];assert.equal(opposite.state,'NGHỊCH · SPY bán / QQQ mua');assert.equal(opposite.phase,1);assert.equal(opposite.phaseCoefficient,.2);
-  assert.equal(flowAlignment([x],[{...y,net:-5}])[0].score,.45);assert.equal(flowAlignment([x],[{...y,t:2}]).length,0);
+  const x={t:1,net:10,nf:20,q:50},y={t:1,net:5,nf:10,q:50},aligned=flowAlignment([x],[y])[0],same=flowAlignment([x],[x])[0];
+  assert.equal(aligned.state,'THUẬN MUA');assert.equal(aligned.detailState,'THUẬN MUA');assert.equal(aligned.commonNf,15);assert.equal(aligned.relative,5);assert.equal(same.opposition,0);assert.equal(same.agreement,.4);
+  const opposite=flowAlignment([{...x,net:-10,nf:-20}],[y])[0];assert.equal(opposite.state,'NGHỊCH · SPY bán / QQQ mua');assert.equal(opposite.detailState,'NGHỊCH · SPY bán / QQQ mua');assert(Math.abs(opposite.opposition-Math.sqrt(200)/50)<1e-12);assert.equal(opposite.intensity,.2);
+  const leader=flowAlignment([x],[{...y,net:0,nf:0}])[0];assert.equal(leader.detailState,'SPY DẪN MUA');assert.equal(leader.opposition,0);
+  assert.equal(flowAlignment([x],[{...y,net:-5,nf:-10}])[0].score,.45);assert.equal(flowAlignment([x],[{...y,t:2}]).length,0);
+});
+test('relative flow smoothing and volume confidence are prefix-causal',()=>{
+  const s=Array.from({length:40},(_,i)=>({t:i,net:i%3?10:-8,nf:i%3?20:-16,q:50+i}));
+  const q=Array.from({length:40},(_,i)=>({t:i,net:i%4?-5:7,nf:i%4?-10:14,q:70+i*2}));
+  const full=flowAlignment(s,q,{step:1});assert.deepEqual(flowAlignment(s.slice(0,25),q.slice(0,25),{step:1}),full.slice(0,25));
+  const changed=s.map((x,i)=>i>=25?{...x,nf:99,net:x.q*.99}:x);assert.deepEqual(flowAlignment(changed,q,{step:1}).slice(0,25),full.slice(0,25));
+  const gap=flowAlignment([s[0],{...s[1],t:2}],[q[0],{...q[1],t:2}],{step:1});assert.equal(gap[1].smoothSpyNf,s[1].nf);assert.equal(gap[1].smoothQqqNf,q[1].nf);
 });
 test('session calibration and regression are prefix-causal',()=>{
   const full=analyze(a,STEPS['15m']);assert(full.some(x=>x.adjusted!==null));
