@@ -31,12 +31,13 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   const strengthReadout=await page.locator('#strength-readout').innerText();assert.match(strengthReadout,/SPY -?\d/);assert.match(strengthReadout,/QQQ -?\d/);assert.match(await page.locator('#strength-composite').innerText(),/^-?\d/);
   assert.equal(await page.locator('#live-indicator').innerText(),'● LIVE');assert(await page.locator('#live-indicator').evaluate(el=>el.classList.contains('live')));
   for(const id of ['spy','qqq','relative'])assert.equal(await page.locator('#'+id).isChecked(),false);
-  for(const id of ['composite','alignment','price-bands','phase-width','show-strength','bands','markers'])assert.equal(await page.locator('#'+id).isChecked(),true);
+  for(const id of ['composite','alignment','price-bands','phase-width','cvd-spectrum-toggle','show-strength','bands','markers'])assert.equal(await page.locator('#'+id).isChecked(),true);
   assert(await page.locator('#chart canvas').count()>0);
-  assert((await page.locator('#tooltip').innerText()).includes('Flow mượt'));assert((await page.locator('#tooltip').innerText()).includes('Relative'));
+  assert((await page.locator('#tooltip').innerText()).includes('Flow mượt'));assert((await page.locator('#tooltip').innerText()).includes('Relative'));assert((await page.locator('#tooltip').innerText()).includes('CVD∞ gương'));
+  assert.equal(await page.locator('#cvd-spectrum').evaluate(canvas=>canvas.width>0&&canvas.height>0),true);
   await page.locator('#symbol').selectOption('QQQUSDT');await page.locator('#signal').selectOption('SPYUSDT');
   assert((await page.locator('#tooltip').innerText()).includes('QQQUSDT · O'));
-  for(const id of ['spy','qqq','composite','relative','alignment','price-bands','phase-width','show-strength','bands','markers']){await page.locator('#'+id).uncheck();await page.locator('#'+id).check();}
+  for(const id of ['spy','qqq','composite','relative','alignment','price-bands','phase-width','cvd-spectrum-toggle','show-strength','bands','markers']){await page.locator('#'+id).uncheck();await page.locator('#'+id).check();}
   for(const interval of fixtureRoot||process.env.NETFLOW_LIVE?['5m','30m','1h','15m']:['15m']){
    await page.locator('#interval').selectOption(interval);await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('TRADING'),{},{timeout:120000});
    assert(!(await page.locator('#net').innerText()).includes('—'));

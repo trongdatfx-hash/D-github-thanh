@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {STEPS,parseKlines,composite,flowAlignment,calculateStrength,analyze,regression,weightedPriceBands,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
+import {STEPS,parseKlines,composite,flowAlignment,calculateStrength,analyze,regression,weightedPriceBands,continuousCvdSpectrum,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
 import {load} from '../data.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL(p,import.meta.url),'utf8').replace(/^\uFEFF/,''));
 const now=read('../../netflow-ml/tests/fixtures/time.json').serverTime;
@@ -46,6 +46,12 @@ test('price WLR uses linear weights, prior bars only and resets on gaps',()=>{
   assert.deepEqual(weightedPriceBands(bars.slice(0,60),STEPS['15m']),full.slice(0,60));
   const future=bars.map((x,i)=>i>=60?{...x,c:9999}:x);assert.deepEqual(weightedPriceBands(future,STEPS['15m']).slice(0,60),full.slice(0,60));
   const gap=[...bars.slice(0,55),{t:bars[55].t+STEPS['15m'],c:bars[55].c}];assert.equal(weightedPriceBands(gap,STEPS['15m']).at(-1).mid,null);
+});
+test('continuous CVD spectrum accumulates quote delta by mirrored price bins',()=>{
+  const bars=[{c:100.1,net:10},{c:100.2,net:5},{c:100.6,net:-20},{c:101.1,net:30}];
+  const raw=continuousCvdSpectrum(bars,{binStep:.5,range:2,smooth:1});assert.deepEqual(raw.bins,[{price:100,value:15},{price:100.5,value:-20},{price:101,value:30}]);assert.equal(raw.maxAbs,30);
+  const smoothed=continuousCvdSpectrum(bars,{binStep:.5,range:2,smooth:2});assert(Math.abs(smoothed.bins[1].value+25/3)<1e-12);assert(Math.abs(smoothed.bins[2].value-155/9)<1e-12);
+  assert.deepEqual(continuousCvdSpectrum([]).bins,[]);assert.throws(()=>continuousCvdSpectrum(bars,{binStep:0}));
 });
 test('NY DST, RTH edges and weekend',()=>{
   assert.equal(sessionAt(Date.parse('2026-10-07T13:30:00Z')).session,'RTH');assert.equal(sessionAt(Date.parse('2026-10-07T20:00:00Z')).session,'POST');assert.equal(sessionAt(Date.parse('2026-01-07T14:30:00Z')).session,'RTH');assert.equal(sessionAt(Date.parse('2026-10-10T14:30:00Z')).session,'WEEKEND');assert.equal(modelStatus.trained,false);

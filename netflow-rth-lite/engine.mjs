@@ -122,6 +122,22 @@ export function weightedPriceBands(bars,step,{window=50,mult=2}={}){
     return {t:b.t,mid,upper,lower,sigma};
   });
 }
+// Continuous taker CVD grouped by close-price bins. It never resets inside the loaded history.
+// The vertical EMA follows the Pine reference exactly: low-price bins toward high-price bins.
+export function continuousCvdSpectrum(bars,{binStep=.5,range=12,smooth=2}={}){
+  if(!Array.isArray(bars)||!Number.isFinite(binStep)||binStep<=0||!Number.isFinite(range)||range<=0||!Number.isInteger(smooth)||smooth<1)throw Error('Tham số phổ CVD không hợp lệ');
+  if(!bars.length)return {bins:[],maxAbs:0,binStep,range};
+  const accumulated=new Map;
+  for(const bar of bars){
+    if(!Number.isFinite(bar.c)||!Number.isFinite(bar.net))continue;
+    const key=Math.round(bar.c/binStep);accumulated.set(key,(accumulated.get(key)??0)+bar.net);
+  }
+  const center=bars.at(-1).c,low=Math.round((center-range)/binStep),high=Math.round((center+range)/binStep);
+  const bins=[...accumulated.entries()].filter(([key])=>key>=low&&key<=high).sort((a,b)=>a[0]-b[0]).map(([key,value])=>({price:key*binStep,value}));
+  if(smooth>1&&bins.length){const alpha=2/(smooth+1);let ema=bins[0].value;for(let i=1;i<bins.length;i++){ema=alpha*bins[i].value+(1-alpha)*ema;bins[i]={...bins[i],value:ema};}}
+  const maxAbs=bins.reduce((m,x)=>Math.max(m,Math.abs(x.value)),0);
+  return {bins,maxAbs,binStep,range};
+}
 // Replace this adapter with a versioned model ONLY after dataset/backtest validation.
 export const modelStatus={trained:false,method:'DVP Strength chain on NetFlowQ/quote volume; past-only session location/scale → RTH'};
 export function analyze(bars,step,{minSamples=26,window=500,regWindow=50,strength=calculateStrength(bars,step)}={}){
