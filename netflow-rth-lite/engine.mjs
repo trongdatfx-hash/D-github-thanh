@@ -11,14 +11,14 @@ export function validateSymbol(info,symbol){
   if(!SYMBOLS.includes(symbol)||!s||s.status!=='TRADING'||s.quoteAsset!=='USDT'||!['PERPETUAL','TRADIFI_PERPETUAL'].includes(s.contractType))throw Error(`${symbol}: API chưa xác nhận hợp đồng USDT perpetual đang TRADING`);
   return s;
 }
-export function parseKlines(rows,now,step){
+export function parseKlines(rows,now,step,{includeOpen=false}={}){
   if(!Array.isArray(rows)||!Number.isFinite(now)||!Object.values(STEPS).includes(step))throw Error('Kline/thời gian không hợp lệ');
   const map=new Map();
   for(const k of rows){
     if(!Array.isArray(k)||k.length<11)throw Error('Kline thiếu trường quote volume');
     const t=+k[0],o=+k[1],h=+k[2],l=+k[3],c=+k[4],end=+k[6],q=+k[7],buy=+k[10];
     if(![t,o,h,l,c,end,q,buy].every(Number.isFinite)||t%step||end!==t+step-1||q<0||buy<0||buy>q||l>Math.min(o,c)||h<Math.max(o,c)||l>h||l<=0)throw Error('Kline hoặc quote volume không hợp lệ');
-    if(end>=now)continue;
+    if(!includeOpen&&end>=now)continue;
     map.set(t,{t,end,o,h,l,c,q,buy,sell:q-buy,net:2*buy-q,nf:q>0?100*(2*buy-q)/q:null,...sessionAt(t)});
   }
   return [...map.values()].sort((a,b)=>a.t-b.t);

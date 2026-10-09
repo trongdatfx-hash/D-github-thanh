@@ -10,6 +10,7 @@ const flowColors={
   QQQUSDT:{up:'rgba(39,211,164,.58)',down:'rgba(255,91,116,.58)'},
   COMPOSITE:{up:'rgba(39,211,164,.82)',down:'rgba(255,91,116,.82)'}
 };
+const LIVE_REFRESH_MS=3000;
 class VariableWidthLineRenderer{
   update(data,options){this.data=data;this.options=options;}
   draw(target,priceToCoordinate){
@@ -134,7 +135,7 @@ function updateStrengthLabels(){
 }
 function showTooltip(t){
   const p=maps[$('symbol').value]?.get(t),s=maps[$('signal').value]?.get(t);metrics(s);
-  const text=[new Date(t).toLocaleString('vi-VN',{timeZone:'America/New_York'})+' ET',p?`${$('symbol').value} · O ${fmt(p.o)} H ${fmt(p.h)} L ${fmt(p.l)} C ${fmt(p.c)}`:'Không có nến giá tại timestamp này'];
+  const text=[new Date(t).toLocaleString('vi-VN',{timeZone:'America/New_York'})+' ET',p?`${$('symbol').value} · O ${fmt(p.o)} H ${fmt(p.h)} L ${fmt(p.l)} C ${fmt(p.c)} · ${p.end>=(cache?.serverTime??Infinity)?'ĐANG CHẠY':'ĐÃ ĐÓNG'}`:'Không có nến giá tại timestamp này'];
   for(const key of Object.keys(colors)){const b=maps[key]?.get(t);text.push(`${key} · BuyQ ${fmt(b?.buy)} · SellQ ${fmt(b?.sell)} · NetQ ${fmt(b?.net)} USDT · NF ${fmt(b?.nf)}%`);}
   const alignment=alignmentMap.get(t);text.push(`Dải SPY↔QQQ · ${alignment?.state??'—'} · SPY NF ${fmt(alignment?.spyNf)}% · QQQ NF ${fmt(alignment?.qqqNf)}%`);
   text.push(`Flow mượt · SPY ${fmt(alignment?.smoothSpyNf)}% · QQQ ${fmt(alignment?.smoothQqqNf)}% · ${alignment?.detailState??'—'} · Common ${fmt(alignment?.commonNf)}% · Relative ${fmt(alignment?.relative)}% · đối nghịch ${fmt((alignment?.opposition??0)*100)}%`);
@@ -166,7 +167,7 @@ async function refresh(clear=false){
     rows={SPYUSDT:analyze(data.SPYUSDT,step),QQQUSDT:analyze(data.QQQUSDT,step),COMPOSITE:analyze(composite(data.SPYUSDT,data.QQQUSDT),step)};
     maps=Object.fromEntries(Object.entries(rows).map(([k,v])=>[k,new Map(v.map(x=>[x.t,x]))]));
     cache=data;lastSuccess=new Date();render(clear);setLive(true);
-    status(`SPYUSDT + QQQUSDT · TRADING / ${data.contracts.map(x=>x.contractType).join(' + ')} · ${rows.SPYUSDT.length}/${rows.QQQUSDT.length} nến đóng · ${rows.COMPOSITE.length} timestamp chung · ${data.incremental?'chỉ tải nến mới':'tải lịch sử song song'} · cập nhật ${lastSuccess.toLocaleTimeString('vi-VN')} · ${rows.COMPOSITE.length?'Dữ liệu thật Binance':'Composite chưa có dữ liệu giao nhau'}`);
+    status(`SPYUSDT + QQQUSDT · TRADING / ${data.contracts.map(x=>x.contractType).join(' + ')} · ${rows.SPYUSDT.length}/${rows.QQQUSDT.length} nến, gồm nến đang chạy · ${rows.COMPOSITE.length} timestamp chung · ${data.incremental?'cập nhật realtime ~3 giây':'tải lịch sử song song'} · cập nhật ${lastSuccess.toLocaleTimeString('vi-VN')} · ${rows.COMPOSITE.length?'Dữ liệu thật Binance':'Composite chưa có dữ liệu giao nhau'}`);
   }catch(e){
     if(gen!==generation)return;
     setLive(false);status(`${e.message}. Có thể bị CORS, vùng truy cập, mất mạng hoặc rate limit. ${cache?`Dữ liệu cũ chưa cập nhật (lần thành công ${lastSuccess.toLocaleTimeString('vi-VN')}).`:'Không có dữ liệu thay thế; biểu đồ để trống.'} Dùng Tải lại sau khi kiểm tra kết nối.`,true);
@@ -195,5 +196,5 @@ if(init()){
   $('fit').onclick=fitChart;$('chart-fit').onclick=fitChart;$('fullscreen').onclick=toggleFullChart;
   document.addEventListener('fullscreenchange',syncFullChart);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.querySelector('.chart-card').classList.contains('fullscreen-fallback')){document.querySelector('.chart-card').classList.remove('fullscreen-fallback');syncFullChart();}});
   $('export').onclick=exportCSV;
-  setLive(false);refresh(true);setInterval(()=>{if(lastSuccess&&Date.now()-lastSuccess>150000)setLive(false);if(!document.hidden&&!loading)refresh();},60000);
+  setLive(false);refresh(true);setInterval(()=>{if(lastSuccess&&Date.now()-lastSuccess>15000)setLive(false);if(!document.hidden&&!loading)refresh();},LIVE_REFRESH_MS);
 }

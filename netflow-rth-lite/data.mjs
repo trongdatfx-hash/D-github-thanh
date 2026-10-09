@@ -16,7 +16,8 @@ async function fetchRange(symbol,interval,start,end,step,get,signal){
   if(start>=end)return [];
   const span=PAGE_LIMIT*step,chunks=[];for(let cursor=start;cursor<end;cursor+=span)chunks.push([cursor,Math.min(end,cursor+span-1)]);
   const pages=await mapLimited(chunks,PARALLEL_PAGES,async([from,to])=>{
-    const page=await get(`/fapi/v1/klines?symbol=${symbol}&interval=${interval}&limit=${PAGE_LIMIT}&startTime=${from}&endTime=${to}`,signal);
+    const limit=Math.max(1,Math.min(PAGE_LIMIT,Math.ceil((to-from+1)/step)));
+    const page=await get(`/fapi/v1/klines?symbol=${symbol}&interval=${interval}&limit=${limit}&startTime=${from}&endTime=${to}`,signal);
     if(!Array.isArray(page))throw Error('Kline response không hợp lệ');return page;
   });
   return pages.flat();
@@ -31,9 +32,9 @@ export async function load(interval,days,{signal,get=getJSON,previous=null}={}){
   const pairs=await Promise.all(SYMBOLS.map(async symbol=>{
     const kept=reusable?(previous[symbol]??[]).filter(x=>x.t>=start&&x.end<serverTime):[];
     const cursor=kept.length?kept.at(-1).t+step:start;
-    const fresh=parseKlines(await fetchRange(symbol,interval,cursor,serverTime,step,get,signal),serverTime,step);
+    const fresh=parseKlines(await fetchRange(symbol,interval,cursor,serverTime,step,get,signal),serverTime,step,{includeOpen:true});
     const merged=new Map(kept.map(x=>[x.t,x]));for(const row of fresh)merged.set(row.t,row);
-    const bars=[...merged.values()].sort((a,b)=>a.t-b.t);if(!bars.length)throw Error(`${symbol}: không có nến đã đóng`);return [symbol,bars];
+    const bars=[...merged.values()].sort((a,b)=>a.t-b.t);if(!bars.length)throw Error(`${symbol}: không có dữ liệu nến`);return [symbol,bars];
   }));
   return {contracts,serverTime,interval,days,incremental:reusable,...Object.fromEntries(pairs)};
 }

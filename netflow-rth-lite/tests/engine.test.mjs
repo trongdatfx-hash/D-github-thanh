@@ -5,9 +5,11 @@ const read=p=>JSON.parse(fs.readFileSync(new URL(p,import.meta.url),'utf8').repl
 const now=read('../../netflow-ml/tests/fixtures/time.json').serverTime;
 const spy=read('../../netflow-ml/tests/fixtures/SPYUSDT.json'),qqq=read('../../netflow-ml/tests/fixtures/QQQUSDT.json');
 const a=parseKlines(spy,now,STEPS['15m']),b=parseKlines(qqq,now,STEPS['15m']);
+const liveA=parseKlines(spy,now,STEPS['15m'],{includeOpen:true}),liveB=parseKlines(qqq,now,STEPS['15m'],{includeOpen:true});
 test('real Binance fixtures use quote fields, exclude unclosed bars',()=>{
   assert(a.length>900);assert(a.every(x=>x.end<now));const k=spy.find(x=>+x[0]===a[0].t);
   assert.equal(a[0].q,+k[7]);assert.equal(a[0].buy,+k[10]);assert.equal(a[0].sell,+k[7]- +k[10]);assert.equal(a[0].net,2* +k[10]- +k[7]);assert.equal(a[0].nf,100*a[0].net/a[0].q);
+  assert.equal(liveA.length,a.length+1);assert(liveA.at(-1).end>=now);
 });
 test('composite sums quote volumes at intersection only',()=>{
   const c=composite(a,b.slice(1)),x=c[0],aa=a.find(y=>y.t===x.t),bb=b.find(y=>y.t===x.t);
@@ -56,13 +58,13 @@ test('continuous CVD spectrum accumulates quote delta by mirrored price bins',()
 test('NY DST, RTH edges and weekend',()=>{
   assert.equal(sessionAt(Date.parse('2026-10-07T13:30:00Z')).session,'RTH');assert.equal(sessionAt(Date.parse('2026-10-07T20:00:00Z')).session,'POST');assert.equal(sessionAt(Date.parse('2026-01-07T14:30:00Z')).session,'RTH');assert.equal(sessionAt(Date.parse('2026-10-10T14:30:00Z')).session,'WEEKEND');assert.equal(modelStatus.trained,false);
 });
-test('validation and parallel pagination use closed server-time bars, then fetch only the tail',async()=>{
+test('validation and parallel pagination include the live bar, then fetch only the tail',async()=>{
   const symbols=read('../symbol-validation.json');for(const s of ['SPYUSDT','QQQUSDT'])assert.equal(validateSymbol({symbols},s).status,'TRADING');assert.throws(()=>validateSymbol({symbols:[]},'SPYUSDT'));
   let requests=0;const get=async path=>{
     if(path.endsWith('exchangeInfo'))return {symbols};if(path.endsWith('/time'))return {serverTime:now};requests++;
     const u=new URL(path,'https://example.test'),rows=u.searchParams.get('symbol')==='SPYUSDT'?spy:qqq;
     return rows.filter(x=>+x[0]>=+u.searchParams.get('startTime')&&+x[0]<=+u.searchParams.get('endTime')).slice(0,+u.searchParams.get('limit'));
   };
-  const result=await load('15m',14,{get});assert.deepEqual(result.SPYUSDT,a);assert.deepEqual(result.QQQUSDT,b);assert(requests>=4);assert.equal(result.incremental,false);
-  requests=0;const updated=await load('15m',14,{get,previous:result});assert.deepEqual(updated.SPYUSDT,a);assert.deepEqual(updated.QQQUSDT,b);assert.equal(updated.incremental,true);assert.equal(requests,2);
+  const result=await load('15m',14,{get});assert.deepEqual(result.SPYUSDT,liveA);assert.deepEqual(result.QQQUSDT,liveB);assert(requests>=4);assert.equal(result.incremental,false);
+  requests=0;const updated=await load('15m',14,{get,previous:result});assert.deepEqual(updated.SPYUSDT,liveA);assert.deepEqual(updated.QQQUSDT,liveB);assert.equal(updated.incremental,true);assert.equal(requests,2);
 });
