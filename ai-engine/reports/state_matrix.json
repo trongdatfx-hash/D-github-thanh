@@ -1,8 +1,8 @@
 {
   "schema_version": "state-matrix-v1",
-  "generated_at": 1791515705921,
-  "data_as_of": 1791515700000,
-  "model_trained_at": 1791504903064,
+  "generated_at": 1791541812837,
+  "data_as_of": 1791541800000,
+  "model_trained_at": 1791541805756,
   "stale": false,
   "live_rest_available": false,
   "live_market_available": true,
@@ -21,7 +21,7 @@
       "minutes": 15,
       "bars": 1,
       "phase": "NEUTRAL",
-      "score": 0.13416815742397364,
+      "score": 0.10056989607777483,
       "signal": "WAIT",
       "groups": [
         {
@@ -30,7 +30,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.1724045270692562,
+          "weight": 0.17178327463253348,
           "coverage": 0.3333333333333333
         },
         {
@@ -39,8 +39,8 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.26738103150072434,
-          "coverage": 0.2857142857142857
+          "weight": 0.268076170537324,
+          "coverage": 0.14285714285714285
         },
         {
           "key": "derivatives",
@@ -48,7 +48,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.12441018281068092,
+          "weight": 0.11222335462079439,
           "coverage": 0.0
         },
         {
@@ -57,7 +57,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.2090918015412075,
+          "weight": 0.2106234987985595,
           "coverage": 0.3333333333333333
         },
         {
@@ -66,7 +66,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.22671245707813106,
+          "weight": 0.2372937014107886,
           "coverage": 0.2857142857142857
         }
       ]
@@ -75,7 +75,7 @@
       "minutes": 30,
       "bars": 2,
       "phase": "NEUTRAL",
-      "score": 0.13421317526003673,
+      "score": 0.04470772325918526,
       "signal": "WAIT",
       "groups": [
         {
@@ -84,7 +84,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.15082991289434977,
+          "weight": 0.15138394454085966,
           "coverage": 0.3333333333333333
         },
         {
@@ -93,8 +93,8 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.2897665540969033,
-          "coverage": 0.2857142857142857
+          "weight": 0.3128439298005052,
+          "coverage": 0.14285714285714285
         },
         {
           "key": "derivatives",
@@ -102,7 +102,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.10101871579921108,
+          "weight": 0.08854354191388081,
           "coverage": 0.0
         },
         {
@@ -111,7 +111,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.1921746425588021,
+          "weight": 0.18460306717415914,
           "coverage": 0.3333333333333333
         },
         {
@@ -120,7 +120,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.2662101746507339,
+          "weight": 0.2626255165705952,
           "coverage": 0.2857142857142857
         }
       ]
@@ -129,7 +129,7 @@
       "minutes": 60,
       "bars": 4,
       "phase": "NEUTRAL",
-      "score": 0.6378692927484331,
+      "score": 0.4249608588682646,
       "signal": "WAIT",
       "groups": [
         {
@@ -138,7 +138,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.1495103416000647,
+          "weight": 0.14704375105914122,
           "coverage": 0.3333333333333333
         },
         {
@@ -147,8 +147,8 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.29873951351876055,
-          "coverage": 0.2857142857142857
+          "weight": 0.3400421310962774,
+          "coverage": 0.14285714285714285
         },
         {
           "key": "derivatives",
@@ -156,7 +156,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.10970684189795245,
+          "weight": 0.07245914654309626,
           "coverage": 0.0
         },
         {
@@ -165,7 +165,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.1881460288653283,
+          "weight": 0.1800633153302574,
           "coverage": 0.3333333333333333
         },
         {
@@ -174,7 +174,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.253897274117894,
+          "weight": 0.26039165597122754,
           "coverage": 0.2857142857142857
         }
       ]
@@ -183,7 +183,7 @@
       "minutes": 120,
       "bars": 8,
       "phase": "NEUTRAL",
-      "score": 1.3667936365673343,
+      "score": 1.063591580832965,
       "signal": "WAIT",
       "groups": [
         {
@@ -201,8 +201,8 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.4273654597678568,
-          "coverage": 0.2857142857142857
+          "weight": 0.4832554425727959,
+          "coverage": 0.14285714285714285
         },
         {
           "key": "derivatives",
@@ -210,7 +210,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.08003728169960124,
+          "weight": 0.03624741808449838,
           "coverage": 0.0
         },
         {
@@ -219,7 +219,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.1425676915885441,
+          "weight": 0.20521043774554198,
           "coverage": 0.3333333333333333
         },
         {
@@ -228,7 +228,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.35002956694399795,
+          "weight": 0.27528670159716373,
           "coverage": 0.2857142857142857
         }
       ]
