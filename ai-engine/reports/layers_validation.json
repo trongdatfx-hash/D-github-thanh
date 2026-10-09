@@ -6,31 +6,31 @@
       {
         "test_start": 1787210100000,
         "train_label_max": 1787209200000,
-        "fit_cutoff": 1785598200000,
-        "train_n": 7157,
+        "fit_cutoff": 1785599100000,
+        "train_n": 7156,
         "test_n": 1591
       },
       {
         "test_start": 1788642000000,
         "train_label_max": 1788641100000,
         "fit_cutoff": 1786672800000,
-        "train_n": 8748,
+        "train_n": 8747,
         "test_n": 1591
       },
       {
         "test_start": 1790073900000,
         "train_label_max": 1790073000000,
         "fit_cutoff": 1787746500000,
-        "train_n": 10339,
+        "train_n": 10338,
         "test_n": 1590
       }
     ],
     "accuracy": 0.8512154233025985,
     "balanced_accuracy": 0.33403693795754164,
     "baseline_accuracy": 0.8516345347862532,
-    "log_loss": 0.4854048357347469,
-    "baseline_log_loss": 0.5621398328755216,
-    "brier": 0.24726668296899387,
+    "log_loss": 0.4853663223599751,
+    "baseline_log_loss": 0.5621923097240707,
+    "brier": 0.24726932084500133,
     "trades": {
       "n": 0,
       "hit": null,
@@ -51,36 +51,36 @@
   },
   "2": {
     "status": "OOS_READY",
-    "samples": 4772,
+    "samples": 4771,
     "folds": [
       {
-        "test_start": 1787209200000,
-        "train_label_max": 1787208300000,
-        "fit_cutoff": 1785597300000,
+        "test_start": 1787210100000,
+        "train_label_max": 1787209200000,
+        "fit_cutoff": 1785598200000,
         "train_n": 7154,
         "test_n": 1591
       },
       {
-        "test_start": 1788641100000,
-        "train_label_max": 1788640200000,
-        "fit_cutoff": 1786671000000,
+        "test_start": 1788642000000,
+        "train_label_max": 1788641100000,
+        "fit_cutoff": 1786671900000,
         "train_n": 8745,
-        "test_n": 1591
+        "test_n": 1590
       },
       {
         "test_start": 1790073000000,
         "train_label_max": 1790072100000,
         "fit_cutoff": 1787745600000,
-        "train_n": 10336,
+        "train_n": 10335,
         "test_n": 1590
       }
     ],
-    "accuracy": 0.7483235540653814,
-    "balanced_accuracy": 0.33777032542682534,
-    "baseline_accuracy": 0.7476948868398994,
-    "log_loss": 0.6852619885185225,
-    "baseline_log_loss": 0.7652422997057671,
-    "brier": 0.3761004387982726,
+    "accuracy": 0.7486900020959967,
+    "balanced_accuracy": 0.3378795046891511,
+    "baseline_accuracy": 0.7478516034374345,
+    "log_loss": 0.6856231981916956,
+    "baseline_log_loss": 0.7650983146122883,
+    "brier": 0.37616620776432985,
     "trades": {
       "n": 0,
       "hit": null,
@@ -95,7 +95,7 @@
       "return": 0.0,
       "drawdown": 0.0
     },
-    "test_start": 1787209200000,
+    "test_start": 1787210100000,
     "test_end": 1791503100000,
     "evidence": "UNPROVEN"
   },
@@ -107,30 +107,30 @@
         "test_start": 1787209200000,
         "train_label_max": 1787208300000,
         "fit_cutoff": 1785596400000,
-        "train_n": 7150,
+        "train_n": 7149,
         "test_n": 1590
       },
       {
         "test_start": 1788640200000,
         "train_label_max": 1788639300000,
         "fit_cutoff": 1786670100000,
-        "train_n": 8740,
+        "train_n": 8739,
         "test_n": 1590
       },
       {
         "test_start": 1790071200000,
         "train_label_max": 1790070300000,
         "fit_cutoff": 1787742900000,
-        "train_n": 10330,
+        "train_n": 10329,
         "test_n": 1590
       }
     ],
     "accuracy": 0.6444444444444445,
     "balanced_accuracy": 0.3392125713379605,
     "baseline_accuracy": 0.6457023060796646,
-    "log_loss": 0.8518241582154171,
-    "baseline_log_loss": 0.9151097411882653,
-    "brier": 0.48988858781665506,
+    "log_loss": 0.8518174371915638,
+    "baseline_log_loss": 0.9150746730435794,
+    "brier": 0.4898839245732691,
     "trades": {
       "n": 0,
       "hit": null,
@@ -151,42 +151,42 @@
   },
   "8": {
     "status": "OOS_READY",
-    "samples": 4767,
+    "samples": 4766,
     "folds": [
       {
-        "test_start": 1787208300000,
-        "train_label_max": 1787207400000,
-        "fit_cutoff": 1785593700000,
+        "test_start": 1787209200000,
+        "train_label_max": 1787208300000,
+        "fit_cutoff": 1785594600000,
         "train_n": 7141,
         "test_n": 1589
       },
       {
-        "test_start": 1788638400000,
-        "train_label_max": 1788637500000,
-        "fit_cutoff": 1786666500000,
+        "test_start": 1788639300000,
+        "train_label_max": 1788638400000,
+        "fit_cutoff": 1786667400000,
         "train_n": 8730,
         "test_n": 1589
       },
       {
-        "test_start": 1790068500000,
-        "train_label_max": 1790067600000,
-        "fit_cutoff": 1787739300000,
+        "test_start": 1790069400000,
+        "train_label_max": 1790068500000,
+        "fit_cutoff": 1787740200000,
         "train_n": 10319,
-        "test_n": 1589
+        "test_n": 1588
       }
     ],
-    "accuracy": 0.5605202433396266,
-    "balanced_accuracy": 0.35680354549305976,
-    "baseline_accuracy": 0.5586322634780785,
-    "log_loss": 0.9600079885761961,
-    "baseline_log_loss": 0.9975542946908673,
-    "brier": 0.5665201393389524,
+    "accuracy": 0.5618967687788502,
+    "balanced_accuracy": 0.3589971562642145,
+    "baseline_accuracy": 0.5587494754511121,
+    "log_loss": 0.9615656329877441,
+    "baseline_log_loss": 0.9974860362890773,
+    "brier": 0.5671911824839228,
     "trades": {
-      "n": 35,
-      "hit": 0.5142857142857142,
-      "net_bps": -2.8466261082973907,
-      "return": -0.009973435660349472,
-      "drawdown": 0.01815765072665372
+      "n": 36,
+      "hit": 0.3888888888888889,
+      "net_bps": -5.031976734023335,
+      "return": -0.018009075493156113,
+      "drawdown": 0.021424006514489495
     },
     "stress_trades": {
       "n": 1,
@@ -195,7 +195,7 @@
       "return": -0.0012229098919541714,
       "drawdown": 0.0012229098919541714
     },
-    "test_start": 1787208300000,
+    "test_start": 1787209200000,
     "test_end": 1791497700000,
     "evidence": "UNPROVEN"
   }
