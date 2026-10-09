@@ -30,6 +30,8 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   assert(!(await page.locator('#net').innerText()).includes('—'));assert((await page.locator('.badge').innerText()).includes('chưa train'));
   const strengthReadout=await page.locator('#strength-readout').innerText();assert.match(strengthReadout,/SPY -?\d/);assert.match(strengthReadout,/QQQ -?\d/);assert.match(await page.locator('#strength-composite').innerText(),/^-?\d/);
   assert.equal(await page.locator('#live-indicator').innerText(),'● LIVE');assert(await page.locator('#live-indicator').evaluate(el=>el.classList.contains('live')));
+  for(const id of ['spy','qqq','relative'])assert.equal(await page.locator('#'+id).isChecked(),false);
+  for(const id of ['composite','alignment','price-bands','phase-width','show-strength','bands','markers'])assert.equal(await page.locator('#'+id).isChecked(),true);
   assert(await page.locator('#chart canvas').count()>0);
   assert((await page.locator('#tooltip').innerText()).includes('Flow mượt'));assert((await page.locator('#tooltip').innerText()).includes('Relative'));
   await page.locator('#symbol').selectOption('QQQUSDT');await page.locator('#signal').selectOption('SPYUSDT');
