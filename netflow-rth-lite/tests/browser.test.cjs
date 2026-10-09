@@ -50,7 +50,7 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
    if(process.env.NETFLOW_SCREENSHOTS)await page.screenshot({path:path.join(process.env.NETFLOW_SCREENSHOTS,`rth-${width}.png`),fullPage:true});
   }
   await page.locator('#fullscreen').click();await page.waitForFunction(()=>document.querySelector('#fullscreen').textContent.includes('Thu nhỏ'));
-  const fullBox=await page.locator('.chart-card').boundingBox();assert(Math.abs(fullBox.width-390)<2);assert(Math.abs(fullBox.height-844)<2);assert((await page.locator('#chart').boundingBox()).height>450);assert(await page.evaluate(()=>document.body.classList.contains('chart-fullscreen')));
+  const fullBox=await page.locator('.chart-card').boundingBox();assert(Math.abs(fullBox.width-390)<2);assert(Math.abs(fullBox.height-844)<2);assert((await page.locator('#chart').boundingBox()).height>450);assert(await page.evaluate(()=>document.body.classList.contains('chart-fullscreen')));assert.equal(await page.locator('#tooltip').isVisible(),false);
   await page.locator('#chart-fit').click();if(process.env.NETFLOW_SCREENSHOTS)await page.screenshot({path:path.join(process.env.NETFLOW_SCREENSHOTS,'rth-fullscreen-390.png')});
   await page.locator('#fullscreen').click();await page.waitForFunction(()=>document.querySelector('#fullscreen').textContent.includes('Full chart'));
   const download=page.waitForEvent('download');await page.locator('#export').click();assert((await download).suggestedFilename().includes('quote-netflow'));
