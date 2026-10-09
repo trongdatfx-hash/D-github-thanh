@@ -5,7 +5,7 @@ Chỉ thêm thư mục này; không sửa các trang/workflow hiện có. Chạy
 
 ## Dữ liệu
 
-Binance USDⓈ-M Futures public API: `/fapi/v1/exchangeInfo`, `/fapi/v1/time`, `/fapi/v1/klines`. Xác minh thực tế 2026-10-08: SPYUSDT và QQQUSDT là TRADING / TRADIFI_PERPETUAL / USDT (metadata lưu `symbol-validation.json`). Web vẫn xác minh lại mỗi lần tải, không dùng metadata để thay dữ liệu trực tiếp. Không phải Binance Spot hay dữ liệu giao dịch ETF trên sàn Mỹ.
+Binance USDⓈ-M Futures public API: `/fapi/v1/exchangeInfo`, `/fapi/v1/time`, `/fapi/v1/klines`. Trình duyệt gọi thẳng `fapi.binance.com`; GitHub Pages không làm proxy và không giữ bản sao dữ liệu. Xác minh thực tế 2026-10-08: SPYUSDT và QQQUSDT là TRADING / TRADIFI_PERPETUAL / USDT (metadata lưu `symbol-validation.json`). Khi mở trang, SPY/QQQ và các đoạn lịch sử được tải song song có giới hạn; metadata hợp đồng được giữ 15 phút trong bộ nhớ. Sau lần đầu, refresh mỗi phút chỉ yêu cầu phần đuôi chưa có rồi ghép theo timestamp, thay vì tải lại toàn bộ 30 ngày. Đổi timeframe/lịch sử vẫn tải lại đầy đủ. Không phải Binance Spot hay dữ liệu giao dịch ETF trên sàn Mỹ.
 
 M5/M15/M30/H1; lịch sử 7/14/30 ngày, phân trang 1000 nến/request. Chỉ chấp nhận nến đã đóng theo thời gian server. Poll 60 giây khi tab hiển thị; yêu cầu timeout 20 giây; không websocket. API lỗi có thể do CORS, hạn chế vùng, HTTP 451/429/418, symbol mất trạng thái hoặc mất mạng. Refresh lỗi giữ dữ liệu cũ kèm thông báo; đổi timeframe/lịch sử xóa dữ liệu cũ. Không có fake data, snapshot fallback, proxy hay đổi symbol ngầm.
 

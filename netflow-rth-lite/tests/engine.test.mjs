@@ -56,11 +56,13 @@ test('continuous CVD spectrum accumulates quote delta by mirrored price bins',()
 test('NY DST, RTH edges and weekend',()=>{
   assert.equal(sessionAt(Date.parse('2026-10-07T13:30:00Z')).session,'RTH');assert.equal(sessionAt(Date.parse('2026-10-07T20:00:00Z')).session,'POST');assert.equal(sessionAt(Date.parse('2026-01-07T14:30:00Z')).session,'RTH');assert.equal(sessionAt(Date.parse('2026-10-10T14:30:00Z')).session,'WEEKEND');assert.equal(modelStatus.trained,false);
 });
-test('validation and paired pagination use closed server-time bars',async()=>{
+test('validation and parallel pagination use closed server-time bars, then fetch only the tail',async()=>{
   const symbols=read('../symbol-validation.json');for(const s of ['SPYUSDT','QQQUSDT'])assert.equal(validateSymbol({symbols},s).status,'TRADING');assert.throws(()=>validateSymbol({symbols:[]},'SPYUSDT'));
-  let requests=0;const result=await load('15m',14,{get:async path=>{
+  let requests=0;const get=async path=>{
     if(path.endsWith('exchangeInfo'))return {symbols};if(path.endsWith('/time'))return {serverTime:now};requests++;
     const u=new URL(path,'https://example.test'),rows=u.searchParams.get('symbol')==='SPYUSDT'?spy:qqq;
-    return rows.filter(x=>+x[0]>=+u.searchParams.get('startTime')).slice(0,1000);
-  }});assert.deepEqual(result.SPYUSDT,a);assert.deepEqual(result.QQQUSDT,b);assert(requests>=2);
+    return rows.filter(x=>+x[0]>=+u.searchParams.get('startTime')&&+x[0]<=+u.searchParams.get('endTime')).slice(0,+u.searchParams.get('limit'));
+  };
+  const result=await load('15m',14,{get});assert.deepEqual(result.SPYUSDT,a);assert.deepEqual(result.QQQUSDT,b);assert(requests>=4);assert.equal(result.incremental,false);
+  requests=0;const updated=await load('15m',14,{get,previous:result});assert.deepEqual(updated.SPYUSDT,a);assert.deepEqual(updated.QQQUSDT,b);assert.equal(updated.incremental,true);assert.equal(requests,2);
 });
