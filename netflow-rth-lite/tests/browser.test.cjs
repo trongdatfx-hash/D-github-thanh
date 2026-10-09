@@ -33,7 +33,7 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   assert.equal(await page.locator('#days').inputValue(),'30');
   for(const id of ['spy','qqq','relative'])assert.equal(await page.locator('#'+id).isChecked(),false);
   for(const id of ['composite','alignment','price-bands','phase-width','cvd-spectrum-toggle','show-strength','bands','markers'])assert.equal(await page.locator('#'+id).isChecked(),true);
-  assert(await page.locator('#chart canvas').count()>0);
+  assert(await page.locator('#chart canvas').count()>0);assert((await page.locator('#chart').boundingBox()).height>=680);
   assert((await page.locator('#tooltip').innerText()).includes('Flow mượt'));assert((await page.locator('#tooltip').innerText()).includes('Relative'));assert((await page.locator('#tooltip').innerText()).includes('CVD∞ gương'));
   assert.equal(await page.locator('#cvd-spectrum').evaluate(canvas=>canvas.width>0&&canvas.height>0),true);
   await page.locator('#symbol').selectOption('QQQUSDT');await page.locator('#signal').selectOption('SPYUSDT');
