@@ -1,36 +1,36 @@
 {
   "1": {
     "status": "OOS_READY",
-    "samples": 4773,
+    "samples": 4772,
     "folds": [
       {
-        "test_start": 1787294700000,
-        "train_label_max": 1787293800000,
-        "fit_cutoff": 1785682800000,
+        "test_start": 1787295600000,
+        "train_label_max": 1787294700000,
+        "fit_cutoff": 1785683700000,
         "train_n": 7157,
         "test_n": 1591
       },
       {
-        "test_start": 1788726600000,
-        "train_label_max": 1788725700000,
-        "fit_cutoff": 1786757400000,
+        "test_start": 1788727500000,
+        "train_label_max": 1788726600000,
+        "fit_cutoff": 1786758300000,
         "train_n": 8748,
         "test_n": 1591
       },
       {
-        "test_start": 1790158500000,
-        "train_label_max": 1790157600000,
-        "fit_cutoff": 1787831100000,
+        "test_start": 1790159400000,
+        "train_label_max": 1790158500000,
+        "fit_cutoff": 1787832000000,
         "train_n": 10339,
-        "test_n": 1591
+        "test_n": 1590
       }
     ],
-    "accuracy": 0.8537607374816677,
-    "balanced_accuracy": 0.33406557204890897,
-    "baseline_accuracy": 0.8541797611565053,
-    "log_loss": 0.47983041461351256,
-    "baseline_log_loss": 0.5549745017875766,
-    "brier": 0.243619850057475,
+    "accuracy": 0.8535205364626991,
+    "balanced_accuracy": 0.33398373235025236,
+    "baseline_accuracy": 0.854149203688181,
+    "log_loss": 0.4789845668116057,
+    "baseline_log_loss": 0.5549801622612429,
+    "brier": 0.2433013924472572,
     "trades": {
       "n": 0,
       "hit": null,
@@ -45,7 +45,7 @@
       "return": 0.0,
       "drawdown": 0.0
     },
-    "test_start": 1787294700000,
+    "test_start": 1787295600000,
     "test_end": 1791589500000,
     "evidence": "UNPROVEN"
   },
@@ -57,30 +57,30 @@
         "test_start": 1787294700000,
         "train_label_max": 1787293800000,
         "fit_cutoff": 1785682800000,
-        "train_n": 7155,
+        "train_n": 7154,
         "test_n": 1591
       },
       {
         "test_start": 1788726600000,
         "train_label_max": 1788725700000,
         "fit_cutoff": 1786756500000,
-        "train_n": 8746,
+        "train_n": 8745,
         "test_n": 1591
       },
       {
         "test_start": 1790158500000,
         "train_label_max": 1790157600000,
-        "fit_cutoff": 1787830200000,
-        "train_n": 10337,
+        "fit_cutoff": 1787831100000,
+        "train_n": 10336,
         "test_n": 1590
       }
     ],
     "accuracy": 0.7525146689019279,
     "balanced_accuracy": 0.3385375197489242,
     "baseline_accuracy": 0.7514668901927913,
-    "log_loss": 0.6806313606480168,
-    "baseline_log_loss": 0.7587693743415037,
-    "brier": 0.3728486616143776,
+    "log_loss": 0.6802594966904425,
+    "baseline_log_loss": 0.7587903955941341,
+    "brier": 0.37266542084090076,
     "trades": {
       "n": 0,
       "hit": null,
@@ -107,30 +107,30 @@
         "test_start": 1787294700000,
         "train_label_max": 1787293800000,
         "fit_cutoff": 1785681900000,
-        "train_n": 7151,
+        "train_n": 7150,
         "test_n": 1590
       },
       {
         "test_start": 1788725700000,
         "train_label_max": 1788724800000,
-        "fit_cutoff": 1786754700000,
-        "train_n": 8741,
+        "fit_cutoff": 1786755600000,
+        "train_n": 8740,
         "test_n": 1590
       },
       {
         "test_start": 1790156700000,
         "train_label_max": 1790155800000,
         "fit_cutoff": 1787828400000,
-        "train_n": 10331,
+        "train_n": 10330,
         "test_n": 1590
       }
     ],
-    "accuracy": 0.6467505241090147,
-    "balanced_accuracy": 0.3375051999736902,
+    "accuracy": 0.6469601677148847,
+    "balanced_accuracy": 0.33789324809165683,
     "baseline_accuracy": 0.6480083857442348,
-    "log_loss": 0.8465894492637848,
-    "baseline_log_loss": 0.9114940350185972,
-    "brier": 0.48638814752384785,
+    "log_loss": 0.8461836183961086,
+    "baseline_log_loss": 0.9115132920958263,
+    "brier": 0.48625554157909007,
     "trades": {
       "n": 0,
       "hit": null,
@@ -157,30 +157,30 @@
         "test_start": 1787293800000,
         "train_label_max": 1787292900000,
         "fit_cutoff": 1785679200000,
-        "train_n": 7142,
+        "train_n": 7141,
         "test_n": 1589
       },
       {
         "test_start": 1788723900000,
         "train_label_max": 1788723000000,
         "fit_cutoff": 1786752000000,
-        "train_n": 8731,
+        "train_n": 8730,
         "test_n": 1589
       },
       {
         "test_start": 1790154000000,
         "train_label_max": 1790153100000,
         "fit_cutoff": 1787824800000,
-        "train_n": 10320,
+        "train_n": 10319,
         "test_n": 1589
       }
     ],
     "accuracy": 0.5611495699601426,
     "balanced_accuracy": 0.3581466132693691,
     "baseline_accuracy": 0.5592615900985946,
-    "log_loss": 0.9647464448948551,
-    "baseline_log_loss": 0.9966382400313805,
-    "brier": 0.568794648709193,
+    "log_loss": 0.9647332026589556,
+    "baseline_log_loss": 0.9966543761050558,
+    "brier": 0.5687858967763348,
     "trades": {
       "n": 36,
       "hit": 0.3055555555555556,
