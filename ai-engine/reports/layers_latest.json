@@ -1,9 +1,9 @@
 {
   "schema_version": "layers-v1",
-  "generated_at": 1791656112438,
-  "data_as_of": 1791656100000,
+  "generated_at": 1791668703311,
+  "data_as_of": 1791668700000,
   "model_trained_at": 1791656105527,
-  "lag_minutes": 0.2073,
+  "lag_minutes": 0.055183333333333334,
   "stale": false,
   "live_rest_available": false,
   "live_market_available": true,
@@ -11,8 +11,8 @@
   "collector_mode": "GitHub-hosted official WebSocket closed-M15 batch",
   "regime": "RANGE",
   "last": 780.1,
-  "dataset_rows": 12165,
-  "missing_bars": 165,
+  "dataset_rows": 12178,
+  "missing_bars": 178,
   "historical_scope": "reconstructed market bars; auxiliary features only after recorded receipt; repeated OOS is research, not a locked final holdout",
   "costs": {
     "fee_bps": 4.0,
@@ -672,7 +672,7 @@
   ],
   "generation_clock": "forecast_ready",
   "collection": {
-    "collected_at": "2026-10-10T18:15:03.337000+00:00",
+    "collected_at": "2026-10-10T21:45:01.013000+00:00",
     "collector": "GitHub-hosted official WebSocket closed-M15 batch",
     "archive": {
       "SPYUSDT/last": {
@@ -692,7 +692,7 @@
         "errors": []
       }
     },
-    "archive_bucket": 497682,
+    "archive_bucket": 497685,
     "websocket": {
       "closed_bars": {
         "SPYUSDT": 1,
@@ -703,7 +703,7 @@
     "market": {
       "SPYUSDT/last": {
         "rows": 12000,
-        "latest_close": 1791656099999,
+        "latest_close": 1791668699999,
         "source": "websocket_closed",
         "latest_source": "websocket_closed",
         "rest_ok": false,
@@ -712,7 +712,7 @@
       },
       "QQQUSDT/last": {
         "rows": 12000,
-        "latest_close": 1791656099999,
+        "latest_close": 1791668699999,
         "source": "websocket_closed",
         "latest_source": "websocket_closed",
         "rest_ok": false,
@@ -756,5 +756,5 @@
     },
     "liquidation": "unavailable: not collected by this bounded candle stream"
   },
-  "retrained_this_run": true
+  "retrained_this_run": false
 }
