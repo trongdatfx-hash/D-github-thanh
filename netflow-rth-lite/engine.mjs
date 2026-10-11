@@ -74,11 +74,9 @@ export function normCDF(z){
 // TradingView up/down volume. Every state value uses the current and past bars only.
 export function calculateStrength(bars,step,{normLen=20,strLen=8,halfLife=2,lookback=500}={}){
   if(!Object.values(STEPS).includes(step)||![normLen,strLen,lookback].every(x=>Number.isInteger(x)&&x>0)||!Number.isFinite(halfLife)||halfLife<0)throw Error('Tham số Strength không hợp lệ');
-  let volumes=[],deltas=[],magnitudes=[],ew=null,prev=null;
+  let volumes=[],deltas=[],magnitudes=[],ew=null;
   const alpha=halfLife>0?1-2**(-1/Math.max(1,halfLife)):1;
   return bars.map(b=>{
-    if(prev!==null&&b.t-prev!==step){volumes=[];deltas=[];magnitudes=[];ew=null;}
-    prev=b.t;
     volumes.push(b.q);if(volumes.length>normLen)volumes.shift();
     const mean=volumes.reduce((s,v)=>s+v,0)/normLen;
     const delta=volumes.length===normLen&&mean>0?b.net/mean:b.net;
@@ -90,7 +88,7 @@ export function calculateStrength(bars,step,{normLen=20,strLen=8,halfLife=2,look
     magnitudes.push(Math.abs(rs));if(magnitudes.length>lookback)magnitudes.shift();
     if(magnitudes.length<lookback)return null;
     const sigma=magnitudes.reduce((s,v)=>s+v,0)/lookback*Math.sqrt(Math.PI/2);
-    return sigma>0?2*normCDF(rs/sigma)-1:null;
+    return sigma>0?2*normCDF(rs/sigma)-1:0;
   });
 }
 function moments(a){const mean=a.reduce((s,v)=>s+v,0)/a.length;return {mean,sd:Math.sqrt(a.reduce((s,v)=>s+(v-mean)**2,0)/a.length)};}
@@ -142,22 +140,20 @@ export function continuousCvdSpectrum(bars,{binStep=.5,range=12,smooth=2}={}){
 export const modelStatus={trained:false,method:'DVP Strength chain on NetFlowQ/quote volume; past-only session location/scale → RTH'};
 export function analyze(bars,step,{minSamples=26,window=500,regWindow=50,strength=calculateStrength(bars,step)}={}){
   if(strength.length!==bars.length)throw Error('Chuỗi Strength không khớp dữ liệu');
-  let prev=null,reg=[];
+  let reg=[];
   const pools=Object.fromEntries(['NIGHT','PRE','RTH','POST'].map(s=>[s,[]]));
   return bars.map((b,i)=>{
-    if(prev!==null&&b.t-prev!==step){reg=[];for(const s in pools)pools[s]=[];}
-    prev=b.t;
     const raw=Number.isFinite(strength[i])?strength[i]:null,src=pools[b.session],dst=pools.RTH;
-    let adjusted=null,reason='Chờ ít nhất 26 mẫu quá khứ của phiên nguồn và RTH';
-    if(b.session==='WEEKEND')reason='Cuối tuần: không ánh xạ về RTH';
+    let adjusted=raw,reason=raw===null?'Đang khởi động Strength':`Chưa đủ ${minSamples} mẫu phiên: tạm giữ Strength gốc`;
+    if(raw!==null&&b.session==='WEEKEND')reason='Cuối tuần: giữ Strength gốc';
     else if(raw!==null&&src.length>=minSamples&&dst.length>=minSamples){
       const s=moments(src),d=moments(dst);
       if(b.session==='RTH'){adjusted=raw;reason='RTH: giữ Strength gốc';}
       else if(s.sd>1e-9&&d.sd>1e-9){adjusted=(raw-s.mean)/s.sd*d.sd+d.mean;reason='Ánh xạ phân phối quá khứ về RTH';}
-      else reason='Phân phối phẳng: chưa hiệu chỉnh';
+      else reason='Phân phối phẳng: giữ Strength gốc';
     }
     const band=reg.length===regWindow&&adjusted!==null?regression(reg):{mid:null,upper:null,lower:null,sigma:null};
-    const confidence=adjusted===null?0:Math.min(1,Math.min(src.length,dst.length)/100);
+    const confidence=adjusted===null?0:Math.min(1,Math.min(src?.length??0,dst.length)/100);
     const result={...b,raw,adjusted,...band,confidence,reason,sourceSamples:src?.length??0,rthSamples:dst.length};
     if(raw!==null&&src){src.push(raw);if(src.length>window)src.shift();}
     if(adjusted===null)reg=[];else{reg.push(adjusted);if(reg.length>regWindow)reg.shift();}

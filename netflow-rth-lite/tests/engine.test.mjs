@@ -35,11 +35,13 @@ test('session calibration and regression are prefix-causal',()=>{
   const mutated=a.map((x,i)=>i>=900?{...x,net:x.q}:x);assert.deepEqual(analyze(mutated,STEPS['15m']).slice(0,900),full.slice(0,900));
   const altered=a.map((x,i)=>i===850?{...x,net:x.q}:x),f=analyze(altered,STEPS['15m']);assert.equal(f[850].mid,full[850].mid);assert.equal(f[850].upper,full[850].upper);
 });
-test('DVP smoothing chain, regression fit, gaps and zero-volume',()=>{
+test('DVP smoothing stays continuous across market gaps, with regression and zero-volume',()=>{
   const strength=calculateStrength(a,STEPS['15m']);assert.equal(strength.findIndex(Number.isFinite),506);assert(strength.filter(Number.isFinite).every(x=>x>=-1&&x<=1));
   for(const n of [200,600,900])assert.deepEqual(calculateStrength(a.slice(0,n),STEPS['15m']),strength.slice(0,n));
   const r=regression(Array.from({length:50},(_,i)=>3+2*i));assert.equal(r.mid,103);assert.equal(r.sigma,0);
-  const gap=analyze([a[0],a[10]],STEPS['15m']);assert.equal(gap[1].raw,null);assert.equal(gap[1].rthSamples,0);
+  const sample=Array.from({length:12},(_,i)=>({t:i*STEPS['15m'],q:100,net:i%3===0?-40:20})),withGap=sample.map((x,i)=>i<6?x:{...x,t:x.t+12*STEPS['15m']});
+  assert.deepEqual(calculateStrength(withGap,STEPS['15m'],{normLen:2,strLen:2,lookback:2}),calculateStrength(sample,STEPS['15m'],{normLen:2,strLen:2,lookback:2}));
+  const continuous=analyze([{t:0,session:'RTH'},{t:STEPS['15m'],session:'RTH'},{t:4*STEPS['15m'],session:'RTH'}],STEPS['15m'],{minSamples:1,strength:[.1,.2,.3]});assert.equal(continuous[2].adjusted,.3);assert.equal(continuous[2].rthSamples,2);
   const k=[...spy[0]];k[7]='0';k[10]='0';assert.equal(parseKlines([k],now,STEPS['15m'])[0].nf,null);k[10]='1';assert.throws(()=>parseKlines([k],now,STEPS['15m']));
 });
 test('price WLR uses linear weights, prior bars only and resets on gaps',()=>{
