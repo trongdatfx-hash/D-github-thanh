@@ -1,36 +1,36 @@
 {
   "1": {
     "status": "OOS_READY",
-    "samples": 4771,
+    "samples": 4773,
     "folds": [
       {
-        "test_start": 1787296500000,
-        "train_label_max": 1787295600000,
-        "fit_cutoff": 1785685500000,
-        "train_n": 7155,
+        "test_start": 1787381100000,
+        "train_label_max": 1787380200000,
+        "fit_cutoff": 1785769200000,
+        "train_n": 7157,
         "test_n": 1591
       },
       {
-        "test_start": 1788728400000,
-        "train_label_max": 1788727500000,
-        "fit_cutoff": 1786759200000,
-        "train_n": 8746,
-        "test_n": 1590
+        "test_start": 1788813000000,
+        "train_label_max": 1788812100000,
+        "fit_cutoff": 1786843800000,
+        "train_n": 8748,
+        "test_n": 1591
       },
       {
-        "test_start": 1790159400000,
-        "train_label_max": 1790158500000,
-        "fit_cutoff": 1787832900000,
-        "train_n": 10336,
-        "test_n": 1590
+        "test_start": 1790244900000,
+        "train_label_max": 1790244000000,
+        "fit_cutoff": 1787917500000,
+        "train_n": 10339,
+        "test_n": 1591
       }
     ],
-    "accuracy": 0.8536994340809054,
-    "balanced_accuracy": 0.33406545166687657,
-    "baseline_accuracy": 0.8541186334101866,
-    "log_loss": 0.4798560501247741,
-    "baseline_log_loss": 0.5550124400848805,
-    "brier": 0.2436653883867409,
+    "accuracy": 0.8573224387177876,
+    "balanced_accuracy": 0.3350910157653378,
+    "baseline_accuracy": 0.8575319505552064,
+    "log_loss": 0.4697992959098936,
+    "baseline_log_loss": 0.5477888931313569,
+    "brier": 0.23778808701205137,
     "trades": {
       "n": 0,
       "hit": null,
@@ -45,42 +45,42 @@
       "return": 0.0,
       "drawdown": 0.0
     },
-    "test_start": 1787296500000,
-    "test_end": 1791589500000,
+    "test_start": 1787381100000,
+    "test_end": 1791675900000,
     "evidence": "UNPROVEN"
   },
   "2": {
     "status": "OOS_READY",
-    "samples": 4770,
+    "samples": 4772,
     "folds": [
       {
-        "test_start": 1787296500000,
-        "train_label_max": 1787295600000,
-        "fit_cutoff": 1785684600000,
-        "train_n": 7153,
-        "test_n": 1590
+        "test_start": 1787381100000,
+        "train_label_max": 1787380200000,
+        "fit_cutoff": 1785769200000,
+        "train_n": 7155,
+        "test_n": 1591
       },
       {
-        "test_start": 1788727500000,
-        "train_label_max": 1788726600000,
-        "fit_cutoff": 1786758300000,
-        "train_n": 8743,
-        "test_n": 1590
+        "test_start": 1788813000000,
+        "train_label_max": 1788812100000,
+        "fit_cutoff": 1786842900000,
+        "train_n": 8746,
+        "test_n": 1591
       },
       {
-        "test_start": 1790158500000,
-        "train_label_max": 1790157600000,
-        "fit_cutoff": 1787831100000,
-        "train_n": 10333,
+        "test_start": 1790244900000,
+        "train_label_max": 1790244000000,
+        "fit_cutoff": 1787916600000,
+        "train_n": 10337,
         "test_n": 1590
       }
     ],
-    "accuracy": 0.7522012578616353,
-    "balanced_accuracy": 0.3369337833819719,
-    "baseline_accuracy": 0.7515723270440252,
-    "log_loss": 0.6798507207495458,
-    "baseline_log_loss": 0.7586613742900684,
-    "brier": 0.37245003289934747,
+    "accuracy": 0.7579631181894384,
+    "balanced_accuracy": 0.3385334081224745,
+    "baseline_accuracy": 0.7571248952221291,
+    "log_loss": 0.6693293692276358,
+    "baseline_log_loss": 0.7503245958516082,
+    "brier": 0.3654313278662746,
     "trades": {
       "n": 0,
       "hit": null,
@@ -95,42 +95,42 @@
       "return": 0.0,
       "drawdown": 0.0
     },
-    "test_start": 1787296500000,
-    "test_end": 1791588600000,
+    "test_start": 1787381100000,
+    "test_end": 1791675000000,
     "evidence": "UNPROVEN"
   },
   "4": {
     "status": "OOS_READY",
-    "samples": 4769,
+    "samples": 4770,
     "folds": [
       {
-        "test_start": 1787295600000,
-        "train_label_max": 1787294700000,
-        "fit_cutoff": 1785683700000,
-        "train_n": 7148,
+        "test_start": 1787381100000,
+        "train_label_max": 1787380200000,
+        "fit_cutoff": 1785768300000,
+        "train_n": 7151,
         "test_n": 1590
       },
       {
-        "test_start": 1788726600000,
-        "train_label_max": 1788725700000,
-        "fit_cutoff": 1786756500000,
-        "train_n": 8738,
+        "test_start": 1788812100000,
+        "train_label_max": 1788811200000,
+        "fit_cutoff": 1786841100000,
+        "train_n": 8741,
         "test_n": 1590
       },
       {
-        "test_start": 1790157600000,
-        "train_label_max": 1790156700000,
-        "fit_cutoff": 1787830200000,
-        "train_n": 10328,
-        "test_n": 1589
+        "test_start": 1790243100000,
+        "train_label_max": 1790242200000,
+        "fit_cutoff": 1787914800000,
+        "train_n": 10331,
+        "test_n": 1590
       }
     ],
-    "accuracy": 0.647095827217446,
-    "balanced_accuracy": 0.3385153640253024,
-    "baseline_accuracy": 0.6481442650450828,
-    "log_loss": 0.8459329973373829,
-    "baseline_log_loss": 0.9113952699839623,
-    "brier": 0.48599471099380614,
+    "accuracy": 0.6563941299790357,
+    "balanced_accuracy": 0.3374430511769351,
+    "baseline_accuracy": 0.6576519916142558,
+    "log_loss": 0.8344615718985471,
+    "baseline_log_loss": 0.9020813504542383,
+    "brier": 0.4776078491915188,
     "trades": {
       "n": 0,
       "hit": null,
@@ -145,58 +145,58 @@
       "return": 0.0,
       "drawdown": 0.0
     },
-    "test_start": 1787295600000,
-    "test_end": 1791586800000,
+    "test_start": 1787381100000,
+    "test_end": 1791673200000,
     "evidence": "UNPROVEN"
   },
   "8": {
     "status": "OOS_READY",
-    "samples": 4766,
+    "samples": 4767,
     "folds": [
       {
-        "test_start": 1787294700000,
-        "train_label_max": 1787293800000,
-        "fit_cutoff": 1785681000000,
-        "train_n": 7139,
+        "test_start": 1787380200000,
+        "train_label_max": 1787379300000,
+        "fit_cutoff": 1785765600000,
+        "train_n": 7142,
         "test_n": 1589
       },
       {
-        "test_start": 1788724800000,
-        "train_label_max": 1788723900000,
-        "fit_cutoff": 1786753800000,
-        "train_n": 8728,
+        "test_start": 1788810300000,
+        "train_label_max": 1788809400000,
+        "fit_cutoff": 1786838400000,
+        "train_n": 8731,
         "test_n": 1589
       },
       {
-        "test_start": 1790154900000,
-        "train_label_max": 1790154000000,
-        "fit_cutoff": 1787825700000,
-        "train_n": 10317,
-        "test_n": 1588
+        "test_start": 1790240400000,
+        "train_label_max": 1790239500000,
+        "fit_cutoff": 1787911200000,
+        "train_n": 10320,
+        "test_n": 1589
       }
     ],
-    "accuracy": 0.5585396558959295,
-    "balanced_accuracy": 0.35628815981294887,
-    "baseline_accuracy": 0.5593789341166596,
-    "log_loss": 0.9658434965997188,
-    "baseline_log_loss": 0.99660243528992,
-    "brier": 0.5693775271171118,
+    "accuracy": 0.5626179987413468,
+    "balanced_accuracy": 0.34936978186003226,
+    "baseline_accuracy": 0.5666037340046151,
+    "log_loss": 0.960667676818202,
+    "baseline_log_loss": 0.9913321154433421,
+    "brier": 0.5651966250591662,
     "trades": {
-      "n": 40,
-      "hit": 0.3,
-      "net_bps": -6.085071723076201,
-      "return": -0.024104720008827907,
-      "drawdown": 0.024104720008827907
+      "n": 34,
+      "hit": 0.2647058823529412,
+      "net_bps": -8.056393311998901,
+      "return": -0.02707346614874273,
+      "drawdown": 0.02707346614874273
     },
     "stress_trades": {
-      "n": 3,
+      "n": 1,
       "hit": 0.0,
-      "net_bps": -16.30935778881329,
-      "return": -0.0048848807574377595,
-      "drawdown": 0.0048848807574377595
+      "net_bps": -16.69994745139291,
+      "return": -0.0016699947451392916,
+      "drawdown": 0.0016699947451392916
     },
-    "test_start": 1787294700000,
-    "test_end": 1791583200000,
+    "test_start": 1787380200000,
+    "test_end": 1791669600000,
     "evidence": "UNPROVEN"
   }
 }
