@@ -2,7 +2,7 @@
 // Strength source historically changed sign. This is descriptive statistics,
 // not a trained model or a probability calibrated out of sample.
 export const REVERSAL_WINDOW=6;
-export const REVERSAL_HORIZON=3;
+export const REVERSAL_HORIZON=2;
 export const REVERSAL_NEIGHBORS=40;
 export const REVERSAL_MIN_MATCHES=24;
 export const REVERSAL_MIN_EVENTS=6;

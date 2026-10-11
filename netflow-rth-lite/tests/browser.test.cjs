@@ -33,7 +33,7 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   await page.locator('#stat-horizon').selectOption('6');assert.match(await page.locator('.stats-table tr.selected').innerText(),/6 nến/);await page.locator('#stat-horizon').selectOption('3');
   const strengthReadout=await page.locator('#strength-readout').innerText();assert.match(strengthReadout,/SPY -?\d/);assert.match(strengthReadout,/QQQ -?\d/);assert.match(await page.locator('#strength-composite').innerText(),/^-?\d/);
   assert.match(await page.locator('#trend-strength').innerText(),/^TREND6 [↑↓] .+ \d+ · P(?:—|\d+) · n=\d+$/);
-  assert.match(await page.locator('#reversal-readout').innerText(),/^REV6 /);
+  assert.match(await page.locator('#reversal-readout').innerText(),/^REV6→2 /);
   assert.equal(await page.locator('#live-indicator').innerText(),'● LIVE');assert(await page.locator('#live-indicator').evaluate(el=>el.classList.contains('live')));
   assert.equal(await page.locator('#days').inputValue(),'30');
   for(const id of ['spy','qqq','relative'])assert.equal(await page.locator('#'+id).isChecked(),false);

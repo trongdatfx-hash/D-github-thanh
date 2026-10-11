@@ -55,15 +55,15 @@ Nến đang chạy chỉ cung cấp đặc trưng/điểm tạm thời để so 
 
 Khi có ít nhất 10 cụm đổi dấu cùng hướng, `TREND6` so với nhóm cùng hướng; trước đó dùng cả hai hướng. Phân vị dùng mid-rank của điểm quy tắc. Từ 10 mẫu trở lên, điểm hiển thị là trung bình 50/50 giữa điểm quy tắc và phân vị; dưới ngưỡng này giữ nguyên điểm quy tắc và hiện `P—`, `n` vẫn được công bố. Nhãn mức độ: 75+ rất mạnh, 60+ mạnh, 45+ khá, 30+ yếu, thấp hơn là suy yếu. Điểm này mô tả độ giống và độ mạnh tương đối của cụm Strength, không phải xác suất tăng/giảm, mô hình ML hay kết quả backtest. Nến đang chạy làm `TREND6` thay đổi cho tới khi đóng.
 
-## Vùng giá đổi dấu REV6
+## Vùng giá đổi dấu REV6→2
 
 `reversal-zone.mjs` lấy sáu nến gần nhất của **mã giá đang chọn** và adjusted Strength của **nguồn Strength đang chọn**. Hình dạng gồm bảy đặc trưng đã chuẩn hóa: biến động giá theo hướng Strength/ATR, tỷ lệ Higher High khi dương hoặc Lower Low khi âm, tỷ lệ thân nến cùng hướng, vị trí close trong biên sáu nến, râu từ chối ở hai nến cuối, biên độ Strength trung bình và độ dốc Strength. Khoảng cách Euclid có trọng số chỉ dùng các đặc trưng này; nhãn kết quả không tham gia chọn hàng xóm.
 
-Mỗi ứng viên lịch sử có cùng dấu Strength tại nến cuối. Nhãn đảo dấu bằng 1 khi Strength sang dấu đối diện trong ba nến tiếp theo. Toàn bộ ba nến kết quả phải kết thúc trước nến đầu của cụm hiện tại. Tối đa 40 cụm gần nhất được chọn và các cửa sổ sáu nến không được chồng nhau. Tỷ lệ nền lấy các cụm cùng hướng theo thời gian, cũng loại chồng lấn.
+Mỗi ứng viên lịch sử có cùng dấu Strength tại nến cuối. Nhãn đảo dấu bằng 1 khi Strength sang dấu đối diện trong hai nến tiếp theo. Toàn bộ hai nến kết quả phải kết thúc trước nến đầu của cụm hiện tại. Tối đa 40 cụm gần nhất được chọn và các cửa sổ sáu nến không được chồng nhau. Tỷ lệ nền lấy các cụm cùng hướng theo thời gian, cũng loại chồng lấn.
 
-Web chỉ vẽ đoạn vùng `REV6` khi đồng thời có ít nhất 24 cụm gần nhất, ít nhất 6 lần đảo dấu, tỷ lệ đảo dấu cao hơn nền ít nhất 8 điểm phần trăm và cận dưới Wilson một phía 90% cao hơn tỷ lệ nền. Nếu thiếu bất kỳ điều kiện nào, ba đường vùng bị xóa và huy hiệu ghi lý do thay vì vẽ tín hiệu. Với các mẫu đạt điều kiện, khoảng cách từ close đến cực trị nơi đổi dấu được chuẩn hóa bằng ATR; phân vị 25/50/75 được chiếu từ close hiện tại thành hai biên và đường giữa kéo dài ba nến. Strength dương tạo vùng kháng cự màu cam; Strength âm tạo vùng hỗ trợ màu xanh. Vùng có thể thay đổi trong nến đang chạy.
+Web chỉ vẽ đoạn vùng `REV6→2` khi đồng thời có ít nhất 24 cụm gần nhất, ít nhất 6 lần đảo dấu, tỷ lệ đảo dấu cao hơn nền ít nhất 8 điểm phần trăm và cận dưới Wilson một phía 90% cao hơn tỷ lệ nền. Nếu thiếu bất kỳ điều kiện nào, ba đường vùng bị xóa; huy hiệu vẫn hiện tỷ lệ đo được, tỷ lệ nền, cỡ mẫu và lý do từ chối. Với các mẫu đạt điều kiện, khoảng cách từ close đến cực trị nơi đổi dấu được chuẩn hóa bằng ATR; phân vị 25/50/75 được chiếu từ close hiện tại thành hai biên và đường giữa kéo dài hai nến. Strength dương tạo vùng kháng cự màu cam; Strength âm tạo vùng hỗ trợ màu xanh. Vùng có thể thay đổi trong nến đang chạy.
 
-Tỷ lệ hiển thị là thống kê hàng xóm trong 30 ngày đang tải, chưa qua walk-forward ngoài mẫu, chưa hiệu chỉnh cho việc thử nhiều dạng mẫu và không phải xác suất giao dịch đã hiệu chuẩn. Điều kiện Wilson giúp từ chối phần lớn trường hợp yếu; nó không biến REV6 thành ML hay bằng chứng về lợi thế sau phí.
+Tỷ lệ hiển thị là thống kê hàng xóm trong 30 ngày đang tải, chưa qua walk-forward ngoài mẫu, chưa hiệu chỉnh cho việc thử nhiều dạng mẫu và không phải xác suất giao dịch đã hiệu chuẩn. Điều kiện Wilson giúp từ chối phần lớn trường hợp yếu; nó không biến REV6→2 thành ML hay bằng chứng về lợi thế sau phí.
 
 ## ML tương lai
 

@@ -1,7 +1,7 @@
 import {STEPS,composite,flowAlignment,analyze,weightedPriceBands,continuousCvdSpectrum} from './engine.mjs';
 import {load} from './data.mjs';
 import {strengthStatistics,trendStrength6,HORIZONS,MIN_SAMPLES,TREND_MIN_HISTORY} from './strength-stats.mjs';
-import {reversalZone,REVERSAL_MIN_MATCHES} from './reversal-zone.mjs';
+import {reversalZone,REVERSAL_HORIZON,REVERSAL_MIN_MATCHES} from './reversal-zone.mjs';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
 let chart,price,series={},marks,strengthMarks,cache=null,rows={},maps={},alignmentMap=new Map(),priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdFrame=0,controller,generation=0,loading=false,lastSuccess=null;
@@ -58,7 +58,7 @@ function init(){
   for(const key of ['priceUpper','priceLower'])series[key]=chart.addSeries(L.LineSeries,{color:'#4aa3ff',lineWidth:1,lineStyle:L.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,title:''},0);
   series.reversalLow=chart.addSeries(L.LineSeries,{color:'rgba(255,180,84,.65)',lineWidth:1,lineStyle:L.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:''},0);
   series.reversalHigh=chart.addSeries(L.LineSeries,{color:'rgba(255,180,84,.65)',lineWidth:1,lineStyle:L.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:''},0);
-  series.reversalMid=chart.addSeries(L.LineSeries,{color:'#ffb454',lineWidth:4,lineStyle:L.LineStyle.Solid,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:'REV6 R'},0);
+  series.reversalMid=chart.addSeries(L.LineSeries,{color:'#ffb454',lineWidth:4,lineStyle:L.LineStyle.Solid,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:'REV6→2'},0);
   for(const key of Object.keys(colors))series[key]=chart.addSeries(L.HistogramSeries,{base:0,color:flowColors[key].up,title:flowTitles[key],priceLineVisible:false,priceFormat:{type:'custom',formatter:fmtK}},1);
   series.relative=chart.addSeries(L.HistogramSeries,{priceScaleId:'relative',base:0,color:'rgba(245,166,35,.65)',title:'S−Q Relative',priceLineVisible:false,lastValueVisible:true,priceFormat:{type:'custom',formatter:x=>`${fmt(x)}%`}},1);
   series.relative.priceScale().applyOptions({scaleMargins:{top:.58,bottom:.20}});
@@ -158,13 +158,13 @@ function updateStrengthLabels(){
 }
 function updateReversalZone(){
   const enabled=$('reversal-zone').checked,node=$('reversal-readout'),visible=enabled&&reversalState.ready;
-  if(!visible){for(const key of ['reversalLow','reversalMid','reversalHigh'])series[key].setData([]);node.style.display=enabled?'block':'none';node.className='missing';node.textContent=reversalState.reason==='matches'?`REV6 — cần ≥${REVERSAL_MIN_MATCHES} mẫu`:reversalState.reason==='events'?'REV6 — quá ít lần đảo dấu':reversalState.reason==='confidence'?'REV6 — chưa vượt tỷ lệ nền':'REV6 — chờ đủ 6 nến';node.title='Chỉ vẽ vùng giá khi nhóm hình dạng gần nhất có tỷ lệ đổi dấu cao hơn nền với cận tin cậy một phía 90%.';return;}
+  if(!visible){for(const key of ['reversalLow','reversalMid','reversalHigh'])series[key].setData([]);node.style.display=enabled?'block':'none';node.className='missing';const sample=Number.isFinite(reversalState.rate)?` · ${fmt(reversalState.rate*100)}% vs nền ${fmt(reversalState.baselineRate*100)}% · n=${reversalState.n}`:'';node.textContent=reversalState.reason==='matches'?`REV6→${REVERSAL_HORIZON} — cần ≥${REVERSAL_MIN_MATCHES} mẫu${sample}`:reversalState.reason==='events'?`REV6→${REVERSAL_HORIZON} — quá ít lần đảo dấu${sample}`:reversalState.reason==='confidence'?`REV6→${REVERSAL_HORIZON} — chưa vượt tỷ lệ nền${sample}`:`REV6→${REVERSAL_HORIZON} — chờ đủ 6 nến`;node.title=`Đo Strength đổi dấu trong ${REVERSAL_HORIZON} nến tiếp theo. Chỉ vẽ vùng khi nhóm hình dạng gần nhất có tỷ lệ cao hơn nền với cận tin cậy một phía 90%.`;return;}
   const color=reversalState.direction>0?'#ffb454':'#5bc8ff',edge=reversalState.direction>0?'rgba(255,180,84,.65)':'rgba(91,200,255,.65)',side=reversalState.direction>0?'KHÁNG CỰ':'HỖ TRỢ';
   const line=(value)=>[{time:reversalState.start/1000,value},{time:reversalState.end/1000,value}];
   series.reversalLow.setData(line(reversalState.low));series.reversalMid.setData(line(reversalState.level));series.reversalHigh.setData(line(reversalState.high));
-  series.reversalLow.applyOptions({visible:true,color:edge});series.reversalHigh.applyOptions({visible:true,color:edge});series.reversalMid.applyOptions({visible:true,color,title:`REV6 ${reversalState.direction>0?'KC':'HT'}`});
-  node.style.display='block';node.className=reversalState.direction>0?'resistance':'support';node.textContent=`REV6 ${side} ${fmt(reversalState.low)}–${fmt(reversalState.high)} · ${fmt(reversalState.rate*100)}% vs nền ${fmt(reversalState.baselineRate*100)}% · n=${reversalState.n}`;
-  node.title=`Đổi dấu trong 3 nến: ${fmt(reversalState.rate*100)}%; nền ${fmt(reversalState.baselineRate*100)}%; cận tin cậy 90% ${fmt(reversalState.lower*100)}%; ${reversalState.eventCount}/${reversalState.n} cụm gần nhất.`;
+  series.reversalLow.applyOptions({visible:true,color:edge});series.reversalHigh.applyOptions({visible:true,color:edge});series.reversalMid.applyOptions({visible:true,color,title:`REV6→${REVERSAL_HORIZON} ${reversalState.direction>0?'KC':'HT'}`});
+  node.style.display='block';node.className=reversalState.direction>0?'resistance':'support';node.textContent=`REV6→${REVERSAL_HORIZON} ${side} ${fmt(reversalState.low)}–${fmt(reversalState.high)} · ${fmt(reversalState.rate*100)}% vs nền ${fmt(reversalState.baselineRate*100)}% · n=${reversalState.n}`;
+  node.title=`Đổi dấu trong ${REVERSAL_HORIZON} nến: ${fmt(reversalState.rate*100)}%; nền ${fmt(reversalState.baselineRate*100)}%; cận tin cậy 90% ${fmt(reversalState.lower*100)}%; ${reversalState.eventCount}/${reversalState.n} cụm gần nhất.`;
 }
 function showTooltip(t){
   const p=maps[$('symbol').value]?.get(t),record=statsMap.get(t),state=record?.state,trend=trendMap.get(t);

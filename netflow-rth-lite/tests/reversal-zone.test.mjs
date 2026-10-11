@@ -18,9 +18,9 @@ function patterned(cycles=35){
 
 test('REV6 finds a statistically separated resistance zone from similar six-candle shapes',()=>{
   const rows=patterned(),zone=reversalZone(rows,'SPYUSDT','COMPOSITE',step);
-  assert.equal(REVERSAL_WINDOW,6);assert.equal(REVERSAL_HORIZON,3);assert(zone.ready);assert.equal(zone.direction,1);
+  assert.equal(REVERSAL_WINDOW,6);assert.equal(REVERSAL_HORIZON,2);assert(zone.ready);assert.equal(zone.direction,1);
   assert(zone.n>=24);assert(zone.eventCount>=6);assert(zone.rate-zone.baselineRate>=.08);assert(zone.lower>zone.baselineRate);
-  assert(zone.low<=zone.level&&zone.level<=zone.high);assert(zone.low>rows.SPYUSDT.at(-1).c);assert.equal(zone.end-zone.start,3*step);
+  assert(zone.low<=zone.level&&zone.level<=zone.high);assert(zone.low>rows.SPYUSDT.at(-1).c);assert.equal(zone.end-zone.start,2*step);
 });
 test('REV6 withholds the line when history is thin or the current six-candle window is broken',()=>{
   const thin=patterned(3),insufficient=reversalZone(thin,'SPYUSDT','COMPOSITE',step);assert.equal(insufficient.ready,false);assert(['matches','events','confidence'].includes(insufficient.reason));
