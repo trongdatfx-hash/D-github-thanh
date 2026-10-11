@@ -1,25 +1,25 @@
 {
-  "collected_at": "2026-10-11T12:45:03.505000+00:00",
+  "collected_at": "2026-10-11T18:00:01.869000+00:00",
   "collector": "GitHub-hosted official WebSocket closed-M15 batch",
   "archive": {
     "SPYUSDT/last": {
-      "recovered_rows": 96,
+      "recovered_rows": 0,
       "errors": []
     },
     "QQQUSDT/last": {
-      "recovered_rows": 96,
+      "recovered_rows": 0,
       "errors": []
     },
     "SPYUSDT/mark": {
-      "recovered_rows": 96,
+      "recovered_rows": 0,
       "errors": []
     },
     "SPYUSDT/index": {
-      "recovered_rows": 96,
+      "recovered_rows": 0,
       "errors": []
     }
   },
-  "archive_bucket": 497700,
+  "archive_bucket": 497705,
   "websocket": {
     "closed_bars": {
       "SPYUSDT": 1,
@@ -30,7 +30,7 @@
   "market": {
     "SPYUSDT/last": {
       "rows": 12000,
-      "latest_close": 1791722699999,
+      "latest_close": 1791741599999,
       "source": "websocket_closed",
       "latest_source": "websocket_closed",
       "rest_ok": false,
@@ -39,7 +39,7 @@
     },
     "QQQUSDT/last": {
       "rows": 12000,
-      "latest_close": 1791722699999,
+      "latest_close": 1791741599999,
       "source": "websocket_closed",
       "latest_source": "websocket_closed",
       "rest_ok": false,

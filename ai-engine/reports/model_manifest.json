@@ -2,14 +2,14 @@
   "schema_version": "layers-model-v1",
   "format": "gzip-xgboost-json",
   "model_path": "../models/layers.native.json.gz",
-  "model_trained_at": 1791722705701,
-  "sha256": "3cf34ab37e90d83e07d55cbd7f7b7df52660ed2e2d08a812a222845c83db1b23",
-  "bytes": 1163289,
+  "model_trained_at": 1791741604195,
+  "sha256": "52b52ce5e8201dfe4b79879a58685b933820b9fa7aea99b0755474ec7aa4e72e",
+  "bytes": 1163459,
   "class_order": [
     "BEAR",
     "NEUTRAL",
     "BULL"
   ],
   "runtime": "GitHub-hosted ubuntu-latest CPU",
-  "forecast_generated_at": 1791722712608
+  "forecast_generated_at": 1791741611312
 }
