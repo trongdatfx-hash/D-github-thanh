@@ -1,6 +1,7 @@
 import {STEPS,composite,flowAlignment,analyze,weightedPriceBands,continuousCvdSpectrum} from './engine.mjs';
 import {load} from './data.mjs';
 import {strengthStatistics,trendStrength6,HORIZONS,MIN_SAMPLES,TREND_MIN_HISTORY} from './strength-stats.mjs';
+import {reversalZone,REVERSAL_MIN_MATCHES} from './reversal-zone.mjs';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
 let chart,price,series={},marks,strengthMarks,cache=null,rows={},maps={},alignmentMap=new Map(),priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdFrame=0,controller,generation=0,loading=false,lastSuccess=null;
@@ -12,7 +13,7 @@ const flowColors={
   COMPOSITE:{up:'rgba(39,211,164,.82)',down:'rgba(255,91,116,.82)'}
 };
 const LIVE_REFRESH_MS=3000;
-let statsMap=new Map(),trendMap=new Map(),inspectedTime=null;
+let statsMap=new Map(),trendMap=new Map(),reversalState={ready:false,reason:'window',n:0},inspectedTime=null;
 const sourceName=key=>({SPYUSDT:'SPY',QQQUSDT:'QQQ',COMPOSITE:'Composite'}[key]);
 const signed=x=>Number.isFinite(x)?`${x>0?'+':''}${fmt(x)}`:'—';
 const returnText=x=>Number.isFinite(x)?`${x>0?'+':''}${x.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:4})}%`:'—';
@@ -55,6 +56,9 @@ function init(){
   price=chart.addSeries(L.CandlestickSeries,{priceLineVisible:false,borderVisible:false},0);
   series.priceMid=chart.addCustomSeries(new VariableWidthLineSeries,{color:'#f6c85f',baseLineVisible:false,priceLineVisible:false,lastValueVisible:false,title:''},0);
   for(const key of ['priceUpper','priceLower'])series[key]=chart.addSeries(L.LineSeries,{color:'#4aa3ff',lineWidth:1,lineStyle:L.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,title:''},0);
+  series.reversalLow=chart.addSeries(L.LineSeries,{color:'rgba(255,180,84,.65)',lineWidth:1,lineStyle:L.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:''},0);
+  series.reversalHigh=chart.addSeries(L.LineSeries,{color:'rgba(255,180,84,.65)',lineWidth:1,lineStyle:L.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:''},0);
+  series.reversalMid=chart.addSeries(L.LineSeries,{color:'#ffb454',lineWidth:4,lineStyle:L.LineStyle.Solid,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:'REV6 R'},0);
   for(const key of Object.keys(colors))series[key]=chart.addSeries(L.HistogramSeries,{base:0,color:flowColors[key].up,title:flowTitles[key],priceLineVisible:false,priceFormat:{type:'custom',formatter:fmtK}},1);
   series.relative=chart.addSeries(L.HistogramSeries,{priceScaleId:'relative',base:0,color:'rgba(245,166,35,.65)',title:'S−Q Relative',priceLineVisible:false,lastValueVisible:true,priceFormat:{type:'custom',formatter:x=>`${fmt(x)}%`}},1);
   series.relative.priceScale().applyOptions({scaleMargins:{top:.58,bottom:.20}});
@@ -121,6 +125,7 @@ function render(fit=false){
   const alignment=flowAlignment(rows.SPYUSDT??[],rows.QQQUSDT??[],{step:STEPS[$('interval').value]});alignmentMap=new Map(alignment.map(x=>[x.t,x]));
   statsMap=strengthStatistics({...rows,alignment},$('symbol').value,$('signal').value,STEPS[$('interval').value]);
   trendMap=trendStrength6({...rows,alignment},$('signal').value,STEPS[$('interval').value]);
+  reversalState=reversalZone(rows,$('symbol').value,$('signal').value,STEPS[$('interval').value]);
   const priceBands=weightedPriceBands(p,STEPS[$('interval').value]);priceBandMap=new Map(priceBands.map(x=>[x.t,x]));
   series.priceMid.setData(priceLineData(priceBands,alignmentMap));series.priceUpper.setData(lineData(priceBands,'upper'));series.priceLower.setData(lineData(priceBands,'lower'));
   for(const key of Object.keys(colors))series[key].setData(flowData(rows[key]??[],key));
@@ -150,6 +155,16 @@ function updateStrengthLabels(){
   node.textContent=`TREND6 ${trend.label} ${trend.score} · ${rank} · n=${trend.n}`;
   node.className=trend.direction>0?'positive':'negative';
   node.title=`Điểm cụm 6 nến ${trend.score}/100; phân vị lịch sử ${trend.ready?Math.round(trend.percentile):'chưa đủ'}; ${trend.n} cụm đổi dấu đã hoàn tất`;
+}
+function updateReversalZone(){
+  const enabled=$('reversal-zone').checked,node=$('reversal-readout'),visible=enabled&&reversalState.ready;
+  if(!visible){for(const key of ['reversalLow','reversalMid','reversalHigh'])series[key].setData([]);node.style.display=enabled?'block':'none';node.className='missing';node.textContent=reversalState.reason==='matches'?`REV6 — cần ≥${REVERSAL_MIN_MATCHES} mẫu`:reversalState.reason==='events'?'REV6 — quá ít lần đảo dấu':reversalState.reason==='confidence'?'REV6 — chưa vượt tỷ lệ nền':'REV6 — chờ đủ 6 nến';node.title='Chỉ vẽ vùng giá khi nhóm hình dạng gần nhất có tỷ lệ đổi dấu cao hơn nền với cận tin cậy một phía 90%.';return;}
+  const color=reversalState.direction>0?'#ffb454':'#5bc8ff',edge=reversalState.direction>0?'rgba(255,180,84,.65)':'rgba(91,200,255,.65)',side=reversalState.direction>0?'KHÁNG CỰ':'HỖ TRỢ';
+  const line=(value)=>[{time:reversalState.start/1000,value},{time:reversalState.end/1000,value}];
+  series.reversalLow.setData(line(reversalState.low));series.reversalMid.setData(line(reversalState.level));series.reversalHigh.setData(line(reversalState.high));
+  series.reversalLow.applyOptions({visible:true,color:edge});series.reversalHigh.applyOptions({visible:true,color:edge});series.reversalMid.applyOptions({visible:true,color,title:`REV6 ${reversalState.direction>0?'KC':'HT'}`});
+  node.style.display='block';node.className=reversalState.direction>0?'resistance':'support';node.textContent=`REV6 ${side} ${fmt(reversalState.low)}–${fmt(reversalState.high)} · ${fmt(reversalState.rate*100)}% vs nền ${fmt(reversalState.baselineRate*100)}% · n=${reversalState.n}`;
+  node.title=`Đổi dấu trong 3 nến: ${fmt(reversalState.rate*100)}%; nền ${fmt(reversalState.baselineRate*100)}%; cận tin cậy 90% ${fmt(reversalState.lower*100)}%; ${reversalState.eventCount}/${reversalState.n} cụm gần nhất.`;
 }
 function showTooltip(t){
   const p=maps[$('symbol').value]?.get(t),record=statsMap.get(t),state=record?.state,trend=trendMap.get(t);
@@ -193,6 +208,7 @@ function toggle(){
   series.relative.applyOptions({visible:$('relative').checked});
   series.alignment.applyOptions({visible:$('alignment').checked});
   for(const key of ['priceMid','priceUpper','priceLower'])series[key].applyOptions({visible:$('price-bands').checked});
+  updateReversalZone();
   updateStrengthLabels();
   for(const key of ['mid','upper','lower'])series[key].applyOptions({visible:$('bands').checked});
   marks.applyOptions({visible:$('markers').checked});
@@ -233,7 +249,7 @@ async function toggleFullChart(){
 if(init()){
   $('refresh').onclick=()=>refresh();for(const id of ['interval','days'])$(id).onchange=()=>refresh(true);
   for(const id of ['symbol','signal'])$(id).onchange=()=>render(false);
-  for(const id of ['spy','qqq','composite','relative','alignment','price-bands','cvd-spectrum-toggle','show-strength','bands','markers'])$(id).onchange=toggle;
+  for(const id of ['spy','qqq','composite','relative','alignment','price-bands','reversal-zone','cvd-spectrum-toggle','show-strength','bands','markers'])$(id).onchange=toggle;
   $('phase-width').onchange=()=>render(false);
   $('fit').onclick=fitChart;$('chart-fit').onclick=fitChart;$('fullscreen').onclick=toggleFullChart;
   document.addEventListener('fullscreenchange',syncFullChart);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.querySelector('.chart-card').classList.contains('fullscreen-fallback')){document.querySelector('.chart-card').classList.remove('fullscreen-fallback');syncFullChart();}});
