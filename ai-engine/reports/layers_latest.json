@@ -1,18 +1,18 @@
 {
   "schema_version": "layers-v1",
-  "generated_at": 1791741611312,
-  "data_as_of": 1791741600000,
+  "generated_at": 1791753303148,
+  "data_as_of": 1791753300000,
   "model_trained_at": 1791741604195,
-  "lag_minutes": 0.18853333333333333,
+  "lag_minutes": 0.05246666666666667,
   "stale": false,
   "live_rest_available": false,
   "live_market_available": true,
   "feature_ready": false,
   "collector_mode": "GitHub-hosted official WebSocket closed-M15 batch",
   "regime": "RANGE",
-  "last": 780.87,
-  "dataset_rows": 12164,
-  "missing_bars": 164,
+  "last": 780.96,
+  "dataset_rows": 12176,
+  "missing_bars": 176,
   "historical_scope": "reconstructed market bars; auxiliary features only after recorded receipt; repeated OOS is research, not a locked final holdout",
   "costs": {
     "fee_bps": 4.0,
@@ -672,7 +672,7 @@
   ],
   "generation_clock": "forecast_ready",
   "collection": {
-    "collected_at": "2026-10-11T18:00:01.869000+00:00",
+    "collected_at": "2026-10-11T21:15:00.861000+00:00",
     "collector": "GitHub-hosted official WebSocket closed-M15 batch",
     "archive": {
       "SPYUSDT/last": {
@@ -692,7 +692,7 @@
         "errors": []
       }
     },
-    "archive_bucket": 497705,
+    "archive_bucket": 497709,
     "websocket": {
       "closed_bars": {
         "SPYUSDT": 1,
@@ -703,7 +703,7 @@
     "market": {
       "SPYUSDT/last": {
         "rows": 12000,
-        "latest_close": 1791741599999,
+        "latest_close": 1791753299999,
         "source": "websocket_closed",
         "latest_source": "websocket_closed",
         "rest_ok": false,
@@ -712,7 +712,7 @@
       },
       "QQQUSDT/last": {
         "rows": 12000,
-        "latest_close": 1791741599999,
+        "latest_close": 1791753299999,
         "source": "websocket_closed",
         "latest_source": "websocket_closed",
         "rest_ok": false,
@@ -756,5 +756,5 @@
     },
     "liquidation": "unavailable: not collected by this bounded candle stream"
   },
-  "retrained_this_run": true
+  "retrained_this_run": false
 }
