@@ -30,7 +30,9 @@ export async function load(interval,days,{signal,get=getJSON,previous=null}={}){
   const contracts=SYMBOLS.map(s=>validateSymbol(info,s));if(!Number.isFinite(serverTime))throw Error('Thời gian server không hợp lệ');
   const start=Math.floor((serverTime-days*86400000)/step)*step,reusable=previous?.interval===interval&&previous?.days===days;
   const pairs=await Promise.all(SYMBOLS.map(async symbol=>{
-    const kept=reusable?(previous[symbol]??[]).filter(x=>x.t>=start&&x.end<serverTime):[];
+    // Re-fetch any bar that was still open at the preceding snapshot, even
+    // after its close time passes, to store its final quote volumes correctly.
+    const kept=reusable?(previous[symbol]??[]).filter(x=>x.t>=start&&x.end<previous.serverTime&&x.end<serverTime):[];
     const cursor=kept.length?kept.at(-1).t+step:start;
     const fresh=parseKlines(await fetchRange(symbol,interval,cursor,serverTime,step,get,signal),serverTime,step,{includeOpen:true});
     const merged=new Map(kept.map(x=>[x.t,x]));for(const row of fresh)merged.set(row.t,row);

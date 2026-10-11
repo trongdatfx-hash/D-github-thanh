@@ -22,30 +22,38 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
    else{
     const symbol=u.searchParams.get('symbol'),interval=u.searchParams.get('interval');
     if(!fixtureRoot&&interval!=='15m')return route.fulfill({status:400,body:'No recorded fixture for this interval'});
-    json=read(fixtureRoot?path.join(fixtureRoot,`${symbol}-${interval}.json`):path.join(root,`../netflow-ml/tests/fixtures/${symbol}.json`)).filter(x=>+x[0]>=+u.searchParams.get('startTime')).slice(0,1000);
+    json=read(fixtureRoot?path.join(fixtureRoot,`${symbol}-${interval}.json`):path.join(root,`../netflow-ml/tests/fixtures/${symbol}.json`)).filter(x=>+x[0]>=+u.searchParams.get('startTime')&&+x[0]<=+u.searchParams.get('endTime')).slice(0,+u.searchParams.get('limit'));
    }
    return route.fulfill({json});
   });
   await page.goto('http://netflow.test/');await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('TRADING'),{},{timeout:120000});
-  assert(!(await page.locator('#net').innerText()).includes('—'));assert((await page.locator('.badge').innerText()).includes('chưa train'));
+  assert.match(await page.locator('#stat-score').innerText(),/\d+\/100/);assert((await page.locator('.badge').innerText()).includes('chưa train'));
+  assert.match(await page.locator('#stat-group').innerText(),/S[+−0]/);assert.equal(await page.locator('.stats-table tbody tr').count(),3);
+  assert((await page.locator('#stats-context').innerText()).includes('ML chưa train'));
+  await page.locator('#stat-horizon').selectOption('6');assert.match(await page.locator('.stats-table tr.selected').innerText(),/6 nến/);await page.locator('#stat-horizon').selectOption('3');
   const strengthReadout=await page.locator('#strength-readout').innerText();assert.match(strengthReadout,/SPY -?\d/);assert.match(strengthReadout,/QQQ -?\d/);assert.match(await page.locator('#strength-composite').innerText(),/^-?\d/);
   assert.equal(await page.locator('#live-indicator').innerText(),'● LIVE');assert(await page.locator('#live-indicator').evaluate(el=>el.classList.contains('live')));
   assert.equal(await page.locator('#days').inputValue(),'30');
   for(const id of ['spy','qqq','relative'])assert.equal(await page.locator('#'+id).isChecked(),false);
   for(const id of ['composite','alignment','price-bands','phase-width','cvd-spectrum-toggle','show-strength','bands','markers'])assert.equal(await page.locator('#'+id).isChecked(),true);
   assert(await page.locator('#chart canvas').count()>0);assert((await page.locator('#chart').boundingBox()).height>=680);
-  assert((await page.locator('#tooltip').innerText()).includes('Flow mượt'));assert((await page.locator('#tooltip').innerText()).includes('Relative'));assert((await page.locator('#tooltip').innerText()).includes('CVD∞ gương'));
+  assert((await page.locator('#tooltip').innerText()).includes('Điểm xác nhận'));assert((await page.locator('#tooltip').innerText()).includes('không phải xác suất thắng'));
   assert.equal(await page.locator('#cvd-spectrum').evaluate(canvas=>canvas.width>0&&canvas.height>0),true);
   await page.locator('#symbol').selectOption('QQQUSDT');await page.locator('#signal').selectOption('SPYUSDT');
-  assert((await page.locator('#tooltip').innerText()).includes('QQQUSDT · O'));
+  assert((await page.locator('#tooltip').innerText()).includes('Giá QQQ, dấu từ SPY'));
   for(const id of ['spy','qqq','composite','relative','alignment','price-bands','phase-width','cvd-spectrum-toggle','show-strength','bands','markers']){await page.locator('#'+id).uncheck();await page.locator('#'+id).check();}
   for(const interval of fixtureRoot||process.env.NETFLOW_LIVE?['5m','30m','1h','15m']:['15m']){
    await page.locator('#interval').selectOption(interval);await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('TRADING'),{},{timeout:120000});
-   assert(!(await page.locator('#net').innerText()).includes('—'));
+   assert.match(await page.locator('#stat-score').innerText(),/\d+\/100/);
   }
   for(const [width,height] of [[1440,1100],[390,844]]){
    await page.setViewportSize({width,height});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
-   const box=await page.locator('#chart').boundingBox();await page.mouse.move(box.x+box.width*.45,box.y+80);await page.mouse.wheel(0,-200);
+   if(process.env.NETFLOW_SCREENSHOTS)await page.screenshot({path:path.join(process.env.NETFLOW_SCREENSHOTS,`stats-${width}.png`),fullPage:true});
+   await page.locator('#chart').scrollIntoViewIfNeeded();
+   const box=await page.locator('#chart').boundingBox();await page.mouse.move(box.x+Math.min(box.width*.6,box.width-120),box.y+80);
+   try{await page.waitForFunction(()=>document.querySelector('#stats-context').textContent.includes('NẾN ĐANG XEM'),{},{timeout:5000});}catch(e){console.log({width,box,context:await page.locator('#stats-context').innerText()});if(process.env.NETFLOW_SCREENSHOTS)await page.screenshot({path:path.join(process.env.NETFLOW_SCREENSHOTS,`crosshair-failure-${width}.png`)});throw e;}
+   const contextBefore=await page.locator('#stats-context').innerText();await page.waitForTimeout(3200);assert.equal(await page.locator('#stats-context').innerText(),contextBefore);
+   await page.mouse.wheel(0,-200);
    await page.mouse.down();await page.mouse.move(box.x+box.width*.65,box.y+80,{steps:10});await page.mouse.up();await page.locator('#fit').click();
    if(process.env.NETFLOW_SCREENSHOTS)await page.screenshot({path:path.join(process.env.NETFLOW_SCREENSHOTS,`rth-${width}.png`),fullPage:true});
   }
@@ -64,8 +72,8 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   assert.deepEqual(errors,[]);console.log('Chart passed: desktop/mobile/fullscreen, 4 timeframes where available, controls, tooltip, wheel/drag, fit, CSV. API statuses:',JSON.stringify(requests));
   if(!process.env.NETFLOW_LIVE){
    failure=451;await page.locator('#refresh').click();await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('HTTP 451'));assert((await page.locator('#status').innerText()).includes('Dữ liệu cũ chưa cập nhật'));assert.equal(await page.locator('#live-indicator').innerText(),'● KHÔNG LIVE');
-   await page.locator('#days').selectOption('7');await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('Không có dữ liệu thay thế'));assert.equal(await page.locator('#net').innerText(),'—');assert(await page.locator('#export').isDisabled());
-   failure='network';await page.locator('#refresh').click();await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('CORS'));assert.equal(await page.locator('#net').innerText(),'—');
+   await page.locator('#days').selectOption('7');await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('Không có dữ liệu thay thế'));assert.equal(await page.locator('#stat-score').innerText(),'—');assert(await page.locator('#export').isDisabled());
+   failure='network';await page.locator('#refresh').click();await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('CORS'));assert.equal(await page.locator('#stat-score').innerText(),'—');
    failure=null;await page.locator('#refresh').click();await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('TRADING'));assert.equal(await page.locator('#live-indicator').innerText(),'● LIVE');
    console.log('Failure handling passed: 451 keeps stale data, changed history clears, CORS/network empty, recovery.');
   }

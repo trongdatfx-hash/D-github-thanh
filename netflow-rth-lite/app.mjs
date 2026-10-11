@@ -1,5 +1,6 @@
 import {STEPS,composite,flowAlignment,analyze,weightedPriceBands,continuousCvdSpectrum} from './engine.mjs';
 import {load} from './data.mjs';
+import {strengthStatistics,HORIZONS,MIN_SAMPLES} from './strength-stats.mjs';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
 let chart,price,series={},marks,strengthMarks,cache=null,rows={},maps={},alignmentMap=new Map(),priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdFrame=0,controller,generation=0,loading=false,lastSuccess=null;
@@ -11,6 +12,12 @@ const flowColors={
   COMPOSITE:{up:'rgba(39,211,164,.82)',down:'rgba(255,91,116,.82)'}
 };
 const LIVE_REFRESH_MS=3000;
+let statsMap=new Map(),inspectedTime=null;
+const sourceName=key=>({SPYUSDT:'SPY',QQQUSDT:'QQQ',COMPOSITE:'Composite'}[key]);
+const signed=x=>Number.isFinite(x)?`${x>0?'+':''}${fmt(x)}`:'—';
+const returnText=x=>Number.isFinite(x)?`${x>0?'+':''}${x.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:4})}%`:'—';
+const signLabel=x=>x>0?'+':x<0?'−':'0';
+const tone=x=>x>0?'positive':x<0?'negative':'neutral';
 class VariableWidthLineRenderer{
   update(data,options){this.data=data;this.options=options;}
   draw(target,priceToCoordinate){
@@ -62,7 +69,8 @@ function init(){
   chart.panes()[0].setStretchFactor(.50);chart.panes()[1].setStretchFactor(.24);chart.panes()[2].setStretchFactor(.26);
   marks=L.createSeriesMarkers(price,[]);
   strengthMarks=L.createSeriesMarkers(series.strength,[]);
-  chart.subscribeCrosshairMove(p=>{if(p.time)showTooltip(p.time*1000);});
+  chart.subscribeCrosshairMove(p=>{if(!p.sourceEvent)return;inspectedTime=p.time?p.time*1000:null;showTooltip(inspectedTime??rows[$('symbol').value]?.at(-1)?.t);});
+  $('chart').addEventListener('pointerleave',()=>{inspectedTime=null;showTooltip(rows[$('symbol').value]?.at(-1)?.t);});
   chart.timeScale().subscribeVisibleLogicalRangeChange(scheduleCvdSpectrum);
   window.addEventListener('resize',scheduleCvdSpectrum);
   return true;
@@ -111,6 +119,7 @@ function render(fit=false){
   cvdProfile=continuousCvdSpectrum(p);cvdAnchorTime=p.at(-1)?.t??null;
   price.setData(p.map(x=>{const color=candlePalette(signals.get(x.t));return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color:color.body,wickColor:color.wick,borderColor:color.border};}));
   const alignment=flowAlignment(rows.SPYUSDT??[],rows.QQQUSDT??[],{step:STEPS[$('interval').value]});alignmentMap=new Map(alignment.map(x=>[x.t,x]));
+  statsMap=strengthStatistics({...rows,alignment},$('symbol').value,$('signal').value,STEPS[$('interval').value]);
   const priceBands=weightedPriceBands(p,STEPS[$('interval').value]);priceBandMap=new Map(priceBands.map(x=>[x.t,x]));
   series.priceMid.setData(priceLineData(priceBands,alignmentMap));series.priceUpper.setData(lineData(priceBands,'upper'));series.priceLower.setData(lineData(priceBands,'lower'));
   for(const key of Object.keys(colors))series[key].setData(flowData(rows[key]??[],key));
@@ -123,26 +132,51 @@ function render(fit=false){
   marks.setMarkers(p.flatMap(x=>{let text=null;if(x.session==='RTH'&&previousSession!=='RTH')text='RTH';else if(x.day!==previousDay)text=x.day.slice(5);previousDay=x.day;previousSession=x.session;return text?[{time:x.t/1000,position:'aboveBar',color:text==='RTH'?'#f8bc62':'#788ca5',shape:'circle',text}]:[];}));
   toggle();
   if(fit)chart.timeScale().fitContent();else if(range)chart.timeScale().setVisibleLogicalRange(range);
-  if(p.length)showTooltip(p.at(-1).t);else{$('tooltip').textContent='Chưa có dữ liệu Binance xác minh.';metrics(null);}
+  if(inspectedTime!==null&&!maps[$('symbol').value]?.has(inspectedTime))inspectedTime=null;
+  showTooltip(inspectedTime??p.at(-1)?.t);
   scheduleCvdSpectrum();
   $('export').disabled=!p.length;
 }
-function metrics(s){$('buy').textContent=fmt(s?.buy);$('sell').textContent=fmt(s?.sell);$('net').textContent=s?`${fmt(s.net)} / ${fmt(s.nf)}%`:'—';$('strength').textContent=fmt(s?.adjusted);}
+function statValue(id,text,color='neutral'){const node=$(id);node.textContent=text;node.className=color;}
+function historyText(summary){return summary?.ready?`${fmt(summary.rate)}% cùng dấu`:`Mẫu mỏng · n=${summary?.n??0}`;}
 function latestStrength(key){const data=rows[key]??[];for(let i=data.length-1;i>=0;i--)if(Number.isFinite(data[i].adjusted))return data[i].adjusted;return null;}
 function updateStrengthLabels(){
   $('strength-readout').style.display=$('show-strength').checked?'flex':'none';
   for(const [key,id,label] of [['SPYUSDT','strength-spy','SPY'],['QQQUSDT','strength-qqq','QQQ'],['COMPOSITE','strength-composite','']]){const value=latestStrength(key),node=$(id);node.textContent=label?`${label} ${fmt(value)}`:fmt(value);node.className=Number.isFinite(value)?value>=0?'positive':'negative':'missing';}
 }
 function showTooltip(t){
-  const p=maps[$('symbol').value]?.get(t),s=maps[$('signal').value]?.get(t);metrics(s);
-  const text=[new Date(t).toLocaleString('vi-VN',{timeZone:'America/New_York'})+' ET',p?`${$('symbol').value} · O ${fmt(p.o)} H ${fmt(p.h)} L ${fmt(p.l)} C ${fmt(p.c)} · ${p.end>=(cache?.serverTime??Infinity)?'ĐANG CHẠY':'ĐÃ ĐÓNG'}`:'Không có nến giá tại timestamp này'];
-  for(const key of Object.keys(colors)){const b=maps[key]?.get(t);text.push(`${key} · BuyQ ${fmt(b?.buy)} · SellQ ${fmt(b?.sell)} · NetQ ${fmt(b?.net)} USDT · NF ${fmt(b?.nf)}%`);}
-  const alignment=alignmentMap.get(t);text.push(`Dải SPY↔QQQ · ${alignment?.state??'—'} · SPY NF ${fmt(alignment?.spyNf)}% · QQQ NF ${fmt(alignment?.qqqNf)}%`);
-  text.push(`Flow mượt · SPY ${fmt(alignment?.smoothSpyNf)}% · QQQ ${fmt(alignment?.smoothQqqNf)}% · ${alignment?.detailState??'—'} · Common ${fmt(alignment?.commonNf)}% · Relative ${fmt(alignment?.relative)}% · đối nghịch ${fmt((alignment?.opposition??0)*100)}%`);
-  const cvdBin=Number.isFinite(p?.c)?Math.round(p.c/cvdProfile.binStep)*cvdProfile.binStep:null,cvdValue=cvdProfile.bins.find(x=>x.price===cvdBin)?.value;text.push(`CVD∞ gương · ${$('symbol').value} · bin ${fmt(cvdBin)} · ${fmtK(cvdValue)} USDT · tích lũy ${$('days').value} ngày đang tải`);
-  const priceBand=priceBandMap.get(t),lineWidth=$('phase-width').checked?oppositionLineWidth(alignment?.opposition??0):2;text.push(`WLR giá 50 · ${fmt(priceBand?.mid)} [${fmt(priceBand?.lower)}, ${fmt(priceBand?.upper)}] · σ ${fmt(priceBand?.sigma)} · nét ${fmt(lineWidth)}px`);
-  text.push(`${s?.session??'—'} · Strength gốc ${fmt(s?.raw)} → RTH ${fmt(s?.adjusted)} · Regression ${fmt(s?.mid)} [${fmt(s?.lower)}, ${fmt(s?.upper)}] · đủ mẫu ${fmt((s?.confidence??0)*100)}%`,s?.reason??'Thiếu timestamp chung');
-  $('tooltip').replaceChildren(...text.map(value=>{const div=document.createElement('div');div.textContent=value;return div;}));
+  const p=maps[$('symbol').value]?.get(t),record=statsMap.get(t),state=record?.state;
+  const time=p?new Date(t).toLocaleString('vi-VN',{timeZone:'America/New_York'})+' ET':'Chưa có dữ liệu';
+  const running=p&&p.end>=(cache?.serverTime??Infinity),mode=inspectedTime!==null?'NẾN ĐANG XEM':'MỚI NHẤT';
+  $('stats-latest').hidden=inspectedTime===null;
+  $('stats-context').textContent=`${mode} · ${time}${p?` · ${running?'ĐANG CHẠY':'ĐÃ ĐÓNG'} · Giá ${sourceName($('symbol').value)} / Strength ${sourceName($('signal').value)}`:''} · Thống kê mô tả, ML chưa train`;
+  if(!state){
+    for(const id of ['stat-group','stat-score','stat-pair','stat-history'])statValue(id,'—');
+    for(const id of ['stat-group-note','stat-score-note','stat-pair-note','stat-history-note'])$(id).textContent='Chờ đủ Strength và quote volume của SPY/QQQ';
+    $('tooltip').textContent=`${time} · Chưa đủ dữ liệu để chấm điểm và thống kê nhóm Strength.`;return;
+  }
+  $('stat-group').replaceChildren(...state.signs.map((s,i)=>{const span=document.createElement('span');span.className=tone(s);span.textContent=`${['S','Q','C'][i]}${signLabel(s)}`;return span;}));
+  $('stat-group-note').textContent=`${sourceName($('signal').value)} ${signed(state.value)} · ${state.session}${state.marker?' · ● >0.95':state.extreme?' · <−0.95':''}`;
+  statValue('stat-score',state.score===null?'Trung tính':`${state.score}/100`,state.score>=65?'positive':state.score<40?'negative':'neutral');
+  $('stat-score-note').textContent=`Mua ${fmt(state.buyShare*100)}% / Bán ${fmt(state.sellShare*100)}% · ${state.flowDirection===0?'Cân bằng':state.flowDirection===state.direction?'Cùng dấu':'Ngược dấu Strength'}`;
+  const a=state.alignment;
+  statValue('stat-pair',a.detailState, a.detailState==='THUẬN MUA'?'positive':a.detailState==='THUẬN BÁN'?'negative':'neutral');
+  $('stat-pair-note').textContent=`NF% mượt · S ${signed(a.smoothSpyNf)} / Q ${signed(a.smoothQqqNf)}`;
+  const h=+$('stat-horizon').value,history=record.stats[h];
+  statValue('stat-history',state.direction?historyText(history):'Strength bằng 0',history.ready?tone(history.mean):'neutral');
+  $('stat-history-note').textContent=`n=${history.n} · ${history.scope==='detail'?'Cùng điểm & dải':'Cùng nhóm dấu / phiên'}${history.ready?` · TB ${returnText(history.mean)}`:` · cần ≥${MIN_SAMPLES}`}`;
+  const text=[`${time} · ${state.session} · Giá ${sourceName($('symbol').value)}, dấu từ ${sourceName($('signal').value)}${running?' · Nến đang chạy: điểm tạm thời, lịch sử so sánh dùng nến đóng':''}`,
+    `Điểm xác nhận ${state.score??'—'}/100 = Taker ${fmt(state.taker)}/50 + Dải ${fmt(state.pair)}/30 + |Strength| ${fmt(state.strength)}/20. Điểm theo quy tắc, không phải xác suất thắng.`,
+    `So sánh mẫu có cùng dấu S/Q/C và cùng phiên. Ưu tiên cùng nhóm điểm, trạng thái dải và độ cực trị nếu đủ ${MIN_SAMPLES} mẫu; nếu thiếu thì mở rộng về nhóm dấu/phiên và ghi rõ ở bảng.`];
+  const nodes=text.map(value=>{const div=document.createElement('div');div.textContent=value;return div;});
+  const table=document.createElement('table');table.className='stats-table';
+  const header=table.createTHead().insertRow();for(const title of ['Sau','Nhóm / n','Cùng dấu','TB theo dấu','So với nền']){const th=document.createElement('th');th.textContent=title;header.append(th);}
+  const body=table.createTBody();
+  for(const horizon of HORIZONS){const s=record.stats[horizon],row=body.insertRow();row.classList.toggle('selected',horizon===h);
+    for(const value of [`${horizon} nến`,`${s.scope==='detail'?'Điểm & dải':'Dấu / phiên'} · ${s.n}`,s.ready?`${fmt(s.rate)}%`:'Mẫu mỏng',s.ready?returnText(s.mean):'—',s.lift===null?'—':`${signed(s.lift)} đpt · n=${s.baseline.n}`])row.insertCell().textContent=value;
+  }
+  const note=document.createElement('div');note.className='stats-note';note.textContent='Đo close → close sau 1/3/6 nến theo dấu Strength; loại đoạn mất nến/đổi phiên/ngày. Các cửa sổ kết quả trong mỗi nhóm không chồng nhau, chỉ tính kết quả đã đóng trước nến đang xem. Nền = cùng phiên và cùng dấu nguồn. Chưa trừ phí; đây là thống kê lịch sử, chưa phải backtest chiến lược.';
+  $('tooltip').replaceChildren(...nodes,table,note);
 }
 function toggle(){
   for(const [id,key] of [['spy','SPYUSDT'],['qqq','QQQUSDT'],['composite','COMPOSITE'],['show-strength','strength']])series[key].applyOptions({visible:$(id).checked});
@@ -158,7 +192,7 @@ function toggle(){
 async function refresh(clear=false){
   controller?.abort();controller=new AbortController();const gen=++generation;
   loading=true;$('refresh').disabled=true;
-  if(clear){cache=null;rows={};maps={};lastSuccess=null;render(true);}
+  if(clear){cache=null;rows={};maps={};lastSuccess=null;inspectedTime=null;render(true);}
   const interval=$('interval').value,days=+$('days').value;
   status(`Đang xác minh SPYUSDT/QQQUSDT và tải ${interval} · ${days} ngày…`);
   try{
@@ -196,5 +230,7 @@ if(init()){
   $('fit').onclick=fitChart;$('chart-fit').onclick=fitChart;$('fullscreen').onclick=toggleFullChart;
   document.addEventListener('fullscreenchange',syncFullChart);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.querySelector('.chart-card').classList.contains('fullscreen-fallback')){document.querySelector('.chart-card').classList.remove('fullscreen-fallback');syncFullChart();}});
   $('export').onclick=exportCSV;
+  $('stat-horizon').onchange=()=>showTooltip(inspectedTime??rows[$('symbol').value]?.at(-1)?.t);
+  $('stats-latest').onclick=()=>{inspectedTime=null;showTooltip(rows[$('symbol').value]?.at(-1)?.t);};
   setLive(false);refresh(true);setInterval(()=>{if(lastSuccess&&Date.now()-lastSuccess>15000)setLive(false);if(!document.hidden&&!loading)refresh();},LIVE_REFRESH_MS);
 }

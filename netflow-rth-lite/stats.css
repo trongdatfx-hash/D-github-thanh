@@ -1,0 +1,16 @@
+.strength-metrics article{min-width:0;padding:10px 12px}
+.strength-metrics strong{font-size:17px;line-height:1.3;overflow-wrap:anywhere}
+.strength-metrics small{font-size:11px;line-height:1.4}
+.metric-note{display:block;color:#9bacc2;font-size:11px;line-height:1.5;margin-top:5px;overflow-wrap:anywhere}
+.metric-heading{display:flex;align-items:center;justify-content:space-between;gap:5px;min-height:19px}
+.metric-heading select{font-size:10px;padding:2px 4px;max-width:82px;border-radius:4px}
+#stat-group{display:flex;gap:12px;align-items:center}
+#stat-pair{font-size:14px;min-height:22px}
+.strength-metrics .positive{color:#1ae0a3}.strength-metrics .negative{color:#ff6383}.strength-metrics .neutral{color:#f2c46d}
+.stats-caption{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:8px;color:#91a5bd;font-size:11px;line-height:1.5}
+.stats-caption button{font-size:10px;padding:3px 7px;white-space:nowrap}
+.stats-table{width:100%;border-collapse:collapse;margin:8px 0;font-size:12px;text-align:left}
+.stats-table th,.stats-table td{padding:6px 8px;border-bottom:1px solid #26364a;font-variant-numeric:tabular-nums}
+.stats-table th{color:#9bacc2;font-weight:500}.stats-table .selected{background:#18273a;color:#e6f2ff}
+.stats-note{color:#91a5bd;font-size:11px;line-height:1.6}
+@media(max-width:650px){.strength-metrics{gap:7px}.strength-metrics article{padding:9px}.strength-metrics strong{font-size:15px}#stat-pair{font-size:12px}.metric-heading{flex-wrap:wrap}.stats-table{font-size:10px}.stats-table th,.stats-table td{padding:4px 3px}.stats-caption{align-items:flex-start}#stat-group{gap:9px}}

@@ -70,3 +70,21 @@ test('validation and parallel pagination include the live bar, then fetch only t
   const result=await load('15m',14,{get});assert.deepEqual(result.SPYUSDT,liveA);assert.deepEqual(result.QQQUSDT,liveB);assert(requests>=4);assert.equal(result.incremental,false);
   requests=0;const updated=await load('15m',14,{get,previous:result});assert.deepEqual(updated.SPYUSDT,liveA);assert.deepEqual(updated.QQQUSDT,liveB);assert.equal(updated.incremental,true);assert.equal(requests,2);
 });
+test('refresh finalizes the previously open candle at rollover before keeping history',async()=>{
+  const step=STEPS['15m'],symbols=read('../symbol-validation.json'),original=spy.at(-1),start=+original[0];
+  let serverTime=start+1000,finalized=false;
+  const get=async path=>{
+    if(path.endsWith('exchangeInfo'))return {symbols};if(path.endsWith('/time'))return {serverTime};
+    const u=new URL(path,'https://example.test'),old=[...original],next=[...original];
+    if(finalized){old[7]=String(+old[7]+100);old[10]=String(+old[10]+80);}
+    next[0]=start+step;next[6]=start+2*step-1;
+    return (finalized?[old,next]:[old]).filter(k=>+k[0]>=+u.searchParams.get('startTime')&&+k[0]<=+u.searchParams.get('endTime'));
+  };
+  const before=await load('15m',7,{get});finalized=true;serverTime=start+step+1000;
+  const after=await load('15m',7,{get,previous:before});
+  for(const symbol of ['SPYUSDT','QQQUSDT']){
+    assert.equal(after[symbol].length,2);assert.equal(after[symbol][0].q,before[symbol][0].q+100);
+    assert.equal(after[symbol][0].buy,before[symbol][0].buy+80);assert.equal(after[symbol][1].t,start+step);
+    assert.equal(before[symbol][0].q,+original[7]);
+  }
+});
