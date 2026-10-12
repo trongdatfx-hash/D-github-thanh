@@ -66,11 +66,20 @@ test('historical outcome uses selected price symbol and the selected Strength si
   const qqq=strengthStatistics(rows,'QQQUSDT','COMPOSITE',step,{minSamples:1}).get(rows.SPYUSDT.at(-1).t).stats[3];
   assert.equal(spy.rate,0);assert(spy.mean<0);assert.equal(qqq.rate,100);assert(qqq.mean>0);
 });
+test('remembered outcomes extend cohorts without leaking into overlapping loaded history',()=>{
+  const rows=fixture(),plain=strengthStatistics(rows,'SPYUSDT','COMPOSITE',step,{minSamples:1});
+  const state=plain.get(rows.SPYUSDT.at(-1).t).state,old={h:3,entryTime:base-10*step,exitTime:base-7*step,availableAt:base-7*step+step-1,groupKey:state.groupKey,detailKey:state.detailKey,baselineKey:state.baselineKey,value:1};
+  const remembered=strengthStatistics(rows,'SPYUSDT','COMPOSITE',step,{minSamples:1,memory:[old]});
+  assert.equal(remembered.get(rows.SPYUSDT.at(-1).t).stats[3].n,plain.get(rows.SPYUSDT.at(-1).t).stats[3].n+1);assert.equal(remembered.rememberedSamples,1);
+  const overlap={...old,entryTime:base,exitTime:base+3*step,availableAt:base+4*step-1};
+  assert.equal(strengthStatistics(rows,'SPYUSDT','COMPOSITE',step,{minSamples:1,memory:[overlap]}).rememberedSamples,0);
+});
 test('TREND6 scores the trailing cluster and ranks it only against completed sign-change clusters',()=>{
   const rows=trendFixture(120),trend=trendStrength6(rows,'COMPOSITE',step,{minHistory:2}),last=trend.get(rows.COMPOSITE.at(-1).t);
   assert.equal(TREND_WINDOW,6);assert.equal(TREND_MIN_HISTORY,30);assert(last);assert(last.ready);assert(last.n>=2);assert.match(last.label,/^[↑↓] /);
   assert(last.score>=0&&last.score<=100);assert(last.percentile>=0&&last.percentile<=100);
   assert.equal(last.raw,Math.round(Object.values(last.components).reduce((a,b)=>a+b,0)));
+  assert(last.stableScore>=0&&last.stableScore<=100);assert(Number.isFinite(last.stablePercentile));assert.equal(last.smoothed,true);
   const recent=rows.COMPOSITE.slice(-6),buyTotal=recent.reduce((sum,x)=>sum+x.buy,0),sellTotal=recent.reduce((sum,x)=>sum+x.sell,0);
   assert.equal(last.buyTotal,buyTotal);assert.equal(last.sellTotal,sellTotal);assert.equal(last.netTotal,buyTotal-sellTotal);
   assert(last.components.consensus<=25);assert(last.components.taker<=20);assert(last.raw<=100);
