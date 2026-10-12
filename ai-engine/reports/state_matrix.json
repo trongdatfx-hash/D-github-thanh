@@ -1,8 +1,8 @@
 {
   "schema_version": "state-matrix-v1",
-  "generated_at": 1791820810545,
-  "data_as_of": 1791820800000,
-  "model_trained_at": 1791820803230,
+  "generated_at": 1791845109047,
+  "data_as_of": 1791845100000,
+  "model_trained_at": 1791845104873,
   "stale": false,
   "live_rest_available": false,
   "live_market_available": true,
@@ -21,7 +21,7 @@
       "minutes": 15,
       "bars": 1,
       "phase": "NEUTRAL",
-      "score": 0.11173184357541888,
+      "score": 0.11174432897530506,
       "signal": "WAIT",
       "groups": [
         {
@@ -30,7 +30,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.15485123808836776,
+          "weight": 0.1548604644309869,
           "coverage": 0.3333333333333333
         },
         {
@@ -39,7 +39,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.27720414185777603,
+          "weight": 0.277188364861149,
           "coverage": 0.14285714285714285
         },
         {
@@ -48,7 +48,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.13797798094935954,
+          "weight": 0.1379906554142499,
           "coverage": 0.0
         },
         {
@@ -57,7 +57,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.2125941062102351,
+          "weight": 0.2125915325507601,
           "coverage": 0.3333333333333333
         },
         {
@@ -66,7 +66,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.2173725328942616,
+          "weight": 0.21736898274285413,
           "coverage": 0.2857142857142857
         }
       ]
@@ -75,7 +75,7 @@
       "minutes": 30,
       "bars": 2,
       "phase": "NEUTRAL",
-      "score": -0.10059237733318072,
+      "score": -0.10059237733318904,
       "signal": "WAIT",
       "groups": [
         {
@@ -84,7 +84,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.13241845961716786,
+          "weight": 0.13378750619594607,
           "coverage": 0.3333333333333333
         },
         {
@@ -93,7 +93,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.2912207115528166,
+          "weight": 0.29167006063311207,
           "coverage": 0.14285714285714285
         },
         {
@@ -102,7 +102,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.12104770777808385,
+          "weight": 0.12454185028958953,
           "coverage": 0.0
         },
         {
@@ -111,7 +111,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.2057543372619685,
+          "weight": 0.20382594741503107,
           "coverage": 0.3333333333333333
         },
         {
@@ -120,7 +120,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.2495587837899632,
+          "weight": 0.24617463546632135,
           "coverage": 0.2857142857142857
         }
       ]
@@ -129,7 +129,7 @@
       "minutes": 60,
       "bars": 4,
       "phase": "NEUTRAL",
-      "score": 0.20129724893759582,
+      "score": 0.17893088794452838,
       "signal": "WAIT",
       "groups": [
         {
@@ -138,7 +138,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.14255218867160732,
+          "weight": 0.14103939995049375,
           "coverage": 0.3333333333333333
         },
         {
@@ -147,7 +147,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.33384584789454413,
+          "weight": 0.33196219759809603,
           "coverage": 0.14285714285714285
         },
         {
@@ -156,7 +156,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.13001582307001697,
+          "weight": 0.12431804731030636,
           "coverage": 0.0
         },
         {
@@ -165,7 +165,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.19386031490060165,
+          "weight": 0.2068788776563951,
           "coverage": 0.3333333333333333
         },
         {
@@ -174,7 +174,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.1997258254632299,
+          "weight": 0.19580147748470875,
           "coverage": 0.2857142857142857
         }
       ]
@@ -183,7 +183,7 @@
       "minutes": 120,
       "bars": 8,
       "phase": "NEUTRAL",
-      "score": 0.9852216748768433,
+      "score": 0.9740259740259688,
       "signal": "WAIT",
       "groups": [
         {
@@ -201,7 +201,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.3005324027093323,
+          "weight": 0.33192507935395477,
           "coverage": 0.14285714285714285
         },
         {
@@ -210,7 +210,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.23101763697957986,
+          "weight": 0.22708488155832626,
           "coverage": 0.0
         },
         {
@@ -219,7 +219,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.25915001230203527,
+          "weight": 0.23337329115089522,
           "coverage": 0.3333333333333333
         },
         {
@@ -228,7 +228,7 @@
           "phase": "NEUTRAL",
           "score": 0.0,
           "available": false,
-          "weight": 0.20929994800905247,
+          "weight": 0.20761674793682378,
           "coverage": 0.2857142857142857
         }
       ]
