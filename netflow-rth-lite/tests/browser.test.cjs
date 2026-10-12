@@ -35,7 +35,7 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   assert.match(await page.locator('#trend-strength').innerText(),/^TREND6 [↑↓] .+ \d+ · P(?:—|\d+) · n=\d+$/);
   const trendBox=await page.locator('#trend-strength').boundingBox(),chartBox=await page.locator('#chart').boundingBox();
   assert(trendBox.x+trendBox.width<=chartBox.x+chartBox.width);assert(trendBox.y-chartBox.y>chartBox.height*.35);assert(trendBox.y+trendBox.height<chartBox.y+chartBox.height*.65);
-  assert.match(await page.locator('#reversal-readout').innerText(),/^REV6→2 /);
+  assert.match(await page.locator('#reversal-readout').innerText(),/^REV6 V2→2 /);
   assert.equal(await page.locator('#live-indicator').innerText(),'● LIVE');assert(await page.locator('#live-indicator').evaluate(el=>el.classList.contains('live')));
   assert.equal(await page.locator('#days').inputValue(),'30');
   for(const id of ['spy','qqq','relative'])assert.equal(await page.locator('#'+id).isChecked(),false);

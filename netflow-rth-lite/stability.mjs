@@ -1,4 +1,4 @@
-const numericFields=['low','level','high','supportLow','supportLevel','supportHigh','resistanceLow','resistanceLevel','resistanceHigh','rate','lower','baselineRate','uplift','similarity'];
+const numericFields=['low','level','high','supportLow','supportLevel','supportHigh','resistanceLow','resistanceLevel','resistanceHigh','rate','lower','baselineRate','uplift','similarity','effectiveN','bandwidth'];
 const blend=(from,to,alpha)=>Number.isFinite(from)&&Number.isFinite(to)?from+alpha*(to-from):to;
 
 // Stateful live-bar stabilizer. It never reads future candles: each update is
