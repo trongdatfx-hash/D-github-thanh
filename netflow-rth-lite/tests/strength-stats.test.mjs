@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {strengthState,strengthStatistics,trendStrength6,MIN_SAMPLES,TREND_WINDOW} from '../strength-stats.mjs';
+import {strengthState,strengthStatistics,trendStrength6,MIN_SAMPLES,TREND_WINDOW,TREND_MIN_HISTORY} from '../strength-stats.mjs';
 const step=300000,base=Date.parse('2026-10-05T14:00:00Z');
 function fixture(n=100){
   const bars=Array.from({length:n},(_,i)=>({t:base+i*step,end:base+(i+1)*step-1,day:'2026-10-05',session:'RTH',c:100+i,q:100,buy:75,sell:25,net:50,nf:50,adjusted:.8}));
@@ -68,9 +68,12 @@ test('historical outcome uses selected price symbol and the selected Strength si
 });
 test('TREND6 scores the trailing cluster and ranks it only against completed sign-change clusters',()=>{
   const rows=trendFixture(120),trend=trendStrength6(rows,'COMPOSITE',step,{minHistory:2}),last=trend.get(rows.COMPOSITE.at(-1).t);
-  assert.equal(TREND_WINDOW,6);assert(last);assert(last.ready);assert(last.n>=2);assert.match(last.label,/^[↑↓] /);
+  assert.equal(TREND_WINDOW,6);assert.equal(TREND_MIN_HISTORY,30);assert(last);assert(last.ready);assert(last.n>=2);assert.match(last.label,/^[↑↓] /);
   assert(last.score>=0&&last.score<=100);assert(last.percentile>=0&&last.percentile<=100);
   assert.equal(last.raw,Math.round(Object.values(last.components).reduce((a,b)=>a+b,0)));
+  const recent=rows.COMPOSITE.slice(-6),buyTotal=recent.reduce((sum,x)=>sum+x.buy,0),sellTotal=recent.reduce((sum,x)=>sum+x.sell,0);
+  assert.equal(last.buyTotal,buyTotal);assert.equal(last.sellTotal,sellTotal);assert.equal(last.netTotal,buyTotal-sellTotal);
+  assert(last.components.consensus<=25);assert(last.components.taker<=20);assert(last.raw<=100);
   assert(last.components.persistence>0);assert(last.components.taker>0);assert(last.components.pair>0);assert(last.components.consensus>0);
 });
 test('TREND6 has no future leakage and rejects a broken six-candle window',()=>{

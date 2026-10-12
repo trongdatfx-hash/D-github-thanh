@@ -2,7 +2,7 @@
 export const HORIZONS=[1,3,6];
 export const MIN_SAMPLES=20;
 export const TREND_WINDOW=6;
-export const TREND_MIN_HISTORY=10;
+export const TREND_MIN_HISTORY=30;
 const keys=['SPYUSDT','QQQUSDT','COMPOSITE'];
 const clamp=x=>Math.max(0,Math.min(1,x));
 const sign=x=>x>0?1:x<0?-1:0;
@@ -75,15 +75,20 @@ export function strengthStatistics(rows,priceSymbol,source,step,{minSamples=MIN_
 function trendCluster(sample,source){
   const direction=sign(sample.at(-1).bars[source].adjusted);
   if(!direction)return null;
-  const alignedShare=sample.reduce((sum,x)=>sum+(direction>0?x.bars[source].buy:x.bars[source].sell)/x.bars[source].q,0)/sample.length;
+  const buyTotal=sample.reduce((sum,x)=>sum+x.bars[source].buy,0);
+  const sellTotal=sample.reduce((sum,x)=>sum+x.bars[source].sell,0);
+  const quoteTotal=buyTotal+sellTotal;
+  if(!(quoteTotal>0))return null;
+  const netTotal=buyTotal-sellTotal,netShare=netTotal/quoteTotal;
+  const alignedShare=direction>0?buyTotal/quoteTotal:sellTotal/quoteTotal;
   const persistence=sample.reduce((sum,x)=>sum+(sign(x.bars[source].adjusted)===direction?1:0),0)/sample.length;
   const magnitude=sample.reduce((sum,x)=>sum+clamp(direction*x.bars[source].adjusted),0)/sample.length;
   const slope=clamp(.5+direction*(sample.at(-1).bars[source].adjusted-sample[0].bars[source].adjusted)/2);
   const pair=sample.reduce((sum,x)=>sum+(clamp((1+direction*x.alignment.smoothSpyNf/50)/2)+clamp((1+direction*x.alignment.smoothQqqNf/50)/2))/2,0)/sample.length;
   const consensus=sample.reduce((sum,x)=>sum+keys.reduce((n,k)=>n+(sign(x.bars[k].adjusted)===direction?1:0),0)/(keys.length*sample.length),0);
-  const components={persistence:25*persistence,magnitude:20*magnitude,slope:10*slope,taker:25*clamp((alignedShare-.4)/.3),pair:10*pair,consensus:10*consensus};
+  const components={persistence:20*persistence,magnitude:15*magnitude,slope:10*slope,taker:20*clamp((direction*netShare+.2)/.6),pair:10*pair,consensus:25*consensus};
   const raw=Math.round(Object.values(components).reduce((a,b)=>a+b,0));
-  return {direction,raw,components,alignedShare,persistence,magnitude,slope,pair,consensus};
+  return {direction,raw,components,buyTotal,sellTotal,netTotal,netShare,alignedShare,persistence,magnitude,slope,pair,consensus};
 }
 
 function trendLabel(score,direction){
