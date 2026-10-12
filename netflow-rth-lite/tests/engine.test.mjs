@@ -1,6 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
 import {STEPS,parseKlines,composite,flowAlignment,calculateStrength,analyze,regression,weightedPriceBands,continuousCvdSpectrum,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
 import {load} from '../data.mjs';
+import {isUsMarketHoliday,isUsMarketTradingDay} from '../market-calendar.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL(p,import.meta.url),'utf8').replace(/^\uFEFF/,''));
 const now=read('../../netflow-ml/tests/fixtures/time.json').serverTime;
 const spy=read('../../netflow-ml/tests/fixtures/SPYUSDT.json'),qqq=read('../../netflow-ml/tests/fixtures/QQQUSDT.json');
@@ -59,6 +60,10 @@ test('continuous CVD spectrum accumulates quote delta by mirrored price bins',()
 });
 test('NY DST, RTH edges and weekend',()=>{
   assert.equal(sessionAt(Date.parse('2026-10-07T13:30:00Z')).session,'RTH');assert.equal(sessionAt(Date.parse('2026-10-07T20:00:00Z')).session,'POST');assert.equal(sessionAt(Date.parse('2026-01-07T14:30:00Z')).session,'RTH');assert.equal(sessionAt(Date.parse('2026-10-10T14:30:00Z')).session,'WEEKEND');assert.equal(modelStatus.trained,false);
+});
+test('NYSE calendar excludes weekends and scheduled full-day holidays',()=>{
+  for(const day of ['2026-01-01','2026-01-19','2026-04-03','2026-05-25','2026-06-19','2026-07-03','2026-09-07','2026-11-26','2026-12-25'])assert.equal(isUsMarketHoliday(day),true,day);
+  assert.equal(isUsMarketTradingDay('2026-10-10'),false);assert.equal(isUsMarketTradingDay('2026-10-11'),false);assert.equal(isUsMarketTradingDay('2026-10-12'),true);
 });
 test('validation and parallel pagination include the live bar, then fetch only the tail',async()=>{
   const symbols=read('../symbol-validation.json');for(const s of ['SPYUSDT','QQQUSDT'])assert.equal(validateSymbol({symbols},s).status,'TRADING');assert.throws(()=>validateSymbol({symbols:[]},'SPYUSDT'));

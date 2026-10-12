@@ -90,3 +90,9 @@ test('a sign-change cluster enters TREND6 history only after all six bars finish
   const at17=trend.get(rows.COMPOSITE[17].t);assert.equal(at17.n,1);assert.equal(at17.scope,'all-signs');assert(at17.ready);
   const at23=trend.get(rows.COMPOSITE[23].t);assert.equal(at23.n,1);assert.equal(at23.scope,'same-sign');
 });
+test('TREND6 excludes weekend and NYSE-holiday six-bar clusters',()=>{
+  for(const day of ['2026-10-10','2026-12-25']){
+    const rows=trendFixture(90);for(const key of ['SPYUSDT','QQQUSDT','COMPOSITE'])for(const bar of rows[key].slice(-6)){bar.day=day;bar.session=day==='2026-10-10'?'WEEKEND':'RTH';}
+    assert.equal(trendStrength6(rows,'COMPOSITE',step).get(rows.COMPOSITE.at(-1).t),null);
+  }
+});

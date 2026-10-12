@@ -1,4 +1,5 @@
 // Descriptive, causal statistics. The score uses fixed rules; no trained model.
+import {eligibleMarketBar} from './market-calendar.mjs';
 export const HORIZONS=[1,3,6];
 export const MIN_SAMPLES=20;
 export const TREND_WINDOW=6;
@@ -103,7 +104,7 @@ export function trendStrength6(rows,source,step,{window=TREND_WINDOW,minHistory=
   if(!keys.includes(source)||!Number.isFinite(step)||step<=0||!Number.isInteger(window)||window<2||!Number.isInteger(minHistory)||minHistory<1)throw Error('Tham số Trend Strength không hợp lệ');
   const signal=rows[source]??[],maps=Object.fromEntries(keys.map(k=>[k,new Map((rows[k]??[]).map(b=>[b.t,b]))])),alignmentMap=new Map((rows.alignment??[]).map(x=>[x.t,x]));
   const items=signal.map(b=>({t:b.t,bars:Object.fromEntries(keys.map(k=>[k,maps[k].get(b.t)])),alignment:alignmentMap.get(b.t)}));
-  const valid=x=>x?.alignment&&keys.every(k=>Number.isFinite(x.bars[k]?.adjusted))&&[x.bars[source]?.q,x.bars[source]?.buy,x.bars[source]?.sell,x.alignment.smoothSpyNf,x.alignment.smoothQqqNf].every(Number.isFinite)&&x.bars[source].q>0;
+  const valid=x=>x?.alignment&&keys.every(k=>eligibleMarketBar(x.bars[k])&&Number.isFinite(x.bars[k]?.adjusted))&&[x.bars[source]?.q,x.bars[source]?.buy,x.bars[source]?.sell,x.alignment.smoothSpyNf,x.alignment.smoothQqqNf].every(Number.isFinite)&&x.bars[source].q>0;
   const clusterAt=end=>{
     if(end<window-1)return null;const sample=items.slice(end-window+1,end+1);
     if(!sample.every(valid))return null;

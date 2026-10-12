@@ -5,7 +5,7 @@ import {reversalZone,REVERSAL_WINDOW,REVERSAL_HORIZON} from '../reversal-zone.mj
 const step=300000,base=Date.parse('2026-08-01T00:00:00Z');
 function patterned(cycles=35){
   const price=[],signal=[];let close=100,index=0;
-  const add=(move,strength,wick=.08)=>{const o=close,c=close+move,h=Math.max(o,c)+wick,l=Math.min(o,c)-wick,t=base+index++*step;close=c;price.push({t,end:t+step-1,o,h,l,c});signal.push({t,adjusted:strength});};
+  const add=(move,strength,wick=.08)=>{const o=close,c=close+move,h=Math.max(o,c)+wick,l=Math.min(o,c)-wick,t=base+index++*step;close=c;price.push({t,end:t+step-1,o,h,l,c,day:'2026-08-03',session:'RTH'});signal.push({t,adjusted:strength});};
   for(let cycle=0;cycle<cycles;cycle++){
     for(let i=0;i<12;i++)add(.04,.22+(i%3)*.01);
     for(let i=0;i<6;i++)add(.32+.05*i,.32+.09*i,.06+.02*i);
@@ -31,4 +31,11 @@ test('REV6 validates its configuration and price/source roles',()=>{
   const rows=patterned(3);
   assert.throws(()=>reversalZone(rows,'COMPOSITE','SPYUSDT',step),/không hợp lệ/);
   assert.throws(()=>reversalZone(rows,'SPYUSDT','COMPOSITE',0),/không hợp lệ/);
+});
+test('REV6 rejects weekend and NYSE-holiday candles from current and reference clusters',()=>{
+  for(const day of ['2026-10-10','2026-12-25']){
+    const rows=patterned();for(const bar of rows.SPYUSDT.slice(-6))bar.day=day;
+    assert.equal(reversalZone(rows,'SPYUSDT','COMPOSITE',step).ready,false);
+    assert.equal(reversalZone(rows,'SPYUSDT','COMPOSITE',step).reason,'window');
+  }
 });

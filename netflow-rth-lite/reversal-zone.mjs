@@ -1,6 +1,7 @@
 // Causal nearest-neighbour estimate for a price zone where the selected
 // Strength source historically changed sign. This is descriptive statistics,
 // not a trained model or a probability calibrated out of sample.
+import {eligibleMarketBar} from './market-calendar.mjs';
 export const REVERSAL_WINDOW=6;
 export const REVERSAL_HORIZON=2;
 export const REVERSAL_NEIGHBORS=40;
@@ -56,13 +57,14 @@ export function reversalZone(rows,priceSymbol,source,step,{window=REVERSAL_WINDO
   const items=price.map(bar=>({price:bar,strength:signalMap.get(bar.t)})),currentEnd=items.length-1,currentStart=currentEnd-window+1;
   if(currentStart<0)return {ready:false,reason:'window',n:0};
   const currentSample=items.slice(currentStart,currentEnd+1),direction=sign(currentSample.at(-1)?.strength?.adjusted);
-  if(!direction||!currentSample.every(x=>x.strength)||!continuous(currentSample,step))return {ready:false,reason:'window',n:0};
+  if(!direction||!currentSample.every(x=>x.strength&&eligibleMarketBar(x.price))||!continuous(currentSample,step))return {ready:false,reason:'window',n:0};
   const currentShape=shape(currentSample,direction);if(!currentShape)return {ready:false,reason:'window',n:0};
   const candidates=[];
   for(let end=window-1;end+horizon<currentStart;end++){
     const sample=items.slice(end-window+1,end+1),candidateDirection=sign(sample.at(-1)?.strength?.adjusted);
-    if(candidateDirection!==direction||!sample.every(x=>x.strength)||!continuous(sample,step))continue;
+    if(candidateDirection!==direction||!sample.every(x=>x.strength&&eligibleMarketBar(x.price))||!continuous(sample,step))continue;
     const future=items.slice(end+1,end+horizon+1);if(future.length<horizon||!future.every(x=>x.strength)||!continuous([items[end],...future],step))continue;
+    if(!future.every(x=>eligibleMarketBar(x.price)))continue;
     const candidateShape=shape(sample,direction);if(!candidateShape)continue;
     const reverseOffset=future.findIndex(x=>sign(x.strength.adjusted)===-direction)+1,reversed=reverseOffset>0;
     let levelRatio=null;
