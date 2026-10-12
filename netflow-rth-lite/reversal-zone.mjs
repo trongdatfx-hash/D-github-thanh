@@ -67,18 +67,30 @@ export function reversalZone(rows,priceSymbol,source,step,{window=REVERSAL_WINDO
     if(!future.every(x=>eligibleMarketBar(x.price)))continue;
     const candidateShape=shape(sample,direction);if(!candidateShape)continue;
     const reverseOffset=future.findIndex(x=>sign(x.strength.adjusted)===-direction)+1,reversed=reverseOffset>0;
-    let levelRatio=null;
+    let supportRatio=null,resistanceRatio=null;
     if(reversed){
-      const turnBars=items.slice(end-window+1,end+reverseOffset+1).map(x=>x.price),turn=direction>0?Math.max(...turnBars.map(x=>x.h)):Math.min(...turnBars.map(x=>x.l));
-      levelRatio=clamp(direction*(turn-items[end].price.c)/candidateShape.atr/6)*6;
+      // Only use prices known from the close of the six-bar cluster through
+      // the bar where Strength first changes sign. Both sides are retained:
+      // the high is resistance and the low is support, regardless of the
+      // incoming Strength direction.
+      const turnBars=items.slice(end,end+reverseOffset+1).map(x=>x.price),anchor=items[end].price.c;
+      const turnHigh=Math.max(...turnBars.map(x=>x.h)),turnLow=Math.min(...turnBars.map(x=>x.l));
+      resistanceRatio=clamp((turnHigh-anchor)/candidateShape.atr/6)*6;
+      supportRatio=clamp((anchor-turnLow)/candidateShape.atr/6)*6;
     }
-    candidates.push({end,reversed,levelRatio,distance:distance(currentShape.features,candidateShape.features)});
+    candidates.push({end,reversed,supportRatio,resistanceRatio,distance:distance(currentShape.features,candidateShape.features)});
   }
   const chronological=nonOverlapping([...candidates].sort((a,b)=>a.end-b.end),Infinity,window),baselineEvents=chronological.reduce((sum,x)=>sum+x.reversed,0),baselineN=chronological.length,baselineRate=baselineN?baselineEvents/baselineN:null;
-  const matched=nonOverlapping([...candidates].sort((a,b)=>a.distance-b.distance||b.end-a.end),neighbors,window),events=matched.filter(x=>x.reversed&&Number.isFinite(x.levelRatio)),n=matched.length,eventCount=events.length,rate=n?eventCount/n:null,lower=wilsonLower(eventCount,n),uplift=rate!==null&&baselineRate!==null?rate-baselineRate:null;
+  const matched=nonOverlapping([...candidates].sort((a,b)=>a.distance-b.distance||b.end-a.end),neighbors,window),events=matched.filter(x=>x.reversed&&Number.isFinite(x.supportRatio)&&Number.isFinite(x.resistanceRatio)),n=matched.length,eventCount=events.length,rate=n?eventCount/n:null,lower=wilsonLower(eventCount,n),uplift=rate!==null&&baselineRate!==null?rate-baselineRate:null;
   const statisticallyReady=n>=minMatches&&eventCount>=minEvents&&baselineN>=minMatches&&uplift>=.08&&lower>baselineRate;
-  const ratios=events.map(x=>x.levelRatio),q25=quantile(ratios,.25),median=quantile(ratios,.5),q75=quantile(ratios,.75),last=price.at(-1);
-  if(!statisticallyReady||![q25,median,q75,last?.c].every(Number.isFinite))return {ready:false,reason:n<minMatches?'matches':eventCount<minEvents?'events':'confidence',direction,n,eventCount,rate,lower,baselineRate,baselineN,uplift,similarity:matched.length?1-matched.reduce((sum,x)=>sum+x.distance,0)/matched.length:null};
-  const projected=[last.c+direction*q25*currentShape.atr,last.c+direction*median*currentShape.atr,last.c+direction*q75*currentShape.atr],low=Math.min(...projected),high=Math.max(...projected),level=projected[1];
-  return {ready:true,direction,n,eventCount,rate,lower,baselineRate,baselineN,uplift,low,level,high,start:last.t,end:last.t+horizon*step,similarity:1-matched.reduce((sum,x)=>sum+x.distance,0)/matched.length};
+  const supportRatios=events.map(x=>x.supportRatio),resistanceRatios=events.map(x=>x.resistanceRatio),last=price.at(-1);
+  const supportQ=[quantile(supportRatios,.25),quantile(supportRatios,.5),quantile(supportRatios,.75)],resistanceQ=[quantile(resistanceRatios,.25),quantile(resistanceRatios,.5),quantile(resistanceRatios,.75)];
+  if(!statisticallyReady||![...supportQ,...resistanceQ,last?.c].every(Number.isFinite))return {ready:false,reason:n<minMatches?'matches':eventCount<minEvents?'events':'confidence',direction,n,eventCount,rate,lower,baselineRate,baselineN,uplift,similarity:matched.length?1-matched.reduce((sum,x)=>sum+x.distance,0)/matched.length:null};
+  const supportProjected=supportQ.map(ratio=>last.c-ratio*currentShape.atr),resistanceProjected=resistanceQ.map(ratio=>last.c+ratio*currentShape.atr);
+  const supportLow=Math.min(...supportProjected),supportLevel=supportProjected[1],supportHigh=Math.max(...supportProjected);
+  const resistanceLow=Math.min(...resistanceProjected),resistanceLevel=resistanceProjected[1],resistanceHigh=Math.max(...resistanceProjected);
+  // Keep the legacy primary zone fields for callers that still select a zone
+  // by incoming direction; the chart consumes both explicit zones below.
+  const primary=direction>0?[resistanceLow,resistanceLevel,resistanceHigh]:[supportLow,supportLevel,supportHigh];
+  return {ready:true,direction,n,eventCount,rate,lower,baselineRate,baselineN,uplift,low:primary[0],level:primary[1],high:primary[2],supportLow,supportLevel,supportHigh,resistanceLow,resistanceLevel,resistanceHigh,start:last.t,end:last.t+horizon*step,similarity:1-matched.reduce((sum,x)=>sum+x.distance,0)/matched.length};
 }

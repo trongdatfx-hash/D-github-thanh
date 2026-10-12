@@ -15,12 +15,23 @@ function patterned(cycles=35){
   for(let i=0;i<6;i++)add(.32+.05*i,.32+.09*i,.06+.02*i);
   return {SPYUSDT:price,QQQUSDT:price.map(x=>({...x,o:x.o*2,h:x.h*2,l:x.l*2,c:x.c*2})),COMPOSITE:signal};
 }
+function mirrored(rows){
+  const reflect=bar=>({...bar,o:500-bar.o,h:500-bar.l,l:500-bar.h,c:500-bar.c});
+  return {SPYUSDT:rows.SPYUSDT.map(reflect),QQQUSDT:rows.QQQUSDT.map(reflect),COMPOSITE:rows.COMPOSITE.map(x=>({...x,adjusted:-x.adjusted}))};
+}
 
-test('REV6 finds a statistically separated resistance zone from similar six-candle shapes',()=>{
+test('REV6 finds statistically separated support and resistance zones from similar six-candle shapes',()=>{
   const rows=patterned(),zone=reversalZone(rows,'SPYUSDT','COMPOSITE',step);
   assert.equal(REVERSAL_WINDOW,6);assert.equal(REVERSAL_HORIZON,2);assert(zone.ready);assert.equal(zone.direction,1);
   assert(zone.n>=24);assert(zone.eventCount>=6);assert(zone.rate-zone.baselineRate>=.08);assert(zone.lower>zone.baselineRate);
   assert(zone.low<=zone.level&&zone.level<=zone.high);assert(zone.low>rows.SPYUSDT.at(-1).c);assert.equal(zone.end-zone.start,2*step);
+  assert(zone.supportLow<=zone.supportLevel&&zone.supportLevel<=zone.supportHigh);assert(zone.supportHigh<=rows.SPYUSDT.at(-1).c);
+  assert(zone.resistanceLow<=zone.resistanceLevel&&zone.resistanceLevel<=zone.resistanceHigh);assert(zone.resistanceLow>=rows.SPYUSDT.at(-1).c);
+});
+test('REV6 also draws both price sides when incoming Strength is negative',()=>{
+  const rows=mirrored(patterned()),zone=reversalZone(rows,'SPYUSDT','COMPOSITE',step),close=rows.SPYUSDT.at(-1).c;
+  assert(zone.ready);assert.equal(zone.direction,-1);assert(zone.low<=zone.level&&zone.level<=zone.high);assert(zone.high<=close);
+  assert(zone.supportHigh<=close);assert(zone.resistanceLow>=close);
 });
 test('REV6 withholds the line when history is thin or the current six-candle window is broken',()=>{
   const thin=patterned(3),insufficient=reversalZone(thin,'SPYUSDT','COMPOSITE',step);assert.equal(insufficient.ready,false);assert(['matches','events','confidence'].includes(insufficient.reason));
