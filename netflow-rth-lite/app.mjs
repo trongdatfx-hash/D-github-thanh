@@ -76,7 +76,7 @@ function init(){
   chart.subscribeCrosshairMove(p=>{if(!p.sourceEvent)return;inspectedTime=p.time?p.time*1000:null;showTooltip(inspectedTime??rows[$('symbol').value]?.at(-1)?.t);});
   $('chart').addEventListener('pointerleave',()=>{inspectedTime=null;showTooltip(rows[$('symbol').value]?.at(-1)?.t);});
   chart.timeScale().subscribeVisibleLogicalRangeChange(scheduleCvdSpectrum);
-  window.addEventListener('resize',scheduleCvdSpectrum);
+  window.addEventListener('resize',()=>{scheduleCvdSpectrum();requestAnimationFrame(positionTrendReadout);});
   return true;
 }
 function mixColor(from,to,t){return '#'+from.map((v,i)=>Math.round(v+(to[i]-v)*t).toString(16).padStart(2,'0')).join('');}
@@ -95,6 +95,11 @@ function flowData(data,key){const palette=flowColors[key];return data.map(x=>Num
 function relativeData(data){return data.map(x=>{const alpha=.28+.62*x.volumeConfidence,color=x.relative>0?`rgba(245,166,35,${alpha})`:x.relative<0?`rgba(169,124,255,${alpha})`:'rgba(112,126,145,.3)';return Number.isFinite(x.relative)?{time:x.t/1000,value:x.relative,color}:{time:x.t/1000};});}
 function alignmentData(data){return data.map(x=>({time:x.t/1000,value:x.score,color:x.state==='THUẬN MUA'?`rgba(26,224,163,${.48+.45*x.intensity})`:x.state==='THUẬN BÁN'?`rgba(255,77,112,${.48+.45*x.intensity})`:`rgba(245,166,35,${.58+.35*x.intensity})`}));}
 function scheduleCvdSpectrum(){if(cvdFrame)return;cvdFrame=requestAnimationFrame(()=>{cvdFrame=requestAnimationFrame(()=>{cvdFrame=0;drawCvdSpectrum();});});}
+function positionTrendReadout(){
+  const node=$('trend-strength'),paneHeight=chart?.panes?.()[0]?.getHeight?.();
+  if(!node||!Number.isFinite(paneHeight))return;
+  node.style.top=`${Math.max(8,paneHeight-node.offsetHeight-10)}px`;
+}
 function drawCvdSpectrum(){
   const canvas=$('cvd-spectrum'),host=$('chart'),width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1;
   const bitmapWidth=Math.round(width*dpr),bitmapHeight=Math.round(height*dpr);if(canvas.width!==bitmapWidth||canvas.height!==bitmapHeight){canvas.width=bitmapWidth;canvas.height=bitmapHeight;}
@@ -148,13 +153,15 @@ function historyText(summary){return summary?.ready?`${fmt(summary.rate)}% cùng
 function latestStrength(key){const data=rows[key]??[];for(let i=data.length-1;i>=0;i--)if(Number.isFinite(data[i].adjusted))return data[i].adjusted;return null;}
 function updateStrengthLabels(){
   $('strength-readout').style.display=$('show-strength').checked?'flex':'none';
+  $('trend-strength').style.display=$('show-strength').checked?'block':'none';
   for(const [key,id,label] of [['SPYUSDT','strength-spy','SPY'],['QQQUSDT','strength-qqq','QQQ'],['COMPOSITE','strength-composite','']]){const value=latestStrength(key),node=$(id);node.textContent=label?`${label} ${fmt(value)}`:fmt(value);node.className=Number.isFinite(value)?value>=0?'positive':'negative':'missing';}
   const t=(rows[$('signal').value]??[]).at(-1)?.t,trend=trendMap.get(t),node=$('trend-strength');
-  if(!trend){node.textContent='TREND6 —';node.className='missing';node.removeAttribute('title');return;}
+  if(!trend){node.textContent='TREND6 —';node.className='missing';node.removeAttribute('title');requestAnimationFrame(positionTrendReadout);return;}
   const rank=trend.ready?`P${Math.round(trend.percentile)}`:'P—';
   node.textContent=`TREND6 ${trend.label} ${trend.score} · ${rank} · n=${trend.n}`;
   node.className=trend.direction>0?'positive':'negative';
   node.title=`Điểm cụm 6 nến ${trend.score}/100; phân vị lịch sử ${trend.ready?Math.round(trend.percentile):'chưa đủ'}; ${trend.n} cụm đổi dấu đã hoàn tất`;
+  requestAnimationFrame(positionTrendReadout);
 }
 function updateReversalZone(){
   const enabled=$('reversal-zone').checked,node=$('reversal-readout'),visible=enabled&&reversalState.ready;
