@@ -191,99 +191,147 @@ function prepCanvas(id, cssHeight) {
   return { x, w, h };
 }
 
-/**
- * Nen (M30 hoac ngay) + DAI BIEN DO TUAN.
- *
- * Ba hop long nhau, tam = GIA MO TUAN, nua chieu cao = open × exp(mu+q) / 2
- * tai phan vi 25 / 50 / 90 — cung cong thuc voi Weekly Range Box tren Pine.
- * Phan vi lay tu phan du NGOAI MAU nen hop phan anh sai so that, khong phai
- * sai so dep cua phan du trong mau.
- */
-export function drawChart(bars, { intraday = false, box = null } = {}) {
-  const { x, w, h } = prepCanvas("chart");
-  if (!bars.length) return;
+let priceChart = null;
+let candleSeries = null;
+let rangePriceLines = [];
+let chartData = [];
+let rangeBox = null;
+let chartDataKey = "";
 
-  const padL = 8, padR = 74, padT = 12, padB = 22;
+function renderRangeBands() {
+  const layer = $("rangeBands");
+  if (!layer || !priceChart || !candleSeries) return;
+  layer.innerHTML = "";
+  if (!rangeBox || !chartData.length) return;
 
-  // Thang gia phai bao ca hop 90%, neu khong hop se bi cat mat.
-  let lo = Math.min(...bars.map((b) => b.l));
-  let hi = Math.max(...bars.map((b) => b.h));
-  if (box) {
-    lo = Math.min(lo, box.open - box.h90);
-    hi = Math.max(hi, box.open + box.h90);
+  let start = chartData.find((b) => b.week >= rangeBox.weekStartTs);
+  if (!start) start = chartData[0];
+  const xL = priceChart.timeScale().timeToCoordinate(start.time);
+  const xR = Math.max(0, layer.clientWidth - 72);
+  if (xL === null || xR <= xL) return;
+
+  const tiers = [
+    { half: rangeBox.h90, color: "#0ea5e9", label: "90%", fill: "rgba(56,189,248,.04)" },
+    { half: rangeBox.h50, color: "#38bdf8", label: "50%", fill: "rgba(56,189,248,.06)" },
+    { half: rangeBox.h25, color: "#7dd3fc", label: "25%", fill: "rgba(56,189,248,.08)" }
+  ];
+  for (const tier of tiers) {
+    const top = candleSeries.priceToCoordinate(rangeBox.open + tier.half);
+    const bottom = candleSeries.priceToCoordinate(rangeBox.open - tier.half);
+    if (top === null || bottom === null) continue;
+    const band = document.createElement("div");
+    band.className = "rangeBand";
+    band.style.cssText = `left:${xL}px;top:${top}px;width:${xR - xL}px;height:${Math.max(1, bottom - top)}px;border-color:${tier.color};background:${tier.fill}`;
+    band.innerHTML = `<span style="color:${tier.color}">${tier.label}</span>`;
+    layer.appendChild(band);
   }
-  const pad = (hi - lo) * 0.04;
-  lo -= pad; hi += pad;
-  const span = hi - lo || 1;
-  const Y = (v) => padT + (h - padT - padB) * (1 - (v - lo) / span);
-  const plotW = w - padL - padR;
-  const step = plotW / bars.length;
-  const bw = Math.max(1, Math.min(7, step * 0.62));
-
-  x.font = "10px system-ui, Arial";
-
-  // --- dai bien do tuan ---
-  if (box) {
-    // Hop bat dau tu nen dau tien cua TUAN HIEN TAI, keo het sang phai.
-    let i0 = bars.findIndex((b) => weekStart(b.d) >= box.weekStartTs);
-    if (i0 < 0) i0 = 0;
-    const xL = padL + step * i0;
-    const xR = padL + plotW;
-
-    const tiers = [
-      { half: box.h90, fill: "rgba(56,189,248,0.05)", stroke: "#0ea5e9", label: "90%", dash: [] },
-      { half: box.h50, fill: "rgba(56,189,248,0.08)", stroke: "#38bdf8", label: "50%", dash: [5, 4] },
-      { half: box.h25, fill: "rgba(56,189,248,0.10)", stroke: "#7dd3fc", label: "25%", dash: [3, 4] }
-    ];
-    for (const tr of tiers) {
-      const yT = Y(box.open + tr.half), yB = Y(box.open - tr.half);
-      x.fillStyle = tr.fill;
-      x.fillRect(xL, yT, Math.max(1, xR - xL), Math.max(1, yB - yT));
-      x.strokeStyle = tr.stroke;
-      x.lineWidth = tr.label === "90%" ? 1.3 : 1;
-      x.setLineDash(tr.dash);
-      x.strokeRect(xL, yT, Math.max(1, xR - xL), Math.max(1, yB - yT));
-      x.setLineDash([]);
-      x.fillStyle = tr.stroke;
-      x.fillText(`${tr.label} ${(box.open + tr.half).toFixed(2)}`, xR + 6, yT + 3);
-      x.fillText(`${tr.label} ${(box.open - tr.half).toFixed(2)}`, xR + 6, yB + 3);
-    }
-
-    // Vach gia mo tuan.
-    const yO = Y(box.open);
-    x.strokeStyle = "#e2e8f0"; x.lineWidth = 1.2;
-    x.setLineDash([2, 3]);
-    x.beginPath(); x.moveTo(xL, yO); x.lineTo(xR, yO); x.stroke();
-    x.setLineDash([]);
-    x.fillStyle = "#e2e8f0";
-    x.fillText(`O ${box.open.toFixed(2)}`, xR + 6, yO + 3);
+  const yOpen = candleSeries.priceToCoordinate(rangeBox.open);
+  if (yOpen !== null) {
+    const line = document.createElement("div");
+    line.className = "weekOpenLine";
+    line.style.cssText = `left:${xL}px;top:${yOpen}px;width:${xR - xL}px`;
+    layer.appendChild(line);
   }
+}
 
-  // --- nen ---
-  bars.forEach((b, i) => {
-    const cx = padL + step * (i + 0.5);
-    const up = b.c >= b.o;
-    x.strokeStyle = x.fillStyle = up ? C.green : C.red;
-    x.lineWidth = 1;
-    x.beginPath(); x.moveTo(cx, Y(b.h)); x.lineTo(cx, Y(b.l)); x.stroke();
-    const yo = Y(b.o), yc = Y(b.c);
-    x.fillRect(cx - bw / 2, Math.min(yo, yc), bw, Math.max(1, Math.abs(yc - yo)));
+function initPriceChart() {
+  if (priceChart) return true;
+  const L = window.LightweightCharts;
+  const container = $("chart");
+  if (!L?.createChart || !L?.CandlestickSeries) {
+    container.innerHTML = `<div class="err">Không tải được TradingView Lightweight Charts.</div>`;
+    return false;
+  }
+  priceChart = L.createChart(container, {
+    width: container.clientWidth,
+    height: container.clientHeight,
+    layout: {
+      background: { type: L.ColorType.Solid, color: "#091321" },
+      textColor: C.axis,
+      attributionLogo: true
+    },
+    grid: {
+      vertLines: { color: "#13243a" },
+      horzLines: { color: C.grid }
+    },
+    crosshair: { mode: L.CrosshairMode.Normal },
+    rightPriceScale: { borderColor: "#23364e", scaleMargins: { top: 0.08, bottom: 0.08 } },
+    timeScale: { borderColor: "#23364e", rightOffset: 6, barSpacing: 7, minBarSpacing: 2 },
+    handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
+    handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true },
+    localization: { locale: locale() }
   });
+  candleSeries = priceChart.addSeries(L.CandlestickSeries, {
+    upColor: C.green,
+    downColor: C.red,
+    borderVisible: false,
+    wickUpColor: C.green,
+    wickDownColor: C.red,
+    priceFormat: { type: "price", precision: 2, minMove: 0.01 }
+  });
+  priceChart.subscribeCrosshairMove((param) => {
+    const legend = $("chartLegend");
+    const point = param.seriesData?.get(candleSeries);
+    if (!point) return;
+    const move = point.close - point.open;
+    legend.innerHTML = `SPY&nbsp;&nbsp; O ${point.open.toFixed(2)} &nbsp; H ${point.high.toFixed(2)} &nbsp; L ${point.low.toFixed(2)} &nbsp; C <b style="color:${move >= 0 ? C.green : C.red}">${point.close.toFixed(2)}</b>`;
+  });
+  priceChart.timeScale().subscribeVisibleLogicalRangeChange(() => requestAnimationFrame(renderRangeBands));
+  new ResizeObserver(() => {
+    priceChart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+    requestAnimationFrame(renderRangeBands);
+  }).observe(container);
+  return true;
+}
 
-  // --- moc thoi gian truc X ---
-  x.fillStyle = C.axis;
-  x.font = "10px system-ui, Arial";
-  const ticks = 6;
-  for (let i = 0; i < ticks; i++) {
-    const idx = Math.round((bars.length - 1) * (i / (ticks - 1)));
-    const b = bars[idx];
-    const cx = padL + step * (idx + 0.5);
-    const label = intraday
-      ? `${shortDate(b.d)} ${String(b.d.getUTCHours()).padStart(2, "0")}:${String(b.d.getUTCMinutes()).padStart(2, "0")}`
-      : shortDate(b.d);
-    const tw = x.measureText(label).width;
-    x.fillText(label, Math.min(Math.max(padL, cx - tw / 2), padL + plotW - tw), h - 7);
+/** Interactive SPY candles powered by TradingView Lightweight Charts. */
+export function drawChart(bars, { intraday = false, box = null } = {}) {
+  if (!initPriceChart()) return;
+  const seen = new Set();
+  chartData = bars
+    .map((b) => ({
+      time: Math.floor(b.d.getTime() / 1000),
+      open: b.o, high: b.h, low: b.l, close: b.c,
+      week: weekStart(b.d)
+    }))
+    .filter((b) => Number.isFinite(b.time) && !seen.has(b.time) && seen.add(b.time))
+    .sort((a, b) => a.time - b.time);
+  rangeBox = box;
+  candleSeries.setData(chartData.map(({ time, open, high, low, close }) => ({ time, open, high, low, close })));
+
+  for (const line of rangePriceLines) candleSeries.removePriceLine(line);
+  rangePriceLines = [];
+  if (box) {
+    const L = window.LightweightCharts;
+    const defs = [
+      [box.open + box.h90, "90% H", "#0ea5e9", L.LineStyle.Solid],
+      [box.open + box.h50, "50% H", "#38bdf8", L.LineStyle.Dashed],
+      [box.open + box.h25, "25% H", "#7dd3fc", L.LineStyle.Dotted],
+      [box.open, "W Open", "#e2e8f0", L.LineStyle.Dashed],
+      [box.open - box.h25, "25% L", "#7dd3fc", L.LineStyle.Dotted],
+      [box.open - box.h50, "50% L", "#38bdf8", L.LineStyle.Dashed],
+      [box.open - box.h90, "90% L", "#0ea5e9", L.LineStyle.Solid]
+    ];
+    rangePriceLines = defs.map(([price, title, color, lineStyle]) => candleSeries.createPriceLine({
+      price, title, color, lineStyle, lineWidth: 1, axisLabelVisible: true
+    }));
   }
+
+  priceChart.applyOptions({
+    localization: { locale: locale() },
+    timeScale: { timeVisible: intraday, secondsVisible: false }
+  });
+  const key = `${chartData[0]?.time || 0}:${chartData.at(-1)?.time || 0}:${chartData.length}:${intraday}`;
+  if (key !== chartDataKey) {
+    chartDataKey = key;
+    priceChart.timeScale().fitContent();
+  }
+  const last = chartData.at(-1);
+  if (last) {
+    const move = last.close - last.open;
+    $("chartLegend").innerHTML = `SPY&nbsp;&nbsp; O ${last.open.toFixed(2)} &nbsp; H ${last.high.toFixed(2)} &nbsp; L ${last.low.toFixed(2)} &nbsp; C <b style="color:${move >= 0 ? C.green : C.red}">${last.close.toFixed(2)}</b>`;
+  }
+  requestAnimationFrame(renderRangeBands);
 }
 
 /**
