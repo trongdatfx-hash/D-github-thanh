@@ -74,6 +74,11 @@ h3{margin:0;font-size:13px}
 .track{height:9px;background:#263147;border-radius:12px;overflow:hidden}
 .fill{height:100%;border-radius:12px;background:linear-gradient(90deg,#2e8edb,#48e3bf)}
 .barvalue{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.backtest-controls{margin:0 0 16px}
+.backtest-kpis{margin-bottom:15px}
+.picklist{color:#b7c8dc;font-variant-numeric:tabular-nums;letter-spacing:.4px}
+.hitlist{color:var(--green);font-weight:800}
+.miss{color:var(--muted)}
 .tablewrap{overflow:auto;max-height:570px}
 table{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap}
 th{position:sticky;top:0;background:#1c2a43;text-align:right;padding:11px 12px;color:#adbed4;z-index:1}
@@ -123,6 +128,23 @@ tr.selected td{background:#17413d}
 <section class="card"><div class="sectionhead"><div><h2>Chi tiết số được chọn</h2><div class="hint">Thống kê và ước lượng trong mô hình</div></div></div><div id="detail" class="note"></div></section>
 </div>
 <section class="card" style="margin-top:15px">
+<div class="sectionhead"><div><h2>Backtest cuốn chiếu: dự đoán T → kiểm tra T+1</h2><div class="hint">Mỗi ngày chỉ dùng dữ liệu có sẵn tới hết ngày T — không nhìn trước kết quả T+1</div></div><div class="hint" id="btInfo">Chưa chạy</div></div>
+<div class="controls backtest-controls">
+<div class="field"><label for="btDays">Số ngày kiểm tra gần nhất</label><select id="btDays"><option value="30">30 ngày</option><option value="90" selected>90 ngày</option><option value="180">180 ngày</option><option value="365">365 ngày</option></select></div>
+<button class="btn primary" id="runBacktest">▶ Chạy backtest</button>
+</div>
+<div class="kpis backtest-kpis">
+<div class="card kpi"><small>Số ngày đã kiểm tra</small><strong id="btN">—</strong><span id="btRange">Dùng cấu hình hiện tại</span></div>
+<div class="card kpi"><small>Tỷ lệ có ít nhất 1 số</small><strong class="good" id="btRate">—</strong><span id="btWins">—</span></div>
+<div class="card kpi"><small>Tổng lượt trúng</small><strong class="accent" id="btHits">—</strong><span id="btAverage">Tính đủ số lần lặp trong 27 giải</span></div>
+<div class="card kpi"><small>Kỳ vọng ngẫu nhiên</small><strong class="gold" id="btExpected">—</strong><span id="btDelta">8/100 × 27 lượt mỗi ngày</span></div>
+</div>
+<canvas class="plot" id="btChart" role="img" aria-label="Biểu đồ tích lũy số lượt trúng thực tế và kỳ vọng ngẫu nhiên"></canvas>
+<div class="legend"><span><b style="background:#43e5b8"></b>Lượt trúng tích lũy</span><span><b style="background:#ffcf7a"></b>Kỳ vọng ngẫu nhiên</span></div>
+<p class="note" id="btNote">Backtest sẽ chạy trên các ngày gần nhất sau khi dữ liệu tải xong.</p>
+<div class="tablewrap"><table><thead><tr><th>Ngày dự đoán T</th><th>Ngày kết quả T+1</th><th>Bộ 8 số tại T</th><th>Số trúng</th><th>Lượt trúng</th></tr></thead><tbody id="btBody"><tr><td colspan="5" class="miss">Chưa có kết quả backtest</td></tr></tbody></table></div>
+</section>
+<section class="card" style="margin-top:15px">
 <div class="sectionhead"><div><h2>Xếp hạng đầy đủ 100 số</h2><div class="hint">Pctl = phân vị trong 100 số, RW+ = tỷ lệ mô phỏng kết thúc trên mốc kỳ vọng</div></div><button class="btn" id="copy">Sao chép top 8</button></div>
 <div class="tablewrap"><table><thead><tr><th>Hạng / Số</th><th>Điểm</th><th>Pctl 30N</th><th>Pctl cửa sổ</th><th>30N (lượt)</th><th>Tổng lượt</th><th>Gan (ngày)</th><th>RW+</th><th>p mô hình/ngày</th></tr></thead><tbody id="tbody"></tbody></table></div>
 </section>
@@ -132,6 +154,7 @@ tr.selected td{background:#17413d}
 <p><b>Phân vị:</b> xếp hạng tương đối giữa 100 số từ 00 tới 99. Điểm tổng hợp = 30% phân vị số lượt 30 ngày + 25% phân vị số lượt trong cửa sổ + 20% phân vị động lượng tỷ lệ ngày có xuất hiện (30 ngày so với tối đa 90 ngày) + 25% phân vị RW+.</p>
 <p><b>Random Walk (RW):</b> mỗi bước là X = I(xuất hiện trong ngày) − p<sub>0</sub>, với p<sub>0</sub> là tần suất xuất hiện trung bình của 100 số trong 365 ngày gần nhất. Mô phỏng từng số qua số ngày tương lai đã chọn, theo xác suất giả định p = (45×p<sub>0</sub> + số ngày đã xuất hiện trong 90 ngày)/(45 + số ngày quan sát), giới hạn trong [0,05; 0,60]. RW+ là tỷ lệ đường mô phỏng kết thúc lớn hơn 0; <b>không phải</b> xác suất trúng lô 1 ngày.</p>
 <p><b>Tính ngẫu nhiên:</b> mô phỏng dùng bộ sinh số giả ngẫu nhiên có seed cố định theo dữ liệu/cấu hình, giúp tái lập bảng xếp hạng. RW không giả định có "quy luật" thật trong xổ số.</p>
+<p><b>Backtest chống lookahead:</b> để kiểm tra ngày T+1, mô hình được tính lại trên lát dữ liệu kết thúc đúng tại ngày T. Kết quả T+1 chỉ được đọc sau khi bộ 8 số đã chốt. Phần RW+ trong backtest dùng xác suất nhị thức chính xác của cùng mô hình Random Walk thay cho lấy mẫu Monte Carlo, nhờ vậy nhanh và không có nhiễu do seed. Đường kỳ vọng ngẫu nhiên là 2,16 lượt/ngày (= 8/100 × 27 giải), giả định các đuôi số độc lập và phân bố đều.</p>
 <p class="warning"><b>Cảnh báo:</b> Nếu xổ số công bằng và các kỳ độc lập, lịch sử "nóng", "gan" hay xếp hạng phân vị không làm tăng xác suất trúng kỳ sau. Chưa có kiểm định ngoài mẫu chứng minh lợi thế; không nên sử dụng các điểm này như bảo đảm để đặt tiền.</p>
 </div></section>
 <div class="footer">XSMB QUANT LAB · Dữ liệu: <a href="https://github.com/khiemdoan/vietnam-lottery-xsmb-analysis" target="_blank" rel="noopener">khiemdoan/vietnam-lottery-xsmb-analysis</a> · Website tĩnh, không cần API key · Không gửi dữ liệu người dùng lên máy chủ riêng.</div>
@@ -141,10 +164,11 @@ tr.selected td{background:#17413d}
 "use strict";
 var URL="https://raw.githubusercontent.com/khiemdoan/vietnam-lottery-xsmb-analysis/refs/heads/main/data/xsmb-2-digits.csv";
 var $=function(s){return document.getElementById(s)};
-var model={days:[],metrics:[],selected:null,base:0,look:365,horizon:7,paths:3000,source:"GitHub"};
+var model={days:[],metrics:[],selected:null,base:0,look:365,horizon:7,paths:3000,source:"GitHub",backtest:null};
 function fmt(n){return Number(n).toLocaleString("vi-VN")}
 function num(n){return String(n).padStart(2,"0")}
 function pct(n){return (n*100).toFixed(1)+"%"}
+function viDate(s){return s.split("-").reverse().join("/")}
 function setStatus(s,bad){$("status").textContent=s;$("status").className="status"+(bad?" bad":"")}
 function parseCSV(raw){
  var rows=raw.replace(/^\uFEFF/,"").trim().split(/\r?\n/);
@@ -181,10 +205,16 @@ function simulate(p,base,horizon,paths,seed){
  for(var j=0;j<paths;j++){var s=0;for(var t=0;t<horizon;t++)s+=(rng()<p?1:0)-base;if(s>1e-9)win++}
  return win/paths;
 }
-function analyze(){
- if(!model.days.length)return;
- var data=model.days, len=data.length, look=Math.min(+$("window").value,len);
- var horizon=+$("horizon").value,paths=+$("paths").value;
+function exactRwWin(p,base,horizon){
+ var minWins=Math.floor(horizon*base+1e-12)+1,prob=Math.pow(1-p,horizon),sum=0;
+ for(var k=0;k<=horizon;k++){
+  if(k>=minWins)sum+=prob;
+  if(k<horizon)prob*=((horizon-k)/(k+1))*(p/(1-p));
+ }
+ return Math.max(0,Math.min(1,sum));
+}
+function calculateRanking(data,requestedLook,horizon,paths,exact){
+ var len=data.length,look=Math.min(requestedLook,len);
  var recent=data.slice(-look),shortN=Math.min(30,look),midN=Math.min(90,look),baseN=Math.min(365,len);
  var avg=0;
  for(var i=len-baseN;i<len;i++)for(var j=0;j<100;j++)avg+=data[i].hits[j];
@@ -200,16 +230,23 @@ function analyze(){
   while(gap<len&&data[len-1-gap].hits[k]===0)gap++;
   var momentum=hShort/shortN-hMid/midN;
   var p=Math.max(.05,Math.min(.60,(45*base+hMid)/(45+midN)));
-  var mc=simulate(p,base,horizon,paths,seedOf(data[len-1].date+"|"+k+"|"+horizon+"|"+paths));
+  var mc=exact?exactRwWin(p,base,horizon):simulate(p,base,horizon,paths,seedOf(data[len-1].date+"|"+k+"|"+horizon+"|"+paths));
   all.push({n:k,cShort:cShort,cWin:cWin,hShort:hShort,hMid:hMid,hWin:daysHit,gap:gap,momentum:momentum,p:p,mc:mc});
  }
  ["cShort","cWin","momentum","mc"].forEach(function(key){percentile(all,key)});
  all.forEach(function(o){o.score=.30*o.pc_cShort+.25*o.pc_cWin+.20*o.pc_momentum+.25*o.pc_mc});
  all.sort(function(a,b){return b.score-a.score||b.cShort-a.cShort||a.n-b.n});
  all.forEach(function(o,i){o.rank=i+1});
- model.metrics=all;model.base=base;model.look=look;model.horizon=horizon;model.paths=paths;
+ return{metrics:all,base:base,look:look};
+}
+function analyze(){
+ if(!model.days.length)return;
+ var requestedLook=+$("window").value,horizon=+$("horizon").value,paths=+$("paths").value;
+ var result=calculateRanking(model.days,requestedLook,horizon,paths,false),all=result.metrics;
+ model.metrics=all;model.base=result.base;model.look=result.look;model.horizon=horizon;model.paths=paths;model.backtest=null;
  if(model.selected===null)model.selected=all[0].n;
  render();
+ resetBacktest("Cấu hình đã thay đổi. Chạy lại backtest để cập nhật.");
 }
 function element(tag,cls,txt){var e=document.createElement(tag);if(cls)e.className=cls;if(txt!==undefined)e.textContent=txt;return e}
 function pick(n){model.selected=n;renderSelected()}
@@ -309,6 +346,75 @@ function drawWalk(o){
  draw(hist,0,"#42eac0",2.2);draw(mid,pastN,"#ffcb76",2.2);
  ctx.fillStyle="#8da1b8";ctx.textBaseline="alphabetic";ctx.fillText("−"+pastN+" ngày",left,h-8);ctx.fillText("Hôm nay",X(pastN)-24,h-8);ctx.fillText("+"+hz+" ngày",Math.max(left,X(full)-44),h-8);
 }
+function resetBacktest(message){
+ $("btInfo").textContent="Chưa chạy";
+ $("btN").textContent=$("btRate").textContent=$("btHits").textContent=$("btExpected").textContent="—";
+ $("btRange").textContent="Dùng cấu hình hiện tại";$("btWins").textContent="—";
+ $("btAverage").textContent="Tính đủ số lần lặp trong 27 giải";$("btDelta").textContent="8/100 × 27 lượt mỗi ngày";
+ $("btNote").textContent=message||"Chọn khoảng thời gian và chạy backtest.";
+ var body=$("btBody"),tr=element("tr",""),td=element("td","miss","Chưa có kết quả backtest");td.colSpan=5;tr.appendChild(td);body.replaceChildren(tr);
+ var c=$("btChart"),ctx=c.getContext("2d");ctx.clearRect(0,0,c.width,c.height);
+}
+function nextPaint(){return new Promise(function(resolve){requestAnimationFrame(resolve)})}
+async function runBacktest(){
+ if(!model.days.length)return;
+ var button=$("runBacktest"),requested=+$("btDays").value,look=+$("window").value,horizon=+$("horizon").value,paths=+$("paths").value;
+ var data=model.days,len=data.length,start=Math.max(60,look,len-requested);
+ if(start>=len){setStatus("Không đủ dữ liệu để backtest với cửa sổ đã chọn.",true);return}
+ button.disabled=true;$("btInfo").textContent="Đang tính...";
+ setStatus("Đang chạy backtest cuốn chiếu, mỗi ngày chỉ dùng dữ liệu tới ngày T...");
+ await nextPaint();
+ try{
+  var rows=[],cum=0,wins=0,totalDistinct=0,randomPerDay=27*8/100;
+  for(var target=start;target<len;target++){
+   var history=data.slice(0,target);
+   var ranked=calculateRanking(history,look,horizon,paths,true).metrics;
+   var picks=ranked.slice(0,8).map(function(o){return o.n}),actual=data[target],hitNumbers=[],hitCount=0;
+   picks.forEach(function(n){if(actual.counts[n]>0){hitNumbers.push(n);totalDistinct++;hitCount+=actual.counts[n]}});
+   if(hitNumbers.length)wins++;
+   cum+=hitCount;
+   rows.push({predictionDate:history[history.length-1].date,resultDate:actual.date,picks:picks,hitNumbers:hitNumbers,hitDetails:hitNumbers.map(function(n){return num(n)+"×"+actual.counts[n]}),hitCount:hitCount,cumulative:cum,expected:randomPerDay*(rows.length+1)});
+   if((target-start+1)%10===0){$("btInfo").textContent="Đang tính "+(target-start+1)+"/"+(len-start);await nextPaint()}
+  }
+  var n=rows.length,expected=randomPerDay*n,randomSuccess=1-Math.pow(1-.08,27);
+  model.backtest={rows:rows,wins:wins,totalHits:cum,totalDistinct:totalDistinct,expected:expected,randomSuccess:randomSuccess,look:look,horizon:horizon};
+  renderBacktest();
+  setStatus("Backtest hoàn tất: "+n+" ngày, từ "+rows[0].resultDate+" đến "+rows[n-1].resultDate+". Không dùng dữ liệu T+1 để tạo bộ số ngày T.");
+ }catch(err){
+  model.backtest=null;resetBacktest("Backtest gặp lỗi: "+err.message);setStatus("Không chạy được backtest: "+err.message,true);
+ }finally{button.disabled=false}
+}
+function renderBacktest(){
+ var bt=model.backtest;if(!bt||!bt.rows.length)return;
+ var rows=bt.rows,n=rows.length,first=rows[0],last=rows[n-1],delta=bt.totalHits-bt.expected;
+ $("btInfo").textContent=n+" dự đoán ngoài mẫu";
+ $("btN").textContent=fmt(n);$("btRange").textContent=viDate(first.resultDate)+" → "+viDate(last.resultDate);
+ $("btRate").textContent=pct(bt.wins/n);$("btWins").textContent=bt.wins+"/"+n+" ngày trúng · ngẫu nhiên "+pct(bt.randomSuccess);
+ $("btHits").textContent=fmt(bt.totalHits);$("btAverage").textContent=(bt.totalHits/n).toFixed(2)+" lượt/ngày · "+bt.totalDistinct+" lượt số trúng";
+ $("btExpected").textContent=bt.expected.toFixed(1);$("btDelta").textContent=(delta>=0?"+":"")+delta.toFixed(1)+" lượt so với kỳ vọng";
+ $("btNote").textContent="Cửa sổ "+bt.look+" ngày, RW "+bt.horizon+" ngày. Bảng hiển thị mới nhất trước; biểu đồ đi theo thời gian.";
+ var body=$("btBody");body.replaceChildren();
+ rows.slice().reverse().forEach(function(r){
+  var tr=element("tr",""),hitText=r.hitDetails.length?r.hitDetails.join(" · "):"Không trúng";
+  var vals=[viDate(r.predictionDate),viDate(r.resultDate),r.picks.map(num).join(" · "),hitText,String(r.hitCount)];
+  vals.forEach(function(value,i){tr.appendChild(element("td",i===2?"picklist":i===3?(r.hitNumbers.length?"hitlist":"miss"):"",value))});body.appendChild(tr);
+ });
+ drawBacktest();
+}
+function drawBacktest(){
+ var bt=model.backtest;if(!bt||!bt.rows.length)return;
+ var c=$("btChart"),ctx=c.getContext("2d"),w=Math.max(c.clientWidth,280),h=265,dpi=Math.min(window.devicePixelRatio||1,2);
+ c.width=Math.round(w*dpi);c.height=h*dpi;ctx.setTransform(dpi,0,0,dpi,0,0);ctx.clearRect(0,0,w,h);
+ var actual=bt.rows.map(function(r){return r.cumulative}),expected=bt.rows.map(function(r){return r.expected}),max=Math.max(1,actual[actual.length-1],expected[expected.length-1])*1.12;
+ var left=43,right=w-12,top=18,bottom=h-31,n=actual.length,X=function(i){return left+(right-left)*(n===1?0:i/(n-1))},Y=function(v){return bottom-(bottom-top)*v/max};
+ ctx.font="11px system-ui";ctx.textBaseline="middle";
+ for(var g=0;g<=4;g++){var value=max*g/4,y=Y(value);ctx.strokeStyle="#26374e";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(right,y);ctx.stroke();ctx.fillStyle="#8da1b8";ctx.fillText(value.toFixed(0),5,y)}
+ function line(values,color,width,dash){ctx.beginPath();values.forEach(function(v,i){if(i===0)ctx.moveTo(X(i),Y(v));else ctx.lineTo(X(i),Y(v))});ctx.strokeStyle=color;ctx.lineWidth=width;ctx.setLineDash(dash||[]);ctx.stroke();ctx.setLineDash([])}
+ line(expected,"#ffcb76",2,[6,5]);line(actual,"#42eac0",2.4);
+ ctx.fillStyle="#8da1b8";ctx.textBaseline="alphabetic";ctx.fillText(viDate(bt.rows[0].resultDate),left,h-8);
+ var end=viDate(bt.rows[n-1].resultDate);ctx.fillText(end,Math.max(left,right-70),h-8);
+ c.setAttribute("aria-label","Tích lũy "+bt.totalHits+" lượt trúng so với "+bt.expected.toFixed(1)+" lượt kỳ vọng ngẫu nhiên trong "+n+" ngày");
+}
 async function load(){
  $("run").disabled=true;$("refresh").disabled=true;
  setStatus("Đang tải dữ liệu từ GitHub...");
@@ -316,15 +422,16 @@ async function load(){
   var res=await fetch(URL+"?v="+Math.floor(Date.now()/3600000),{cache:"no-store"});
   if(!res.ok)throw Error("HTTP "+res.status);
   var csv=await res.text();
-  model.days=parseCSV(csv);model.source="GitHub CSV";analyze();
+  model.days=parseCSV(csv);model.source="GitHub CSV";analyze();await runBacktest();
  }catch(err){setStatus("Không tải được GitHub: "+err.message+". Bạn có thể tải file CSV từ nguồn và dùng nút Nhập CSV.",true)}
  finally{$("run").disabled=false;$("refresh").disabled=false}
 }
-$("run").addEventListener("click",analyze);
+$("run").addEventListener("click",async function(){analyze();await runBacktest()});
+$("runBacktest").addEventListener("click",runBacktest);
 $("refresh").addEventListener("click",load);
 $("csv").addEventListener("change",async function(e){
  var f=e.target.files[0];if(!f)return;
- try{model.days=parseCSV(await f.text());model.source="CSV: "+f.name;analyze()}
+ try{model.days=parseCSV(await f.text());model.source="CSV: "+f.name;analyze();await runBacktest()}
  catch(err){setStatus("Lỗi đọc CSV: "+err.message,true)}
 });
 $("copy").addEventListener("click",function(){
@@ -333,9 +440,10 @@ $("copy").addEventListener("click",function(){
  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(s).then(function(){setStatus("Đã sao chép: "+s)},function(){window.prompt("Sao chép 8 số:",s)});
  else window.prompt("Sao chép 8 số:",s);
 });
-window.addEventListener("resize",function(){if(model.metrics.length)drawWalk(model.metrics.find(function(x){return x.n===model.selected})||model.metrics[0])});
+window.addEventListener("resize",function(){if(model.metrics.length)drawWalk(model.metrics.find(function(x){return x.n===model.selected})||model.metrics[0]);if(model.backtest)drawBacktest()});
 load();
 })();
 </script>
 </body>
 </html>
+
