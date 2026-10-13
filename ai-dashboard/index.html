@@ -1,15 +1,154 @@
 <!doctype html>
-<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SPYUSDT · Multi-layer AI</title><link rel="stylesheet" href="layers.css"></head>
-<body><main class="wrap">
-<header><div><h1>SPYUSDT · Multi-layer AI</h1><p class="muted">Dòng lệnh · Phản ứng giá · Phái sinh · SPY × QQQ · Bối cảnh H1/H4</p></div><button id="refresh">↻ Cập nhật</button></header>
-<section class="panel topStatus"><span id="dataStatus" role="status">Đang tải kết quả…</span><span>Giá live <b id="livePrice">—</b> <small id="socketStatus">đang kết nối</small></span></section>
-<section class="panel hero"><div class="label" id="selectedTitle">Dự báo 60 phút · nến đã đóng</div><div id="composite" class="neutral">— · NEUTRAL</div><div id="decision">WAIT · đang chờ kết quả</div><p id="explanation" class="muted">Điểm AI được cập nhật theo pipeline M15; giá live cập nhật độc lập.</p></section>
-<section id="horizons" class="horizons" aria-label="Chọn thời gian dự báo"></section>
-<section class="panel"><div class="sectionTitle"><h2>Điểm theo nhóm dữ liệu</h2><span id="regime" class="muted">—</span></div><div class="scroll"><table><thead><tr><th>Nhóm</th><th>Phase</th><th>Score</th><th>Trọng số</th><th>Đóng góp trước hiệu chuẩn</th><th>N train</th><th>Độ phủ</th></tr></thead><tbody id="groups"></tbody></table></div><p class="muted">Xanh: BULL ≥ +15 · Đỏ: BEAR ≤ −15 · Vàng: NEUTRAL. Các factor được học trong từng nhóm để giảm việc cộng lặp tín hiệu. Đóng góp là trọng số × score nhóm; composite được hiệu chuẩn sau khi phối hợp xác suất.</p><details><summary>Feature thực sự được mô hình sử dụng</summary><div id="features"></div></details></section>
-<section class="panel"><h2>Kiểm định ngoài mẫu theo thời gian</h2><div id="validation" class="metrics"></div><p class="muted">Ba cửa sổ walk-forward; chỉ train bằng nhãn đã có trước test. Trọng số và hiệu chuẩn chọn trên validation trước test. Chỉ số OOS là nghiên cứu lặp theo thời gian; chưa phải tập kiểm định cuối được khóa.</p></section>
-<section class="panel"><h2>Dự báo đã ghi trước khi có kết quả</h2><div id="paper" class="muted">Chờ dự báo live có đủ thời gian hoàn tất.</div><p class="muted">Đo từ giá mở cửa M15 kế tiếp sau thời điểm dự báo thực sự được tạo. Vì lịch GitHub có thể trễ, kết quả này phản ánh độ trễ thực tế tốt hơn backtest vào ngay nến kế tiếp.</p></section>
-<section class="panel"><h2>Dữ liệu và thời điểm</h2><div id="provenance" class="muted"></div><details><summary>Công thức và giới hạn dữ liệu</summary><p>Score tổng = 100 × [P(BULL) − P(BEAR)]. Mỗi nhóm dùng cây XGBoost cho từng horizon; trọng số được chọn theo cải thiện log-loss trên validation, rồi hiệu chuẩn xác suất bằng temperature scaling. Nhóm thiếu dữ liệu dùng prior từ train, không tự tăng trọng số nhóm còn lại. Score và xác suất không phải bảo đảm lợi nhuận.</p><p>Nhãn BULL/BEAR vượt vùng trung tính = max(6 bps, 0.5 × volatility quá khứ × √horizon). Chi phí đánh giá: 4 bps phí + 2 bps trượt giá giả định; stress thêm 4 bps. Chưa tính funding và tác động thị trường. LONG/SHORT chỉ xuất hiện khi có hỗ trợ OOS, lợi suất proxy vượt chi phí và dữ liệu còn mới; còn lại WAIT.</p><p>OI/L/S/funding chỉ dùng từ dấu thời gian bộ thu nhận được; không gán dữ liệu tải hôm nay vào quá khứ. Lịch sử giá/volume là tái dựng từ dữ liệu đã đóng, có thể có sửa đổi từ sàn. Liquidation chưa có bộ thu WebSocket thường trực nên không đưa vào model.</p><p>GitHub Actions tự thu nến M15 đã đóng từ WebSocket thị trường chính thức, rồi chạy AI trên CPU GitHub; PC có thể tắt. Lịch 5 phút yêu cầu lượt chạy kế tiếp; mỗi lượt có thể chờ đến 16 phút để nến đóng. Retrain khoảng 4 giờ/lần. Lịch Actions có thể trễ hoặc bỏ lượt, không phải server/WebSocket chạy liên tục. Luồng nến không phụ thuộc REST bị lỗi 451. OI/L/S và mark/index thiếu sẽ không được giả lập. Dùng archive chính thức để bù lịch sử và ghi rõ nguồn; dữ liệu archive hoặc cũ quá 45 phút luôn WAIT. Liquidation chưa có nguồn thu liên tục.</p></details></section>
-<section class="panel chartPanel"><div class="sectionTitle"><h2>Chart thị trường</h2><button id="fullscreen">⛶ Phóng to</button></div><iframe id="marketChart" src="../?embedded=1&yaxis=1" title="Chart SPYUSDT"></iframe></section>
-<footer class="muted">Model CPU trên GitHub Actions · Dự báo M15 đã đóng · <a href="https://github.com/trongdatfx-hash/D-github-thanh/blob/main/ai-engine/README.md" target="_blank" rel="noopener">Phương pháp và dữ liệu</a></footer>
-</main><script src="layers-dashboard.js?v=github-stream-20261008"></script></body></html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>SPY Positioning &amp; Range Console</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#07101d;color:#e9eef7;font:13px/1.5 -apple-system,Segoe UI,Arial,sans-serif}
+  header{padding:16px 24px;background:#0b1728;border-bottom:1px solid #24364d;position:sticky;top:0;z-index:10;
+         display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+  h1{margin:0;font-size:20px}
+  h2{font-size:15px;margin:0 0 10px}
+  main{max-width:1400px;margin:auto;padding:16px}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .card{background:#0d1929;border:1px solid #23364e;border-radius:12px;padding:14px;margin-bottom:12px}
+  .metric{font-size:24px;font-weight:800;line-height:1.25}
+  .green{color:#39d18c}.red{color:#ff6976}.yellow{color:#f0c45d}.blue{color:#6ea8ff}
+  .muted,.small{color:#91a4be;font-size:11px}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  button,textarea,select,input{background:#0a1524;color:#eee;border:1px solid #2b405b;border-radius:7px;padding:8px 10px;font:inherit}
+  button{cursor:pointer}
+  button:hover{border-color:#4a7ab8}
+  .primary{background:#347cf6;border-color:#347cf6}
+  .primary:hover{background:#4a8bf8}
+  table{width:100%;border-collapse:collapse}
+  td,th{padding:6px 7px;border-bottom:1px solid #23364e;text-align:right}
+  td:first-child,th:first-child{text-align:left}
+  th{color:#91a4be;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+  canvas{width:100%;background:#091321;border-radius:8px;display:block}
+  #chart{height:320px}
+  #fcChart{height:260px}
+  .bar{height:12px;background:#18283c;border-radius:10px;overflow:hidden;margin:8px 0}
+  .bar i{display:block;height:100%;background:#347cf6}
+  .gauge{height:8px;background:#18283c;border-radius:10px;position:relative;margin:6px 0 2px}
+  .gauge i{position:absolute;top:-3px;width:3px;height:14px;background:#fff;border-radius:2px}
+  .gauge b{position:absolute;top:0;height:8px;background:#347cf6;border-radius:10px;opacity:.5}
+  textarea{width:100%;min-height:90px;font:12px monospace}
+  .pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;border:1px solid #2b405b;margin-right:6px}
+  .ok{color:#39d18c;border-color:#1f5c42}
+  .bad{color:#ff6976;border-color:#6b2730}
+  .warn{background:#2a1f0d;border:1px solid #6b5320;color:#f0c45d;padding:9px 12px;border-radius:8px;margin-bottom:10px;font-size:12px;line-height:1.6}
+  .err{background:#2a1114;border:1px solid #6b2730;color:#ff9aa4;padding:9px 12px;border-radius:8px;margin-bottom:10px;font-size:12px;line-height:1.6}
+  .vpn{background:#0e2237;border:1px solid #2f5680;color:#bcd6f5;padding:11px 13px;border-radius:9px;font-size:12px;line-height:1.7;margin-bottom:10px}
+  details summary{cursor:pointer;color:#91a4be;font-size:12px}
+  a{color:#6ea8ff}
+  @media(max-width:900px){.grid,.two{grid-template-columns:1fr 1fr}}
+  @media(max-width:600px){.grid,.two{grid-template-columns:1fr}header{flex-direction:column;align-items:flex-start}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1><span data-i18n="app.title"></span> <span class="muted">v5</span></h1>
+    <div class="muted" data-i18n="app.tagline"></div>
+  </div>
+  <select id="lang" title="Language / Ngôn ngữ" style="min-width:130px">
+    <option value="vi">🇻🇳 Tiếng Việt</option>
+    <option value="en">🇬🇧 English</option>
+  </select>
+</header>
+
+<main>
+  <div class="controls">
+    <button class="primary" id="reload"></button>
+    <select id="contract" title="Contract"></select>
+    <select id="mode"></select>
+    <select id="lookback"></select>
+    <select id="tf"></select>
+    <span id="status" class="muted" data-i18n="st.boot"></span>
+  </div>
+
+  <div id="alerts"></div>
+  <div class="grid" id="top"></div>
+
+  <div class="two">
+    <div class="card"><h2 data-i18n="card.index"></h2><div id="idxTable"></div>
+      <div class="small" style="margin-top:8px" data-i18n="card.index.note"></div>
+    </div>
+    <div class="card"><h2 data-i18n="card.net"></h2><div id="netTable"></div></div>
+  </div>
+
+  <div class="card"><h2 data-i18n="card.signal"></h2><div id="signal"></div></div>
+
+  <div class="card"><h2 data-i18n="card.spy"></h2><div id="spyStats"></div><canvas id="chart"></canvas>
+    <div class="small" id="chartNote" style="margin-top:6px"></div>
+    <div id="wrbInfo" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <h2 id="fcTitle"></h2>
+    <div class="small" id="fcSub" style="margin:-4px 0 8px"></div>
+    <div id="fcLegend" style="margin-bottom:8px"></div>
+    <canvas id="fcChart"></canvas>
+    <div class="small" id="fcNote" style="margin-top:6px"></div>
+  </div>
+
+  <div class="two">
+    <div class="card"><h2 data-i18n="card.prob"></h2><div id="prob"></div></div>
+    <div class="card"><h2 data-i18n="card.matrix"></h2><div id="matrix"></div></div>
+  </div>
+
+  <div class="card">
+    <h2 data-i18n="card.diag"></h2>
+    <div id="diag"></div>
+  </div>
+
+  <div class="card">
+    <h2 data-i18n="card.blocked"></h2>
+    <div class="vpn">
+      <b data-i18n="blk.vpnTitle"></b><br>
+      <span data-i18n-html="blk.vpnBody"></span>
+    </div>
+    <div class="small" style="line-height:1.7" data-i18n-html="blk.step1"></div>
+    <div class="controls" style="margin-top:8px">
+      <button id="openInTab" data-i18n="blk.openTab"></button>
+    </div>
+    <div class="small" style="line-height:1.7;margin-top:10px" data-i18n-html="blk.step2"></div>
+    <div class="controls" style="margin-top:8px">
+      <input id="sourceUrl" type="url" data-i18n-ph="blk.srcPlaceholder" style="flex:1;min-width:280px">
+      <button id="saveSource" data-i18n="blk.saveSrc"></button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 data-i18n="card.token"></h2>
+    <div class="small"><span data-i18n="tok.help"></span>
+      <a href="https://evergreen.data.socrata.com/signup" target="_blank" rel="noopener">evergreen.data.socrata.com/signup</a>.</div>
+    <div class="controls" style="margin-top:8px">
+      <input id="token" type="password" data-i18n-ph="tok.placeholder" style="flex:1;min-width:240px">
+      <button id="saveToken" data-i18n="tok.save"></button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 data-i18n="card.import"></h2>
+    <div class="small" style="line-height:1.7" data-i18n-html="imp.help"></div>
+    <textarea id="manual" placeholder='[{"report_date_as_yyyy_mm_dd":"2026-08-25T00:00:00.000","lev_money_positions_long":"150526", …}, …]'></textarea>
+    <div class="controls" style="margin-top:8px">
+      <button id="apply" data-i18n="imp.apply"></button>
+      <input id="file" type="file" accept=".json,application/json" style="font:inherit;color:#91a4be;border:0;padding:0">
+      <button id="clearImport" data-i18n="imp.clear"></button>
+      <span id="importState" class="small"></span>
+    </div>
+  </div>
+
+  <div class="small" style="padding:8px 0 30px" data-i18n="foot.note"></div>
+</main>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
