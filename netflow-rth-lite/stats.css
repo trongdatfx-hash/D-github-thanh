@@ -10,7 +10,7 @@
 .strength-metrics .positive{color:#1ae0a3}.strength-metrics .negative{color:#ff6383}.strength-metrics .neutral{color:#f2c46d}
 .stats-caption{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:8px;color:#91a5bd;font-size:11px;line-height:1.5}
 .stats-caption button{font-size:10px;padding:3px 7px;white-space:nowrap}
-.stats-table{width:100%;min-width:650px;border-collapse:collapse;margin:8px 0;font-size:12px;text-align:left}
+.stats-table{width:100%;min-width:780px;border-collapse:collapse;margin:8px 0;font-size:12px;text-align:left}
 .stats-table th,.stats-table td{padding:6px 8px;border-bottom:1px solid #26364a;font-variant-numeric:tabular-nums}
 .stats-table th{color:#9bacc2;font-weight:500}.stats-table .selected{background:#18273a;color:#e6f2ff}
 .stats-note{color:#91a5bd;font-size:11px;line-height:1.6}
