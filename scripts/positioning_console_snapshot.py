@@ -86,7 +86,10 @@ def yahoo_bars(interval, range_):
     for i, stamp in enumerate(timestamps):
         vals = [quote.get(key, [None] * len(timestamps))[i] for key in ("open", "high", "low", "close")]
         if all(isinstance(v, (int, float)) for v in vals):
-            bars.append({"t": stamp * 1000, "o": vals[0], "h": vals[1], "l": vals[2], "c": vals[3]})
+            bars.append({
+                "t": stamp * 1000, "o": vals[0],
+                "h": max(vals), "l": min(vals), "c": vals[3]
+            })
     if not bars:
         raise ValueError(f"Yahoo returned no valid {interval} bars")
     return bars

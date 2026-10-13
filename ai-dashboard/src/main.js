@@ -51,9 +51,12 @@ async function loadHostedSnapshot(p) {
   const response = await fetch("data/snapshot.json", { cache: "no-store" });
   if (!response.ok) throw new Error(`Hosted snapshot HTTP ${response.status}`);
   const data = await response.json();
-  const bars = (rows) => (rows || []).map((b) => ({
-    d: new Date(b.t), o: Number(b.o), h: Number(b.h), l: Number(b.l), c: Number(b.c)
-  })).filter((b) => !Number.isNaN(b.d.getTime()) && [b.o, b.h, b.l, b.c].every(Number.isFinite));
+  const bars = (rows) => (rows || []).map((b) => {
+    const o = Number(b.o), h = Number(b.h), l = Number(b.l), c = Number(b.c);
+    return {
+      d: new Date(b.t), o, h: Math.max(o, h, l, c), l: Math.min(o, h, l, c), c
+    };
+  }).filter((b) => !Number.isNaN(b.d.getTime()) && [b.o, b.h, b.l, b.c].every(Number.isFinite));
   return {
     cot: buildCOT(data.tff || [], data.legacy || [], {
       contract: DEFAULT_CONTRACT,
