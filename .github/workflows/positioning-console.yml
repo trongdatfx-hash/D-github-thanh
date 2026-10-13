@@ -1,0 +1,43 @@
+name: SPY Positioning Console data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17,47 13-21 * * 1-5"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: positioning-console-main
+  cancel-in-progress: true
+
+jobs:
+  snapshot:
+    if: github.repository == 'trongdatfx-hash/D-github-thanh' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Update CFTC and SPY snapshot
+        run: python scripts/positioning_console_snapshot.py
+      - name: Publish snapshot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ai-dashboard/data/snapshot.json
+          git diff --cached --quiet && exit 0
+          git commit -m "data: update positioning console snapshot"
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git rebase origin/main
+            git push && exit 0
+            sleep "$((attempt * 10))"
+          done
+          exit 1
