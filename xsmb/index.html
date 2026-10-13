@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0a1020">
+<title>XSMB Quant Lab — Phân vị & Random Walk</title>
+<style>
+:root{--bg:#080e1a;--panel:#121b2e;--panel2:#17233a;--border:#29354b;--txt:#edf3ff;--muted:#8d9bb4;--cyan:#34d8ee;--green:#40e5b0;--yellow:#ffd076;--red:#fd7e88}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at 75% -10%,#142d47 0,transparent 45%),var(--bg);font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--txt);min-width:320px}
+button,select,input{font:inherit}
+a{color:var(--cyan);text-decoration:none} a:hover{text-decoration:underline}
+.wrap{max-width:1370px;margin:auto;padding:0 20px 50px}
+.top{border-bottom:1px solid var(--border);background:#0a1222bd;backdrop-filter:blur(12px);position:sticky;top:0;z-index:10}
+.top .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:63px;padding-bottom:0}
+.brand{display:flex;align-items:center;gap:12px;font-weight:800;letter-spacing:.4px}
+.brand-mark{display:grid;place-items:center;height:34px;width:34px;border-radius:10px;background:linear-gradient(145deg,#42e4d2,#438bff);color:#071022;font-size:19px}
+.brand small{display:block;color:var(--muted);font-size:10px;font-weight:600;letter-spacing:1.6px}
+.pill{font-size:11px;border:1px solid #266257;border-radius:99px;padding:5px 11px;color:#68ecc7;background:#0e2829}
+.hero{padding:31px 0 16px;display:flex;align-items:flex-end;justify-content:space-between;gap:14px}
+.eyebrow{color:var(--cyan);text-transform:uppercase;letter-spacing:2px;font-weight:800;font-size:11px}
+h1{margin:8px 0;font-size:clamp(25px,3.3vw,38px);line-height:1.13;letter-spacing:-.7px}
+.sub{color:var(--muted);margin:0;max-width:800px}
+.clock{white-space:nowrap;color:var(--muted);font-size:12px;text-align:right}
+.card{background:linear-gradient(155deg,rgba(25,37,60,.95),rgba(14,22,39,.96));border:1px solid var(--border);border-radius:16px;padding:19px;min-width:0}
+.controls{display:flex;align-items:flex-end;gap:11px;flex-wrap:wrap;margin:18px 0 12px}
+.field{display:flex;flex-direction:column;gap:5px;min-width:134px;flex:1}
+.field label{color:var(--muted);font-size:11px;font-weight:700}
+select,.btn{border:1px solid #354662;border-radius:9px;background:#19253c;color:var(--txt);padding:10px 12px;height:42px;min-width:0}
+select{width:100%;cursor:pointer}
+.btn{cursor:pointer;font-weight:750;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:7px;transition:.2s}
+.btn:hover{border-color:var(--cyan);background:#23344f}
+.primary{background:linear-gradient(100deg,#1bbcae,#297fdd);border:0;color:white}
+.primary:hover{filter:brightness(1.08)}
+.file-btn{position:relative;overflow:hidden}
+.file-btn input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.status{padding:10px 13px;border:1px solid #2b4254;background:#0e2130;border-radius:9px;color:#a9b9cd;font-size:12px;margin-bottom:17px}
+.status.bad{border-color:#753c4e;color:#ff9ba7;background:#321b28}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:16px}
+.kpi{padding:17px 19px}
+.kpi small{color:var(--muted);font-weight:650;font-size:11px}
+.kpi strong{display:block;font-size:24px;line-height:1.3;margin:7px 0 2px;font-weight:850;font-variant-numeric:tabular-nums}
+.kpi span{font-size:11px;color:var(--muted)}
+.accent{color:var(--cyan)}
+.good{color:var(--green)}
+.gold{color:var(--yellow)}
+.sectionhead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+h2{margin:0;font-size:17px;letter-spacing:-.25px}
+h3{margin:0;font-size:13px}
+.hint{color:var(--muted);font-size:11px}
+.sectionhead .hint{text-align:right}
+.feature{border-color:#2d5d66;background:linear-gradient(115deg,#152f40,#12233b 60%,#19243d)}
+.numbers{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:10px}
+.numcard{border:1px solid #365567;border-radius:12px;background:linear-gradient(160deg,#1b3b4a,#19263d);padding:14px 10px;cursor:pointer;text-align:center;color:var(--txt);min-width:0;transition:.15s}
+.numcard:hover,.numcard.active{border-color:#5df9e5;box-shadow:0 0 0 1px #33cab1}
+.numcard .rank{color:var(--muted);font-size:10px}
+.numcard strong{display:block;font-size:31px;line-height:1.26;font-variant-numeric:tabular-nums;color:#7df7d6}
+.numcard .score{display:block;color:#edf5ff;font-weight:750;font-size:13px}
+.numcard .small{display:block;color:var(--muted);font-size:10px;margin-top:3px}
+.grid2{display:grid;grid-template-columns:1.17fr .83fr;gap:15px;margin-top:15px}
+.plot{width:100%;height:265px;display:block}
+.legend{display:flex;align-items:center;gap:15px;flex-wrap:wrap;color:var(--muted);font-size:11px}
+.legend b{width:17px;height:3px;display:inline-block;vertical-align:middle;margin-right:4px;border-radius:4px}
+.heatmap{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:5px}
+.cell{padding:6px 1px;min-height:40px;background:#19273c;border:1px solid #35485e;border-radius:7px;text-align:center;cursor:pointer;color:white;font-size:12px;font-weight:750;transition:.15s}
+.cell:hover{transform:scale(1.06);border-color:white}
+.cell.active{outline:2px solid #fbda81}
+.cell.picked{border-color:#4cf5c0;box-shadow:inset 0 0 0 1px #4cf5c0}
+.cell small{display:block;font-size:9px;font-weight:550;color:#d0e3e9}
+.bars{display:grid;gap:8px;max-height:380px;overflow:auto;padding-right:3px}
+.barrow{display:grid;grid-template-columns:36px 1fr 38px;gap:9px;align-items:center;font-size:11px}
+.barrow b{font-size:12px}
+.track{height:9px;background:#263147;border-radius:12px;overflow:hidden}
+.fill{height:100%;border-radius:12px;background:linear-gradient(90deg,#2e8edb,#48e3bf)}
+.barvalue{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.tablewrap{overflow:auto;max-height:570px}
+table{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap}
+th{position:sticky;top:0;background:#1c2a43;text-align:right;padding:11px 12px;color:#adbed4;z-index:1}
+td{text-align:right;border-top:1px solid #2b3950;padding:10px 12px;font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left}
+tr:hover td{background:#1a2e45}
+tr.selected td{background:#17413d}
+.num{color:#7df7d6;font-weight:850;font-size:14px}
+.note{color:var(--muted);font-size:12px;line-height:1.7}
+.note b{color:#e1e8f5}
+.warning{color:#ffe2a9;border-top:1px solid var(--border);padding-top:12px;margin-top:13px}
+.footer{padding:22px 2px;font-size:11px;color:var(--muted)}
+@media(max-width:1030px){.numbers{grid-template-columns:repeat(4,1fr)}.grid2{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:550px){.wrap{padding-left:12px;padding-right:12px}.hero{display:block}.clock{text-align:left;margin-top:12px}.numbers{gap:7px}.numcard{padding:9px 4px}.numcard strong{font-size:25px}.numcard .small{font-size:9px}.card{padding:13px;border-radius:12px}.controls{gap:8px}.field{flex:1 1 calc(50% - 8px);min-width:0}.btn{flex:1}.kpis{gap:8px}.kpi{padding:12px}.kpi strong{font-size:21px}.heatmap{gap:3px}.cell{min-height:36px;padding:4px 0;font-size:11px}.sectionhead{align-items:flex-start}h2{font-size:15px}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap"><div class="brand"><div class="brand-mark">↗</div><div>XSMB QUANT LAB<small>PHÂN VỊ × RANDOM WALK</small></div></div><span class="pill">DATA OPEN SOURCE</span></div></header>
+<main class="wrap">
+<div class="hero"><div><div class="eyebrow">Thống kê lô tô miền Bắc • 00—99</div><h1>Phân tích phân vị &amp; mô phỏng RW</h1><p class="sub">Phân tích dữ liệu lịch sử, Monte Carlo và xếp hạng 8 số theo điểm mô hình. Dành cho tham khảo thống kê, không phải dự báo chắc chắn.</p></div><div class="clock" id="stamp">Đang tải dữ liệu...</div></div>
+<div class="controls">
+<div class="field"><label for="window">Cửa sổ phân tích</label><select id="window"><option value="90">90 ngày</option><option value="180">180 ngày</option><option value="365" selected>365 ngày</option><option value="730">730 ngày</option></select></div>
+<div class="field"><label for="horizon">RW tương lai</label><select id="horizon"><option value="1">1 ngày</option><option value="3">3 ngày</option><option value="7" selected>7 ngày</option><option value="14">14 ngày</option></select></div>
+<div class="field"><label for="paths">Số lần Monte Carlo</label><select id="paths"><option value="1000">1.000 lượt</option><option value="3000" selected>3.000 lượt</option><option value="8000">8.000 lượt</option></select></div>
+<button class="btn primary" id="run">▶ Phân tích</button>
+<button class="btn" id="refresh">↻ Tải mới</button>
+<label class="btn file-btn">↑ Nhập CSV<input id="csv" type="file" accept=".csv,text/csv"></label>
+</div>
+<div class="status" id="status" aria-live="polite">Đang kết nối dữ liệu kết quả XSMB miễn phí...</div>
+<div class="kpis">
+<div class="card kpi"><small>Kết quả gần nhất</small><strong id="latest">—</strong><span id="latestSub">Chờ đồng bộ</span></div>
+<div class="card kpi"><small>Ngày dữ liệu lịch sử</small><strong id="days">—</strong><span id="daysSub">Mẫu để phân tích</span></div>
+<div class="card kpi"><small>Tần suất xuất hiện chuẩn</small><strong class="accent" id="baseP">—</strong><span>Mỗi số / ngày, trên toàn mẫu</span></div>
+<div class="card kpi"><small>Cấu hình mô phỏng</small><strong class="gold" id="cfg">—</strong><span>RW trên biến có xuất hiện / không</span></div>
+</div>
+<section class="card feature">
+<div class="sectionhead"><div><h2>8 số xếp hạng cao nhất</h2><div class="hint">Tổng điểm phân vị + mô phỏng, sắp xếp giảm dần</div></div><div class="hint" id="topInfo">Chưa có dữ liệu</div></div>
+<div class="numbers" id="numbers"><div class="note">Đang tính toán...</div></div>
+<p class="note" style="margin:14px 0 0">Chọn một số để xem đường Random Walk bên dưới. Điểm cao là <b>xếp hạng theo dữ liệu quá khứ</b>, không phải tỷ lệ trúng thực tế.</p>
+</section>
+<div class="grid2">
+<section class="card"><div class="sectionhead"><div><h2>Random Walk — <span id="rwLabel">--</span></h2><div class="hint">Tổng lũy tích (xuất hiện − xác suất nền) theo ngày</div></div><div class="hint" id="rwInfo">—</div></div><canvas class="plot" id="rwChart" role="img" aria-label="Đồ thị Random Walk quá khứ và mô phỏng tương lai"></canvas><div class="legend"><span><b style="background:#43e5b8"></b>Lịch sử</span><span><b style="background:#ffcf7a"></b>Trung vị mô phỏng</span><span><b style="background:#5b7295"></b>Khoảng 10–90%</span></div></section>
+<section class="card"><div class="sectionhead"><div><h2>Bản đồ điểm 00–99</h2><div class="hint">Màu sáng hơn = điểm mô hình cao hơn</div></div><div class="hint">Viền xanh = top 8</div></div><div class="heatmap" id="heatmap"></div></section>
+</div>
+<div class="grid2">
+<section class="card"><div class="sectionhead"><div><h2>Top 20 theo điểm tổng hợp</h2><div class="hint">Thanh chuẩn hóa theo mức 0–100</div></div></div><div class="bars" id="bars"></div></section>
+<section class="card"><div class="sectionhead"><div><h2>Chi tiết số được chọn</h2><div class="hint">Thống kê và ước lượng trong mô hình</div></div></div><div id="detail" class="note"></div></section>
+</div>
+<section class="card" style="margin-top:15px">
+<div class="sectionhead"><div><h2>Xếp hạng đầy đủ 100 số</h2><div class="hint">Pctl = phân vị trong 100 số, RW+ = tỷ lệ mô phỏng kết thúc trên mốc kỳ vọng</div></div><button class="btn" id="copy">Sao chép top 8</button></div>
+<div class="tablewrap"><table><thead><tr><th>Hạng / Số</th><th>Điểm</th><th>Pctl 30N</th><th>Pctl cửa sổ</th><th>30N (lượt)</th><th>Tổng lượt</th><th>Gan (ngày)</th><th>RW+</th><th>p mô hình/ngày</th></tr></thead><tbody id="tbody"></tbody></table></div>
+</section>
+<section class="card" style="margin-top:15px"><div class="sectionhead"><div><h2>Phương pháp &amp; giới hạn</h2><div class="hint">Định nghĩa minh bạch, mô phỏng có hạt giống cố định</div></div></div>
+<div class="note">
+<p><b>Dữ liệu:</b> 27 số cuối của các giải XSMB mỗi ngày, lấy từ kho mã nguồn mở của Khiêm Đoàn. Một số xuất hiện nhiều lần trong ngày vẫn chỉ được tính là 1 lần ở chuỗi biến cố RW; mục "lượt" vẫn tính đủ số lần xuất hiện.</p>
+<p><b>Phân vị:</b> xếp hạng tương đối giữa 100 số từ 00 tới 99. Điểm tổng hợp = 30% phân vị số lượt 30 ngày + 25% phân vị số lượt trong cửa sổ + 20% phân vị động lượng tỷ lệ ngày có xuất hiện (30 ngày so với tối đa 90 ngày) + 25% phân vị RW+.</p>
+<p><b>Random Walk (RW):</b> mỗi bước là X = I(xuất hiện trong ngày) − p<sub>0</sub>, với p<sub>0</sub> là tần suất xuất hiện trung bình của 100 số trong 365 ngày gần nhất. Mô phỏng từng số qua số ngày tương lai đã chọn, theo xác suất giả định p = (45×p<sub>0</sub> + số ngày đã xuất hiện trong 90 ngày)/(45 + số ngày quan sát), giới hạn trong [0,05; 0,60]. RW+ là tỷ lệ đường mô phỏng kết thúc lớn hơn 0; <b>không phải</b> xác suất trúng lô 1 ngày.</p>
+<p><b>Tính ngẫu nhiên:</b> mô phỏng dùng bộ sinh số giả ngẫu nhiên có seed cố định theo dữ liệu/cấu hình, giúp tái lập bảng xếp hạng. RW không giả định có "quy luật" thật trong xổ số.</p>
+<p class="warning"><b>Cảnh báo:</b> Nếu xổ số công bằng và các kỳ độc lập, lịch sử "nóng", "gan" hay xếp hạng phân vị không làm tăng xác suất trúng kỳ sau. Chưa có kiểm định ngoài mẫu chứng minh lợi thế; không nên sử dụng các điểm này như bảo đảm để đặt tiền.</p>
+</div></section>
+<div class="footer">XSMB QUANT LAB · Dữ liệu: <a href="https://github.com/khiemdoan/vietnam-lottery-xsmb-analysis" target="_blank" rel="noopener">khiemdoan/vietnam-lottery-xsmb-analysis</a> · Website tĩnh, không cần API key · Không gửi dữ liệu người dùng lên máy chủ riêng.</div>
+</main>
+<script>
+(function(){
+"use strict";
+var URL="https://raw.githubusercontent.com/khiemdoan/vietnam-lottery-xsmb-analysis/refs/heads/main/data/xsmb-2-digits.csv";
+var $=function(s){return document.getElementById(s)};
+var model={days:[],metrics:[],selected:null,base:0,look:365,horizon:7,paths:3000,source:"GitHub"};
+function fmt(n){return Number(n).toLocaleString("vi-VN")}
+function num(n){return String(n).padStart(2,"0")}
+function pct(n){return (n*100).toFixed(1)+"%"}
+function setStatus(s,bad){$("status").textContent=s;$("status").className="status"+(bad?" bad":"")}
+function parseCSV(raw){
+ var rows=raw.replace(/^\uFEFF/,"").trim().split(/\r?\n/);
+ if(rows.length<60)throw Error("File có quá ít ngày dữ liệu.");
+ var head=rows.shift().split(",");
+ if(head[0].trim()!=="date"||head.length<28)throw Error("CSV phải là file xsmb-2-digits.csv (cột date + 27 giải).");
+ var map=new Map();
+ rows.forEach(function(line){
+  var a=line.trim().split(",");
+  if(a.length<28||!/^\d{4}-\d\d-\d\d$/.test(a[0]))return;
+  var counts=new Uint8Array(100),ok=true;
+  for(var j=1;j<=27;j++){var s=a[j].trim(); if(!/^\d{1,2}$/.test(s)){ok=false;break}counts[+s]++}
+  if(!ok)return;
+  var hits=new Uint8Array(100);
+  for(var k=0;k<100;k++)hits[k]=counts[k]>0?1:0;
+  map.set(a[0],{date:a[0],counts:counts,hits:hits});
+ });
+ var arr=Array.from(map.values()).sort(function(a,b){return a.date.localeCompare(b.date)});
+ if(arr.length<60)throw Error("Không đủ dữ liệu hợp lệ để tính toán.");
+ return arr;
+}
+function seedOf(str){var h=2166136261>>>0;for(var i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619)>>>0}return h||1}
+function randGen(seed){var x=seed>>>0;return function(){x^=x<<13;x^=x>>>17;x^=x<<5;return(x>>>0)/4294967296}}
+function percentile(arr,key){
+ var values=arr.map(function(o){return o[key]});
+ arr.forEach(function(o){
+  var less=0,equal=0;
+  for(var i=0;i<values.length;i++){if(values[i]<o[key]-1e-10)less++;else if(Math.abs(values[i]-o[key])<=1e-10)equal++}
+  o["pc_"+key]=100*(less+equal/2)/values.length;
+ });
+}
+function simulate(p,base,horizon,paths,seed){
+ var rng=randGen(seed),win=0;
+ for(var j=0;j<paths;j++){var s=0;for(var t=0;t<horizon;t++)s+=(rng()<p?1:0)-base;if(s>1e-9)win++}
+ return win/paths;
+}
+function analyze(){
+ if(!model.days.length)return;
+ var data=model.days, len=data.length, look=Math.min(+$("window").value,len);
+ var horizon=+$("horizon").value,paths=+$("paths").value;
+ var recent=data.slice(-look),shortN=Math.min(30,look),midN=Math.min(90,look),baseN=Math.min(365,len);
+ var avg=0;
+ for(var i=len-baseN;i<len;i++)for(var j=0;j<100;j++)avg+=data[i].hits[j];
+ var base=avg/(baseN*100),all=[];
+ for(var k=0;k<100;k++){
+  var cShort=0,cWin=0,hShort=0,hMid=0,daysHit=0,gap=0;
+  for(var a=0;a<look;a++){
+   var d=recent[look-1-a];
+   cWin+=d.counts[k];daysHit+=d.hits[k];
+   if(a<shortN){cShort+=d.counts[k];hShort+=d.hits[k]}
+   if(a<midN)hMid+=d.hits[k];
+  }
+  while(gap<len&&data[len-1-gap].hits[k]===0)gap++;
+  var momentum=hShort/shortN-hMid/midN;
+  var p=Math.max(.05,Math.min(.60,(45*base+hMid)/(45+midN)));
+  var mc=simulate(p,base,horizon,paths,seedOf(data[len-1].date+"|"+k+"|"+horizon+"|"+paths));
+  all.push({n:k,cShort:cShort,cWin:cWin,hShort:hShort,hMid:hMid,hWin:daysHit,gap:gap,momentum:momentum,p:p,mc:mc});
+ }
+ ["cShort","cWin","momentum","mc"].forEach(function(key){percentile(all,key)});
+ all.forEach(function(o){o.score=.30*o.pc_cShort+.25*o.pc_cWin+.20*o.pc_momentum+.25*o.pc_mc});
+ all.sort(function(a,b){return b.score-a.score||b.cShort-a.cShort||a.n-b.n});
+ all.forEach(function(o,i){o.rank=i+1});
+ model.metrics=all;model.base=base;model.look=look;model.horizon=horizon;model.paths=paths;
+ if(model.selected===null)model.selected=all[0].n;
+ render();
+}
+function element(tag,cls,txt){var e=document.createElement(tag);if(cls)e.className=cls;if(txt!==undefined)e.textContent=txt;return e}
+function pick(n){model.selected=n;renderSelected()}
+function render(){
+ var latest=model.days[model.days.length-1].date;
+ $("stamp").textContent="Nguồn: "+model.source+" • Cập nhật tới "+latest.split("-").reverse().join("/");
+ $("latest").textContent=latest.split("-").reverse().join("/");
+ $("latestSub").textContent="Kỳ xổ số mới nhất trong file";
+ $("days").textContent=fmt(model.days.length);
+ $("daysSub").textContent=fmt(model.look)+" ngày được phân tích";
+ $("baseP").textContent=pct(model.base);
+ $("cfg").textContent=fmt(model.paths)+" × "+model.horizon+"N";
+ $("topInfo").textContent="Kết quả tới "+latest;
+ var top=model.metrics.slice(0,8),list=$("numbers");list.replaceChildren();
+ top.forEach(function(o){var b=element("button","numcard","");b.type="button";b.dataset.number=o.n;
+ b.appendChild(element("span","rank","#"+o.rank+" · TOP 8"));
+ b.appendChild(element("strong","",num(o.n)));
+ b.appendChild(element("span","score",o.score.toFixed(1)+" điểm"));
+ b.appendChild(element("span","small","RW+ "+pct(o.mc)));
+ b.addEventListener("click",function(){pick(o.n)});list.appendChild(b);
+ });
+ var map=$("heatmap");map.replaceChildren();
+ var byNum=new Map(model.metrics.map(function(x){return[x.n,x]}));
+ for(var i=0;i<100;i++){
+  var o=byNum.get(i),score=o.score/100;
+  var c=element("button","cell"+(o.rank<=8?" picked":""),num(i));c.type="button";c.dataset.number=i;
+  c.style.background="linear-gradient(140deg,rgba(29,188,165,"+(.10+.48*score).toFixed(2)+"),rgba(35,91,168,"+(.22+.48*score).toFixed(2)+"))";
+  c.title=num(i)+" • Hạng "+o.rank+" • "+o.score.toFixed(1)+" điểm";
+  c.appendChild(element("small","",o.score.toFixed(0)));
+  c.addEventListener("click",(function(n){return function(){pick(n)}})(i));map.appendChild(c);
+ }
+ var bars=$("bars");bars.replaceChildren();
+ model.metrics.slice(0,20).forEach(function(o){
+  var r=element("div","barrow"),name=element("b","",num(o.n)),tr=element("div","track"),fill=element("div","fill");
+  fill.style.width=o.score.toFixed(1)+"%";tr.appendChild(fill);
+  r.append(name,tr,element("span","barvalue",o.score.toFixed(1)));bars.appendChild(r);
+ });
+ var tb=$("tbody");tb.replaceChildren();
+ model.metrics.forEach(function(o){
+  var tr=element("tr",o.rank<=8?"selected":"");
+  var vals=[o.rank+". "+num(o.n),o.score.toFixed(1),o.pc_cShort.toFixed(0),o.pc_cWin.toFixed(0),String(o.cShort),String(o.cWin),String(o.gap),pct(o.mc),pct(o.p)];
+  vals.forEach(function(t,i){var td=element("td",i===0?"num":"",t);tr.appendChild(td)});
+  tr.style.cursor="pointer";tr.addEventListener("click",function(){pick(o.n)});tb.appendChild(tr);
+ });
+ setStatus("Đã phân tích "+fmt(model.look)+" ngày gần nhất trên "+fmt(model.days.length)+" ngày dữ liệu; xếp hạng 100 số từ 00–99. Nguồn: "+model.source+".");
+ renderSelected();
+}
+function renderSelected(){
+ var o=model.metrics.find(function(x){return x.n===model.selected})||model.metrics[0];if(!o)return;
+ document.querySelectorAll("[data-number]").forEach(function(e){e.classList.toggle("active",+e.dataset.number===o.n)});
+ $("rwLabel").textContent=num(o.n);
+ $("rwInfo").textContent="Hạng "+o.rank+" / 100";
+ var details=$("detail");details.replaceChildren();
+ [
+ ["Số được chọn",num(o.n)+" • Hạng "+o.rank+" • Điểm "+o.score.toFixed(1)],
+ ["Phân vị số lượt 30 ngày",o.pc_cShort.toFixed(1)+"/100"],
+ ["Phân vị số lượt "+model.look+" ngày",o.pc_cWin.toFixed(1)+"/100"],
+ ["Số lượt 30 ngày",o.cShort+" lượt trong 27 giải/ngày"],
+ ["Số lượt "+model.look+" ngày",o.cWin+" lượt"],
+ ["Số ngày kể từ khi xuất hiện",o.gap+" ngày"],
+ ["Động lượng ngắn - trung hạn",(100*o.momentum).toFixed(2)+" điểm %"],
+ ["Xác suất ngày xuất hiện theo mô hình",pct(o.p)],
+ ["P(RW kết thúc > 0) trong "+model.horizon+" ngày",pct(o.mc)],
+ ["P(có ít nhất 1 ngày xuất hiện) theo mô hình",pct(1-Math.pow(1-o.p,model.horizon))]
+ ].forEach(function(row){
+  var line=element("div","");line.style.cssText="display:flex;gap:12px;justify-content:space-between;border-bottom:1px solid #26364b;padding:8px 0";
+  line.append(element("span","",row[0]),element("b","",row[1]));details.appendChild(line);
+ });
+ details.appendChild(element("p","warning","Hai xác suất trên do giả định thống kê tạo ra, không phải xác suất trúng đã được kiểm chứng."));
+ drawWalk(o);
+}
+function drawWalk(o){
+ var c=$("rwChart"),ctx=c.getContext("2d"),w=Math.max(c.clientWidth,280),h=265;
+ var dpi=Math.min(window.devicePixelRatio||1,2);c.width=Math.round(w*dpi);c.height=h*dpi;ctx.setTransform(dpi,0,0,dpi,0,0);
+ var len=model.days.length,pastN=Math.min(90,model.look),hist=[0];
+ for(var i=len-pastN;i<len;i++)hist.push(hist[hist.length-1]+model.days[i].hits[o.n]-model.base);
+ var last=hist[hist.length-1],hz=model.horizon,paths=500,rng=randGen(seedOf("chart"+o.n+model.days[len-1].date+hz)),future=Array.from({length:hz+1},function(){return []});
+ future[0]=Array.from({length:paths},function(){return last});
+ for(var a=0;a<paths;a++){var s=last;for(var t=1;t<=hz;t++){s+=(rng()<o.p?1:0)-model.base;future[t].push(s)}}
+ var low=[],mid=[],high=[];
+ future.forEach(function(v){v.sort(function(a,b){return a-b});low.push(v[Math.floor(v.length*.1)]);mid.push(v[Math.floor(v.length*.5)]);high.push(v[Math.floor(v.length*.9)])});
+ var all=hist.concat(low,high);var lo=Math.min.apply(null,all),hi=Math.max.apply(null,all);var margin=Math.max(2,(hi-lo)*.18);lo-=margin;hi+=margin;
+ var left=37,right=w-12,top=20,bottom=h-29,full=pastN+hz;
+ var X=function(t){return left+(right-left)*t/full},Y=function(v){return bottom-(v-lo)/(hi-lo)*(bottom-top)};
+ ctx.clearRect(0,0,w,h);
+ ctx.font="11px system-ui";ctx.textBaseline="middle";
+ for(var g=0;g<=4;g++){var v=lo+(hi-lo)*g/4,y=Y(v);ctx.strokeStyle="#26374e";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(right,y);ctx.stroke();ctx.fillStyle="#8da1b8";ctx.fillText(v.toFixed(0),5,y)}
+ ctx.strokeStyle="#6f809a";ctx.setLineDash([4,5]);ctx.beginPath();ctx.moveTo(X(pastN),top);ctx.lineTo(X(pastN),bottom);ctx.stroke();ctx.setLineDash([]);
+ ctx.fillStyle="rgba(99,142,194,.2)";ctx.beginPath();ctx.moveTo(X(pastN),Y(high[0]));
+ for(var j=1;j<=hz;j++)ctx.lineTo(X(pastN+j),Y(high[j]));
+ for(var j=hz;j>=0;j--)ctx.lineTo(X(pastN+j),Y(low[j]));
+ ctx.closePath();ctx.fill();
+ function draw(values,offset,color,width){
+  ctx.beginPath();values.forEach(function(v,i){var x=X(i+offset),y=Y(v);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)});
+  ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke();
+ }
+ draw(hist,0,"#42eac0",2.2);draw(mid,pastN,"#ffcb76",2.2);
+ ctx.fillStyle="#8da1b8";ctx.textBaseline="alphabetic";ctx.fillText("−"+pastN+" ngày",left,h-8);ctx.fillText("Hôm nay",X(pastN)-24,h-8);ctx.fillText("+"+hz+" ngày",Math.max(left,X(full)-44),h-8);
+}
+async function load(){
+ $("run").disabled=true;$("refresh").disabled=true;
+ setStatus("Đang tải dữ liệu từ GitHub...");
+ try{
+  var res=await fetch(URL+"?v="+Math.floor(Date.now()/3600000),{cache:"no-store"});
+  if(!res.ok)throw Error("HTTP "+res.status);
+  var csv=await res.text();
+  model.days=parseCSV(csv);model.source="GitHub CSV";analyze();
+ }catch(err){setStatus("Không tải được GitHub: "+err.message+". Bạn có thể tải file CSV từ nguồn và dùng nút Nhập CSV.",true)}
+ finally{$("run").disabled=false;$("refresh").disabled=false}
+}
+$("run").addEventListener("click",analyze);
+$("refresh").addEventListener("click",load);
+$("csv").addEventListener("change",async function(e){
+ var f=e.target.files[0];if(!f)return;
+ try{model.days=parseCSV(await f.text());model.source="CSV: "+f.name;analyze()}
+ catch(err){setStatus("Lỗi đọc CSV: "+err.message,true)}
+});
+$("copy").addEventListener("click",function(){
+ if(!model.metrics.length)return;
+ var s=model.metrics.slice(0,8).map(function(o){return num(o.n)}).join(" - ");
+ if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(s).then(function(){setStatus("Đã sao chép: "+s)},function(){window.prompt("Sao chép 8 số:",s)});
+ else window.prompt("Sao chép 8 số:",s);
+});
+window.addEventListener("resize",function(){if(model.metrics.length)drawWalk(model.metrics.find(function(x){return x.n===model.selected})||model.metrics[0])});
+load();
+})();
+</script>
+</body>
+</html>
