@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {STEPS,parseKlines,composite,flowAlignment,calculateStrength,analyze,regression,weightedPriceBands,continuousCvdSpectrum,heikinAshi,takerPressureCandles,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
+import {STEPS,parseKlines,composite,flowAlignment,calculateStrength,analyze,regression,weightedPriceBands,continuousCvdSpectrum,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
 import {load} from '../data.mjs';
 import {isUsMarketHoliday,isUsMarketTradingDay} from '../market-calendar.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL(p,import.meta.url),'utf8').replace(/^\uFEFF/,''));
@@ -15,14 +15,6 @@ test('real Binance fixtures use quote fields, exclude unclosed bars',()=>{
 test('composite sums quote volumes at intersection only',()=>{
   const c=composite(a,b.slice(1)),x=c[0],aa=a.find(y=>y.t===x.t),bb=b.find(y=>y.t===x.t);
   assert.equal(x.q,aa.q+bb.q);assert.equal(x.net,aa.net+bb.net);assert(Math.abs(x.nf-(aa.nf*aa.q+bb.nf*bb.q)/(aa.q+bb.q))<1e-10);assert.equal(c.some(x=>x.t===b[0].t),false);assert.equal(x.o,undefined);
-});
-test('Heikin-Ashi is prefix-causal while Taker Pressure preserves BuyQ, SellQ and NetFlowQ',()=>{
-  const bars=[{t:1,o:10,h:13,l:9,c:12},{t:2,o:12,h:14,l:10,c:13},{t:3,o:13,h:15,l:12,c:14}],ha=heikinAshi(bars);
-  assert.deepEqual({o:ha[0].o,h:ha[0].h,l:ha[0].l,c:ha[0].c},{o:11,h:13,l:9,c:11});
-  assert.equal(ha[1].o,11);assert.equal(ha[1].c,12.25);assert.deepEqual(heikinAshi(bars.slice(0,2)),ha.slice(0,2));
-  const pressure=takerPressureCandles([{t:1,buy:70,sell:30,net:40},{t:2,buy:20,sell:80,net:-60}]);
-  assert.deepEqual(pressure,[{t:1,o:0,h:70,l:-30,c:40},{t:2,o:0,h:20,l:-80,c:-60}]);
-  assert.throws(()=>takerPressureCandles([{t:1,buy:70,sell:30,net:20}]),/không hợp lệ/);
 });
 test('SPY/QQQ alignment distinguishes agreement and divergence',()=>{
   const x={t:1,net:10,nf:20,q:50},y={t:1,net:5,nf:10,q:50},aligned=flowAlignment([x],[y])[0],same=flowAlignment([x],[x])[0];

@@ -31,22 +31,6 @@ export function composite(a,b){
     return [{t:x.t,end:x.end,day:x.day,session:x.session,q,buy,sell,net,nf:q>0?100*net/q:null}];
   });
 }
-export function heikinAshi(bars){
-  if(!Array.isArray(bars))throw Error('Dữ liệu Heikin-Ashi không hợp lệ');
-  let previousOpen=null,previousClose=null;
-  return bars.map(bar=>{
-    if(![bar?.o,bar?.h,bar?.l,bar?.c].every(Number.isFinite))throw Error('OHLC Heikin-Ashi không hợp lệ');
-    const c=(bar.o+bar.h+bar.l+bar.c)/4,o=previousOpen===null?(bar.o+bar.c)/2:(previousOpen+previousClose)/2;
-    const result={...bar,o,h:Math.max(bar.h,o,c),l:Math.min(bar.l,o,c),c};previousOpen=o;previousClose=c;return result;
-  });
-}
-export function takerPressureCandles(bars){
-  if(!Array.isArray(bars))throw Error('Dữ liệu nến Taker Pressure không hợp lệ');
-  return bars.map(bar=>{
-    if(![bar?.t,bar?.buy,bar?.sell,bar?.net].every(Number.isFinite)||bar.buy<0||bar.sell<0||Math.abs(bar.buy-bar.sell-bar.net)>1e-6*Math.max(1,bar.buy+bar.sell))throw Error('BuyQ/SellQ/NetFlowQ không hợp lệ');
-    return {t:bar.t,o:0,h:bar.buy,l:-bar.sell,c:bar.net};
-  });
-}
 function thresholdSign(value,threshold){return value>threshold?1:value< -threshold?-1:0;}
 function detailedFlowState(spy,qqq,threshold){
   const s=thresholdSign(spy,threshold),q=thresholdSign(qqq,threshold);
