@@ -1,5 +1,5 @@
 const PREFIX='netflow-rth-samples-v1:';
-const valid=x=>x&&[x.h,x.entryTime,x.exitTime,x.availableAt,x.value].every(Number.isFinite)&&['groupKey','detailKey','baselineKey'].every(k=>typeof x[k]==='string');
+const valid=x=>x&&[x.h,x.entryTime,x.exitTime,x.availableAt,x.value].every(Number.isFinite)&&['groupKey','detailKey','baselineKey'].every(k=>typeof x[k]==='string')&&(!('mfe'in x)||Number.isFinite(x.mfe))&&(!('mae'in x)||Number.isFinite(x.mae));
 const id=x=>`${x.h}|${x.entryTime}`;
 
 const defaultStorage=()=>{try{return globalThis.localStorage;}catch{return null;}};
@@ -15,7 +15,7 @@ export function saveSampleMemory(key,newSamples,storage=defaultStorage(),{maxSam
   if(!storage||!Array.isArray(newSamples))return {count:0,available:false};
   const old=loadSampleMemory(key,storage).samples,merged=new Map(old.map(x=>[id(x),x]));
   let changed=false;
-  for(const sample of newSamples)if(valid(sample)){const previous=merged.get(id(sample));if(!previous||previous.value!==sample.value||previous.groupKey!==sample.groupKey||previous.detailKey!==sample.detailKey||previous.baselineKey!==sample.baselineKey){merged.set(id(sample),sample);changed=true;}}
+  for(const sample of newSamples)if(valid(sample)){const previous=merged.get(id(sample));if(!previous||previous.value!==sample.value||previous.mfe!==sample.mfe||previous.mae!==sample.mae||previous.groupKey!==sample.groupKey||previous.detailKey!==sample.detailKey||previous.baselineKey!==sample.baselineKey){merged.set(id(sample),sample);changed=true;}}
   let samples=[...merged.values()].sort((a,b)=>a.entryTime-b.entryTime).slice(-maxSamples);
   if(!changed&&samples.length===old.length)return {count:old.length,available:true};
   const write=()=>storage.setItem(PREFIX+key,JSON.stringify({updated:Date.now(),samples}));

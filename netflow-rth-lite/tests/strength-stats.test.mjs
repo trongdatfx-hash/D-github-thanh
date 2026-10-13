@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {strengthState,strengthStatistics,trendStrength6,MIN_SAMPLES,TREND_WINDOW,TREND_MIN_HISTORY} from '../strength-stats.mjs';
 const step=300000,base=Date.parse('2026-10-05T14:00:00Z');
 function fixture(n=100){
-  const bars=Array.from({length:n},(_,i)=>({t:base+i*step,end:base+(i+1)*step-1,day:'2026-10-05',session:'RTH',c:100+i,q:100,buy:75,sell:25,net:50,nf:50,adjusted:.8}));
+  const bars=Array.from({length:n},(_,i)=>({t:base+i*step,end:base+(i+1)*step-1,day:'2026-10-05',session:'RTH',o:99.5+i,h:100.5+i,l:99+i,c:100+i,q:100,buy:75,sell:25,net:50,nf:50,adjusted:.8}));
   return {SPYUSDT:bars,QQQUSDT:bars.map(b=>({...b,c:b.c*2})),COMPOSITE:bars.map(b=>({...b,q:200,buy:150,sell:50,net:100})),alignment:bars.map(b=>({t:b.t,smoothSpyNf:50,smoothQqqNf:50,detailState:'THUẬN MUA'}))};
 }
 const sample=rows=>Object.fromEntries(['SPYUSDT','QQQUSDT','COMPOSITE'].map(k=>[k,rows[k][0]]));
@@ -33,6 +33,17 @@ test('outcomes mature before selected candle; same cohort uses disjoint windows'
   const first=stats.get(rows.SPYUSDT[4].t).stats[3];assert.equal(first.n,1);assert.equal(first.rate,100);assert(Math.abs(first.mean-3)<1e-10);
   assert.equal(stats.get(rows.SPYUSDT[7].t).stats[3].n,1);assert.equal(stats.get(rows.SPYUSDT[8].t).stats[3].n,2);
   assert.equal(stats.get(rows.SPYUSDT[99].t).stats[3].n,24);
+});
+test('trade metrics subtract round-trip cost and report robust path excursions',()=>{
+  const rows=fixture(),stats=strengthStatistics(rows,'SPYUSDT','COMPOSITE',step,{minSamples:1,tradeCost:.1});
+  const result=stats.get(rows.SPYUSDT[4].t).stats[3];
+  assert.equal(result.winRate,100);assert(Math.abs(result.expectancy-2.9)<1e-10);assert.equal(result.profitFactor,Infinity);
+  assert(Math.abs(result.medianMfe-3.5)<1e-10);assert.equal(result.medianMae,0);assert.equal(result.excursionN,1);
+});
+test('net wins and profit factor respond to the selected cost assumption',()=>{
+  const rows=fixture(),result=strengthStatistics(rows,'SPYUSDT','COMPOSITE',step,{minSamples:1,tradeCost:4}).get(rows.SPYUSDT[4].t).stats[3];
+  assert.equal(result.winRate,0);assert(Math.abs(result.expectancy+1)<1e-10);assert.equal(result.profitFactor,0);
+  assert.throws(()=>strengthStatistics(rows,'SPYUSDT','COMPOSITE',step,{tradeCost:5.01}),/không hợp lệ/);
 });
 test('prefix and current/future mutations cannot leak into past statistics',()=>{
   const rows=fixture(),full=strengthStatistics(rows,'SPYUSDT','COMPOSITE',step),prefix=Object.fromEntries(Object.entries(rows).map(([k,v])=>[k,v.slice(0,70)]));

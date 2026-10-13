@@ -1,9 +1,9 @@
 import {STEPS,composite,flowAlignment,analyze,weightedPriceBands,continuousCvdSpectrum} from './engine.mjs';
 import {load} from './data.mjs';
-import {strengthStatistics,trendStrength6,HORIZONS,MIN_SAMPLES,TREND_MIN_HISTORY} from './strength-stats.mjs?v=20261012-3';
+import {strengthStatistics,trendStrength6,HORIZONS,MIN_SAMPLES,TREND_MIN_HISTORY} from './strength-stats.mjs?v=20261013-1';
 import {reversalZone,REVERSAL_VERSION,REVERSAL_HORIZON,REVERSAL_MIN_MATCHES,REVERSAL_MIN_EFFECTIVE} from './reversal-zone.mjs?v=20261012-5';
 import {ReversalStabilizer} from './stability.mjs?v=20261012-5';
-import {loadSampleMemory,saveSampleMemory,sampleMemoryKey} from './sample-memory.mjs?v=20261012-3';
+import {loadSampleMemory,saveSampleMemory,sampleMemoryKey} from './sample-memory.mjs?v=20261013-1';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
 let chart,price,series={},marks,strengthMarks,cache=null,rows={},maps={},alignmentMap=new Map(),priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdFrame=0,controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
@@ -21,6 +21,8 @@ const reversalStabilizer=new ReversalStabilizer({alpha:.25,confirmations:3});
 const sourceName=key=>({SPYUSDT:'SPY',QQQUSDT:'QQQ',COMPOSITE:'Composite'}[key]);
 const signed=x=>Number.isFinite(x)?`${x>0?'+':''}${fmt(x)}`:'—';
 const returnText=x=>Number.isFinite(x)?`${x>0?'+':''}${x.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:4})}%`:'—';
+const profitFactorText=x=>x===Infinity?'∞':Number.isFinite(x)?x.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
+const tradeCostPct=()=>{const value=Number($('trade-cost')?.value);return Number.isFinite(value)?Math.max(0,Math.min(5,value)):.1;};
 const signLabel=x=>x>0?'+':x<0?'−':'0';
 const tone=x=>x>0?'positive':x<0?'negative':'neutral';
 class VariableWidthLineRenderer{
@@ -146,7 +148,7 @@ function render(fit=false){
   price.setData(p.map(x=>{const color=candlePalette(signals.get(x.t));return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color:color.body,wickColor:color.wick,borderColor:color.border};}));
   const alignment=flowAlignment(rows.SPYUSDT??[],rows.QQQUSDT??[],{step:STEPS[$('interval').value]});alignmentMap=new Map(alignment.map(x=>[x.t,x]));
   const memoryKey=sampleMemoryKey($('symbol').value,$('signal').value,$('interval').value),remembered=loadSampleMemory(memoryKey);
-  statsMap=strengthStatistics({...rows,alignment},$('symbol').value,$('signal').value,STEPS[$('interval').value],{memory:remembered.samples});
+  statsMap=strengthStatistics({...rows,alignment},$('symbol').value,$('signal').value,STEPS[$('interval').value],{memory:remembered.samples,tradeCost:tradeCostPct()});
   const saved=saveSampleMemory(memoryKey,statsMap.samples);sampleMemoryInfo={...saved,used:statsMap.rememberedSamples};
   trendMap=trendStrength6({...rows,alignment},$('signal').value,STEPS[$('interval').value]);
   const rawReversal=reversalZone(rows,$('symbol').value,$('signal').value,STEPS[$('interval').value]);
@@ -171,7 +173,7 @@ function render(fit=false){
   $('export').disabled=!p.length;
 }
 function statValue(id,text,color='neutral'){const node=$(id);node.textContent=text;node.className=color;}
-function historyText(summary){return summary?.ready?`${fmt(summary.rate)}% cùng dấu`:`Mẫu mỏng · n=${summary?.n??0}`;}
+function historyText(summary){return summary?.ready?`EV ${returnText(summary.expectancy)}`:`Mẫu mỏng · n=${summary?.n??0}`;}
 function latestStrength(key){const data=rows[key]??[];for(let i=data.length-1;i>=0;i--)if(Number.isFinite(data[i].adjusted))return data[i].adjusted;return null;}
 function updateStrengthLabels(){
   $('strength-readout').style.display=$('show-strength').checked?'flex':'none';
@@ -218,20 +220,20 @@ function showTooltip(t){
   statValue('stat-pair',a.detailState, a.detailState==='THUẬN MUA'?'positive':a.detailState==='THUẬN BÁN'?'negative':'neutral');
   $('stat-pair-note').textContent=`NF% mượt · S ${signed(a.smoothSpyNf)} / Q ${signed(a.smoothQqqNf)}`;
   const h=+$('stat-horizon').value,history=record.stats[h];
-  statValue('stat-history',state.direction?historyText(history):'Strength bằng 0',history.ready?tone(history.mean):'neutral');
-  $('stat-history-note').textContent=`n=${history.n} · ${history.scope==='detail'?'Cùng điểm & dải':'Cùng nhóm dấu / phiên'}${history.ready?` · TB ${returnText(history.mean)}`:` · cần ≥${MIN_SAMPLES}`}${sampleMemoryInfo.used?` · nhớ cũ ${sampleMemoryInfo.used}`:sampleMemoryInfo.available?` · bộ nhớ ${sampleMemoryInfo.count} kết quả`:' · không lưu được bộ nhớ'}`;
+  statValue('stat-history',state.direction?historyText(history):'Strength bằng 0',history.ready?tone(history.expectancy):'neutral');
+  $('stat-history-note').textContent=`n=${history.n} · ${history.scope==='detail'?'Cùng điểm & dải':'Cùng nhóm dấu / phiên'}${history.ready?` · Win ${fmt(history.winRate)}% · PF ${profitFactorText(history.profitFactor)}`:` · cần ≥${MIN_SAMPLES}`} · RT ${fmt(tradeCostPct())}%${sampleMemoryInfo.used?` · nhớ cũ ${sampleMemoryInfo.used}`:sampleMemoryInfo.available?` · bộ nhớ ${sampleMemoryInfo.count} kết quả`:' · không lưu được bộ nhớ'}`;
   const text=[`${time} · ${state.session} · Giá ${sourceName($('symbol').value)}, dấu từ ${sourceName($('signal').value)}${running?' · Nến đang chạy: điểm tạm thời, lịch sử so sánh dùng nến đóng':''}`,
     `Điểm xác nhận ${state.score??'—'}/100 = Taker ${fmt(state.taker)}/50 + Dải ${fmt(state.pair)}/30 + |Strength| ${fmt(state.strength)}/20. Điểm theo quy tắc, không phải xác suất thắng.`,
     trend?`TREND6 ${trend.label} ${trend.stableScore??trend.score}/100 (gốc ${trend.score})${trend.ready?` · P mượt ${Math.round(trend.stablePercentile??trend.percentile)} (gốc P${Math.round(trend.percentile)})`:' · chưa đủ phân vị'} · n=${trend.n} cụm đổi dấu ${trend.scope==='same-sign'?'cùng hướng':'hai hướng'}. Thành phần gốc ${trend.raw}: bền dấu ${fmt(trend.components.persistence)}/20 + biên độ ${fmt(trend.components.magnitude)}/15 + dốc ${fmt(trend.components.slope)}/10 + tổng Taker 6 nến ${fmt(trend.components.taker)}/20 + SPY↔QQQ ${fmt(trend.components.pair)}/10 + đồng thuận S/Q/C ${fmt(trend.components.consensus)}/25. BuyQ6 ${fmt(trend.buyTotal)} · SellQ6 ${fmt(trend.sellTotal)} · NetQ6 ${fmt(trend.netTotal)}.`:`TREND6 cần đủ 6 nến liên tiếp có Strength, Taker Buy/Sell và dải SPY↔QQQ. Phân vị chỉ bật từ ${TREND_MIN_HISTORY} cụm đổi dấu đã hoàn tất.`,
-    `So sánh mẫu có cùng dấu S/Q/C và cùng phiên. Ưu tiên cùng nhóm điểm, trạng thái dải và độ cực trị nếu đủ ${MIN_SAMPLES} mẫu; nếu thiếu thì mở rộng về nhóm dấu/phiên và ghi rõ ở bảng.`];
+    `Giả định giao dịch theo dấu Strength: dương = Long, âm = Short; vào tại close tín hiệu và thoát tại close sau 1/3/6 nến. So sánh mẫu cùng dấu S/Q/C và cùng phiên; ưu tiên cùng điểm, trạng thái dải và độ cực trị nếu đủ ${MIN_SAMPLES} mẫu.`];
   const nodes=text.map(value=>{const div=document.createElement('div');div.textContent=value;return div;});
   const table=document.createElement('table');table.className='stats-table';
-  const header=table.createTHead().insertRow();for(const title of ['Sau','Nhóm / n','Cùng dấu','TB theo dấu','So với nền']){const th=document.createElement('th');th.textContent=title;header.append(th);}
+  const header=table.createTHead().insertRow();for(const title of ['Sau','Nhóm / n','Win ròng','EV ròng','PF','MFE₅₀ / MAE₅₀']){const th=document.createElement('th');th.textContent=title;header.append(th);}
   const body=table.createTBody();
   for(const horizon of HORIZONS){const s=record.stats[horizon],row=body.insertRow();row.classList.toggle('selected',horizon===h);
-    for(const value of [`${horizon} nến`,`${s.scope==='detail'?'Điểm & dải':'Dấu / phiên'} · ${s.n}`,s.ready?`${fmt(s.rate)}%`:'Mẫu mỏng',s.ready?returnText(s.mean):'—',s.lift===null?'—':`${signed(s.lift)} đpt · n=${s.baseline.n}`])row.insertCell().textContent=value;
+    for(const value of [`${horizon} nến`,`${s.scope==='detail'?'Điểm & dải':'Dấu / phiên'} · ${s.n}`,s.ready?`${fmt(s.winRate)}%`:'Mẫu mỏng',s.ready?returnText(s.expectancy):'—',s.ready?profitFactorText(s.profitFactor):'—',s.excursionReady?`${fmt(s.medianMfe)}% / ${fmt(s.medianMae)}%`:`— · n=${s.excursionN}`])row.insertCell().textContent=value;
   }
-  const note=document.createElement('div');note.className='stats-note';note.textContent='Đo close → close sau 1/3/6 nến theo dấu Strength; loại đoạn mất nến/đổi phiên/ngày. Các cửa sổ kết quả trong mỗi nhóm không chồng nhau, chỉ tính kết quả đã đóng trước nến đang xem. Nền = cùng phiên và cùng dấu nguồn. Chưa trừ phí; đây là thống kê lịch sử, chưa phải backtest chiến lược.';
+  const note=document.createElement('div');note.className='stats-note';note.textContent=`Win ròng, EV và PF đã trừ ${fmt(tradeCostPct())}% chi phí khứ hồi giả định. MFE₅₀/MAE₅₀ là trung vị mức đi thuận/ngược lệnh trong thời gian giữ. Loại đoạn mất nến, đổi phiên/ngày; cửa sổ trong mỗi nhóm không chồng nhau và chỉ dùng kết quả đã đóng. Chưa tính funding, đòn bẩy hay thanh lý; đây là thống kê mô tả, chưa phải backtest chiến lược.`;
   $('tooltip').replaceChildren(...nodes,table,note);
 }
 function toggle(){
@@ -288,6 +290,7 @@ if(init()){
   document.addEventListener('fullscreenchange',syncFullChart);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.querySelector('.chart-card').classList.contains('fullscreen-fallback')){document.querySelector('.chart-card').classList.remove('fullscreen-fallback');syncFullChart();}});
   $('export').onclick=exportCSV;
   $('stat-horizon').onchange=()=>showTooltip(inspectedTime??rows[$('symbol').value]?.at(-1)?.t);
+  $('trade-cost').onchange=()=>{const value=tradeCostPct();$('trade-cost').value=value.toFixed(2);render(false);};
   $('stats-latest').onclick=()=>{inspectedTime=null;showTooltip(rows[$('symbol').value]?.at(-1)?.t);};
   setLive(false);refresh(true);setInterval(()=>{updateCandleCountdown();if(lastSuccess&&Date.now()-lastSuccess>15000)setLive(false);if(!document.hidden&&!loading)refresh();},LIVE_REFRESH_MS);
   setInterval(updateCandleCountdown,250);
