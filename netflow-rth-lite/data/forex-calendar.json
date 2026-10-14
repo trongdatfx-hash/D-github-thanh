@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-10-14T14:48:10.929Z",
+  "updatedAt": "2026-10-14T22:22:53.783Z",
   "events": [
     {
       "title": "Bank Holiday",
@@ -79,7 +79,7 @@
       "date": "2026-10-12T23:01:00.000Z",
       "timestamp": 1791846060000,
       "impact": "Low",
-      "actual": "1.0%",
+      "actual": "",
       "forecast": "0.8%",
       "previous": "0.5%"
     },
@@ -89,9 +89,9 @@
       "date": "2026-10-12T23:50:00.000Z",
       "timestamp": 1791849000000,
       "impact": "Low",
-      "actual": "5.3%",
+      "actual": "",
       "forecast": "5.5%",
-      "previous": "5.3%"
+      "previous": "5.4%"
     },
     {
       "title": "PPI y/y",
@@ -99,7 +99,7 @@
       "date": "2026-10-12T23:50:00.000Z",
       "timestamp": 1791849000000,
       "impact": "Low",
-      "actual": "6.8%",
+      "actual": "",
       "forecast": "7.6%",
       "previous": "7.6%"
     },
@@ -119,9 +119,9 @@
       "date": "2026-10-13T00:30:00.000Z",
       "timestamp": 1791851400000,
       "impact": "Low",
-      "actual": "-13",
+      "actual": "",
       "forecast": "",
-      "previous": "-9"
+      "previous": "-8"
     },
     {
       "title": "MPC Member Greene Speaks",
@@ -139,7 +139,7 @@
       "date": "2026-10-13T06:00:00.000Z",
       "timestamp": 1791871200000,
       "impact": "Low",
-      "actual": "0.6%",
+      "actual": "",
       "forecast": "0.6%",
       "previous": "0.6%"
     },
@@ -159,7 +159,7 @@
       "date": "2026-10-13T10:00:00.000Z",
       "timestamp": 1791885600000,
       "impact": "Low",
-      "actual": "97.9",
+      "actual": "",
       "forecast": "98.1",
       "previous": "98.7"
     },
@@ -169,9 +169,9 @@
       "date": "2026-10-13T12:15:00.000Z",
       "timestamp": 1791893700000,
       "impact": "Low",
-      "actual": "24.8K",
+      "actual": "",
       "forecast": "",
-      "previous": "25.3K"
+      "previous": "23.8K"
     },
     {
       "title": "Existing Home Sales",
@@ -179,9 +179,9 @@
       "date": "2026-10-13T14:00:00.000Z",
       "timestamp": 1791900000000,
       "impact": "Low",
-      "actual": "3.99M",
+      "actual": "",
       "forecast": "3.95M",
-      "previous": "3.93M"
+      "previous": "3.98M"
     },
     {
       "title": "IMF Meetings",
@@ -199,7 +199,7 @@
       "date": "2026-10-13T14:30:00.000Z",
       "timestamp": 1791901800000,
       "impact": "Low",
-      "actual": "-0.3%",
+      "actual": "",
       "forecast": "",
       "previous": "0.5%"
     },
@@ -229,9 +229,9 @@
       "date": "2026-10-13T21:45:00.000Z",
       "timestamp": 1791927900000,
       "impact": "Low",
-      "actual": "2.8%",
+      "actual": "",
       "forecast": "",
-      "previous": "0.7%"
+      "previous": "0.5%"
     },
     {
       "title": "MI Leading Index m/m",
@@ -239,7 +239,7 @@
       "date": "2026-10-13T23:30:00.000Z",
       "timestamp": 1791934200000,
       "impact": "Low",
-      "actual": "-0.1%",
+      "actual": "",
       "forecast": "",
       "previous": "0.0%"
     },
@@ -249,7 +249,7 @@
       "date": "2026-10-13T23:50:00.000Z",
       "timestamp": 1791935400000,
       "impact": "Low",
-      "actual": "2.0%",
+      "actual": "",
       "forecast": "2.1%",
       "previous": "2.0%"
     },
@@ -259,7 +259,7 @@
       "date": "2026-10-14T01:30:00.000Z",
       "timestamp": 1791941400000,
       "impact": "Low",
-      "actual": "0.9%",
+      "actual": "",
       "forecast": "1.0%",
       "previous": "0.8%"
     },
@@ -269,7 +269,7 @@
       "date": "2026-10-14T01:30:00.000Z",
       "timestamp": 1791941400000,
       "impact": "Low",
-      "actual": "5.0%",
+      "actual": "",
       "forecast": "4.4%",
       "previous": "3.8%"
     },
@@ -289,7 +289,7 @@
       "date": "2026-10-14T02:31:00.000Z",
       "timestamp": 1791945060000,
       "impact": "Low",
-      "actual": "906B",
+      "actual": "",
       "forecast": "790B",
       "previous": "809B"
     },
@@ -299,7 +299,7 @@
       "date": "2026-10-14T02:31:00.000Z",
       "timestamp": 1791945060000,
       "impact": "Low",
-      "actual": "133.5B",
+      "actual": "",
       "forecast": "116.8B",
       "previous": "119.1B"
     },
@@ -329,7 +329,7 @@
       "date": "2026-10-14T06:00:00.000Z",
       "timestamp": 1791957600000,
       "impact": "Low",
-      "actual": "1.9%",
+      "actual": "",
       "forecast": "0.6%",
       "previous": "0.9%"
     },
@@ -369,7 +369,7 @@
       "date": "2026-10-14T09:00:00.000Z",
       "timestamp": 1791968400000,
       "impact": "Low",
-      "actual": "7.2%",
+      "actual": "",
       "forecast": "7.4%",
       "previous": "7.5%"
     },
@@ -379,7 +379,7 @@
       "date": "2026-10-14T09:01:00.000Z",
       "timestamp": 1791968460000,
       "impact": "Low",
-      "actual": "1080B",
+      "actual": "",
       "forecast": "1025B",
       "previous": "60B"
     },
@@ -389,8 +389,8 @@
       "date": "2026-10-14T09:38:00.000Z",
       "timestamp": 1791970680000,
       "impact": "Low",
-      "actual": "3.80",
-      "forecast": "1.4",
+      "actual": "",
+      "forecast": "",
       "previous": "3.80|1.6"
     },
     {
@@ -419,9 +419,9 @@
       "date": "2026-10-14T12:30:00.000Z",
       "timestamp": 1791981000000,
       "impact": "Low",
-      "actual": "8.8%",
+      "actual": "",
       "forecast": "2.9%",
-      "previous": "-15.8%"
+      "previous": "-17.3%"
     },
     {
       "title": "Core CPI m/m",
@@ -429,7 +429,7 @@
       "date": "2026-10-14T12:30:00.000Z",
       "timestamp": 1791981000000,
       "impact": "High",
-      "actual": "0.3%",
+      "actual": "",
       "forecast": "0.2%",
       "previous": "0.3%"
     },
@@ -439,7 +439,7 @@
       "date": "2026-10-14T12:30:00.000Z",
       "timestamp": 1791981000000,
       "impact": "High",
-      "actual": "2.6%",
+      "actual": "",
       "forecast": "2.5%",
       "previous": "2.4%"
     },
@@ -449,7 +449,7 @@
       "date": "2026-10-14T12:30:00.000Z",
       "timestamp": 1791981000000,
       "impact": "High",
-      "actual": "0.6%",
+      "actual": "",
       "forecast": "0.6%",
       "previous": "0.4%"
     },
@@ -459,7 +459,7 @@
       "date": "2026-10-14T12:30:00.000Z",
       "timestamp": 1791981000000,
       "impact": "High",
-      "actual": "3.7%",
+      "actual": "",
       "forecast": "3.6%",
       "previous": "3.4%"
     },
@@ -469,7 +469,7 @@
       "date": "2026-10-14T13:30:00.000Z",
       "timestamp": 1791984600000,
       "impact": "Low",
-      "actual": "-0.1%",
+      "actual": "",
       "forecast": "",
       "previous": "-0.1%"
     },
