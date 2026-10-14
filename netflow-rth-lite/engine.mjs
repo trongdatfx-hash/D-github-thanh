@@ -141,6 +141,16 @@ export function projectNetFlowToPrice(priceBars,flowBars){
   const flow=new Map(flowBars.filter(x=>Number.isFinite(x?.t)&&Number.isFinite(x?.net)).map(x=>[x.t,x.net]));
   return priceBars.flatMap(bar=>Number.isFinite(bar?.t)&&Number.isFinite(bar?.c)&&flow.has(bar.t)?[{t:bar.t,c:bar.c,net:flow.get(bar.t)}]:[]);
 }
+export function dayBoundaryTimes(bars){
+  if(!Array.isArray(bars))throw Error('Dữ liệu phân tách ngày không hợp lệ');
+  const result=[];let previousDay=null;
+  for(const bar of bars){
+    if(!Number.isFinite(bar?.t)||typeof bar?.day!=='string')throw Error('Nến phân tách ngày không hợp lệ');
+    if(previousDay!==null&&bar.day!==previousDay)result.push(bar.t);
+    previousDay=bar.day;
+  }
+  return result;
+}
 // Replace this adapter with a versioned model ONLY after dataset/backtest validation.
 export const modelStatus={trained:false,method:'DVP Strength chain on NetFlowQ/quote volume; past-only session location/scale → RTH'};
 export function analyze(bars,step,{minSamples=26,window=500,regWindow=50,strength=calculateStrength(bars,step)}={}){

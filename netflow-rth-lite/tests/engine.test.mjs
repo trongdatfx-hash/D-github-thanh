@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {STEPS,parseKlines,composite,flowAlignment,calculateStrength,analyze,regression,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
+import {STEPS,parseKlines,composite,flowAlignment,calculateStrength,analyze,regression,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
 import {load} from '../data.mjs';
 import {isUsMarketHoliday,isUsMarketTradingDay} from '../market-calendar.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL(p,import.meta.url),'utf8').replace(/^\uFEFF/,''));
@@ -62,6 +62,10 @@ test('composite NetFlow projects only onto matching SPY price timestamps',()=>{
   const price=[{t:1,c:100,net:1},{t:2,c:101,net:2},{t:3,c:102,net:3}],flow=[{t:1,net:10},{t:3,net:-20},{t:4,net:99}];
   assert.deepEqual(projectNetFlowToPrice(price,flow),[{t:1,c:100,net:10},{t:3,c:102,net:-20}]);
   assert.throws(()=>projectNetFlowToPrice(null,flow),/không hợp lệ/);
+});
+test('day boundaries select the first candle of each new New York day',()=>{
+  assert.deepEqual(dayBoundaryTimes([{t:1,day:'2026-10-12'},{t:2,day:'2026-10-12'},{t:3,day:'2026-10-13'},{t:4,day:'2026-10-13'},{t:5,day:'2026-10-14'}]),[3,5]);
+  assert.throws(()=>dayBoundaryTimes([{t:1}]),/không hợp lệ/);
 });
 test('NY DST, RTH edges and weekend',()=>{
   assert.equal(sessionAt(Date.parse('2026-10-07T13:30:00Z')).session,'RTH');assert.equal(sessionAt(Date.parse('2026-10-07T20:00:00Z')).session,'POST');assert.equal(sessionAt(Date.parse('2026-01-07T14:30:00Z')).session,'RTH');assert.equal(sessionAt(Date.parse('2026-10-10T14:30:00Z')).session,'WEEKEND');assert.equal(modelStatus.trained,false);

@@ -46,6 +46,8 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   assert((await page.locator('#tooltip').innerText()).includes('Điểm xác nhận'));assert((await page.locator('#tooltip').innerText()).includes('không phải xác suất thắng'));assert((await page.locator('#tooltip').innerText()).includes('TREND6'));
   assert.equal(await page.locator('#cvd-spectrum').evaluate(canvas=>canvas.width>0&&canvas.height>0),true);
   assert.equal(await page.locator('#cvd-spectrum').getAttribute('data-source'),'COMPOSITE→SPY');
+  const dayCanvas=page.locator('#day-separators');assert.equal(await dayCanvas.evaluate(canvas=>canvas.width>0&&canvas.height>0),true);assert(+(await dayCanvas.getAttribute('data-count'))>0);assert(await dayCanvas.evaluate(canvas=>canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data.some((value,index)=>index%4===3&&value>0)));
+  await page.locator('#markers').uncheck();assert.equal(await dayCanvas.isVisible(),false);await page.locator('#markers').check();assert.equal(await dayCanvas.isVisible(),true);
   await page.locator('#symbol').selectOption('QQQUSDT');await page.locator('#signal').selectOption('SPYUSDT');
   assert.equal(await page.locator('#cvd-spectrum').getAttribute('data-source'),'QQQUSDT');
   assert((await page.locator('#tooltip').innerText()).includes('Giá QQQ, dấu từ SPY'));
