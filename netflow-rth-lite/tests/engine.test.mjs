@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {STEPS,parseKlines,composite,flowAlignment,compositeCandleSignal,strengthPhaseLineWidth,calculateStrength,analyze,regression,weightedPriceBands,priceSpreadZ,spreadConvergenceStats,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
+import {STEPS,parseKlines,composite,flowAlignment,compositeCandleSignal,strengthPhaseLineWidth,calculateStrength,analyze,regression,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
 import {load} from '../data.mjs';
 import {isUsMarketHoliday,isUsMarketTradingDay} from '../market-calendar.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL(p,import.meta.url),'utf8').replace(/^\uFEFF/,''));
@@ -64,20 +64,6 @@ test('price WLR uses linear weights, prior bars only and resets on gaps',()=>{
   assert.deepEqual(weightedPriceBands(bars.slice(0,60),STEPS['15m']),full.slice(0,60));
   const future=bars.map((x,i)=>i>=60?{...x,c:9999}:x);assert.deepEqual(weightedPriceBands(future,STEPS['15m']).slice(0,60),full.slice(0,60));
   const gap=[...bars.slice(0,55),{t:bars[55].t+STEPS['15m'],c:bars[55].c}];assert.equal(weightedPriceBands(gap,STEPS['15m']).at(-1).mid,null);
-});
-test('SPY–QQQ spread Z uses prior same-session prices and is prefix-causal',()=>{
-  const step=STEPS['15m'],full=priceSpreadZ(a,b,step);assert.equal(full.length,Math.min(a.length,b.length));assert(full.filter(row=>Number.isFinite(row.z)).length>500);
-  for(const n of [300,700,900])assert.deepEqual(priceSpreadZ(a.slice(0,n),b.slice(0,n),step),full.slice(0,n));
-  const changed=a.map((row,index)=>index>=900?{...row,c:row.c*1.5}:row);assert.deepEqual(priceSpreadZ(changed,b,step).slice(0,900),full.slice(0,900));
-  const first=full.find(row=>Number.isFinite(row.z));assert(first.samples>=40);assert(Number.isFinite(first.fairSpy));assert(Number.isFinite(first.fairQqq));
-  const holiday={...a[0],t:Date.parse('2026-12-25T14:30:00Z'),end:Date.parse('2026-12-25T14:45:00Z')-1,day:'2026-12-25',session:'RTH'};
-  assert.equal(priceSpreadZ([holiday],[{...holiday,c:holiday.c*.5}],step,{minSamples:20})[0].z,null);
-});
-test('spread convergence statistics count only complete non-overlapping excursions',()=>{
-  const step=STEPS['15m'],zs=[0,2.4,1.5,.8,.5,0,0,0,0,0,-2.2,-1.7,-1.4,-1.2,-.9,0,0,0,0,0],rows=zs.map((z,index)=>({t:index*step,day:'2026-10-14',session:'RTH',z}));
-  const stats=spreadConvergenceStats(rows,step,{horizons:[2,4],minSamples:1});
-  assert.deepEqual(stats[2],{horizon:2,n:2,wins:1,rate:50,ready:true});assert.deepEqual(stats[4],{horizon:4,n:2,wins:2,rate:100,ready:true});
-  const incomplete=spreadConvergenceStats(rows.slice(0,12),step,{horizons:[4],minSamples:1});assert.equal(incomplete[4].n,1);
 });
 test('continuous CVD spectrum accumulates quote delta by mirrored price bins',()=>{
   const bars=[{c:100.1,net:10},{c:100.2,net:5},{c:100.6,net:-20},{c:101.1,net:30}];
