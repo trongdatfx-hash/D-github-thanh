@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {STEPS,parseKlines,composite,flowAlignment,calculateStrength,analyze,regression,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
+import {STEPS,parseKlines,composite,flowAlignment,compositeCandleSignal,calculateStrength,analyze,regression,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
 import {load} from '../data.mjs';
 import {isUsMarketHoliday,isUsMarketTradingDay} from '../market-calendar.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL(p,import.meta.url),'utf8').replace(/^\uFEFF/,''));
@@ -22,6 +22,14 @@ test('SPY/QQQ alignment distinguishes agreement and divergence',()=>{
   const opposite=flowAlignment([{...x,net:-10,nf:-20}],[y])[0];assert.equal(opposite.state,'NGHỊCH · SPY bán / QQQ mua');assert.equal(opposite.detailState,'NGHỊCH · SPY bán / QQQ mua');assert(Math.abs(opposite.opposition-Math.sqrt(200)/50)<1e-12);assert.equal(opposite.intensity,.2);
   const leader=flowAlignment([x],[{...y,net:0,nf:0}])[0];assert.equal(leader.detailState,'SPY DẪN MUA');assert.equal(leader.opposition,0);
   assert.equal(flowAlignment([x],[{...y,net:-5,nf:-10}])[0].score,.45);assert.equal(flowAlignment([x],[{...y,t:2}]).length,0);
+});
+test('composite candle keeps Composite direction and mutes SPY/QQQ divergence',()=>{
+  const compositeBar={adjusted:.8,confidence:1};
+  const agreed=compositeCandleSignal(compositeBar,{adjusted:.7},{adjusted:.4},{smoothSpyNf:30,smoothQqqNf:20,opposition:0,volumeConfidence:1});
+  const diverged=compositeCandleSignal(compositeBar,{adjusted:.7},{adjusted:-.4},{smoothSpyNf:30,smoothQqqNf:-30,opposition:.6,volumeConfidence:1});
+  assert.equal(agreed.adjusted,.8);assert.equal(agreed.colorRegime,'ĐỒNG THUẬN');assert.equal(diverged.colorRegime,'PHÂN KỲ');assert(agreed.colorConfidence>diverged.colorConfidence);
+  assert.equal(compositeCandleSignal(compositeBar,{adjusted:.7},{adjusted:0},{smoothSpyNf:20,smoothQqqNf:0,opposition:0,volumeConfidence:.5}).colorRegime,'XÁC NHẬN MỘT PHẦN');
+  assert.equal(compositeCandleSignal({adjusted:null},null,null,null).adjusted,null);
 });
 test('relative flow smoothing and volume confidence are prefix-causal',()=>{
   const s=Array.from({length:40},(_,i)=>({t:i,net:i%3?10:-8,nf:i%3?20:-16,q:50+i}));

@@ -1,4 +1,4 @@
-import {STEPS,composite,flowAlignment,analyze,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs';
+import {STEPS,composite,flowAlignment,compositeCandleSignal,analyze,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs';
 import {load} from './data.mjs';
 import {strengthStatistics,trendStrength6,MIN_SAMPLES,TREND_MIN_HISTORY} from './strength-stats.mjs?v=20261013-1';
 import {colorTradeStatistics,COLOR_TRADE_LEVELS} from './color-trade-stats.mjs?v=20261013-2';
@@ -16,7 +16,7 @@ const flowColors={
   COMPOSITE:{up:'rgba(39,211,164,.82)',down:'rgba(255,91,116,.82)'}
 };
 const LIVE_REFRESH_MS=3000;
-let statsMap=new Map(),trendMap=new Map(),colorTradeMap=new Map(),reversalState={ready:false,reason:'window',n:0},inspectedTime=null;
+let statsMap=new Map(),trendMap=new Map(),colorTradeMap=new Map(),candleColorMap=new Map(),reversalState={ready:false,reason:'window',n:0},inspectedTime=null;
 let sampleMemoryInfo={count:0,used:0,available:true};
 const reversalStabilizer=new ReversalStabilizer({alpha:.25,confirmations:3});
 const sourceName=key=>({SPYUSDT:'SPY',QQQUSDT:'QQQ',COMPOSITE:'Composite'}[key]);
@@ -91,8 +91,9 @@ function mixColor(from,to,t){return '#'+from.map((v,i)=>Math.round(v+(to[i]-v)*t
 function candlePalette(x){
   if(!Number.isFinite(x?.adjusted))return {body:'#68778a',wick:'#8290a2',border:'#76869a'};
   const magnitude=Math.min(1,Math.abs(x.adjusted));
-  const confidence=.8+.2*Math.max(0,Math.min(1,x.confidence));
-  const intensity=Math.min(1,.18+.82*Math.sqrt(magnitude)*confidence);
+  const directConfidence=.8+.2*Math.max(0,Math.min(1,x.confidence));
+  const compositeConfidence=Number.isFinite(x.colorConfidence)?Math.max(0,Math.min(1,x.colorConfidence)):null;
+  const intensity=compositeConfidence===null?Math.min(1,.18+.82*Math.sqrt(magnitude)*directConfidence):Math.min(1,.05+.95*Math.sqrt(Math.max(0,(magnitude-.02)/.98))*(.25+.75*compositeConfidence));
   const target=x.adjusted>=0?[8,232,169]:[255,65,99];
   return {body:mixColor([91,105,124],target,intensity),wick:mixColor([112,126,145],target,Math.min(1,intensity+.1)),border:mixColor([74,89,108],target,Math.min(1,intensity+.06))};
 }
@@ -164,8 +165,10 @@ function render(fit=false){
   cvdSourceLabel=compositeCvd?'C→S':'Q';$('cvd-spectrum').dataset.source=compositeCvd?'COMPOSITE→SPY':'QQQUSDT';
   cvdProfile=continuousCvdSpectrum(cvdBars);cvdAnchorTime=cvdBars.at(-1)?.t??null;
   price.applyOptions({title:sourceName($('symbol').value)});
-  price.setData(p.map(x=>{const color=candlePalette(signals.get(x.t));return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color:color.body,wickColor:color.wick,borderColor:color.border};}));
   const alignment=flowAlignment(rows.SPYUSDT??[],rows.QQQUSDT??[],{step:STEPS[$('interval').value]});alignmentMap=new Map(alignment.map(x=>[x.t,x]));
+  const compositeColors=$('signal').value==='COMPOSITE';
+  candleColorMap=new Map(p.map(x=>{const base=signals.get(x.t),colorSignal=compositeColors?compositeCandleSignal(base,maps.SPYUSDT?.get(x.t),maps.QQQUSDT?.get(x.t),alignmentMap.get(x.t)):base;return [x.t,colorSignal];}));
+  price.setData(p.map(x=>{const color=candlePalette(candleColorMap.get(x.t));return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color:color.body,wickColor:color.wick,borderColor:color.border};}));
   const memoryKey=sampleMemoryKey($('symbol').value,$('signal').value,$('interval').value);
   statsMap=strengthStatistics({...rows,alignment},$('symbol').value,$('signal').value,STEPS[$('interval').value]);
   trendMap=trendStrength6({...rows,alignment},$('signal').value,STEPS[$('interval').value]);
@@ -224,7 +227,7 @@ function updateReversalZone(){
   node.title=`V2: Mahalanobis co rút 55% + hình dạng giá/Strength 25% + NetFlow SPY–QQQ 20%; trọng số Gaussian và prior nền. Mỗi lần đổi dấu đo cả cực đại và cực tiểu từ close cuối cụm đến nến đổi dấu. Tỷ lệ ${fmt(reversalState.rate*100)}%; nền ${fmt(reversalState.baselineRate*100)}%; cận 90% ${fmt(reversalState.lower*100)}%; ${reversalState.eventCount}/${reversalState.n} cụm; cỡ mẫu hữu hiệu ${fmt(reversalState.effectiveN)}.`;
 }
 function showTooltip(t){
-  const p=maps[$('symbol').value]?.get(t),record=statsMap.get(t),tradeRecord=colorTradeMap.get(t),state=record?.state,trend=trendMap.get(t);
+  const p=maps[$('symbol').value]?.get(t),record=statsMap.get(t),tradeRecord=colorTradeMap.get(t),state=record?.state,trend=trendMap.get(t),colorSignal=candleColorMap.get(t);
   const time=p?new Date(t).toLocaleString('vi-VN',{timeZone:'America/New_York'})+' ET':'Chưa có dữ liệu';
   const running=p&&p.end>=(cache?.serverTime??Infinity),mode=inspectedTime!==null?'NẾN ĐANG XEM':'MỚI NHẤT';
   $('stats-latest').hidden=inspectedTime===null;
@@ -245,10 +248,11 @@ function showTooltip(t){
   statValue('stat-history',state.direction?historyText(history):'Strength bằng 0',history.ready?tone(history.expectancy):'neutral');
   $('stat-history-note').textContent=`${COLOR_TRADE_LEVELS.find(x=>x.key===selectedLevel)?.label??'Tất cả'} · n=${history.n}${history.ready?` · Win ${fmt(history.winRate)}% · PF ${profitFactorText(history.profitFactor)}`:` · cần ≥${MIN_SAMPLES}`} · RT ${fmt(tradeCostPct())}%${sampleMemoryInfo.used?` · nhớ cũ ${sampleMemoryInfo.used}`:sampleMemoryInfo.available?` · bộ nhớ ${sampleMemoryInfo.count} lệnh`:' · không lưu được bộ nhớ'}`;
   const text=[`${time} · ${state.session} · Giá ${sourceName($('symbol').value)}, dấu từ ${sourceName($('signal').value)}${running?' · Nến đang chạy: điểm tạm thời, lịch sử so sánh dùng nến đóng':''}`,
+    $('signal').value==='COMPOSITE'&&colorSignal?.colorRegime?`Màu nến Composite ${colorSignal.colorRegime}: hướng theo dấu Strength ${signed(colorSignal.adjusted)}; độ đậm ${Math.round(colorSignal.colorConfidence*100)}%, đồng thuận Strength SPY/QQQ ${Math.round(colorSignal.colorAgreement*100)}%, xác nhận Taker NF ${Math.round(colorSignal.colorFlowSupport*100)}%, nghịch pha ${Math.round(colorSignal.colorOpposition*100)}%.`:null,
     `Điểm xác nhận ${state.score??'—'}/100 = Taker ${fmt(state.taker)}/50 + Dải ${fmt(state.pair)}/30 + |Strength| ${fmt(state.strength)}/20. Điểm theo quy tắc, không phải xác suất thắng.`,
     trend?`TREND6 ${trend.label} ${trend.stableScore??trend.score}/100 (gốc ${trend.score})${trend.ready?` · P mượt ${Math.round(trend.stablePercentile??trend.percentile)} (gốc P${Math.round(trend.percentile)})`:' · chưa đủ phân vị'} · n=${trend.n} cụm đổi dấu ${trend.scope==='same-sign'?'cùng hướng':'hai hướng'}. Thành phần gốc ${trend.raw}: bền dấu ${fmt(trend.components.persistence)}/20 + biên độ ${fmt(trend.components.magnitude)}/15 + dốc ${fmt(trend.components.slope)}/10 + tổng Taker 6 nến ${fmt(trend.components.taker)}/20 + SPY↔QQQ ${fmt(trend.components.pair)}/10 + đồng thuận S/Q/C ${fmt(trend.components.consensus)}/25. BuyQ6 ${fmt(trend.buyTotal)} · SellQ6 ${fmt(trend.sellTotal)} · NetQ6 ${fmt(trend.netTotal)}.`:`TREND6 cần đủ 6 nến liên tiếp có Strength, Taker Buy/Sell và dải SPY↔QQQ. Phân vị chỉ bật từ ${TREND_MIN_HISTORY} cụm đổi dấu đã hoàn tất.`,
     `Giao dịch màu nến trong PRE→RTH 04:00–16:00 ET: xanh = Long, đỏ = Short; vào tại close sau khi màu được xác nhận, thoát và đảo chiều tại close khi màu đổi. Vị thế còn mở đóng tại close cuối RTH; không giữ qua đêm.`];
-  const nodes=text.map(value=>{const div=document.createElement('div');div.textContent=value;return div;});
+  const nodes=text.filter(Boolean).map(value=>{const div=document.createElement('div');div.textContent=value;return div;});
   const table=document.createElement('table');table.className='stats-table';
   const header=table.createTHead().insertRow();for(const title of ['TREND6 lúc vào','Lệnh n','Win ròng','EV ròng','PF','Giữ TB / đổi màu','MFE₅₀ / MAE₅₀']){const th=document.createElement('th');th.textContent=title;header.append(th);}
   const body=table.createTBody();

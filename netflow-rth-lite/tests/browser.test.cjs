@@ -43,7 +43,7 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   for(const id of ['spy','qqq','relative'])assert.equal(await page.locator('#'+id).isChecked(),false);
   for(const id of ['composite','alignment','price-bands','reversal-zone','phase-width','cvd-spectrum-toggle','show-strength','bands','markers'])assert.equal(await page.locator('#'+id).isChecked(),true);
   assert(await page.locator('#chart canvas').count()>0);assert((await page.locator('#chart').boundingBox()).height>=680);
-  assert((await page.locator('#tooltip').innerText()).includes('Điểm xác nhận'));assert((await page.locator('#tooltip').innerText()).includes('không phải xác suất thắng'));assert((await page.locator('#tooltip').innerText()).includes('TREND6'));
+  assert((await page.locator('#tooltip').innerText()).includes('Điểm xác nhận'));assert((await page.locator('#tooltip').innerText()).includes('không phải xác suất thắng'));assert((await page.locator('#tooltip').innerText()).includes('TREND6'));assert.match(await page.locator('#tooltip').innerText(),/Màu nến Composite (ĐỒNG THUẬN|PHÂN KỲ|XÁC NHẬN MỘT PHẦN)/);
   assert.equal(await page.locator('#cvd-spectrum').evaluate(canvas=>canvas.width>0&&canvas.height>0),true);
   assert.equal(await page.locator('#cvd-spectrum').getAttribute('data-source'),'COMPOSITE→SPY');
   const dayCanvas=page.locator('#day-separators');assert.equal(await dayCanvas.evaluate(canvas=>canvas.width>0&&canvas.height>0),true);assert(+(await dayCanvas.getAttribute('data-count'))>0);assert(await dayCanvas.evaluate(canvas=>canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data.some((value,index)=>index%4===3&&value>0)));

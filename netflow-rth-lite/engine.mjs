@@ -64,6 +64,23 @@ export function flowAlignment(spy,qqq,{halfLife=2,step=null,neutralThreshold=5,v
     return [{t:a.t,state,score,intensity,detailState:valid?detailedFlowState(smoothSpy,smoothQqq,neutralThreshold):'TRUNG TÍNH',smoothSpyNf:smoothSpy,smoothQqqNf:smoothQqq,commonNf,relative,opposition,agreement,volumeConfidence,spyNet:a.net,qqqNet:b.net,spyNf:a.nf,qqqNf:b.nf}];
   });
 }
+export function compositeCandleSignal(compositeBar,spyBar,qqqBar,alignment){
+  if(!Number.isFinite(compositeBar?.adjusted))return compositeBar??null;
+  const direction=Math.sign(compositeBar.adjusted);
+  if(!direction)return {...compositeBar,colorConfidence:0,colorAgreement:.5,colorFlowSupport:.5,colorOpposition:0,colorRegime:'TRUNG TÍNH'};
+  const direct=[spyBar?.adjusted,qqqBar?.adjusted].filter(Number.isFinite);
+  const colorAgreement=direct.length?direct.reduce((sum,value)=>sum+(Math.sign(value)===direction?1:0),0)/direct.length:.5;
+  const colorStrengthOpposition=direct.some(value=>Math.sign(value)!==0&&Math.sign(value)!==direction);
+  const flows=[alignment?.smoothSpyNf,alignment?.smoothQqqNf].filter(Number.isFinite);
+  const colorFlowSupport=flows.length?flows.reduce((sum,value)=>sum+Math.max(0,Math.min(1,.5+direction*value/100)),0)/flows.length:.5;
+  const colorOpposition=Math.max(0,Math.min(1,Number.isFinite(alignment?.opposition)?alignment.opposition:0));
+  const volumeConfidence=Math.max(0,Math.min(1,Number.isFinite(alignment?.volumeConfidence)?alignment.volumeConfidence:.35));
+  const sessionConfidence=Math.max(0,Math.min(1,Number.isFinite(compositeBar.confidence)?compositeBar.confidence:0));
+  const confirmation=.5*colorAgreement+.3*colorFlowSupport+.2*volumeConfidence;
+  const colorConfidence=Math.max(0,Math.min(1,(.55+.45*sessionConfidence)*(.3+.7*confirmation)*(1-.55*colorOpposition)));
+  const colorRegime=colorAgreement===1&&colorOpposition<.25?'ĐỒNG THUẬN':colorStrengthOpposition||colorOpposition>=.35?'PHÂN KỲ':'XÁC NHẬN MỘT PHẦN';
+  return {...compositeBar,colorConfidence,colorAgreement,colorFlowSupport,colorOpposition,colorStrengthOpposition,colorRegime};
+}
 export function normCDF(z){
   z=Math.max(-8,Math.min(8,z));
   const a=Math.abs(z),t=1/(1+.2316419*a),d=.3989422804014327*Math.exp(-a*a/2);
