@@ -27,8 +27,11 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
    return route.fulfill({json});
   });
   await page.goto('http://netflow.test/');await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('TRADING'),{},{timeout:120000});
-  assert.match(await page.locator('#stat-score').innerText(),/\d+\/100/);assert((await page.locator('.badge').innerText()).includes('chưa train'));
-  assert.match(await page.locator('#stat-group').innerText(),/S[+−0]/);assert.equal(await page.locator('.stats-table tbody tr').count(),4);
+  assert.match(await page.locator('#stat-score').textContent(),/\d+\/100/);assert((await page.locator('.badge').innerText()).includes('chưa train'));
+  assert.match(await page.locator('#stat-group').textContent(),/S[+−0]/);assert.equal(await page.locator('.stats-table tbody tr').count(),4);
+  assert.equal(await page.locator('.calendar-panel').isVisible(),true);assert.match(await page.locator('.calendar-panel').innerText(),/Forex Factory/);assert(await page.locator('.calendar-row').count()>0);assert.match(await page.locator('#calendar-status').innerText(),/tin hiển thị/);
+  await page.locator('#calendar-impact').selectOption('high');assert(await page.locator('.calendar-row').count()>0);assert.equal(await page.locator('.calendar-impact.medium').count(),0);await page.locator('#calendar-impact').selectOption('important');
+  await page.locator('#calendar-currency').selectOption('USD');assert(await page.locator('.calendar-row').count()>0);assert.equal(await page.locator('.calendar-currency').evaluateAll(nodes=>nodes.every(node=>node.textContent==='USD')),true);await page.locator('#calendar-currency').selectOption('all');
   assert.match(await page.locator('.stats-table thead').innerText(),/TREND6 lúc vào/);assert.match(await page.locator('.stats-table thead').innerText(),/MFE₅₀ \/ MAE₅₀/);assert.equal(await page.locator('#trade-cost').inputValue(),'0.10');
   assert((await page.locator('#stats-context').innerText()).includes('ML chưa train'));
   await page.locator('#stat-trade-level').selectOption('60');assert.match(await page.locator('.stats-table tr.selected').innerText(),/TREND6 ≥60/);await page.locator('#stat-trade-level').selectOption('all');
@@ -61,7 +64,7 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   await page.locator('#geometry-score').selectOption('72');assert((await page.locator('#geometry-readout').innerText()).startsWith('GEO '));await page.locator('#geometry-score').selectOption('64');
   for(const interval of fixtureRoot||process.env.NETFLOW_LIVE?['5m','30m','1h','15m']:['15m']){
    await page.locator('#interval').selectOption(interval);await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('TRADING'),{},{timeout:120000});
-   assert.match(await page.locator('#stat-score').innerText(),/\d+\/100/);
+   assert.match(await page.locator('#stat-score').textContent(),/\d+\/100/);
   }
   for(const [width,height] of [[1440,1100],[390,844]]){
    await page.setViewportSize({width,height});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
@@ -91,8 +94,8 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   assert.deepEqual(errors,[]);console.log('Chart passed: desktop/mobile/fullscreen, double tap, 36-hour fit, controls, tooltip, wheel/drag, CSV. API statuses:',JSON.stringify(requests));
   if(!process.env.NETFLOW_LIVE){
    failure=451;await page.locator('#refresh').click();await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('HTTP 451'));assert((await page.locator('#status').innerText()).includes('Dữ liệu cũ chưa cập nhật'));assert.equal(await page.locator('#live-indicator').innerText(),'● KHÔNG LIVE');
-   await page.locator('#days').selectOption('7');await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('Không có dữ liệu thay thế'));assert.equal(await page.locator('#stat-score').innerText(),'—');assert(await page.locator('#export').isDisabled());
-   failure='network';await page.locator('#refresh').click();await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('CORS'));assert.equal(await page.locator('#stat-score').innerText(),'—');
+   await page.locator('#days').selectOption('7');await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('Không có dữ liệu thay thế'));assert.equal(await page.locator('#stat-score').textContent(),'—');assert(await page.locator('#export').isDisabled());
+   failure='network';await page.locator('#refresh').click();await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('CORS'));assert.equal(await page.locator('#stat-score').textContent(),'—');
    failure=null;await page.locator('#refresh').click();await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('TRADING'));assert.equal(await page.locator('#live-indicator').innerText(),'● LIVE');
    console.log('Failure handling passed: 451 keeps stale data, changed history clears, CORS/network empty, recovery.');
   }

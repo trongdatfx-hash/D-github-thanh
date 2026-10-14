@@ -6,6 +6,7 @@ import {reversalZone,REVERSAL_VERSION,REVERSAL_HORIZON,REVERSAL_MIN_MATCHES,REVE
 import {ReversalStabilizer} from './stability.mjs?v=20261012-5';
 import {loadSampleMemory,saveSampleMemory,sampleMemoryKey} from './sample-memory.mjs?v=20261013-1';
 import {analyzeGeometry,backtestGeometry} from './geometry.mjs?v=20261014-1';
+import {loadForexCalendar,selectCalendarEvents,calendarEventState,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261014-1';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
 let chart,price,series={},marks,strengthMarks,cache=null,rows={},maps={},alignmentMap=new Map(),priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
@@ -17,8 +18,10 @@ const flowColors={
   COMPOSITE:{up:'rgba(39,211,164,.82)',down:'rgba(255,91,116,.82)'}
 };
 const LIVE_REFRESH_MS=3000;
+const CALENDAR_REFRESH_MS=15*60*1000;
 const FIT_WINDOW_MS=36*60*60*1000,DOUBLE_TAP_MS=360,DOUBLE_TAP_DISTANCE=28,TAP_MOVE_TOLERANCE=14;
 let statsMap=new Map(),trendMap=new Map(),colorTradeMap=new Map(),candleColorMap=new Map(),reversalState={ready:false,reason:'window',n:0},inspectedTime=null;
+let calendarState={events:[],updatedAt:null,loading:false};
 let sampleMemoryInfo={count:0,used:0,available:true};
 const reversalStabilizer=new ReversalStabilizer({alpha:.25,confirmations:3});
 const sourceName=key=>({SPYUSDT:'SPY',QQQUSDT:'QQQ',COMPOSITE:'Composite'}[key]);
@@ -28,6 +31,37 @@ const profitFactorText=x=>x===Infinity?'∞':Number.isFinite(x)?x.toLocaleString
 const tradeCostPct=()=>{const value=Number($('trade-cost')?.value);return Number.isFinite(value)?Math.max(0,Math.min(5,value)):.1;};
 const signLabel=x=>x>0?'+':x<0?'−':'0';
 const tone=x=>x>0?'positive':x<0?'negative':'neutral';
+const calendarDay=new Intl.DateTimeFormat('vi-VN',{timeZone:CALENDAR_TIME_ZONE,weekday:'short',day:'2-digit',month:'2-digit'});
+const calendarTime=new Intl.DateTimeFormat('vi-VN',{timeZone:CALENDAR_TIME_ZONE,hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
+const calendarImpactLabel={High:'High',Medium:'Medium',Low:'Low',Holiday:'Nghỉ','Non-Economic':'Khác'};
+
+function renderCalendar(){
+  const list=$('calendar-list'),statusNode=$('calendar-status');if(!list||!statusNode)return;
+  const events=selectCalendarEvents(calendarState.events,{impact:$('calendar-impact').value,currency:$('calendar-currency').value});
+  list.replaceChildren();
+  if(!events.length){const empty=document.createElement('div');empty.className='calendar-empty';empty.textContent=calendarState.events.length?'Không có tin phù hợp trong 5 ngày tới. Thử chọn “Tất cả”.':'Chưa có dữ liệu lịch.';list.append(empty);}
+  for(const event of events){
+    const state=calendarEventState(event),row=document.createElement('div');row.className=`calendar-row ${state.key}`;row.title=`${event.title} · ${state.label}`;
+    const time=document.createElement('span');time.className='calendar-time';const clock=document.createElement('b'),day=document.createElement('small');clock.textContent=calendarTime.format(event.timestamp);day.textContent=calendarDay.format(event.timestamp);time.append(clock,day);
+    const currency=document.createElement('span');currency.className='calendar-currency';currency.textContent=event.country;
+    const impact=document.createElement('span');impact.className=`calendar-impact ${event.impact.toLowerCase().replace(/[^a-z]+/g,'-')}`;impact.textContent=calendarImpactLabel[event.impact]??event.impact;
+    const title=document.createElement('span');title.className='calendar-title';title.textContent=event.title;
+    const forecast=document.createElement('span');forecast.className=`calendar-value${event.actual?' actual':''}`;forecast.textContent=event.actual||event.forecast||'—';forecast.title=event.actual?'Thực tế':'Dự báo';
+    const previous=document.createElement('span');previous.className='calendar-value calendar-previous';previous.textContent=event.previous||'—';previous.title='Kỳ trước';
+    row.append(time,currency,impact,title,forecast,previous);list.append(row);
+  }
+  if(calendarState.updatedAt){
+    const age=Date.now()-calendarState.updatedAt,stale=age>130*60000;statusNode.className=`calendar-status${stale?' stale':''}`;statusNode.textContent=`${events.length}/${calendarState.events.length} tin hiển thị · snapshot ${calendarTime.format(calendarState.updatedAt)} ${calendarDay.format(calendarState.updatedAt)}${stale?' · đang chờ bản cập nhật mới':''}`;
+  }
+}
+
+async function refreshCalendar(){
+  if(calendarState.loading)return;calendarState.loading=true;$('calendar-refresh').disabled=true;
+  const statusNode=$('calendar-status');statusNode.className='calendar-status';statusNode.textContent='Đang nạp lịch Forex Factory…';
+  try{const data=await loadForexCalendar();calendarState={...data,loading:false};renderCalendar();}
+  catch(error){calendarState.loading=false;statusNode.className='calendar-status error';statusNode.textContent=`${error.message}. ${calendarState.events.length?'Đang giữ bản gần nhất.':'Mở Forex Factory bằng liên kết bên dưới.'}`;if(calendarState.events.length)renderCalendar();}
+  finally{$('calendar-refresh').disabled=false;}
+}
 class VariableWidthLineRenderer{
   update(data,options){this.data=data;this.options=options;}
   draw(target,priceToCoordinate){
@@ -390,6 +424,8 @@ if(init()){
   $('stat-trade-level').onchange=()=>showTooltip(inspectedTime??rows[$('symbol').value]?.at(-1)?.t);
   $('trade-cost').onchange=()=>{const value=tradeCostPct();$('trade-cost').value=value.toFixed(2);render(false);};
   $('stats-latest').onclick=()=>{inspectedTime=null;showTooltip(rows[$('symbol').value]?.at(-1)?.t);};
-  setLive(false);refresh(true);setInterval(()=>{updateCandleCountdown();if(lastSuccess&&Date.now()-lastSuccess>15000)setLive(false);if(!document.hidden&&!loading)refresh();},LIVE_REFRESH_MS);
+  $('calendar-impact').onchange=renderCalendar;$('calendar-currency').onchange=renderCalendar;$('calendar-refresh').onclick=refreshCalendar;
+  setLive(false);refreshCalendar();refresh(true);setInterval(()=>{updateCandleCountdown();if(lastSuccess&&Date.now()-lastSuccess>15000)setLive(false);if(!document.hidden&&!loading)refresh();},LIVE_REFRESH_MS);
+  setInterval(()=>{if(!document.hidden)refreshCalendar();},CALENDAR_REFRESH_MS);
   setInterval(updateCandleCountdown,250);
 }

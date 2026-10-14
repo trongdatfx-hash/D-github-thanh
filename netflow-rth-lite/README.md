@@ -5,6 +5,8 @@ Chỉ thêm thư mục này; không sửa các trang/workflow hiện có. Chạy
 
 ## Dữ liệu
 
+Vùng ba thẻ Strength phía trên chart được thay bằng **lịch tin tài chính Forex Factory**. Feed JSON tuần chính thức được tác vụ GitHub Actions riêng của trang tải mỗi giờ vào `data/forex-calendar.json`; trình duyệt chỉ đọc snapshot cùng miền nên không phụ thuộc proxy CORS công cộng. Giao diện đổi giờ sang Việt Nam (Asia/Ho_Chi_Minh), mặc định hiện High + Medium trong 5 ngày tới, có bộ lọc tác động/đồng tiền, đánh dấu tin sắp công bố, hiển thị dự báo/kỳ trước, thời điểm snapshot và liên kết đối chiếu trực tiếp trên Forex Factory. Nếu cập nhật thất bại, snapshot gần nhất vẫn còn và được gắn trạng thái cũ; không tạo tin giả. Ba giá trị Strength/điểm xác nhận/dải SPY↔QQQ cũ vẫn được tính ngầm cho màu nến và tooltip.
+
 Binance USDⓈ-M Futures public API: `/fapi/v1/exchangeInfo`, `/fapi/v1/time`, `/fapi/v1/klines`. Trình duyệt gọi thẳng `fapi.binance.com`; GitHub Pages không làm proxy và không giữ bản sao dữ liệu. Xác minh thực tế 2026-10-08: SPYUSDT và QQQUSDT là TRADING / TRADIFI_PERPETUAL / USDT (metadata lưu `symbol-validation.json`). Khi mở trang, SPY/QQQ và các đoạn lịch sử được tải song song có giới hạn; metadata hợp đồng được giữ 15 phút trong bộ nhớ. Sau lần đầu, refresh khoảng 3 giây chỉ yêu cầu phần đuôi chưa có rồi ghép theo timestamp, thay vì tải lại toàn bộ 30 ngày. Đổi timeframe/lịch sử vẫn tải lại đầy đủ. Không phải Binance Spot hay dữ liệu giao dịch ETF trên sàn Mỹ.
 
 M5/M15/M30/H1; lịch sử 7/14/30 ngày, phân trang tối đa 1000 nến/request. Nến đang chạy được giữ và poll khoảng 3 giây khi tab hiển thị, nên OHLC, NetFlow, Strength, WLR và CVD của nến cuối sẽ thay đổi cho tới lúc đóng. Riêng pivot, phân kỳ và trendline hình học chỉ dùng nến đã đóng. Yêu cầu timeout 20 giây; không websocket. API lỗi có thể do CORS, hạn chế vùng, HTTP 451/429/418, symbol mất trạng thái hoặc mất mạng. Refresh lỗi giữ dữ liệu cũ kèm thông báo; đổi timeframe/lịch sử xóa dữ liệu cũ. Không có fake data, snapshot fallback, proxy hay đổi symbol ngầm.
@@ -51,9 +53,9 @@ Mặc định chỉ vẽ bốn line đạt ít nhất 64 điểm, luôn ưu tiê
 
 Nhãn `GEO` công bố line tốt nhất: loại line, điểm, số lần chạm, tuổi và thống kê walk-forward. `backtestGeometry` chỉ đánh giá các phân kỳ đã xác nhận: vào ở close của nến `confirmedIndex`, tuyệt đối không vào tại nến pivot trước đó, rồi đo kết quả sau bốn nến theo ATR đã biết tại lúc vào. Đây là kiểm định causal mô tả để phát hiện leakage và xem độ ổn định của điều kiện; chưa gồm phí, funding, trượt giá hay lựa chọn tham số ngoài mẫu nên không phải backtest chiến lược hoàn chỉnh.
 
-## Thống kê nhóm dấu Strength
+## Lịch Forex Factory & thống kê nhóm dấu Strength
 
-Bốn thẻ trên chart thay Buy/Sell/Net/Strength bằng nhóm dấu `S/Q/C`, điểm xác nhận 0–100, dải SPY↔QQQ và hiệu suất giao dịch theo màu nến trong PRE→RTH. Tooltip dưới chart giải thích điểm và chia kết quả theo ngưỡng TREND6 lúc vào lệnh. Crosshair chọn nến lịch sử; mỗi lần refresh giữ nến đang xem. Ra khỏi chart hoặc bấm “Về nến mới nhất” quay lại thống kê mới nhất. Full chart vẫn ẩn tooltip. CSV giữ quote flows và Strength gốc để kiểm tra dữ liệu.
+Ba thẻ `S/Q/C`, điểm xác nhận 0–100 và dải SPY↔QQQ đã nhường chỗ cho danh sách lịch Forex Factory; thẻ hiệu suất giao dịch PRE→RTH vẫn giữ nguyên. Các giá trị bị ẩn khỏi cụm thẻ không bị bỏ khỏi engine: tooltip dưới chart vẫn giải thích điểm và chia kết quả theo ngưỡng TREND6 lúc vào lệnh. Crosshair chọn nến lịch sử; mỗi lần refresh giữ nến đang xem. Ra khỏi chart hoặc bấm “Về nến mới nhất” quay lại thống kê mới nhất. Full chart vẫn ẩn tooltip. CSV giữ quote flows và Strength gốc để kiểm tra dữ liệu.
 
 `strength-stats.mjs` là thống kê mô tả có điều kiện; `modelStatus.trained=false`. Trọng số cố định 50/30/20 chưa được học từ dữ liệu: với `d = sign(Strength nguồn)`, điểm taker = 50 × tỷ trọng BuyQ nếu d dương, SellQ nếu d âm; điểm dải = 30 × trung bình của `(1 + d × NF% mượt/100)/2` cho SPY và QQQ; điểm Strength = 20 × min(1, |Strength|). Điểm tổng được làm tròn, không phải xác suất thắng. Thiếu Strength một trong ba nguồn hoặc quote volume bằng 0 thì không chấm điểm. Dấu bằng 0 không có hướng để đánh giá.
 
