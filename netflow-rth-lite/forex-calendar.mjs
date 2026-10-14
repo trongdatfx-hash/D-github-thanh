@@ -1,5 +1,6 @@
 export const FOREX_FACTORY_CALENDAR_URL='https://www.forexfactory.com/calendar';
 export const FOREX_FACTORY_FEED_URL='https://nfs.faireconomy.media/ff_calendar_thisweek.json';
+export const FOREX_FACTORY_READER_URL='https://r.jina.ai/http://www.forexfactory.com/calendar?week=this';
 export const CALENDAR_TIME_ZONE='Asia/Ho_Chi_Minh';
 
 const IMPACTS=new Map([
@@ -7,6 +8,7 @@ const IMPACTS=new Map([
 ]);
 
 const clean=value=>String(value??'').trim();
+const eventKey=value=>`${clean(value?.country).toUpperCase()}|${clean(value?.title).replace(/\s+/g,' ').toLowerCase()}`;
 
 export function normalizeCalendarEvent(value){
   if(!value||typeof value!=='object')return null;
@@ -26,10 +28,50 @@ export function normalizeCalendarFeed(payload){
   return [...unique.values()].sort((a,b)=>a.timestamp-b.timestamp||a.country.localeCompare(b.country)||a.title.localeCompare(b.title));
 }
 
-export function selectCalendarEvents(events,{now=Date.now(),impact='important',currency='all',pastHours=2,futureHours=120,limit=40}={}){
+function cleanMarkdownCell(value){
+  return clean(value).replace(/!\[[^\]]*\]\([^)]*\)/g,'').replace(/\[([^\]]*)\]\([^)]*\)/g,'$1').replace(/\s+/g,' ').trim();
+}
+
+export function parseForexFactoryMarkdown(markdown){
+  const rows=[];
+  for(const line of String(markdown??'').split(/\r?\n/)){
+    if(!line.startsWith('|')||!line.includes('resources.faireconomy.media/images/sprites/ff-impact-'))continue;
+    const cells=line.slice(1,line.endsWith('|')?-1:undefined).split('|').map(cleanMarkdownCell);
+    const countryIndex=cells.findIndex(cell=>/^(?:USD|EUR|GBP|JPY|AUD|CAD|CHF|NZD|CNY|All)$/.test(cell));
+    if(countryIndex<1)continue;
+    const title=cells[countryIndex+2],actual=cells[countryIndex+5]??'',forecast=cells[countryIndex+6]??'',previous=cells[countryIndex+7]??'';
+    if(!title)continue;
+    rows.push({country:cells[countryIndex],title,actual,forecast,previous});
+  }
+  return rows;
+}
+
+export function mergeCalendarResults(events,results){
+  const queues=new Map();
+  for(const result of results??[]){const key=eventKey(result);if(!queues.has(key))queues.set(key,[]);queues.get(key).push(result);}
+  return normalizeCalendarFeed(events).map(event=>{
+    const result=queues.get(eventKey(event))?.shift();if(!result)return event;
+    return {...event,actual:clean(result.actual)||event.actual,forecast:clean(result.forecast)||event.forecast,previous:clean(result.previous)||event.previous};
+  });
+}
+
+export function selectCalendarEvents(events,{now=Date.now(),impact='important',currency='all',pastHours=18,futureHours=120,limit=60}={}){
   const min=now-pastHours*3600000,max=now+futureHours*3600000,currencyKey=clean(currency).toUpperCase();
   const allowed=impact==='high'?new Set(['High']):impact==='all'?null:new Set(['High','Medium']);
   return normalizeCalendarFeed(events).filter(event=>event.timestamp>=min&&event.timestamp<=max&&(!allowed||allowed.has(event.impact))&&(currencyKey==='ALL'||event.country===currencyKey)).slice(0,limit);
+}
+
+function numericValue(value){
+  const match=clean(value).replace(/,/g,'').match(/[-+]?\d+(?:\.\d+)?/);return match?Number(match[0]):null;
+}
+
+export function actualVsForecast(event){
+  if(!clean(event?.actual))return {key:'pending',label:'Chưa công bố'};
+  const actual=numericValue(event.actual),forecast=numericValue(event.forecast);
+  if(!Number.isFinite(actual)||!Number.isFinite(forecast))return {key:'released',label:'Đã công bố'};
+  const tolerance=Math.max(1e-9,Math.abs(forecast)*1e-9);
+  if(Math.abs(actual-forecast)<=tolerance)return {key:'equal',label:'Bằng dự báo'};
+  return actual>forecast?{key:'above',label:'Cao hơn dự báo'}:{key:'below',label:'Thấp hơn dự báo'};
 }
 
 export async function loadForexCalendar({fetchImpl=fetch,url='./data/forex-calendar.json',signal}={}){

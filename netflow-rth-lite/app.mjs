@@ -6,7 +6,7 @@ import {reversalZone,REVERSAL_VERSION,REVERSAL_HORIZON,REVERSAL_MIN_MATCHES,REVE
 import {ReversalStabilizer} from './stability.mjs?v=20261012-5';
 import {loadSampleMemory,saveSampleMemory,sampleMemoryKey} from './sample-memory.mjs?v=20261013-1';
 import {analyzeGeometry,backtestGeometry} from './geometry.mjs?v=20261014-1';
-import {loadForexCalendar,selectCalendarEvents,calendarEventState,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261014-1';
+import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261014-2';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
 let chart,price,series={},marks,strengthMarks,cache=null,rows={},maps={},alignmentMap=new Map(),priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
@@ -18,7 +18,7 @@ const flowColors={
   COMPOSITE:{up:'rgba(39,211,164,.82)',down:'rgba(255,91,116,.82)'}
 };
 const LIVE_REFRESH_MS=3000;
-const CALENDAR_REFRESH_MS=15*60*1000;
+const CALENDAR_REFRESH_MS=5*60*1000;
 const FIT_WINDOW_MS=36*60*60*1000,DOUBLE_TAP_MS=360,DOUBLE_TAP_DISTANCE=28,TAP_MOVE_TOLERANCE=14;
 let statsMap=new Map(),trendMap=new Map(),colorTradeMap=new Map(),candleColorMap=new Map(),reversalState={ready:false,reason:'window',n:0},inspectedTime=null;
 let calendarState={events:[],updatedAt:null,loading:false};
@@ -38,29 +38,34 @@ const calendarImpactLabel={High:'High',Medium:'Medium',Low:'Low',Holiday:'Nghỉ
 function renderCalendar(){
   const list=$('calendar-list'),statusNode=$('calendar-status');if(!list||!statusNode)return;
   const events=selectCalendarEvents(calendarState.events,{impact:$('calendar-impact').value,currency:$('calendar-currency').value});
-  list.replaceChildren();
-  if(!events.length){const empty=document.createElement('div');empty.className='calendar-empty';empty.textContent=calendarState.events.length?'Không có tin phù hợp trong 5 ngày tới. Thử chọn “Tất cả”.':'Chưa có dữ liệu lịch.';list.append(empty);}
+  const oldRows=new Map([...list.querySelectorAll('.calendar-row')].map(row=>[row.dataset.key,row])),scrollTop=list.scrollTop,positioned=list.dataset.positioned==='true',fragment=document.createDocumentFragment();
   for(const event of events){
-    const state=calendarEventState(event),row=document.createElement('div');row.className=`calendar-row ${state.key}`;row.title=`${event.title} · ${state.label}`;
-    const time=document.createElement('span');time.className='calendar-time';const clock=document.createElement('b'),day=document.createElement('small');clock.textContent=calendarTime.format(event.timestamp);day.textContent=calendarDay.format(event.timestamp);time.append(clock,day);
-    const currency=document.createElement('span');currency.className='calendar-currency';currency.textContent=event.country;
-    const impact=document.createElement('span');impact.className=`calendar-impact ${event.impact.toLowerCase().replace(/[^a-z]+/g,'-')}`;impact.textContent=calendarImpactLabel[event.impact]??event.impact;
-    const title=document.createElement('span');title.className='calendar-title';title.textContent=event.title;
-    const forecast=document.createElement('span');forecast.className=`calendar-value${event.actual?' actual':''}`;forecast.textContent=event.actual||event.forecast||'—';forecast.title=event.actual?'Thực tế':'Dự báo';
-    const previous=document.createElement('span');previous.className='calendar-value calendar-previous';previous.textContent=event.previous||'—';previous.title='Kỳ trước';
-    row.append(time,currency,impact,title,forecast,previous);list.append(row);
+    const key=`${event.timestamp}|${event.country}|${event.title}`,state=calendarEventState(event),comparison=actualVsForecast(event);let row=oldRows.get(key);
+    if(!row){row=document.createElement('div');row.dataset.key=key;row.innerHTML='<span class="calendar-time"><b></b><small></small></span><span class="calendar-currency"></span><span class="calendar-impact"></span><span class="calendar-title"></span><span class="calendar-value calendar-actual"></span><span class="calendar-value calendar-forecast"></span><span class="calendar-value calendar-previous"></span>';}
+    row.className=`calendar-row ${state.key}${event.actual?' released':''}`;row.title=`${event.title} · ${state.label}${event.actual?` · ${comparison.label}`:''}`;
+    row.querySelector('.calendar-time b').textContent=calendarTime.format(event.timestamp);row.querySelector('.calendar-time small').textContent=calendarDay.format(event.timestamp);
+    row.querySelector('.calendar-currency').textContent=event.country;
+    const impact=row.querySelector('.calendar-impact');impact.className=`calendar-impact ${event.impact.toLowerCase().replace(/[^a-z]+/g,'-')}`;impact.textContent=calendarImpactLabel[event.impact]??event.impact;
+    row.querySelector('.calendar-title').textContent=event.title;
+    const actual=row.querySelector('.calendar-actual');actual.className=`calendar-value calendar-actual ${comparison.key}`;actual.textContent=event.actual||'—';actual.title=`Thực tế · ${comparison.label}`;
+    const forecast=row.querySelector('.calendar-forecast');forecast.textContent=event.forecast||'—';forecast.title='Dự báo';
+    const previous=row.querySelector('.calendar-previous');previous.textContent=event.previous||'—';previous.title='Kỳ trước';
+    fragment.append(row);
   }
+  if(!events.length){const empty=document.createElement('div');empty.className='calendar-empty';empty.textContent=calendarState.events.length?'Không có tin phù hợp trong khoảng gần đây. Thử chọn “Tất cả”.':'Chưa có dữ liệu lịch.';fragment.append(empty);}
+  list.replaceChildren(fragment);
+  if(positioned)list.scrollTop=scrollTop;else requestAnimationFrame(()=>{const next=[...list.children].find(row=>row.classList.contains('future')||row.classList.contains('now'));if(next)list.scrollTop=Math.max(0,next.offsetTop-list.offsetTop-Math.round(list.clientHeight*.45));list.dataset.positioned='true';});
   if(calendarState.updatedAt){
-    const age=Date.now()-calendarState.updatedAt,stale=age>130*60000;statusNode.className=`calendar-status${stale?' stale':''}`;statusNode.textContent=`${events.length}/${calendarState.events.length} tin hiển thị · snapshot ${calendarTime.format(calendarState.updatedAt)} ${calendarDay.format(calendarState.updatedAt)}${stale?' · đang chờ bản cập nhật mới':''}`;
+    const age=Date.now()-calendarState.updatedAt,stale=age>26*60*60000,released=events.filter(event=>event.actual).length;statusNode.className=`calendar-status${stale?' stale':''}`;statusNode.textContent=`${events.length} tin · ${released} đã có thực tế · cập nhật ${calendarTime.format(calendarState.updatedAt)} ${calendarDay.format(calendarState.updatedAt)}${stale?' · snapshot cũ':''}`;
   }
 }
 
 async function refreshCalendar(){
-  if(calendarState.loading)return;calendarState.loading=true;$('calendar-refresh').disabled=true;
+  if(calendarState.loading)return;calendarState.loading=true;$('calendar-refresh').disabled=true;$('calendar-refresh').classList.add('loading');
   const statusNode=$('calendar-status');statusNode.className='calendar-status';statusNode.textContent='Đang nạp lịch Forex Factory…';
   try{const data=await loadForexCalendar();calendarState={...data,loading:false};renderCalendar();}
-  catch(error){calendarState.loading=false;statusNode.className='calendar-status error';statusNode.textContent=`${error.message}. ${calendarState.events.length?'Đang giữ bản gần nhất.':'Mở Forex Factory bằng liên kết bên dưới.'}`;if(calendarState.events.length)renderCalendar();}
-  finally{$('calendar-refresh').disabled=false;}
+  catch(error){calendarState.loading=false;statusNode.className='calendar-status error';statusNode.textContent=`${error.message}. ${calendarState.events.length?'Đang giữ bản gần nhất.':'Mở Forex Factory bằng liên kết bên dưới.'}`;}
+  finally{$('calendar-refresh').disabled=false;$('calendar-refresh').classList.remove('loading');}
 }
 class VariableWidthLineRenderer{
   update(data,options){this.data=data;this.options=options;}
@@ -424,7 +429,7 @@ if(init()){
   $('stat-trade-level').onchange=()=>showTooltip(inspectedTime??rows[$('symbol').value]?.at(-1)?.t);
   $('trade-cost').onchange=()=>{const value=tradeCostPct();$('trade-cost').value=value.toFixed(2);render(false);};
   $('stats-latest').onclick=()=>{inspectedTime=null;showTooltip(rows[$('symbol').value]?.at(-1)?.t);};
-  $('calendar-impact').onchange=renderCalendar;$('calendar-currency').onchange=renderCalendar;$('calendar-refresh').onclick=refreshCalendar;
+  const changeCalendarFilter=()=>{delete $('calendar-list').dataset.positioned;renderCalendar();};$('calendar-impact').onchange=changeCalendarFilter;$('calendar-currency').onchange=changeCalendarFilter;$('calendar-refresh').onclick=refreshCalendar;
   setLive(false);refreshCalendar();refresh(true);setInterval(()=>{updateCandleCountdown();if(lastSuccess&&Date.now()-lastSuccess>15000)setLive(false);if(!document.hidden&&!loading)refresh();},LIVE_REFRESH_MS);
   setInterval(()=>{if(!document.hidden)refreshCalendar();},CALENDAR_REFRESH_MS);
   setInterval(updateCandleCountdown,250);
