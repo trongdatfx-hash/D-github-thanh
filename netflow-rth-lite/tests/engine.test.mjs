@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {STEPS,parseKlines,composite,flowAlignment,compositeCandleSignal,strengthPhaseLineWidth,calculateStrength,analyze,regression,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
+import {STEPS,parseKlines,composite,flowAlignment,compositeCandleSignal,strengthPhaseLineWidth,calculateStrength,calculateVolumeStrength,analyze,regression,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
 import {load} from '../data.mjs';
 import {isUsMarketHoliday,isUsMarketTradingDay} from '../market-calendar.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL(p,import.meta.url),'utf8').replace(/^\uFEFF/,''));
@@ -114,4 +114,13 @@ test('refresh finalizes the previously open candle at rollover before keeping hi
     assert.equal(after[symbol][0].buy,before[symbol][0].buy+80);assert.equal(after[symbol][1].t,start+step);
     assert.equal(before[symbol][0].q,+original[7]);
   }
+});
+
+
+test('SPY original-volume Strength is causal, directional and bounded',()=>{
+  const step=STEPS['15m'],bars=Array.from({length:40},(_,i)=>({t:i*step,o:100+i*.1,c:100+i*.1+(i<30?.2:-.2),v:100+i,session:'RTH',day:'2026-10-15'}));
+  const a=calculateVolumeStrength(bars,step,{normLen:3,strLen:3,halfLife:1,lookback:5});
+  assert.equal(a.length,bars.length);assert(a.filter(Number.isFinite).every(x=>x>=-1&&x<=1));assert(a[20]>0);assert(a.at(-1)<0);
+  const changed=bars.map((b,i)=>i===bars.length-1?{...b,v:999999,c:b.o-1}:b),b=calculateVolumeStrength(changed,step,{normLen:3,strLen:3,halfLife:1,lookback:5});
+  assert.deepEqual(a.slice(0,-1),b.slice(0,-1));assert.notEqual(a.at(-1),b.at(-1));
 });
