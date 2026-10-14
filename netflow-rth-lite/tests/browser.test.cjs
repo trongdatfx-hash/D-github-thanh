@@ -45,14 +45,14 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   assert.equal(await page.locator('#live-indicator').innerText(),'● LIVE');assert(await page.locator('#live-indicator').evaluate(el=>el.classList.contains('live')));
   assert.equal(await page.locator('#days').inputValue(),'30');
   for(const id of ['spy','qqq','relative','geometry-pivots'])assert.equal(await page.locator('#'+id).isChecked(),false);
-  for(const id of ['composite','alignment','price-bands','reversal-zone','phase-width','cvd-spectrum-toggle','show-strength','bands','markers','geometry-toggle','double-tap-full'])assert.equal(await page.locator('#'+id).isChecked(),true);
+  for(const id of ['composite','alignment','price-bands','reversal-zone','phase-width','cvd-spectrum-toggle','show-strength','spy-volume-strength','bands','markers','geometry-toggle','double-tap-full'])assert.equal(await page.locator('#'+id).isChecked(),true);
   assert((await page.locator('#fit').innerText()).includes('1.5 ngày'));assert((await page.locator('#chart-fit').innerText()).includes('1.5 ngày'));
   const fitWindow=await page.locator('#chart').evaluate(node=>({hours:+node.dataset.fitWindowHours,start:+node.dataset.fitStart,end:+node.dataset.fitEnd}));assert.equal(fitWindow.hours,36);assert(fitWindow.end>fitWindow.start);assert(fitWindow.end-fitWindow.start<=36*60*60*1000);
   assert.equal(await page.locator('#geometry-score').inputValue(),'64');assert.equal(await page.locator('#geometry-lines').inputValue(),'4');
   assert.match(await page.locator('#geometry-readout').innerText(),/^GEO (HT|KC) \d+/);assert((await page.locator('#geometry-readout').getAttribute('title')).includes('Walk-forward'));
   const geometryCanvas=page.locator('#geometry-overlay');assert(+(await geometryCanvas.getAttribute('data-lines'))>0);assert(+(await geometryCanvas.getAttribute('data-pivots'))>0);assert(await geometryCanvas.evaluate(canvas=>canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data.some((value,index)=>index%4===3&&value>0)));
   assert((await page.locator('label:has(#phase-width)').innerText()).includes('Độ dày theo pha'));
-  assert(await page.locator('#chart canvas').count()>0);assert((await page.locator('#chart').boundingBox()).height>=680);
+  assert(await page.locator('#chart canvas').count()>0);assert((await page.locator('#chart').boundingBox()).height>=800);
   assert((await page.locator('#tooltip').innerText()).includes('Điểm xác nhận'));assert((await page.locator('#tooltip').innerText()).includes('không phải xác suất thắng'));assert((await page.locator('#tooltip').innerText()).includes('TREND6'));assert.match(await page.locator('#tooltip').innerText(),/Màu nến Composite (ĐỒNG THUẬN|PHÂN KỲ|XÁC NHẬN MỘT PHẦN)/);
   assert.equal(await page.locator('#cvd-spectrum').evaluate(canvas=>canvas.width>0&&canvas.height>0),true);
   assert.equal(await page.locator('#cvd-spectrum').getAttribute('data-source'),'COMPOSITE→SPY');
@@ -61,7 +61,7 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   await page.locator('#symbol').selectOption('QQQUSDT');await page.locator('#signal').selectOption('SPYUSDT');
   assert.equal(await page.locator('#cvd-spectrum').getAttribute('data-source'),'QQQUSDT');
   assert((await page.locator('#tooltip').innerText()).includes('Giá QQQ, dấu từ SPY'));
-  for(const id of ['spy','qqq','composite','relative','alignment','price-bands','reversal-zone','phase-width','cvd-spectrum-toggle','show-strength','bands','markers','geometry-toggle','geometry-pivots']){await page.locator('#'+id).uncheck();await page.locator('#'+id).check();}
+  for(const id of ['spy','qqq','composite','relative','alignment','price-bands','reversal-zone','phase-width','cvd-spectrum-toggle','show-strength','spy-volume-strength','bands','markers','geometry-toggle','geometry-pivots']){await page.locator('#'+id).uncheck();await page.locator('#'+id).check();}
   await page.locator('#geometry-score').selectOption('72');assert((await page.locator('#geometry-readout').innerText()).startsWith('GEO '));await page.locator('#geometry-score').selectOption('64');
   for(const interval of fixtureRoot||process.env.NETFLOW_LIVE?['5m','30m','1h','15m']:['15m']){
    await page.locator('#interval').selectOption(interval);await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('TRADING'),{},{timeout:120000});
