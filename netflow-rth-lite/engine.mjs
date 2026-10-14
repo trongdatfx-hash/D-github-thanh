@@ -136,6 +136,11 @@ export function continuousCvdSpectrum(bars,{binStep=.5,range=12,smooth=2}={}){
   const maxAbs=bins.reduce((m,x)=>Math.max(m,Math.abs(x.value)),0);
   return {bins,maxAbs,binStep,range};
 }
+export function projectNetFlowToPrice(priceBars,flowBars){
+  if(!Array.isArray(priceBars)||!Array.isArray(flowBars))throw Error('Nguồn giá/NetFlow không hợp lệ');
+  const flow=new Map(flowBars.filter(x=>Number.isFinite(x?.t)&&Number.isFinite(x?.net)).map(x=>[x.t,x.net]));
+  return priceBars.flatMap(bar=>Number.isFinite(bar?.t)&&Number.isFinite(bar?.c)&&flow.has(bar.t)?[{t:bar.t,c:bar.c,net:flow.get(bar.t)}]:[]);
+}
 // Replace this adapter with a versioned model ONLY after dataset/backtest validation.
 export const modelStatus={trained:false,method:'DVP Strength chain on NetFlowQ/quote volume; past-only session location/scale → RTH'};
 export function analyze(bars,step,{minSamples=26,window=500,regWindow=50,strength=calculateStrength(bars,step)}={}){

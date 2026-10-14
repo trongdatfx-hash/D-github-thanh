@@ -1,4 +1,4 @@
-import {STEPS,composite,flowAlignment,analyze,weightedPriceBands,continuousCvdSpectrum} from './engine.mjs';
+import {STEPS,composite,flowAlignment,analyze,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice} from './engine.mjs';
 import {load} from './data.mjs';
 import {strengthStatistics,trendStrength6,MIN_SAMPLES,TREND_MIN_HISTORY} from './strength-stats.mjs?v=20261013-1';
 import {colorTradeStatistics,COLOR_TRADE_LEVELS} from './color-trade-stats.mjs?v=20261013-2';
@@ -7,7 +7,7 @@ import {ReversalStabilizer} from './stability.mjs?v=20261012-5';
 import {loadSampleMemory,saveSampleMemory,sampleMemoryKey} from './sample-memory.mjs?v=20261013-1';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
-let chart,price,series={},marks,strengthMarks,cache=null,rows={},maps={},alignmentMap=new Map(),priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdFrame=0,controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
+let chart,price,series={},marks,strengthMarks,cache=null,rows={},maps={},alignmentMap=new Map(),priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
 const colors={SPYUSDT:'#5ba8ff',QQQUSDT:'#c194ff',COMPOSITE:'#38dfba'};
 const flowTitles={SPYUSDT:'S Taker NF',QQQUSDT:'Q Taker NF',COMPOSITE:'C Taker NF'};
 const flowColors={
@@ -137,14 +137,16 @@ function drawCvdSpectrum(){
     context.strokeStyle=bin.value>=0?`rgba(42,120,214,${.4+.5*ratio})`:`rgba(235,104,52,${.4+.5*ratio})`;context.lineWidth=(width<650?2.5:3.5)+(width<650?1:1.5)*ratio;context.beginPath();context.moveTo(xBase,bin.y);context.lineTo(x,bin.y);context.stroke();
     if(bin.value>0&&(!buy||bin.value>buy.value))buy={...bin,x};if(bin.value<0&&(!sell||bin.value<sell.value))sell={...bin,x};
   }
-  context.font=`600 ${width<650?9:10}px Inter,system-ui,sans-serif`;context.textBaseline='bottom';context.textAlign='center';context.fillStyle='rgba(196,210,226,.9)';context.fillText(`CVD∞ ${$('symbol').value==='SPYUSDT'?'S':'Q'} · bin ${cvdProfile.binStep}`,xBase,Math.max(12,visible[0].y-5));
+  context.font=`600 ${width<650?9:10}px Inter,system-ui,sans-serif`;context.textBaseline='bottom';context.textAlign='center';context.fillStyle='rgba(196,210,226,.9)';context.fillText(`CVD∞ ${cvdSourceLabel} · bin ${cvdProfile.binStep}`,xBase,Math.max(12,visible[0].y-5));
   if(width>=650){context.textBaseline='middle';if(buy){context.textAlign='left';context.fillStyle='#70aef4';context.fillText(`▲ ${fmt(buy.price)}`,Math.min(usableRight-42,buy.x+5),buy.y);}if(sell){context.textAlign='right';context.fillStyle='#f28a61';context.fillText(`▼ ${fmt(sell.price)}`,Math.max(42,sell.x-5),sell.y);}}
   context.restore();
 }
 function render(fit=false){
   const range=chart.timeScale().getVisibleLogicalRange();
   const p=rows[$('symbol').value]??[],signalRows=rows[$('signal').value]??[],signals=maps[$('signal').value]??new Map();
-  cvdProfile=continuousCvdSpectrum(p);cvdAnchorTime=p.at(-1)?.t??null;
+  const compositeCvd=$('symbol').value==='SPYUSDT',cvdBars=compositeCvd?projectNetFlowToPrice(p,rows.COMPOSITE??[]):p;
+  cvdSourceLabel=compositeCvd?'C→S':'Q';$('cvd-spectrum').dataset.source=compositeCvd?'COMPOSITE→SPY':'QQQUSDT';
+  cvdProfile=continuousCvdSpectrum(cvdBars);cvdAnchorTime=cvdBars.at(-1)?.t??null;
   price.applyOptions({title:sourceName($('symbol').value)});
   price.setData(p.map(x=>{const color=candlePalette(signals.get(x.t));return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color:color.body,wickColor:color.wick,borderColor:color.border};}));
   const alignment=flowAlignment(rows.SPYUSDT??[],rows.QQQUSDT??[],{step:STEPS[$('interval').value]});alignmentMap=new Map(alignment.map(x=>[x.t,x]));

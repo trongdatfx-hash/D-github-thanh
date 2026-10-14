@@ -45,7 +45,9 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   assert(await page.locator('#chart canvas').count()>0);assert((await page.locator('#chart').boundingBox()).height>=680);
   assert((await page.locator('#tooltip').innerText()).includes('Điểm xác nhận'));assert((await page.locator('#tooltip').innerText()).includes('không phải xác suất thắng'));assert((await page.locator('#tooltip').innerText()).includes('TREND6'));
   assert.equal(await page.locator('#cvd-spectrum').evaluate(canvas=>canvas.width>0&&canvas.height>0),true);
+  assert.equal(await page.locator('#cvd-spectrum').getAttribute('data-source'),'COMPOSITE→SPY');
   await page.locator('#symbol').selectOption('QQQUSDT');await page.locator('#signal').selectOption('SPYUSDT');
+  assert.equal(await page.locator('#cvd-spectrum').getAttribute('data-source'),'QQQUSDT');
   assert((await page.locator('#tooltip').innerText()).includes('Giá QQQ, dấu từ SPY'));
   for(const id of ['spy','qqq','composite','relative','alignment','price-bands','reversal-zone','phase-width','cvd-spectrum-toggle','show-strength','bands','markers']){await page.locator('#'+id).uncheck();await page.locator('#'+id).check();}
   for(const interval of fixtureRoot||process.env.NETFLOW_LIVE?['5m','30m','1h','15m']:['15m']){
