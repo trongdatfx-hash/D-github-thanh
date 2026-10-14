@@ -1,4 +1,4 @@
-import {STEPS,composite,flowAlignment,compositeCandleSignal,phaseLineWidth,analyze,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs';
+import {STEPS,composite,flowAlignment,compositeCandleSignal,strengthPhaseLineWidth,analyze,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs';
 import {load} from './data.mjs';
 import {strengthStatistics,trendStrength6,MIN_SAMPLES,TREND_MIN_HISTORY} from './strength-stats.mjs?v=20261013-1';
 import {colorTradeStatistics,COLOR_TRADE_LEVELS} from './color-trade-stats.mjs?v=20261013-2';
@@ -31,7 +31,7 @@ class VariableWidthLineRenderer{
   draw(target,priceToCoordinate){
     const bars=this.data?.bars,range=this.data?.visibleRange;if(!bars?.length||!range)return;
     target.useBitmapCoordinateSpace(({context,horizontalPixelRatio,verticalPixelRatio})=>{
-      context.save();context.strokeStyle=this.options.color;context.lineCap='round';context.lineJoin='round';
+      context.save();context.strokeStyle=this.options.color;context.lineCap='butt';context.lineJoin='round';
       // Both endpoints must be inside the visible range; off-screen custom bars can carry stale x coordinates.
       const start=Math.max(1,range.from+1),end=Math.min(bars.length,range.to);
       for(let i=start;i<end;i++){
@@ -98,7 +98,7 @@ function candlePalette(x){
   return {body:mixColor([91,105,124],target,intensity),wick:mixColor([112,126,145],target,Math.min(1,intensity+.1)),border:mixColor([74,89,108],target,Math.min(1,intensity+.06))};
 }
 function lineData(data,key){return data.map(x=>Number.isFinite(x[key])?{time:x.t/1000,value:x[key]}:{time:x.t/1000});}
-function priceLineData(data,alignment){const variable=$('phase-width').checked;return data.map(x=>Number.isFinite(x.mid)?{time:x.t/1000,value:x.mid,width:variable?phaseLineWidth(alignment.get(x.t)):2}:{time:x.t/1000});}
+function priceLineData(data,spy,qqq){const variable=$('phase-width').checked;return data.map(x=>Number.isFinite(x.mid)?{time:x.t/1000,value:x.mid,width:variable?strengthPhaseLineWidth(spy.get(x.t),qqq.get(x.t)):2}:{time:x.t/1000});}
 function flowData(data,key){const palette=flowColors[key];return data.map(x=>Number.isFinite(x.net)?{time:x.t/1000,value:x.net,color:x.net>=0?palette.up:palette.down}:{time:x.t/1000});}
 function relativeData(data){return data.map(x=>{const alpha=.28+.62*x.volumeConfidence,color=x.relative>0?`rgba(245,166,35,${alpha})`:x.relative<0?`rgba(169,124,255,${alpha})`:'rgba(112,126,145,.3)';return Number.isFinite(x.relative)?{time:x.t/1000,value:x.relative,color}:{time:x.t/1000};});}
 function alignmentData(data){return data.map(x=>({time:x.t/1000,value:x.score,color:x.state==='THUẬN MUA'?`rgba(26,224,163,${.48+.45*x.intensity})`:x.state==='THUẬN BÁN'?`rgba(255,77,112,${.48+.45*x.intensity})`:`rgba(245,166,35,${.58+.35*x.intensity})`}));}
@@ -178,7 +178,7 @@ function render(fit=false){
   const reversalKey=`${$('symbol').value}|${$('signal').value}|${$('interval').value}|${p.at(-1)?.t??'empty'}`;
   reversalState=reversalStabilizer.update(rawReversal,reversalKey,cache?.serverTime??generation);
   const priceBands=weightedPriceBands(p,STEPS[$('interval').value]);priceBandMap=new Map(priceBands.map(x=>[x.t,x]));
-  series.priceMid.setData(priceLineData(priceBands,alignmentMap));series.priceUpper.setData(lineData(priceBands,'upper'));series.priceLower.setData(lineData(priceBands,'lower'));
+  series.priceMid.setData(priceLineData(priceBands,maps.SPYUSDT??new Map(),maps.QQQUSDT??new Map()));series.priceUpper.setData(lineData(priceBands,'upper'));series.priceLower.setData(lineData(priceBands,'lower'));
   for(const key of Object.keys(colors))series[key].setData(flowData(rows[key]??[],key));
   series.relative.setData(relativeData(alignment));
   series.alignment.setData(alignmentData(alignment));

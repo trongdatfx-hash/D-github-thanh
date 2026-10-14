@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {STEPS,parseKlines,composite,flowAlignment,compositeCandleSignal,phaseLineWidth,calculateStrength,analyze,regression,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
+import {STEPS,parseKlines,composite,flowAlignment,compositeCandleSignal,strengthPhaseLineWidth,calculateStrength,analyze,regression,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
 import {load} from '../data.mjs';
 import {isUsMarketHoliday,isUsMarketTradingDay} from '../market-calendar.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL(p,import.meta.url),'utf8').replace(/^\uFEFF/,''));
@@ -31,9 +31,10 @@ test('composite candle keeps Composite direction and mutes SPY/QQQ divergence',(
   assert.equal(compositeCandleSignal(compositeBar,{adjusted:.7},{adjusted:0},{smoothSpyNf:20,smoothQqqNf:0,opposition:0,volumeConfidence:.5}).colorRegime,'XÁC NHẬN MỘT PHẦN');
   assert.equal(compositeCandleSignal({adjusted:null},null,null,null).adjusted,null);
 });
-test('WLR phase width is thick on agreement and thin on opposition',()=>{
-  assert.equal(phaseLineWidth({agreement:1,opposition:0}),9);assert.equal(phaseLineWidth({agreement:0,opposition:1}),1);assert(phaseLineWidth({agreement:.5})>phaseLineWidth({agreement:.1}));
-  assert.throws(()=>phaseLineWidth({agreement:1},{min:0}),/không hợp lệ/);
+test('WLR phase width follows the actual SPY/QQQ Strength signs',()=>{
+  assert.equal(strengthPhaseLineWidth({adjusted:.4},{adjusted:.1}),9);assert.equal(strengthPhaseLineWidth({adjusted:-.4},{adjusted:-.1}),9);
+  assert.equal(strengthPhaseLineWidth({adjusted:.4},{adjusted:-.1}),1);assert.equal(strengthPhaseLineWidth({adjusted:0},{adjusted:.1}),2);assert.equal(strengthPhaseLineWidth(null,{adjusted:.1}),2);
+  assert.throws(()=>strengthPhaseLineWidth({adjusted:1},{adjusted:1},{thin:0}),/không hợp lệ/);
 });
 test('relative flow smoothing and volume confidence are prefix-causal',()=>{
   const s=Array.from({length:40},(_,i)=>({t:i,net:i%3?10:-8,nf:i%3?20:-16,q:50+i}));
