@@ -337,14 +337,7 @@ function showTooltip(t){
     trend?`TREND6 ${trend.label} ${trend.stableScore??trend.score}/100 (gốc ${trend.score})${trend.ready?` · P mượt ${Math.round(trend.stablePercentile??trend.percentile)} (gốc P${Math.round(trend.percentile)})`:' · chưa đủ phân vị'} · n=${trend.n} cụm đổi dấu ${trend.scope==='same-sign'?'cùng hướng':'hai hướng'}. Thành phần gốc ${trend.raw}: bền dấu ${fmt(trend.components.persistence)}/20 + biên độ ${fmt(trend.components.magnitude)}/15 + dốc ${fmt(trend.components.slope)}/10 + tổng Taker 6 nến ${fmt(trend.components.taker)}/20 + SPY↔QQQ ${fmt(trend.components.pair)}/10 + đồng thuận S/Q/C ${fmt(trend.components.consensus)}/25. BuyQ6 ${fmt(trend.buyTotal)} · SellQ6 ${fmt(trend.sellTotal)} · NetQ6 ${fmt(trend.netTotal)}.`:`TREND6 cần đủ 6 nến liên tiếp có Strength, Taker Buy/Sell và dải SPY↔QQQ. Phân vị chỉ bật từ ${TREND_MIN_HISTORY} cụm đổi dấu đã hoàn tất.`,
     `Giao dịch màu nến trong PRE→RTH 04:00–16:00 ET: xanh = Long, đỏ = Short; vào tại close sau khi màu được xác nhận, thoát và đảo chiều tại close khi màu đổi. Vị thế còn mở đóng tại close cuối RTH; không giữ qua đêm.`];
   const nodes=text.filter(Boolean).map(value=>{const div=document.createElement('div');div.textContent=value;return div;});
-  const table=document.createElement('table');table.className='stats-table';
-  const header=table.createTHead().insertRow();for(const title of ['TREND6 lúc vào','Lệnh n','Win ròng','EV ròng','PF','Giữ TB / đổi màu','MFE₅₀ / MAE₅₀']){const th=document.createElement('th');th.textContent=title;header.append(th);}
-  const body=table.createTBody();
-  for(const level of COLOR_TRADE_LEVELS){const s=tradeRecord?.stats[level.key]??{n:0,ready:false},row=body.insertRow();row.classList.toggle('selected',level.key===selectedLevel);
-    for(const value of [level.label,s.n,s.ready?`${fmt(s.winRate)}%`:'Mẫu mỏng',s.ready?returnText(s.expectancy):'—',s.ready?profitFactorText(s.profitFactor):'—',s.ready?`${fmt(s.averageBars)} nến / ${fmt(s.colorExitRate)}%`:'—',s.ready?`${fmt(s.medianMfe)}% / ${fmt(s.medianMae)}%`:'—'])row.insertCell().textContent=value;
-  }
-  const note=document.createElement('div');note.className='stats-note';note.textContent=`Mỗi lệnh là một chuỗi màu liên tục nên không chồng nhau. Các hàng TREND6 là ngưỡng lồng nhau theo điểm tại lúc vào. Win, EV và PF đã trừ ${fmt(tradeCostPct())}% chi phí khứ hồi giả định; “đổi màu” là tỷ lệ lệnh thoát do đổi màu, phần còn lại đóng cuối RTH. Chỉ dùng lệnh đã hoàn tất trước nến đang xem; chưa tính funding, đòn bẩy hay thanh lý.`;
-  $('tooltip').replaceChildren(...nodes,table,note);
+  $('tooltip').replaceChildren(...nodes);
 }
 function toggle(){
   for(const [id,key] of [['spy','SPYUSDT'],['qqq','QQQUSDT'],['composite','COMPOSITE'],['show-strength','strength']])series[key].applyOptions({visible:$(id).checked});
