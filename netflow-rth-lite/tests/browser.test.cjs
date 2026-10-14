@@ -42,6 +42,7 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   assert.equal(await page.locator('#days').inputValue(),'30');
   for(const id of ['spy','qqq','relative'])assert.equal(await page.locator('#'+id).isChecked(),false);
   for(const id of ['composite','alignment','price-bands','reversal-zone','phase-width','cvd-spectrum-toggle','show-strength','bands','markers'])assert.equal(await page.locator('#'+id).isChecked(),true);
+  assert((await page.locator('label:has(#phase-width)').innerText()).includes('Độ dày theo pha'));
   assert(await page.locator('#chart canvas').count()>0);assert((await page.locator('#chart').boundingBox()).height>=680);
   assert((await page.locator('#tooltip').innerText()).includes('Điểm xác nhận'));assert((await page.locator('#tooltip').innerText()).includes('không phải xác suất thắng'));assert((await page.locator('#tooltip').innerText()).includes('TREND6'));assert.match(await page.locator('#tooltip').innerText(),/Màu nến Composite (ĐỒNG THUẬN|PHÂN KỲ|XÁC NHẬN MỘT PHẦN)/);
   assert.equal(await page.locator('#cvd-spectrum').evaluate(canvas=>canvas.width>0&&canvas.height>0),true);

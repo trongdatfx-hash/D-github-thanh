@@ -1,4 +1,4 @@
-import {STEPS,composite,flowAlignment,compositeCandleSignal,analyze,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs';
+import {STEPS,composite,flowAlignment,compositeCandleSignal,phaseLineWidth,analyze,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs';
 import {load} from './data.mjs';
 import {strengthStatistics,trendStrength6,MIN_SAMPLES,TREND_MIN_HISTORY} from './strength-stats.mjs?v=20261013-1';
 import {colorTradeStatistics,COLOR_TRADE_LEVELS} from './color-trade-stats.mjs?v=20261013-2';
@@ -98,8 +98,7 @@ function candlePalette(x){
   return {body:mixColor([91,105,124],target,intensity),wick:mixColor([112,126,145],target,Math.min(1,intensity+.1)),border:mixColor([74,89,108],target,Math.min(1,intensity+.06))};
 }
 function lineData(data,key){return data.map(x=>Number.isFinite(x[key])?{time:x.t/1000,value:x[key]}:{time:x.t/1000});}
-function oppositionLineWidth(x){return Math.round((1+8*Math.max(0,Math.min(1,x))**.7)*10)/10;}
-function priceLineData(data,alignment){const variable=$('phase-width').checked;return data.map(x=>Number.isFinite(x.mid)?{time:x.t/1000,value:x.mid,width:variable?oppositionLineWidth(alignment.get(x.t)?.opposition??0):2}:{time:x.t/1000});}
+function priceLineData(data,alignment){const variable=$('phase-width').checked;return data.map(x=>Number.isFinite(x.mid)?{time:x.t/1000,value:x.mid,width:variable?phaseLineWidth(alignment.get(x.t)):2}:{time:x.t/1000});}
 function flowData(data,key){const palette=flowColors[key];return data.map(x=>Number.isFinite(x.net)?{time:x.t/1000,value:x.net,color:x.net>=0?palette.up:palette.down}:{time:x.t/1000});}
 function relativeData(data){return data.map(x=>{const alpha=.28+.62*x.volumeConfidence,color=x.relative>0?`rgba(245,166,35,${alpha})`:x.relative<0?`rgba(169,124,255,${alpha})`:'rgba(112,126,145,.3)';return Number.isFinite(x.relative)?{time:x.t/1000,value:x.relative,color}:{time:x.t/1000};});}
 function alignmentData(data){return data.map(x=>({time:x.t/1000,value:x.score,color:x.state==='THUẬN MUA'?`rgba(26,224,163,${.48+.45*x.intensity})`:x.state==='THUẬN BÁN'?`rgba(255,77,112,${.48+.45*x.intensity})`:`rgba(245,166,35,${.58+.35*x.intensity})`}));}
