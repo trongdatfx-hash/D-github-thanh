@@ -16,10 +16,10 @@ export function parseKlines(rows,now,step,{includeOpen=false}={}){
   const map=new Map();
   for(const k of rows){
     if(!Array.isArray(k)||k.length<11)throw Error('Kline thiếu trường quote volume');
-    const t=+k[0],o=+k[1],h=+k[2],l=+k[3],c=+k[4],end=+k[6],q=+k[7],buy=+k[10];
-    if(![t,o,h,l,c,end,q,buy].every(Number.isFinite)||t%step||end!==t+step-1||q<0||buy<0||buy>q||l>Math.min(o,c)||h<Math.max(o,c)||l>h||l<=0)throw Error('Kline hoặc quote volume không hợp lệ');
+    const t=+k[0],o=+k[1],h=+k[2],l=+k[3],c=+k[4],v=+k[5],end=+k[6],q=+k[7],buy=+k[10];
+    if(![t,o,h,l,c,v,end,q,buy].every(Number.isFinite)||t%step||end!==t+step-1||v<0||q<0||buy<0||buy>q||l>Math.min(o,c)||h<Math.max(o,c)||l>h||l<=0)throw Error('Kline hoặc volume không hợp lệ');
     if(!includeOpen&&end>=now)continue;
-    map.set(t,{t,end,o,h,l,c,q,buy,sell:q-buy,net:2*buy-q,nf:q>0?100*(2*buy-q)/q:null,...sessionAt(t)});
+    map.set(t,{t,end,o,h,l,c,v,q,buy,sell:q-buy,net:2*buy-q,nf:q>0?100*(2*buy-q)/q:null,...sessionAt(t)});
   }
   return [...map.values()].sort((a,b)=>a.t-b.t);
 }
@@ -111,6 +111,31 @@ export function calculateStrength(bars,step,{normLen=20,strLen=8,halfLife=2,look
     magnitudes.push(Math.abs(rs));if(magnitudes.length>lookback)magnitudes.shift();
     if(magnitudes.length<lookback)return null;
     const sigma=magnitudes.reduce((s,v)=>s+v,0)/lookback*Math.sqrt(Math.PI/2);
+    return sigma>0?2*normCDF(rs/sigma)-1:0;
+  });
+}
+// Directional SPY Strength from Binance original base-asset volume (kline[5]).
+// Each candle assigns its original volume to the candle-body direction; doji volume is neutral.
+// The rest of the causal normalization/smoothing mirrors the existing Strength chain.
+export function calculateVolumeStrength(bars,step,{normLen=20,strLen=8,halfLife=2,lookback=500}={}){
+  if(!Array.isArray(bars)||!Object.values(STEPS).includes(step)||![normLen,strLen,lookback].every(x=>Number.isInteger(x)&&x>0)||!Number.isFinite(halfLife)||halfLife<0)throw Error('Tham số Volume Strength không hợp lệ');
+  let volumes=[],impulses=[],magnitudes=[],ew=null,previous=null;
+  const alpha=halfLife>0?1-2**(-1/Math.max(1,halfLife)):1;
+  return bars.map(b=>{
+    if(previous!==null&&b.t-previous!==step){volumes=[];impulses=[];magnitudes=[];ew=null;}previous=b.t;
+    if(!Number.isFinite(b.v)||b.v<0||![b.o,b.c].every(Number.isFinite))throw Error('SPY thiếu volume gốc Binance');
+    volumes.push(b.v);if(volumes.length>normLen)volumes.shift();
+    const mean=volumes.reduce((s,x)=>s+x,0)/volumes.length;
+    const direction=b.c>b.o?1:b.c<b.o?-1:0;
+    const impulse=mean>0?direction*b.v/mean:0;
+    impulses.push(impulse);if(impulses.length>strLen)impulses.shift();
+    if(impulses.length<strLen)return null;
+    const r=impulses.reduce((s,x)=>s+x,0);
+    ew=ew===null?r:ew+alpha*(r-ew);
+    const rs=halfLife>0?ew:r;
+    magnitudes.push(Math.abs(rs));if(magnitudes.length>lookback)magnitudes.shift();
+    if(magnitudes.length<lookback)return null;
+    const sigma=magnitudes.reduce((s,x)=>s+x,0)/magnitudes.length*Math.sqrt(Math.PI/2);
     return sigma>0?2*normCDF(rs/sigma)-1:0;
   });
 }
