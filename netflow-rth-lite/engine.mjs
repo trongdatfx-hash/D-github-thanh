@@ -81,7 +81,7 @@ export function compositeCandleSignal(compositeBar,spyBar,qqqBar,alignment){
   const colorRegime=colorAgreement===1&&colorOpposition<.25?'ĐỒNG THUẬN':colorStrengthOpposition||colorOpposition>=.35?'PHÂN KỲ':'XÁC NHẬN MỘT PHẦN';
   return {...compositeBar,colorConfidence,colorAgreement,colorFlowSupport,colorOpposition,colorStrengthOpposition,colorRegime};
 }
-export function strengthPhaseLineWidth(spyBar,qqqBar,{thin=1,neutral=2,thick=9}={}){
+export function strengthPhaseLineWidth(spyBar,qqqBar,{thin=1,neutral=2,thick=6}={}){
   if(![thin,neutral,thick].every(Number.isFinite)||thin<=0||neutral<thin||thick<neutral)throw Error('Tham số độ dày theo pha không hợp lệ');
   const spy=spyBar?.adjusted,qqq=qqqBar?.adjusted;
   if(!Number.isFinite(spy)||!Number.isFinite(qqq)||spy===0||qqq===0)return neutral;

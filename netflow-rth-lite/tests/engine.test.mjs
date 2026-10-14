@@ -32,7 +32,7 @@ test('composite candle keeps Composite direction and mutes SPY/QQQ divergence',(
   assert.equal(compositeCandleSignal({adjusted:null},null,null,null).adjusted,null);
 });
 test('WLR phase width follows the actual SPY/QQQ Strength signs',()=>{
-  assert.equal(strengthPhaseLineWidth({adjusted:.4},{adjusted:.1}),9);assert.equal(strengthPhaseLineWidth({adjusted:-.4},{adjusted:-.1}),9);
+  assert.equal(strengthPhaseLineWidth({adjusted:.4},{adjusted:.1}),6);assert.equal(strengthPhaseLineWidth({adjusted:-.4},{adjusted:-.1}),6);
   assert.equal(strengthPhaseLineWidth({adjusted:.4},{adjusted:-.1}),1);assert.equal(strengthPhaseLineWidth({adjusted:0},{adjusted:.1}),2);assert.equal(strengthPhaseLineWidth(null,{adjusted:.1}),2);
   assert.throws(()=>strengthPhaseLineWidth({adjusted:1},{adjusted:1},{thin:0}),/không hợp lệ/);
 });
