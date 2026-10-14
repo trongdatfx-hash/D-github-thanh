@@ -58,6 +58,12 @@ h3{margin:0;font-size:13px}
 .sectionhead .hint{text-align:right}
 .feature{border-color:#2d5d66;background:linear-gradient(115deg,#152f40,#12233b 60%,#19243d)}
 .numbers{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:10px}
+.numbers.three{grid-template-columns:repeat(3,minmax(0,1fr));max-width:680px;margin:0 auto}
+.matrix-card{border-color:#4a4f6b;background:linear-gradient(135deg,#192a3e,#171d35 58%,#25203a)}
+.matrix-card .numcard{background:linear-gradient(160deg,#26395a,#1b3044);border-color:#576888}
+.matrix-card .numcard strong{color:#ffd783}
+.matrix-card .tablewrap{margin-top:14px;max-height:none}
+.matrix-z{color:#9ab2d5}.matrix-score{color:var(--yellow);font-weight:850}
 .numcard{border:1px solid #365567;border-radius:12px;background:linear-gradient(160deg,#1b3b4a,#19263d);padding:14px 10px;cursor:pointer;text-align:center;color:var(--txt);min-width:0;transition:.15s}
 .numcard:hover,.numcard.active{border-color:#5df9e5;box-shadow:0 0 0 1px #33cab1}
 .numcard .rank{color:var(--muted);font-size:10px}
@@ -134,6 +140,12 @@ tr.selected td{background:#17413d}
 <div class="numbers" id="numbers"><div class="note">Đang tính toán...</div></div>
 <p class="note" style="margin:14px 0 0">Chọn một số để xem đường Random Walk bên dưới. Điểm cao là <b>xếp hạng theo dữ liệu quá khứ</b>, không phải tỷ lệ trúng thực tế.</p>
 </section>
+<section class="card matrix-card" style="margin-top:15px">
+<div class="sectionhead"><div><h2>Lọc 3 số bằng ma trận chuẩn hóa 7 ngày</h2><div class="hint">Chỉ xếp hạng lại 8 số phía trên bằng dữ liệu của đúng 7 kỳ gần nhất</div></div><button class="btn" id="copyTop3">Sao chép 3 số</button></div>
+<div class="numbers three" id="matrixTop3"><div class="note">Đang tính ma trận...</div></div>
+<p class="note" id="matrixInfo">Mỗi cột được chuẩn hóa z-score trên chính 8 ứng viên, sau đó ghép thành điểm lọc 0–100.</p>
+<div class="tablewrap"><table><thead><tr><th>Hạng / Số</th><th>Lượt 7N</th><th>Z lượt</th><th>Ngày có mặt</th><th>Z ngày</th><th>Trọng số gần</th><th>Z gần</th><th>Độ mới</th><th>Z mới</th><th>Điểm lọc</th></tr></thead><tbody id="matrixBody"><tr><td colspan="10" class="miss">Chưa có kết quả</td></tr></tbody></table></div>
+</section>
 <div class="grid2">
 <section class="card"><div class="sectionhead"><div><h2>Random Walk — <span id="rwLabel">--</span></h2><div class="hint">Tổng lũy tích (xuất hiện − xác suất nền) theo ngày</div></div><div class="hint" id="rwInfo">—</div></div><canvas class="plot" id="rwChart" role="img" aria-label="Đồ thị Random Walk quá khứ và mô phỏng tương lai"></canvas><div class="legend"><span><b style="background:#43e5b8"></b>Lịch sử</span><span><b style="background:#ffcf7a"></b>Trung vị mô phỏng</span><span><b style="background:#5b7295"></b>Khoảng 10–90%</span></div></section>
 <section class="card"><div class="sectionhead"><div><h2>Bản đồ điểm 00–99</h2><div class="hint">Màu sáng hơn = điểm mô hình cao hơn</div></div><div class="hint">Viền xanh = top 8</div></div><div class="heatmap" id="heatmap"></div></section>
@@ -179,6 +191,7 @@ tr.selected td{background:#17413d}
 <p><b>Phân vị:</b> xếp hạng tương đối giữa 100 số từ 00 tới 99. Điểm tổng hợp = 30% phân vị số lượt 30 ngày + 25% phân vị số lượt trong cửa sổ + 20% phân vị động lượng tỷ lệ ngày có xuất hiện (30 ngày so với tối đa 90 ngày) + 25% phân vị RW+.</p>
 <p><b>Random Walk (RW):</b> mỗi bước là X = I(xuất hiện trong ngày) − p<sub>0</sub>, với p<sub>0</sub> là tần suất xuất hiện trung bình của 100 số trong 365 ngày gần nhất. Mô phỏng từng số qua số ngày tương lai đã chọn, theo xác suất giả định p = (45×p<sub>0</sub> + số ngày đã xuất hiện trong 90 ngày)/(45 + số ngày quan sát), giới hạn trong [0,05; 0,60]. RW+ là tỷ lệ đường mô phỏng kết thúc lớn hơn 0; <b>không phải</b> xác suất trúng lô 1 ngày.</p>
 <p><b>Tính ngẫu nhiên:</b> mô phỏng dùng bộ sinh số giả ngẫu nhiên có seed cố định theo dữ liệu/cấu hình, giúp tái lập bảng xếp hạng. RW không giả định có "quy luật" thật trong xổ số.</p>
+<p><b>Ma trận chuẩn hóa 7 ngày:</b> chỉ áp dụng cho 8 số đã được mô hình chọn. Bốn cột gồm tổng lượt xuất hiện, số ngày có mặt, lượt xuất hiện có trọng số gần (ngày cũ nhất ×1 tới ngày mới nhất ×7) và độ mới của lần xuất hiện. Mỗi cột được chuẩn hóa z-score (trung bình 0, độ lệch chuẩn 1), rồi ghép theo trọng số 35% + 25% + 25% + 15%. Điểm 0–100 là chuẩn hóa tương đối trong 8 số; ba số đầu là bộ lọc, không phải xác suất trúng.</p>
 <p><b>Backtest chống lookahead:</b> để kiểm tra ngày T+1, mô hình được tính lại trên lát dữ liệu kết thúc đúng tại ngày T. Kết quả T+1 chỉ được đọc sau khi bộ 8 số đã chốt. Phần RW+ trong backtest dùng xác suất nhị thức chính xác của cùng mô hình Random Walk thay cho lấy mẫu Monte Carlo, nhờ vậy nhanh và không có nhiễu do seed. Đường kỳ vọng ngẫu nhiên là 2,16 lượt/ngày (= 8/100 × 27 giải), giả định các đuôi số độc lập và phân bố đều.</p>
 <p><b>Lãi/lỗ:</b> tiền cược mỗi ngày = 8 × mức cược mỗi số. Tiền trả = số lượt trúng × mức cược mỗi số × hệ số trả thưởng. Lãi/lỗ ròng = tiền trả − tiền cược; ROI = lãi/lỗ ròng ÷ tổng tiền cược. Mặc định 10.000₫/số/ngày và trả ×3,5 chỉ là ví dụ, có thể sửa theo mức thực tế.</p>
 <p class="warning"><b>Cảnh báo:</b> Nếu xổ số công bằng và các kỳ độc lập, lịch sử "nóng", "gan" hay xếp hạng phân vị không làm tăng xác suất trúng kỳ sau. Chưa có kiểm định ngoài mẫu chứng minh lợi thế; không nên sử dụng các điểm này như bảo đảm để đặt tiền.</p>
@@ -191,7 +204,7 @@ tr.selected td{background:#17413d}
 var URL="https://raw.githubusercontent.com/khiemdoan/vietnam-lottery-xsmb-analysis/refs/heads/main/data/xsmb-2-digits.csv";
 var TRAFFIC_URL="https://counterapi.com/api/trongdatfx-hash.github.io";
 var $=function(s){return document.getElementById(s)};
-var model={days:[],metrics:[],selected:null,base:0,look:365,horizon:7,paths:3000,source:"GitHub",backtest:null};
+var model={days:[],metrics:[],matrix:[],selected:null,base:0,look:365,horizon:7,paths:3000,source:"GitHub",backtest:null};
 function fmt(n){return Number(n).toLocaleString("vi-VN")}
 function num(n){return String(n).padStart(2,"0")}
 function pct(n){return (n*100).toFixed(1)+"%"}
@@ -268,11 +281,34 @@ function calculateRanking(data,requestedLook,horizon,paths,exact){
  all.forEach(function(o,i){o.rank=i+1});
  return{metrics:all,base:base,look:look};
 }
+function calculateSevenDayMatrix(data,metrics){
+ var recent=data.slice(-7),candidates=metrics.slice(0,8).map(function(o){
+  var count7=0,hitDays7=0,weighted7=0,lastSeen=-1;
+  recent.forEach(function(d,i){
+   count7+=d.counts[o.n];hitDays7+=d.hits[o.n];weighted7+=d.counts[o.n]*(i+1);
+   if(d.hits[o.n])lastSeen=i;
+  });
+  var gap=lastSeen<0?recent.length:recent.length-1-lastSeen;
+  return{n:o.n,baseRank:o.rank,baseScore:o.score,count7:count7,hitDays7:hitDays7,weighted7:weighted7,freshness:recent.length?1-gap/recent.length:0};
+ });
+ ["count7","hitDays7","weighted7","freshness"].forEach(function(key){
+  var mean=candidates.reduce(function(s,o){return s+o[key]},0)/candidates.length;
+  var variance=candidates.reduce(function(s,o){var d=o[key]-mean;return s+d*d},0)/candidates.length;
+  var sd=Math.sqrt(variance);
+  candidates.forEach(function(o){o["z_"+key]=sd>1e-12?(o[key]-mean)/sd:0});
+ });
+ candidates.forEach(function(o){o.matrixRaw=.35*o.z_count7+.25*o.z_hitDays7+.25*o.z_weighted7+.15*o.z_freshness});
+ candidates.sort(function(a,b){return b.matrixRaw-a.matrixRaw||b.baseScore-a.baseScore||a.n-b.n});
+ var lo=Math.min.apply(null,candidates.map(function(o){return o.matrixRaw}));
+ var hi=Math.max.apply(null,candidates.map(function(o){return o.matrixRaw}));
+ candidates.forEach(function(o,i){o.matrixRank=i+1;o.filterScore=hi-lo>1e-12?Math.max(0,Math.min(100,100*(o.matrixRaw-lo)/(hi-lo))):50});
+ return candidates;
+}
 function analyze(){
  if(!model.days.length)return;
  var requestedLook=+$("window").value,horizon=+$("horizon").value,paths=+$("paths").value;
  var result=calculateRanking(model.days,requestedLook,horizon,paths,false),all=result.metrics;
- model.metrics=all;model.base=result.base;model.look=result.look;model.horizon=horizon;model.paths=paths;model.backtest=null;
+ model.metrics=all;model.matrix=calculateSevenDayMatrix(model.days,all);model.base=result.base;model.look=result.look;model.horizon=horizon;model.paths=paths;model.backtest=null;
  if(model.selected===null)model.selected=all[0].n;
  render();
  resetBacktest("Cấu hình đã thay đổi. Chạy lại backtest để cập nhật.");
@@ -297,6 +333,7 @@ function render(){
  b.appendChild(element("span","small","RW+ "+pct(o.mc)));
  b.addEventListener("click",function(){pick(o.n)});list.appendChild(b);
  });
+ renderSevenDayMatrix();
  var map=$("heatmap");map.replaceChildren();
  var byNum=new Map(model.metrics.map(function(x){return[x.n,x]}));
  for(var i=0;i<100;i++){
@@ -322,6 +359,27 @@ function render(){
  });
  setStatus("Đã phân tích "+fmt(model.look)+" ngày gần nhất trên "+fmt(model.days.length)+" ngày dữ liệu; xếp hạng 100 số từ 00–99. Nguồn: "+model.source+".");
  renderSelected();
+}
+function signed(n){return(n>=0?"+":"")+n.toFixed(2)}
+function renderSevenDayMatrix(){
+ var rows=model.matrix,top3=rows.slice(0,3),cards=$("matrixTop3");cards.replaceChildren();
+ top3.forEach(function(o){
+  var b=element("button","numcard","");b.type="button";b.dataset.number=o.n;
+  b.appendChild(element("span","rank","#"+o.matrixRank+" · LỌC 7N"));
+  b.appendChild(element("strong","",num(o.n)));
+  b.appendChild(element("span","score",o.filterScore.toFixed(1)+" / 100"));
+  b.appendChild(element("span","small",o.count7+" lượt · "+o.hitDays7+" ngày"));
+  b.addEventListener("click",function(){pick(o.n)});cards.appendChild(b);
+ });
+ var dates=model.days.slice(-7),from=dates.length?viDate(dates[0].date):"—",to=dates.length?viDate(dates[dates.length-1].date):"—";
+ $("matrixInfo").textContent="Ma trận dùng "+dates.length+" kỳ từ "+from+" đến "+to+". Trọng số: lượt 35% · ngày có mặt 25% · gần đây 25% · độ mới 15%. Z-score được tính riêng trong 8 ứng viên.";
+ var body=$("matrixBody");body.replaceChildren();
+ rows.forEach(function(o){
+  var tr=element("tr",o.matrixRank<=3?"selected":"");
+  var vals=[o.matrixRank+". "+num(o.n),String(o.count7),signed(o.z_count7),String(o.hitDays7),signed(o.z_hitDays7),String(o.weighted7),signed(o.z_weighted7),pct(o.freshness),signed(o.z_freshness),o.filterScore.toFixed(1)];
+  vals.forEach(function(t,i){var cls=i===0?"num":(i===9?"matrix-score":([2,4,6,8].indexOf(i)>=0?"matrix-z":""));tr.appendChild(element("td",cls,t))});
+  tr.style.cursor="pointer";tr.addEventListener("click",function(){pick(o.n)});body.appendChild(tr);
+ });
 }
 function renderSelected(){
  var o=model.metrics.find(function(x){return x.n===model.selected})||model.metrics[0];if(!o)return;
@@ -521,6 +579,12 @@ $("copy").addEventListener("click",function(){
  var s=model.metrics.slice(0,8).map(function(o){return num(o.n)}).join(" - ");
  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(s).then(function(){setStatus("Đã sao chép: "+s)},function(){window.prompt("Sao chép 8 số:",s)});
  else window.prompt("Sao chép 8 số:",s);
+});
+$("copyTop3").addEventListener("click",function(){
+ if(!model.matrix.length)return;
+ var s=model.matrix.slice(0,3).map(function(o){return num(o.n)}).join(" - ");
+ if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(s).then(function(){setStatus("Đã sao chép bộ lọc 3 số: "+s)},function(){window.prompt("Sao chép 3 số:",s)});
+ else window.prompt("Sao chép 3 số:",s);
 });
 window.addEventListener("resize",function(){if(model.metrics.length)drawWalk(model.metrics.find(function(x){return x.n===model.selected})||model.metrics[0]);if(model.backtest){drawBacktest();drawProfit()}});
 startTraffic();
