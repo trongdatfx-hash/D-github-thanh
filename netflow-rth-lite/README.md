@@ -76,3 +76,9 @@ Tỷ lệ hiển thị là thống kê hàng xóm trong 30 ngày đang tải. C�
 ## ML tương lai
 
 `modelStatus.trained=false`. V2 nâng cấp thuật toán thống kê REV6 nhưng chưa có dataset snapshot intrabar, training hay backtest cho chiến lược này. `engine.mjs` tách khỏi UI/data để thay adapter bằng model sau khi có provenance dữ liệu, nhãn RTH, train/validation/test theo thời gian có purge/embargo, walk-forward ngoài mẫu và chi phí giao dịch. Không tự bật ML theo số nến. Hướng dẫn Binance: https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Kline-Candlestick-Data ; chart: https://tradingview.github.io/lightweight-charts/docs/5.0/ .
+
+## Spread Z-score SPY–QQQ
+
+Pane **Spread Z S−Q** chuẩn hóa phần dư của hồi quy log-giá `log(SPY) = α + β × log(QQQ)` riêng cho NIGHT, PRE, RTH và POST. Mỗi điểm chỉ dùng tối đa 130 mẫu cùng phiên đứng trước nó; hồi quy ưu tiên mẫu gần, tâm phần dư dùng median và độ rộng dùng `1.4826 × MAD` (độ lệch chuẩn chỉ là fallback). Chỉ báo bắt đầu sau 40 mẫu quá khứ cùng phiên và loại cuối tuần/ngày NYSE nghỉ toàn ngày.
+
+Màu xanh dùng trong vùng bình thường, cam khi `Z ≥ +2`, tím khi `Z ≤ −2`. Chấm tròn xuất hiện khi Z vừa quay lại trong `±2`. Line vàng nét đứt trên pane giá là giá cân bằng tương đối suy ra từ hồi quy tại cùng timestamp. Nhãn “4 nến hội tụ” đếm các lần vượt `|Z| ≥ 2` đã hoàn tất rồi quay vào `|Z| ≤ 1` trong bốn nến; tỷ lệ chỉ hiển thị từ 20 sự kiện. Đây là thống kê hội tụ spread, không phải xác suất SPY/QQQ đảo chiều và chưa phải mô hình ML hay tín hiệu giao dịch.

@@ -1,3 +1,4 @@
+import {isUsMarketTradingDay} from './market-calendar.mjs';
 export const SYMBOLS=['SPYUSDT','QQQUSDT'];
 export const STEPS={'5m':300000,'15m':900000,'30m':1800000,'1h':3600000};
 const clock=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',weekday:'short',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
@@ -142,6 +143,56 @@ export function weightedPriceBands(bars,step,{window=50,mult=2}={}){
     history.push({t:b.t,c:b.c});if(history.length>window)history.shift();
     return {t:b.t,mid,upper,lower,sigma};
   });
+}
+function median(values){const sorted=[...values].sort((a,b)=>a-b),middle=Math.floor(sorted.length/2);return sorted.length%2?sorted[middle]:(sorted[middle-1]+sorted[middle])/2;}
+function weightedPairFit(sample){
+  let sw=0,sx=0,sy=0,sxx=0,sxy=0;
+  for(let i=0;i<sample.length;i++){const weight=i+1,x=sample[i].qqq,y=sample[i].spy;sw+=weight;sx+=weight*x;sy+=weight*y;sxx+=weight*x*x;sxy+=weight*x*y;}
+  const denominator=sw*sxx-sx*sx;if(Math.abs(denominator)<1e-14)return null;
+  const beta=(sw*sxy-sx*sy)/denominator,intercept=(sy-beta*sx)/sw;
+  return {intercept,beta};
+}
+export function priceSpreadZ(spy,qqq,step,{window=130,minSamples=40}={}){
+  if(!Array.isArray(spy)||!Array.isArray(qqq)||!Object.values(STEPS).includes(step)||!Number.isInteger(window)||window<20||!Number.isInteger(minSamples)||minSamples<20||minSamples>window)throw Error('Tham số Spread Z không hợp lệ');
+  const other=new Map(qqq.map(bar=>[bar.t,bar])),pools=Object.fromEntries(['NIGHT','PRE','RTH','POST'].map(session=>[session,[]]));
+  return spy.flatMap(spyBar=>{
+    const qqqBar=other.get(spyBar.t);if(!qqqBar)return [];
+    const base={t:spyBar.t,end:Math.min(spyBar.end??spyBar.t+step-1,qqqBar.end??qqqBar.t+step-1),day:spyBar.day,session:spyBar.session,z:null,fairSpy:null,fairQqq:null,beta:null,samples:0};
+    if(!Number.isFinite(spyBar.c)||spyBar.c<=0||!Number.isFinite(qqqBar.c)||qqqBar.c<=0||!pools[spyBar.session]||!isUsMarketTradingDay(spyBar.day))return [base];
+    const pool=pools[spyBar.session],sample=pool.slice(-window);let result=base;
+    if(sample.length>=minSamples){
+      const fit=weightedPairFit(sample);
+      if(fit){
+        const residuals=sample.map(pair=>pair.spy-fit.intercept-fit.beta*pair.qqq),center=median(residuals),absolute=residuals.map(value=>Math.abs(value-center)),mad=median(absolute);
+        const fallback=Math.sqrt(residuals.reduce((sum,value)=>sum+(value-center)**2,0)/residuals.length),scale=mad>1e-10?1.4826*mad:fallback;
+        const spyLog=Math.log(spyBar.c),qqqLog=Math.log(qqqBar.c),residual=spyLog-fit.intercept-fit.beta*qqqLog;
+        if(scale>1e-10&&Number.isFinite(fit.beta)){
+          const deviation=residual-center,spyGap=-deviation,qqqGap=Math.abs(fit.beta)>=.2?deviation/fit.beta:null;
+          // A near-zero beta makes the inverse QQQ estimate explode. Keep Z valid,
+          // but withhold either fair-price point when it implies an implausible >8% jump.
+          const fairSpy=Math.abs(spyGap)<=.08?Math.exp(spyLog+spyGap):null,fairQqq=Number.isFinite(qqqGap)&&Math.abs(qqqGap)<=.08?Math.exp(qqqLog+qqqGap):null;
+          result={...base,z:deviation/scale,fairSpy,fairQqq,beta:fit.beta,samples:sample.length};
+        }
+      }
+    }
+    pool.push({spy:Math.log(spyBar.c),qqq:Math.log(qqqBar.c)});if(pool.length>window)pool.shift();
+    return [result];
+  });
+}
+export function spreadConvergenceStats(rows,step,{threshold=2,target=1,horizons=[2,4,8],minSamples=20}={}){
+  if(!Array.isArray(rows)||!Object.values(STEPS).includes(step)||!Number.isFinite(threshold)||threshold<=0||!Number.isFinite(target)||target<0||target>=threshold||!Array.isArray(horizons)||!horizons.length||!horizons.every(value=>Number.isInteger(value)&&value>0)||!Number.isInteger(minSamples)||minSamples<1)throw Error('Tham số thống kê Spread Z không hợp lệ');
+  const unique=[...new Set(horizons)].sort((a,b)=>a-b),stats=Object.fromEntries(unique.map(horizon=>[horizon,{horizon,n:0,wins:0,rate:null,ready:false}])),maxH=unique.at(-1);let blockedUntil=-1;
+  for(let i=1;i<rows.length;i++){
+    const previous=rows[i-1],current=rows[i];
+    if(i<=blockedUntil||!Number.isFinite(previous?.z)||!Number.isFinite(current?.z)||current.t-previous.t!==step||current.session!==previous.session||current.day!==previous.day||Math.abs(previous.z)>=threshold||Math.abs(current.z)<threshold)continue;
+    for(const horizon of unique){
+      const path=rows.slice(i+1,i+horizon+1);if(path.length<horizon||path.some((row,index)=>!Number.isFinite(row.z)||row.t!==current.t+(index+1)*step||row.session!==current.session||row.day!==current.day))continue;
+      const summary=stats[horizon];summary.n++;if(path.some(row=>Math.abs(row.z)<=target))summary.wins++;
+    }
+    blockedUntil=i+maxH;
+  }
+  for(const summary of Object.values(stats)){summary.rate=summary.n?100*summary.wins/summary.n:null;summary.ready=summary.n>=minSamples;}
+  return stats;
 }
 // Continuous taker CVD grouped by close-price bins. It never resets inside the loaded history.
 // The vertical EMA follows the Pine reference exactly: low-price bins toward high-price bins.
