@@ -139,7 +139,7 @@ function updateRev63(closedPrice){
   rev63State=rev63Forecast({reversal:reversalState,wlrStats:wlrStatsData,alignment,geometryEvents:geometryState.events,priceRows:closedPrice});
   rev63History=scoreForecastHistory(closedPrice,loadRev63History(),REV63_HORIZON).filter(x=>!x.void);
   if(latest&&rev63State&&!rev63History.some(x=>x.entryTime===latest.t))rev63History.push({entryTime:latest.t,pUp:rev63State.pUp,step:STEPS[$('interval').value],label:rev63State.label,createdAt:Date.now()});
-  saveRev63History(rev63History);renderRev63();
+  saveRev63History(rev63History);renderRev63();updateGeometryReadout();
 }
 function init(){
   if(!L){status('Không tải được thư viện chart cục bộ. Kiểm tra network hoặc tải lại trang.',true);return false;}
@@ -250,10 +250,12 @@ function geometryLineText(line){
   return `${name} ${line.score}/100 · ${line.touches} chạm · tuổi ${line.ageBars} · dốc ${slope} · lệch ${fmt(line.rmseAtr)} ATR · hợp lưu ${Math.round(line.confluence*100)}%`;
 }
 function updateGeometryReadout(){
-  const node=$('geometry-readout'),enabled=$('geometry-toggle').checked,top=geometryState.lines?.[0];node.style.display=enabled?'block':'none';
-  if(!top){node.textContent='GEO — chờ trendline đạt ngưỡng';node.className='missing';node.title='Pivot giá chỉ được xác nhận sau 2 nến đã đóng; giảm ngưỡng nếu muốn xem nhiều line hơn.';return;}
-  const bt=geometryBacktest.n?` · WF ${fmt(geometryBacktest.winRate)}%/${geometryBacktest.n}`:'';
-  node.textContent=`GEO ${top.kind==='support'?'HT':'KC'} ${top.score} · ${top.touches} chạm · ${top.ageBars} nến${bt}`;node.className=top.kind;node.title=`${geometryLineText(top)}. Walk-forward: vào tại nến xác nhận pivot, đo sau ${geometryBacktest.horizon??4} nến; ${geometryBacktest.n?`${geometryBacktest.wins}/${geometryBacktest.n} đạt ${geometryBacktest.minMoveAtr} ATR`:'chưa đủ mẫu hoàn tất'}.`;
+  const node=$('geometry-readout');if(!node)return;node.style.display='block';
+  if(!rev63State){node.textContent='REV6-3 V1 · UP — / DOWN — · CONF —';node.className='forecast wait';node.title='Chờ đủ nến đã đóng để tính dự báo 3 nến.';return;}
+  const up=Math.round(rev63State.pUp*100),down=100-up,conf=rev63State.confidence;
+  node.textContent=`REV6-3 · UP ${up}% · DOWN ${down}% · CONF ${conf}`;
+  node.className=`forecast ${rev63State.label.toLowerCase()}`;
+  node.title=`REV6-3 V1 · ${rev63State.label} · evidence ${fmt(rev63State.evidence)} · WLR ${rev63State.stateKey??'neutral'} · ${Number.isFinite(rev63State.agreementRank)?`Agreement P${Math.round(rev63State.agreementRank*100)}`:'Agreement chưa đủ lịch sử'}. Trendline GEO vẫn được vẽ trên chart và xem chi tiết qua tooltip/crosshair.`;
 }
 function drawGeometryOverlay(){
   const canvas=$('geometry-overlay'),host=$('chart'),width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1;
