@@ -88,3 +88,14 @@ Tỷ lệ hiển thị là thống kê hàng xóm trong 30 ngày đang tải. C�
 ## ML tương lai
 
 `modelStatus.trained=false`. V2 nâng cấp thuật toán thống kê REV6 nhưng chưa có dataset snapshot intrabar hoặc training; backtest hình học mới chỉ là phép đo causal bốn nến, chưa phải chiến lược đã hiệu chỉnh ngoài mẫu. `engine.mjs` tách khỏi UI/data để thay adapter bằng model sau khi có provenance dữ liệu, nhãn RTH, train/validation/test theo thời gian có purge/embargo, walk-forward ngoài mẫu và chi phí giao dịch. Không tự bật ML theo số nến. Hướng dẫn Binance: https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Kline-Candlestick-Data ; chart: https://tradingview.github.io/lightweight-charts/docs/5.0/ .
+
+
+## WLR Composite × SPY Volume Strength
+
+Độ dày WLR dùng dấu adjusted Strength Composite và SPY Volume Strength: cùng dấu = 6 px, trái dấu = 1 px, thiếu/0 = 2 px. Khối **WLR Agreement Statistics** đo xem trạng thái này có thực sự đi kèm kết quả giá tốt hơn hay không, thay vì suy luận bằng hình ảnh.
+
+Ba nhóm trạng thái là **Dày**, **Mỏng** và **Mỏng→Dày**. Hướng kết quả luôn lấy theo dấu Composite tại nến tín hiệu. Các horizon 1/3/6 nến chỉ dùng nến đã đóng theo giờ server Binance, yêu cầu chuỗi giá liên tục trong cùng ngày New York. Trong từng nhóm/horizon, cửa sổ kết quả không chồng lấn; vì vậy số mẫu không bị phồng bởi nhiều entry dùng chung phần lớn đường giá.
+
+Mỗi nhóm hiển thị n, Win%, EV trung bình, Median return, Profit Factor, median MFE và median MAE. Một nhóm chỉ được coi là đủ mẫu trên giao diện khi n ≥ 20. Đây là thống kê mô tả directional-return, chưa trừ phí và không phải backtest giao dịch hoàn chỉnh.
+
+Độ đồng thuận liên tục dùng `Agreement = abs(Composite Strength) × abs(SPY Volume Strength)`. Phân vị của mỗi nến chỉ được tính từ tối đa 500 giá trị Agreement **đã xuất hiện trước nến đó**; 20 mẫu đầu chưa được xếp bin. Các bin P0–25, P25–50, P50–75, P75–90 và P90–100 vì thế là causal, không dùng phân vị toàn bộ tương lai. Giao diện so trực tiếp Dày vs Mỏng, Mỏng→Dày vs Mỏng và P90 vs P0–25 bằng chênh lệch Win và EV. Các chênh lệch này chưa phải kiểm định ý nghĩa thống kê hoặc xác suất thắng ngoài mẫu.
