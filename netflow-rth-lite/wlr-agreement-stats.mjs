@@ -28,7 +28,7 @@ function summarize(records,minSamples){
   const n=records.length,wins=records.filter(x=>x.ret>0).length,losses=records.filter(x=>x.ret<0).length;
   const grossProfit=records.reduce((s,x)=>s+Math.max(0,x.ret),0),grossLoss=-records.reduce((s,x)=>s+Math.min(0,x.ret),0);
   return {n,ready:n>=minSamples,winRate:n?100*wins/n:null,lossRate:n?100*losses/n:null,
-    expectancy:n?records.reduce((s,x)=>s+x.ret,0)/n:null,
+    expectancy:n?records.reduce((s,x)=>s+x.ret,0)/n:null,medianReturn:n?median(records.map(x=>x.ret)):null,
     profitFactor:grossLoss>1e-12?grossProfit/grossLoss:grossProfit>1e-12?Infinity:null,
     medianMfe:n?median(records.map(x=>x.mfe)):null,medianMae:n?median(records.map(x=>x.mae)):null};
 }
