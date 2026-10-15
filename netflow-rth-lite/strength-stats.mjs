@@ -1,10 +1,6 @@
 // Descriptive, causal statistics. The score uses fixed rules; no trained model.
-import {eligibleMarketBar} from './market-calendar.mjs';
 export const HORIZONS=[1,3,6];
 export const MIN_SAMPLES=20;
-export const TREND_WINDOW=6;
-export const TREND_MIN_HISTORY=30;
-export const TREND_SMOOTH_HALF_LIFE=2;
 const keys=['SPYUSDT','QQQUSDT','COMPOSITE'];
 const clamp=x=>Math.max(0,Math.min(1,x));
 const sign=x=>x>0?1:x<0?-1:0;
@@ -92,67 +88,5 @@ export function strengthStatistics(rows,priceSymbol,source,step,{minSamples=MIN_
     result.set(price[i].t,{state:states[i],stats});
   }
   result.samples=generated;result.rememberedSamples=oldMemory.length;
-  return result;
-}
-
-function trendCluster(sample,source){
-  const direction=sign(sample.at(-1).bars[source].adjusted);
-  if(!direction)return null;
-  const buyTotal=sample.reduce((sum,x)=>sum+x.bars[source].buy,0);
-  const sellTotal=sample.reduce((sum,x)=>sum+x.bars[source].sell,0);
-  const quoteTotal=buyTotal+sellTotal;
-  if(!(quoteTotal>0))return null;
-  const netTotal=buyTotal-sellTotal,netShare=netTotal/quoteTotal;
-  const alignedShare=direction>0?buyTotal/quoteTotal:sellTotal/quoteTotal;
-  const persistence=sample.reduce((sum,x)=>sum+(sign(x.bars[source].adjusted)===direction?1:0),0)/sample.length;
-  const magnitude=sample.reduce((sum,x)=>sum+clamp(direction*x.bars[source].adjusted),0)/sample.length;
-  const slope=clamp(.5+direction*(sample.at(-1).bars[source].adjusted-sample[0].bars[source].adjusted)/2);
-  const pair=sample.reduce((sum,x)=>sum+(clamp((1+direction*x.alignment.smoothSpyNf/50)/2)+clamp((1+direction*x.alignment.smoothQqqNf/50)/2))/2,0)/sample.length;
-  const consensus=sample.reduce((sum,x)=>sum+keys.reduce((n,k)=>n+(sign(x.bars[k].adjusted)===direction?1:0),0)/(keys.length*sample.length),0);
-  const components={persistence:20*persistence,magnitude:15*magnitude,slope:10*slope,taker:20*clamp((direction*netShare+.2)/.6),pair:10*pair,consensus:25*consensus};
-  const raw=Math.round(Object.values(components).reduce((a,b)=>a+b,0));
-  return {direction,raw,components,buyTotal,sellTotal,netTotal,netShare,alignedShare,persistence,magnitude,slope,pair,consensus};
-}
-
-function trendLabel(score,direction){
-  const strength=score>=75?'RẤT MẠNH':score>=60?'MẠNH':score>=45?'KHÁ':score>=30?'YẾU':'SUY YẾU';
-  return `${direction>0?'↑':'↓'} ${strength}`;
-}
-
-// Compare every trailing six-bar cluster with completed six-bar clusters that
-// started when the selected Strength source changed sign. Reference clusters
-// must end before the current cluster begins, so the comparison is causal.
-export function trendStrength6(rows,source,step,{window=TREND_WINDOW,minHistory=TREND_MIN_HISTORY,smoothHalfLife=TREND_SMOOTH_HALF_LIFE}={}){
-  if(!keys.includes(source)||!Number.isFinite(step)||step<=0||!Number.isInteger(window)||window<2||!Number.isInteger(minHistory)||minHistory<1||!Number.isFinite(smoothHalfLife)||smoothHalfLife<=0)throw Error('Tham số Trend Strength không hợp lệ');
-  const signal=rows[source]??[],maps=Object.fromEntries(keys.map(k=>[k,new Map((rows[k]??[]).map(b=>[b.t,b]))])),alignmentMap=new Map((rows.alignment??[]).map(x=>[x.t,x]));
-  const items=signal.map(b=>({t:b.t,bars:Object.fromEntries(keys.map(k=>[k,maps[k].get(b.t)])),alignment:alignmentMap.get(b.t)}));
-  const valid=x=>x?.alignment&&keys.every(k=>eligibleMarketBar(x.bars[k])&&Number.isFinite(x.bars[k]?.adjusted))&&[x.bars[source]?.q,x.bars[source]?.buy,x.bars[source]?.sell,x.alignment.smoothSpyNf,x.alignment.smoothQqqNf].every(Number.isFinite)&&x.bars[source].q>0;
-  const clusterAt=end=>{
-    if(end<window-1)return null;const sample=items.slice(end-window+1,end+1);
-    if(!sample.every(valid))return null;
-    for(let i=1;i<sample.length;i++)if(sample[i].t-sample[i-1].t!==step)return null;
-    return trendCluster(sample,source);
-  };
-  const events=[];
-  for(let start=1;start+window<=items.length;start++){
-    const before=items[start-1]?.bars[source]?.adjusted,current=items[start]?.bars[source]?.adjusted;
-    if(sign(before)&&sign(current)&&sign(before)!==sign(current)){
-      const end=start+window-1,cluster=clusterAt(end);if(cluster)events.push({start,end,...cluster});
-    }
-  }
-  const result=new Map(),history=[],byDirection={1:[],'-1':[]},alpha=1-2**(-1/smoothHalfLife);let next=0,smoothScore=null,smoothPercentile=null,smoothDirection=0;
-  for(let i=0;i<items.length;i++){
-    const currentStart=i-window+1;
-    while(next<events.length&&events[next].end<currentStart){const e=events[next++];history.push(e.raw);byDirection[e.direction].push(e.raw);}
-    const cluster=clusterAt(i);if(!cluster){result.set(items[i].t,null);smoothScore=null;smoothPercentile=null;smoothDirection=0;continue;}
-    const same=byDirection[cluster.direction],reference=same.length>=minHistory?same:history,n=reference.length;
-    let percentile=null,score=cluster.raw;
-    if(n){const less=reference.filter(x=>x<cluster.raw).length,equal=reference.filter(x=>x===cluster.raw).length;percentile=100*(less+.5*equal)/n;if(n>=minHistory)score=Math.round((cluster.raw+percentile)/2);}
-    if(smoothDirection!==cluster.direction){smoothScore=null;smoothPercentile=null;smoothDirection=cluster.direction;}
-    smoothScore=smoothScore===null?score:smoothScore+alpha*(score-smoothScore);
-    if(percentile!==null)smoothPercentile=smoothPercentile===null?percentile:smoothPercentile+alpha*(percentile-smoothPercentile);
-    const stableScore=Math.round(smoothScore),stablePercentile=smoothPercentile;
-    result.set(items[i].t,{...cluster,score,percentile,stableScore,stablePercentile,n,scope:same.length>=minHistory?'same-sign':'all-signs',ready:n>=minHistory,label:trendLabel(stableScore,cluster.direction),smoothed:true});
-  }
   return result;
 }

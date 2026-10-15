@@ -1,7 +1,7 @@
 import {STEPS,composite,flowAlignment,strengthAgreementCandleSignal,strengthPhaseLineWidth,calculateVolumeStrength,analyze,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs?v=20261015-1';
 import {load} from './data.mjs';
 import {loadPersistentHistory} from './history-store.mjs?v=20261015-1';
-import {strengthStatistics,trendStrength6,TREND_MIN_HISTORY} from './strength-stats.mjs?v=20261013-1';
+import {strengthStatistics} from './strength-stats.mjs?v=20261015-1';
 import {reversalZone,REVERSAL_VERSION,REVERSAL_HORIZON,REVERSAL_MIN_MATCHES,REVERSAL_MIN_EFFECTIVE} from './reversal-zone.mjs?v=20261012-5';
 import {ReversalStabilizer} from './stability.mjs?v=20261012-5';
 import {analyzeGeometry,backtestGeometry} from './geometry.mjs?v=20261014-1';
@@ -21,7 +21,7 @@ const flowColors={
 const LIVE_REFRESH_MS=3000;
 const CALENDAR_REFRESH_MS=5*60*1000;
 const FIT_WINDOW_MS=36*60*60*1000,DOUBLE_TAP_MS=360,DOUBLE_TAP_DISTANCE=28,TAP_MOVE_TOLERANCE=14;
-let statsMap=new Map(),trendMap=new Map(),candleColorMap=new Map(),wlrStatsData=null,rev63State=null,rev63History=[],reversalState={ready:false,reason:'window',n:0},inspectedTime=null;
+let statsMap=new Map(),candleColorMap=new Map(),wlrStatsData=null,rev63State=null,rev63History=[],reversalState={ready:false,reason:'window',n:0},inspectedTime=null;
 let calendarState={events:[],updatedAt:null,loading:false};
 const reversalStabilizer=new ReversalStabilizer({alpha:.25,confirmations:3});
 const sourceName=key=>({SPYUSDT:'SPY',QQQUSDT:'QQQ',COMPOSITE:'Composite'}[key]);
@@ -164,7 +164,7 @@ function init(){
   for(const key of ['mid','upper','lower'])series[key]=chart.addSeries(L.LineSeries,{color:key==='mid'?'#9db5d1':'#8596ad',lineWidth:key==='mid'?2:1,lineStyle:key==='mid'?L.LineStyle.Dotted:L.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,title:''},2);
   series.strength.createPriceLine({price:0,color:'#d7e5f3',lineWidth:2,lineStyle:L.LineStyle.Solid,axisLabelVisible:true,title:'0'});
   series.strength.priceScale().applyOptions({scaleMargins:{top:.08,bottom:.08}});
-  series.volumeStrength=chart.addSeries(L.BaselineSeries,{baseValue:{type:'price',price:0},topLineColor:'#58c7ff',topFillColor1:'rgba(88,199,255,.12)',topFillColor2:'rgba(88,199,255,0)',bottomLineColor:'#ffb454',bottomFillColor1:'rgba(255,180,84,0)',bottomFillColor2:'rgba(255,180,84,.12)',lineWidth:3,title:'SPY Volume Strength',priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:true,crosshairMarkerRadius:4},3);
+  series.volumeStrength=chart.addSeries(L.BaselineSeries,{baseValue:{type:'price',price:0},topLineColor:'#58c7ff',topFillColor1:'rgba(88,199,255,.12)',topFillColor2:'rgba(88,199,255,0)',bottomLineColor:'#ffb454',bottomFillColor1:'rgba(255,180,84,0)',bottomFillColor2:'rgba(255,180,84,.12)',lineWidth:3,title:'SPY V',priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:true,crosshairMarkerRadius:4},3);
   series.volumeStrength.createPriceLine({price:0,color:'#6f8299',lineWidth:1,lineStyle:L.LineStyle.Solid,axisLabelVisible:true,title:'0'});
   series.volumeStrength.priceScale().applyOptions({scaleMargins:{top:.08,bottom:.08}});
   series.COMPOSITE.createPriceLine({price:0,color:'#60748c',lineWidth:1,lineStyle:L.LineStyle.Solid,axisLabelVisible:false});
@@ -174,7 +174,7 @@ function init(){
   chart.subscribeCrosshairMove(p=>{if(!p.sourceEvent)return;inspectedTime=p.time?p.time*1000:null;showTooltip(inspectedTime??rows[$('symbol').value]?.at(-1)?.t);});
   $('chart').addEventListener('pointerleave',()=>{inspectedTime=null;showTooltip(rows[$('symbol').value]?.at(-1)?.t);});
   chart.timeScale().subscribeVisibleLogicalRangeChange(()=>{scheduleCvdSpectrum();scheduleDaySeparators();scheduleGeometryOverlay();});
-  window.addEventListener('resize',()=>{scheduleCvdSpectrum();scheduleDaySeparators();scheduleGeometryOverlay();requestAnimationFrame(positionTrendReadout);requestAnimationFrame(updateCandleCountdown);});
+  window.addEventListener('resize',()=>{scheduleCvdSpectrum();scheduleDaySeparators();scheduleGeometryOverlay();requestAnimationFrame(positionForecastReadout);requestAnimationFrame(updateCandleCountdown);});
   bindChartGestures();
   return true;
 }
@@ -194,8 +194,8 @@ function alignmentData(data){return data.map(x=>({time:x.t/1000,value:x.score,co
 function scheduleCvdSpectrum(){if(cvdFrame)return;cvdFrame=requestAnimationFrame(()=>{cvdFrame=requestAnimationFrame(()=>{cvdFrame=0;drawCvdSpectrum();});});}
 function scheduleDaySeparators(){if(dayFrame)return;dayFrame=requestAnimationFrame(()=>{dayFrame=requestAnimationFrame(()=>{dayFrame=0;drawDaySeparators();});});}
 function scheduleGeometryOverlay(){if(geometryFrame)return;geometryFrame=requestAnimationFrame(()=>{geometryFrame=requestAnimationFrame(()=>{geometryFrame=0;drawGeometryOverlay();});});}
-function positionTrendReadout(){
-  const node=$('trend-strength'),paneHeight=chart?.panes?.()[0]?.getHeight?.();
+function positionForecastReadout(){
+  const node=$('geometry-readout'),paneHeight=chart?.panes?.()[0]?.getHeight?.();
   if(!node||!Number.isFinite(paneHeight))return;
   node.style.top=`${Math.max(8,paneHeight-node.offsetHeight-10)}px`;
 }
@@ -252,11 +252,12 @@ function geometryLineText(line){
 }
 function updateGeometryReadout(){
   const node=$('geometry-readout');if(!node)return;node.style.display='block';
-  if(!rev63State){node.textContent='REV6-3 V1 · UP — / DOWN — · CONF —';node.className='forecast wait';node.title='Chờ đủ nến đã đóng để tính dự báo 3 nến.';return;}
+  if(!rev63State){node.textContent='UP — · DOWN — · WAIT —';node.className='forecast wait';node.title='REV6-3 V1 · Chờ đủ nến đã đóng để tính dự báo 3 nến.';requestAnimationFrame(positionForecastReadout);return;}
   const up=Math.round(rev63State.pUp*100),down=100-up,conf=rev63State.confidence,wait=Math.max(0,100-conf);
-  node.textContent=`REV6-3 · UP ${up}% · DOWN ${down}% · WAIT ${wait}% · CONF ${conf}`;
+  node.textContent=`UP ${up}% · DOWN ${down}% · WAIT ${wait}%`;
   node.className=`forecast ${rev63State.label.toLowerCase()}`;
   node.title=`REV6-3 V1 · ${rev63State.label} · WAIT ${wait}% là chỉ số bất định = 100 − Confidence, không phải xác suất thứ ba độc lập · evidence ${fmt(rev63State.evidence)} · WLR ${rev63State.stateKey??'neutral'} · ${Number.isFinite(rev63State.agreementRank)?`Agreement P${Math.round(rev63State.agreementRank*100)}`:'Agreement chưa đủ lịch sử'}. Trendline GEO vẫn được vẽ trên chart và xem chi tiết qua tooltip/crosshair.`;
+  requestAnimationFrame(positionForecastReadout);
 }
 function drawGeometryOverlay(){
   const canvas=$('geometry-overlay'),host=$('chart'),width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1;
@@ -300,7 +301,6 @@ function render(fit=false){
   const agreementColors=$('candle-agreement-color').checked;
   price.setData(p.map(x=>{const color=agreementColors?candlePalette(candleColorMap.get(x.t)):priceDirectionPalette(x);return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color:color.body,wickColor:color.wick,borderColor:color.border};}));
   statsMap=strengthStatistics({...rows,alignment},$('symbol').value,$('signal').value,STEPS[$('interval').value]);
-  trendMap=trendStrength6({...rows,alignment},$('signal').value,STEPS[$('interval').value]);
   const rawReversal=reversalZone(model,$('symbol').value,$('signal').value,STEPS[$('interval').value]);
   const reversalKey=`${$('symbol').value}|${$('signal').value}|${$('interval').value}|${p.at(-1)?.t??'empty'}`;
   reversalState=reversalStabilizer.update(rawReversal,reversalKey,cache?.serverTime??generation);
@@ -331,15 +331,7 @@ function statValue(id,text,color='neutral'){const node=$(id);node.textContent=te
 function latestStrength(key){const data=rows[key]??[];for(let i=data.length-1;i>=0;i--)if(Number.isFinite(data[i].adjusted))return data[i].adjusted;return null;}
 function updateStrengthLabels(){
   $('strength-readout').style.display=$('show-strength').checked?'flex':'none';
-  $('trend-strength').style.display=$('show-strength').checked?'block':'none';
   for(const [key,id,label] of [['SPYUSDT','strength-spy','SPY'],['QQQUSDT','strength-qqq','QQQ'],['COMPOSITE','strength-composite','']]){const value=latestStrength(key),node=$(id);node.textContent=label?`${label} ${fmt(value)}`:fmt(value);node.className=Number.isFinite(value)?value>=0?'positive':'negative':'missing';}
-  const t=(rows[$('signal').value]??[]).at(-1)?.t,trend=trendMap.get(t),node=$('trend-strength');
-  if(!trend){node.textContent='TREND6 —';node.className='missing';node.removeAttribute('title');requestAnimationFrame(positionTrendReadout);return;}
-  const rank=trend.ready?`P${Math.round(trend.stablePercentile??trend.percentile)}`:'P—';
-  node.textContent=`TREND6 ${trend.label} ${trend.stableScore??trend.score} · ${rank} · n=${trend.n}`;
-  node.className=trend.direction>0?'positive':'negative';
-  node.title=`Điểm mượt ${trend.stableScore??trend.score}/100 (gốc ${trend.score}); phân vị mượt ${trend.ready?Math.round(trend.stablePercentile??trend.percentile):'chưa đủ'}; ${trend.n} cụm đổi dấu đã hoàn tất`;
-  requestAnimationFrame(positionTrendReadout);
 }
 function updateReversalZone(){
   const enabled=$('reversal-zone').checked,node=$('reversal-readout'),visible=enabled&&reversalState.ready;
@@ -356,7 +348,7 @@ function updateReversalZone(){
   node.title=`V2: Mahalanobis co rút 55% + hình dạng giá/Strength 25% + NetFlow SPY–QQQ 20%; trọng số Gaussian và prior nền. Mỗi lần đổi dấu đo cả cực đại và cực tiểu từ close cuối cụm đến nến đổi dấu. Tỷ lệ ${fmt(reversalState.rate*100)}%; nền ${fmt(reversalState.baselineRate*100)}%; cận 90% ${fmt(reversalState.lower*100)}%; ${reversalState.eventCount}/${reversalState.n} cụm; cỡ mẫu hữu hiệu ${fmt(reversalState.effectiveN)}.`;
 }
 function showTooltip(t){
-  const p=maps[$('symbol').value]?.get(t),record=statsMap.get(t),state=record?.state,trend=trendMap.get(t),colorSignal=candleColorMap.get(t),geometryEvent=geometryState.events?.find(event=>event.at===t),geometryLine=inspectedTime===null?geometryState.lines?.[0]:null;
+  const p=maps[$('symbol').value]?.get(t),record=statsMap.get(t),state=record?.state,colorSignal=candleColorMap.get(t),geometryEvent=geometryState.events?.find(event=>event.at===t),geometryLine=inspectedTime===null?geometryState.lines?.[0]:null;
   const time=p?new Date(t).toLocaleString('vi-VN',{timeZone:'America/New_York'})+' ET':'Chưa có dữ liệu';
   const running=p&&p.end>=(cache?.serverTime??Infinity),mode=inspectedTime!==null?'NẾN ĐANG XEM':'MỚI NHẤT';
   if(!state){
@@ -377,8 +369,7 @@ function showTooltip(t){
     geometryLine?`GEO hiện tại: ${geometryLineText(geometryLine)}. Line chỉ xuất hiện từ ${new Date(geometryLine.knownAt).toLocaleString('vi-VN',{timeZone:'America/New_York'})} ET, sau khi pivot thứ hai được xác nhận; không dùng nến đang chạy.`:null,
     geometryEvent?`Dị biệt được xác nhận tại nến này: ${geometryEvent.direction==='bullish'?'phân kỳ tăng':geometryEvent.direction==='bearish'?'phân kỳ giảm':'SPY/QQQ luân phiên dẫn dắt'} · điểm ${geometryEvent.score}/100 · ΔStrength SPY ${signed(geometryEvent.spyDelta)} / QQQ ${signed(geometryEvent.qqqDelta)} · ΔNetFlow ${signed(geometryEvent.flowDelta)}${geometryEvent.pairSplit?` · Strength SPY và QQQ ngược nhau, giá đang gần nhịp ${geometryEvent.leader==='SPY'?'SPY':geometryEvent.leader==='QQQ'?'QQQ':'hỗn hợp'}`:''}. Đây là mô tả hợp lưu tại thời điểm xác nhận, không phải dự báo chắc chắn.`:null,
     colorText,
-    `Điểm xác nhận ${state.score??'—'}/100 = Taker ${fmt(state.taker)}/50 + Dải ${fmt(state.pair)}/30 + |Strength| ${fmt(state.strength)}/20. Điểm theo quy tắc, không phải xác suất thắng.`,
-    trend?`TREND6 ${trend.label} ${trend.stableScore??trend.score}/100 (gốc ${trend.score})${trend.ready?` · P mượt ${Math.round(trend.stablePercentile??trend.percentile)} (gốc P${Math.round(trend.percentile)})`:' · chưa đủ phân vị'} · n=${trend.n} cụm đổi dấu ${trend.scope==='same-sign'?'cùng hướng':'hai hướng'}. Thành phần gốc ${trend.raw}: bền dấu ${fmt(trend.components.persistence)}/20 + biên độ ${fmt(trend.components.magnitude)}/15 + dốc ${fmt(trend.components.slope)}/10 + tổng Taker 6 nến ${fmt(trend.components.taker)}/20 + SPY↔QQQ ${fmt(trend.components.pair)}/10 + đồng thuận S/Q/C ${fmt(trend.components.consensus)}/25. BuyQ6 ${fmt(trend.buyTotal)} · SellQ6 ${fmt(trend.sellTotal)} · NetQ6 ${fmt(trend.netTotal)}.`:`TREND6 cần đủ 6 nến liên tiếp có Strength, Taker Buy/Sell và dải SPY↔QQQ. Phân vị chỉ bật từ ${TREND_MIN_HISTORY} cụm đổi dấu đã hoàn tất.`];
+    `Điểm xác nhận ${state.score??'—'}/100 = Taker ${fmt(state.taker)}/50 + Dải ${fmt(state.pair)}/30 + |Strength| ${fmt(state.strength)}/20. Điểm theo quy tắc, không phải xác suất thắng.`];
   const nodes=text.filter(Boolean).map(value=>{const div=document.createElement('div');div.textContent=value;return div;});
   $('tooltip').replaceChildren(...nodes);
 }
