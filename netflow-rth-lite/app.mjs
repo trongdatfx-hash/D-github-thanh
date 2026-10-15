@@ -253,7 +253,8 @@ function updateGeometryReadout(){
   const node=$('geometry-readout');if(!node)return;node.style.display='block';
   if(!rev63State){node.textContent='REV6-3 V1 · UP — / DOWN — · CONF —';node.className='forecast wait';node.title='Chờ đủ nến đã đóng để tính dự báo 3 nến.';return;}
   const up=Math.round(rev63State.pUp*100),down=100-up,conf=rev63State.confidence;
-  node.textContent=`REV6-3 · UP ${up}% · DOWN ${down}% · CONF ${conf}`;
+  const state=rev63State.label==='WAIT'?' · WAIT':'';
+  node.textContent=`REV6-3 · UP ${up}% · DOWN ${down}% · CONF ${conf}${state}`;
   node.className=`forecast ${rev63State.label.toLowerCase()}`;
   node.title=`REV6-3 V1 · ${rev63State.label} · evidence ${fmt(rev63State.evidence)} · WLR ${rev63State.stateKey??'neutral'} · ${Number.isFinite(rev63State.agreementRank)?`Agreement P${Math.round(rev63State.agreementRank*100)}`:'Agreement chưa đủ lịch sử'}. Trendline GEO vẫn được vẽ trên chart và xem chi tiết qua tooltip/crosshair.`;
 }
