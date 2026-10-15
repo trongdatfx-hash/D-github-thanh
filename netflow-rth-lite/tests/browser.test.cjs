@@ -51,7 +51,7 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   assert.equal(await page.locator('#geometry-score').inputValue(),'64');assert.equal(await page.locator('#geometry-lines').inputValue(),'4');
   assert.match(await page.locator('#geometry-readout').innerText(),/^GEO (HT|KC) \d+/);assert((await page.locator('#geometry-readout').getAttribute('title')).includes('Walk-forward'));
   const geometryCanvas=page.locator('#geometry-overlay');assert(+(await geometryCanvas.getAttribute('data-lines'))>0);assert(+(await geometryCanvas.getAttribute('data-pivots'))>0);assert(await geometryCanvas.evaluate(canvas=>canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data.some((value,index)=>index%4===3&&value>0)));
-  assert((await page.locator('label:has(#phase-width)').innerText()).includes('Độ dày theo pha'));
+  assert((await page.locator('label:has(#phase-width)').innerText()).includes('Composite × Volume'));
   assert(await page.locator('#chart canvas').count()>0);assert((await page.locator('#chart').boundingBox()).height>=800);
   assert((await page.locator('#tooltip').innerText()).includes('Điểm xác nhận'));assert((await page.locator('#tooltip').innerText()).includes('không phải xác suất thắng'));assert((await page.locator('#tooltip').innerText()).includes('TREND6'));assert.match(await page.locator('#tooltip').innerText(),/Màu nến Composite (ĐỒNG THUẬN|PHÂN KỲ|XÁC NHẬN MỘT PHẦN)/);
   assert.equal(await page.locator('#cvd-spectrum').evaluate(canvas=>canvas.width>0&&canvas.height>0),true);
