@@ -54,6 +54,7 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   assert.equal(await page.locator('#live-indicator').innerText(),'● LIVE');assert(await page.locator('#live-indicator').evaluate(el=>el.classList.contains('live')));
   assert.equal(await page.locator('#days').inputValue(),'30');
   for(const id of ['spy','qqq','relative','geometry-pivots'])assert.equal(await page.locator('#'+id).isChecked(),false);
+  assert((await page.locator('label:has(#relative)').getAttribute('title')).includes('SPY và QQQ cùng Buy Impact'));
   for(const id of ['composite','alignment','price-bands','reversal-zone','phase-width','candle-agreement-color','cvd-spectrum-toggle','show-strength','spy-volume-strength','geometry-impact','bands','markers','geometry-toggle','double-tap-full'])assert.equal(await page.locator('#'+id).isChecked(),true);
   assert((await page.locator('#fit').innerText()).includes('1.5 ngày'));assert((await page.locator('#chart-fit').innerText()).includes('1.5 ngày'));
   const fitWindow=await page.locator('#chart').evaluate(node=>({hours:+node.dataset.fitWindowHours,start:+node.dataset.fitStart,end:+node.dataset.fitEnd}));assert.equal(fitWindow.hours,36);assert(fitWindow.end>fitWindow.start);assert(fitWindow.end-fitWindow.start<=36*60*60*1000);

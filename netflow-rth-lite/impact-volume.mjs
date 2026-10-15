@@ -52,12 +52,13 @@ export function aggregateImpactHistogram(events,step,{now=Date.now(),retentionMs
   };
 }
 
-export function aggregateRelativeImpact(events,step,{now=Date.now(),retentionMs=IMPACT_RETENTION_MS,dominance=.2}={}){
+export function aggregatePairImpactAgreement(events,step,{now=Date.now(),retentionMs=IMPACT_RETENTION_MS,dominance=.2}={}){
   if(!finite(dominance)||dominance<0||dominance>=1)throw Error('Ngưỡng ưu thế impact không hợp lệ');
   const spy=new Map(aggregateImpactHistogram(events,step,{now,retentionMs,symbol:'SPYUSDT'}).buckets.map(row=>[row.time,row])),qqq=new Map(aggregateImpactHistogram(events,step,{now,retentionMs,symbol:'QQQUSDT'}).buckets.map(row=>[row.time,row])),times=new Set([...spy.keys(),...qqq.keys()]);
   return [...times].sort((a,b)=>a-b).map(time=>{
-    const s=spy.get(time),q=qqq.get(time),spyNet=(s?.buyImpact??0)-(s?.sellImpact??0),qqqNet=(q?.buyImpact??0)-(q?.sellImpact??0),relative=spyNet-qqqNet,total=Math.abs(spyNet)+Math.abs(qqqNet),balance=total?relative/total:0,direction=Math.abs(balance)>=dominance?Math.sign(balance):0;
-    return {time,direction,balance,relative,total,spyNet,qqqNet,spy:s??null,qqq:q??null};
+    const s=spy.get(time),q=qqq.get(time),spyNet=(s?.buyImpact??0)-(s?.sellImpact??0),qqqNet=(q?.buyImpact??0)-(q?.sellImpact??0),spyTotal=(s?.buyImpact??0)+(s?.sellImpact??0),qqqTotal=(q?.buyImpact??0)+(q?.sellImpact??0),spyBalance=spyTotal?spyNet/spyTotal:0,qqqBalance=qqqTotal?qqqNet/qqqTotal:0,spyDirection=Math.abs(spyBalance)>=dominance?Math.sign(spyBalance):0,qqqDirection=Math.abs(qqqBalance)>=dominance?Math.sign(qqqBalance):0;
+    const regime=spyDirection===1&&qqqDirection===1?'buy_agreement':spyDirection===-1&&qqqDirection===-1?'sell_agreement':spyDirection*qqqDirection===-1?'divergence':'neutral',direction=regime==='buy_agreement'?1:regime==='sell_agreement'?-1:0,agreement=spyDirection&&qqqDirection?Math.min(Math.abs(spyBalance),Math.abs(qqqBalance)):0;
+    return {time,regime,direction,agreement,spyDirection,qqqDirection,spyBalance,qqqBalance,spyNet,qqqNet,spy:s??null,qqq:q??null};
   });
 }
 

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {SpreadImpactDetector,aggregateImpactHistogram,aggregateRelativeImpact,geometryBarIndexAt,geometryZoneAt,pruneImpactEvents,IMPACT_RETENTION_MS} from '../impact-volume.mjs';
+import {SpreadImpactDetector,aggregateImpactHistogram,aggregatePairImpactAgreement,geometryBarIndexAt,geometryZoneAt,pruneImpactEvents,IMPACT_RETENTION_MS} from '../impact-volume.mjs';
 
 test('geometry filter only accepts an already-known important line nearby',()=>{
   const line={kind:'support',score:72,knownAt:1000,startIndex:5,startValue:100,slope:1};
@@ -39,14 +39,18 @@ test('detector rejects non-zone trades and histogram keeps signed two-day bucket
   const result=aggregateImpactHistogram(events,1000,{now});assert.equal(result.buy[0].value,20);assert.equal(result.sell[0].value,-7);
 });
 
-test('relative impact maps SPY buy or QQQ sell to green direction and the inverse to red',()=>{
+test('pair impact maps shared buy to green, shared sell to red, and opposite signs to divergence',()=>{
   const now=10_000,common={jumpSpreads:1,zoneScore:80,distanceAtr:.05},events=[
     {...common,time:1000,symbol:'SPYUSDT',side:1,quote:100},
-    {...common,time:1100,symbol:'QQQUSDT',side:-1,quote:60},
+    {...common,time:1100,symbol:'QQQUSDT',side:1,quote:60},
     {...common,time:2000,symbol:'SPYUSDT',side:-1,quote:90},
-    {...common,time:2100,symbol:'QQQUSDT',side:1,quote:50},
+    {...common,time:2100,symbol:'QQQUSDT',side:-1,quote:50},
     {...common,time:3000,symbol:'SPYUSDT',side:1,quote:100},
-    {...common,time:3100,symbol:'QQQUSDT',side:1,quote:95}
+    {...common,time:3100,symbol:'QQQUSDT',side:-1,quote:95},
+    {...common,time:4000,symbol:'SPYUSDT',side:1,quote:100}
   ];
-  const result=aggregateRelativeImpact(events,1000,{now});assert.equal(result[0].direction,1);assert.equal(result[1].direction,-1);assert.equal(result[2].direction,0);
+  const result=aggregatePairImpactAgreement(events,1000,{now});
+  assert.deepEqual(result.map(row=>row.regime),['buy_agreement','sell_agreement','divergence','neutral']);
+  assert.deepEqual(result.map(row=>row.direction),[1,-1,0,0]);
+  assert.equal(result[0].agreement,1);assert.equal(result[3].agreement,0);
 });

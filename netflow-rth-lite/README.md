@@ -17,7 +17,7 @@ Pane `SPY V` có histogram vi mô: cột xanh là khối lượng mua chủ đ�
 
 Bản ghi được lưu cục bộ trong trình duyệt, tổng hợp theo timeframe đang xem và tự xóa sau 48 giờ. Dữ liệu bắt đầu tích lũy khi trang được mở, không dựng ngược từ Kline cũ. Đây là thước đo tác động vi mô có lọc; lệnh hủy/thêm đồng thời vẫn có thể góp phần làm best bid/ask thay đổi.
 
-Histogram `SPY−QQQ tương đối` giữ nguyên chiều cao từ Relative NetFlow nhưng đổi màu bằng Relative Impact đã xác nhận. Mỗi event được tăng trọng số theo số spread bị xuyên, điểm line và khoảng cách tới line; sau đó tính `SPY Net Impact − QQQ Net Impact`. Xanh nghĩa là SPY Buy/QQQ Sell Impact trội, đỏ nghĩa là SPY Sell/QQQ Buy Impact trội. Khi không có event hoặc độ lệch dưới 20% tổng impact tuyệt đối, cột và nhãn dùng xám. Màu chỉ dùng event trong chính bucket hiện tại nên không nhìn trước.
+Histogram `SPY−QQQ tương đối` giữ nguyên chiều cao từ Relative NetFlow nhưng đổi màu theo đồng thuận Impact đã xác nhận của hai mã. Mỗi event được tăng trọng số theo số spread bị xuyên, điểm line và khoảng cách tới line; sau đó tính riêng `Net Impact / Total Impact` cho SPY và QQQ. Xanh khi cả hai cùng Buy Impact, đỏ khi cả hai cùng Sell Impact, cam khi hai mã trái dấu, và xám khi thiếu dữ liệu hoặc một mã chưa lệch tối thiểu 20%. Độ đậm lấy mức yếu hơn qua `min(abs(SPY balance), abs(QQQ balance))`. Màu chỉ dùng event trong chính bucket hiện tại nên không nhìn trước.
 
 BuyQ = kline[10] (taker buy quote asset volume). Quote volume Q = kline[7]. SellQ = Q − BuyQ. NetFlowQ = 2×BuyQ − Q. NF% = 100×NetFlowQ/Q; Q=0 thì NF% để trống.
 
