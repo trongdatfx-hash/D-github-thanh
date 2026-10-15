@@ -1,5 +1,6 @@
 import {STEPS,composite,flowAlignment,compositeCandleSignal,strengthPhaseLineWidth,calculateVolumeStrength,analyze,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs';
 import {load} from './data.mjs';
+import {loadPersistentHistory} from './history-store.mjs?v=20261015-1';
 import {strengthStatistics,trendStrength6,MIN_SAMPLES,TREND_MIN_HISTORY} from './strength-stats.mjs?v=20261013-1';
 import {colorTradeStatistics,COLOR_TRADE_LEVELS} from './color-trade-stats.mjs?v=20261013-2';
 import {reversalZone,REVERSAL_VERSION,REVERSAL_HORIZON,REVERSAL_MIN_MATCHES,REVERSAL_MIN_EFFECTIVE} from './reversal-zone.mjs?v=20261012-5';
@@ -11,7 +12,7 @@ import {wlrAgreementStatistics,WLR_STATE_ROWS,WLR_AGREEMENT_ROWS,WLR_MIN_SAMPLES
 import {rev63Forecast,scoreForecastHistory,calibrationSummary,REV63_HORIZON} from './rev6-3-v1.mjs?v=20261015-1';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
-let chart,price,series={},marks,strengthMarks,cache=null,rows={},volumeStrengthRows=[],maps={},alignmentMap=new Map(),priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
+let chart,price,series={},marks,strengthMarks,cache=null,rows={},volumeStrengthRows=[],modelRows={},modelVolumeStrengthRows=[],modelStamp=null,trainingMeta=null,maps={},alignmentMap=new Map(),priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
 const colors={SPYUSDT:'#5ba8ff',QQQUSDT:'#c194ff',COMPOSITE:'#38dfba'};
 const flowTitles={SPYUSDT:'S Taker NF',QQQUSDT:'Q Taker NF',COMPOSITE:'C Taker NF'};
 const flowColors={
@@ -284,14 +285,14 @@ function drawGeometryOverlay(){
 }
 function render(fit=false){
   const range=chart.timeScale().getVisibleLogicalRange();
-  const p=rows[$('symbol').value]??[],signalRows=rows[$('signal').value]??[],signals=maps[$('signal').value]??new Map();
+  const p=rows[$('symbol').value]??[],signalRows=rows[$('signal').value]??[],signals=maps[$('signal').value]??new Map(),model=Object.keys(modelRows).length?modelRows:rows;
   dayBoundaries=dayBoundaryTimes(p);
   const compositeCvd=$('symbol').value==='SPYUSDT',cvdBars=compositeCvd?projectNetFlowToPrice(p,rows.COMPOSITE??[]):p;
   cvdSourceLabel=compositeCvd?'C→S':'Q';$('cvd-spectrum').dataset.source=compositeCvd?'COMPOSITE→SPY':'QQQUSDT';
   cvdProfile=continuousCvdSpectrum(cvdBars);cvdAnchorTime=cvdBars.at(-1)?.t??null;
   price.applyOptions({title:sourceName($('symbol').value)});
   const alignment=flowAlignment(rows.SPYUSDT??[],rows.QQQUSDT??[],{step:STEPS[$('interval').value]});alignmentMap=new Map(alignment.map(x=>[x.t,x]));
-  const closedBefore=cache?.serverTime??Infinity,closedPrice=p.filter(row=>(row.end??row.t)<closedBefore),closedTimes=new Set(closedPrice.map(row=>row.t));
+  const closedBefore=cache?.serverTime??Infinity,closedPrice=p.filter(row=>(row.end??row.t)<closedBefore),closedTimes=new Set(closedPrice.map(row=>row.t)),modelPrice=model[$('symbol').value]??p,modelClosedPrice=modelPrice.filter(row=>(row.end??row.t)<closedBefore),modelClosedTimes=new Set(modelClosedPrice.map(row=>row.t));
   geometryState=analyzeGeometry({price:closedPrice,spy:(rows.SPYUSDT??[]).filter(row=>closedTimes.has(row.t)),qqq:(rows.QQQUSDT??[]).filter(row=>closedTimes.has(row.t)),flow:(rows.COMPOSITE??[]).filter(row=>closedTimes.has(row.t))},{minScore:Number($('geometry-score').value),maxLines:Number($('geometry-lines').value)});
   geometryBacktest=backtestGeometry(closedPrice,geometryState.events,{horizon:4,minMoveAtr:.35});
   const compositeColors=$('signal').value==='COMPOSITE';
@@ -303,12 +304,12 @@ function render(fit=false){
   const tradeMemory=loadSampleMemory(`${memoryKey}|color-trades-v1`);
   colorTradeMap=colorTradeStatistics(rows,$('symbol').value,$('signal').value,STEPS[$('interval').value],trendMap,{memory:tradeMemory.samples,tradeCost:tradeCostPct()});
   const saved=saveSampleMemory(`${memoryKey}|color-trades-v1`,colorTradeMap.samples);sampleMemoryInfo={...saved,used:colorTradeMap.rememberedSamples};
-  const rawReversal=reversalZone(rows,$('symbol').value,$('signal').value,STEPS[$('interval').value]);
+  const rawReversal=reversalZone(model,$('symbol').value,$('signal').value,STEPS[$('interval').value]);
   const reversalKey=`${$('symbol').value}|${$('signal').value}|${$('interval').value}|${p.at(-1)?.t??'empty'}`;
   reversalState=reversalStabilizer.update(rawReversal,reversalKey,cache?.serverTime??generation);
   const priceBands=weightedPriceBands(p,STEPS[$('interval').value]);priceBandMap=new Map(priceBands.map(x=>[x.t,x]));
   const volumeStrengthMap=new Map(volumeStrengthRows.map(x=>[x.t,x]));
-  wlrStatsData=wlrAgreementStatistics(closedPrice,(rows.COMPOSITE??[]).filter(row=>closedTimes.has(row.t)),volumeStrengthRows.filter(row=>closedTimes.has(row.t)),STEPS[$('interval').value]);renderWlrAgreementStats();updateRev63(closedPrice);
+  wlrStatsData=wlrAgreementStatistics(modelClosedPrice,(model.COMPOSITE??[]).filter(row=>modelClosedTimes.has(row.t)),(modelVolumeStrengthRows.length?modelVolumeStrengthRows:volumeStrengthRows).filter(row=>modelClosedTimes.has(row.t)),STEPS[$('interval').value]);renderWlrAgreementStats();updateRev63(modelClosedPrice);
   series.priceMid.setData(priceLineData(priceBands,maps.COMPOSITE??new Map(),volumeStrengthMap));series.priceUpper.setData(lineData(priceBands,'upper'));series.priceLower.setData(lineData(priceBands,'lower'));
   for(const key of Object.keys(colors))series[key].setData(flowData(rows[key]??[],key));
   series.relative.setData(relativeData(alignment));
@@ -407,7 +408,7 @@ function toggle(){
 async function refresh(clear=false){
   controller?.abort();controller=new AbortController();const gen=++generation;
   loading=true;$('refresh').disabled=true;
-  if(clear){cache=null;rows={};volumeStrengthRows=[];maps={};lastSuccess=null;inspectedTime=null;render(true);}
+  if(clear){cache=null;rows={};volumeStrengthRows=[];modelRows={};modelVolumeStrengthRows=[];modelStamp=null;trainingMeta=null;maps={};lastSuccess=null;inspectedTime=null;render(true);}
   const interval=$('interval').value,days=+$('days').value;
   status(`Đang xác minh SPYUSDT/QQQUSDT và tải ${interval} · ${days} ngày…`);
   try{
@@ -415,9 +416,20 @@ async function refresh(clear=false){
     const step=STEPS[interval];
     rows={SPYUSDT:analyze(data.SPYUSDT,step),QQQUSDT:analyze(data.QQQUSDT,step),COMPOSITE:analyze(composite(data.SPYUSDT,data.QQQUSDT),step)};
     volumeStrengthRows=analyze(data.SPYUSDT,step,{strength:calculateVolumeStrength(data.SPYUSDT,step)});
+    if(interval==='15m'){
+      let history=null;try{history=await loadPersistentHistory({days:365,signal:controller.signal,live:data});}catch{}
+      const source=history??data,closedRaw={SPYUSDT:(source.SPYUSDT??[]).filter(x=>x.end<data.serverTime),QQQUSDT:(source.QQQUSDT??[]).filter(x=>x.end<data.serverTime)};
+      const stamp=Math.min(closedRaw.SPYUSDT.at(-1)?.t??0,closedRaw.QQQUSDT.at(-1)?.t??0);
+      if(stamp&&stamp!==modelStamp){
+        modelRows={SPYUSDT:analyze(closedRaw.SPYUSDT,step),QQQUSDT:analyze(closedRaw.QQQUSDT,step),COMPOSITE:analyze(composite(closedRaw.SPYUSDT,closedRaw.QQQUSDT),step)};
+        modelVolumeStrengthRows=analyze(closedRaw.SPYUSDT,step,{strength:calculateVolumeStrength(closedRaw.SPYUSDT,step)});modelStamp=stamp;
+      }
+      trainingMeta=history?.manifest??null;
+    }else{modelRows=rows;modelVolumeStrengthRows=volumeStrengthRows;modelStamp=null;trainingMeta=null;}
     maps=Object.fromEntries(Object.entries(rows).map(([k,v])=>[k,new Map(v.map(x=>[x.t,x]))]));
     cache=data;serverOffsetMs=data.serverTime-Date.now();lastSuccess=new Date();render(clear);setLive(true);
-    status(`SPYUSDT + QQQUSDT · TRADING / ${data.contracts.map(x=>x.contractType).join(' + ')} · ${rows.SPYUSDT.length}/${rows.QQQUSDT.length} nến, gồm nến đang chạy · ${rows.COMPOSITE.length} timestamp chung · ${data.incremental?'cập nhật realtime ~3 giây':'tải lịch sử song song'} · cập nhật ${lastSuccess.toLocaleTimeString('vi-VN')} · ${rows.COMPOSITE.length?'Dữ liệu thật Binance':'Composite chưa có dữ liệu giao nhau'}`);
+    const modelText=interval==='15m'?(trainingMeta?` · model ${trainingMeta.retentionDays??365}d: ${modelRows.SPYUSDT?.length??0}/${modelRows.QQQUSDT?.length??0} nến lưu GitHub`:` · model: đang dùng lịch sử live cho tới khi kho GitHub sẵn sàng`):'';
+    status(`SPYUSDT + QQQUSDT · TRADING / ${data.contracts.map(x=>x.contractType).join(' + ')} · ${rows.SPYUSDT.length}/${rows.QQQUSDT.length} nến, gồm nến đang chạy · ${rows.COMPOSITE.length} timestamp chung${modelText} · ${data.incremental?'cập nhật realtime ~3 giây':'tải lịch sử song song'} · cập nhật ${lastSuccess.toLocaleTimeString('vi-VN')} · ${rows.COMPOSITE.length?'Dữ liệu thật Binance':'Composite chưa có dữ liệu giao nhau'}`);
   }catch(e){
     if(gen!==generation)return;
     setLive(false);status(`${e.message}. Có thể bị CORS, vùng truy cập, mất mạng hoặc rate limit. ${cache?`Dữ liệu cũ chưa cập nhật (lần thành công ${lastSuccess.toLocaleTimeString('vi-VN')}).`:'Không có dữ liệu thay thế; biểu đồ để trống.'} Dùng Tải lại sau khi kiểm tra kết nối.`,true);
