@@ -7,6 +7,7 @@ import {ReversalStabilizer} from './stability.mjs?v=20261012-5';
 import {loadSampleMemory,saveSampleMemory,sampleMemoryKey} from './sample-memory.mjs?v=20261013-1';
 import {analyzeGeometry,backtestGeometry} from './geometry.mjs?v=20261014-1';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261014-2';
+import {wlrAgreementStatistics,WLR_STATE_ROWS,WLR_AGREEMENT_ROWS,WLR_MIN_SAMPLES} from './wlr-agreement-stats.mjs?v=20261015-1';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
 let chart,price,series={},marks,strengthMarks,cache=null,rows={},volumeStrengthRows=[],maps={},alignmentMap=new Map(),priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
@@ -20,7 +21,7 @@ const flowColors={
 const LIVE_REFRESH_MS=3000;
 const CALENDAR_REFRESH_MS=5*60*1000;
 const FIT_WINDOW_MS=36*60*60*1000,DOUBLE_TAP_MS=360,DOUBLE_TAP_DISTANCE=28,TAP_MOVE_TOLERANCE=14;
-let statsMap=new Map(),trendMap=new Map(),colorTradeMap=new Map(),candleColorMap=new Map(),reversalState={ready:false,reason:'window',n:0},inspectedTime=null;
+let statsMap=new Map(),trendMap=new Map(),colorTradeMap=new Map(),candleColorMap=new Map(),wlrStatsData=null,reversalState={ready:false,reason:'window',n:0},inspectedTime=null;
 let calendarState={events:[],updatedAt:null,loading:false};
 let sampleMemoryInfo={count:0,used:0,available:true};
 const reversalStabilizer=new ReversalStabilizer({alpha:.25,confirmations:3});
@@ -98,6 +99,24 @@ class VariableWidthLineSeries{
 }
 function status(text,error=false){$('status').textContent=text;$('status').classList.toggle('error',error);}
 function setLive(live){const node=$('live-indicator');node.textContent=live?'● LIVE':'● KHÔNG LIVE';node.className=live?'live':'offline';}
+function renderWlrAgreementStats(){
+  const body=$('wlr-stats-body'),insight=$('wlr-stats-insight'),context=$('wlr-stats-context');if(!body||!insight||!context)return;
+  const h=Number($('wlr-horizon').value),summaries=wlrStatsData?.summaries?.[h]??{},defs=[...WLR_STATE_ROWS,...WLR_AGREEMENT_ROWS];
+  const fragment=document.createDocumentFragment();
+  for(const def of defs){
+    const s=summaries[def.key]??{n:0,ready:false};const row=document.createElement('tr');row.dataset.key=def.key;row.className=s.ready?'ready':'thin-sample';
+    const pf=s.profitFactor===Infinity?'∞':Number.isFinite(s.profitFactor)?fmt(s.profitFactor):'—';
+    const values=[def.label,s.n,Number.isFinite(s.winRate)?fmt(s.winRate)+'%':'—',Number.isFinite(s.expectancy)?returnText(s.expectancy):'—',pf,Number.isFinite(s.medianMfe)?fmt(s.medianMfe)+'%':'—',Number.isFinite(s.medianMae)?fmt(s.medianMae)+'%':'—'];
+    values.forEach((value,i)=>{const cell=document.createElement(i?'td':'th');if(!i)cell.scope='row';cell.textContent=String(value);row.append(cell);});fragment.append(row);
+  }
+  body.replaceChildren(fragment);
+  const thick=summaries.thick,thin=summaries.thin,transition=summaries.thin_to_thick,p90=summaries.p90_100,p0=summaries.p0_25,parts=[];
+  if(thick?.ready&&thin?.ready)parts.push(`Dày vs mỏng: ΔWin ${signed(thick.winRate-thin.winRate)} điểm %, ΔEV ${returnText(thick.expectancy-thin.expectancy)}`);
+  if(transition?.ready&&thin?.ready)parts.push(`Mỏng→Dày vs mỏng: ΔWin ${signed(transition.winRate-thin.winRate)} điểm %, ΔEV ${returnText(transition.expectancy-thin.expectancy)}`);
+  if(p90?.ready&&p0?.ready)parts.push(`Agreement P90 vs P0–25: ΔWin ${signed(p90.winRate-p0.winRate)} điểm %, ΔEV ${returnText(p90.expectancy-p0.expectancy)}`);
+  insight.textContent=parts.length?parts.join(' · '):`Cần ≥${WLR_MIN_SAMPLES} mẫu không chồng lấn ở mỗi nhóm để so sánh đáng tin hơn.`;
+  context.textContent=`Giá ${sourceName($('symbol').value)} · hướng theo dấu Composite · horizon ${h} nến ${$('interval').value.toUpperCase()} · phân vị Agreement causal từ lịch sử trước tín hiệu · cửa sổ kết quả cùng ngày, không chồng lấn trong từng nhóm.`;
+}
 function init(){
   if(!L){status('Không tải được thư viện chart cục bộ. Kiểm tra network hoặc tải lại trang.',true);return false;}
   chart=L.createChart($('chart'),{autoSize:true,layout:{background:{type:'solid',color:'#0e1726'},textColor:'#91a5bd',attributionLogo:true},grid:{vertLines:{color:'#1a283a'},horzLines:{color:'#1a283a'}},crosshair:{mode:L.CrosshairMode.Normal,vertLine:{visible:true,labelVisible:true},horzLine:{visible:true,labelVisible:true}},timeScale:{timeVisible:true,secondsVisible:false,rightOffset:22},rightPriceScale:{autoScale:true},handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},handleScale:{mouseWheel:true,pinch:true,axisPressedMouseMove:true},localization:{locale:'vi-VN',timeFormatter:t=>new Date(t*1000).toLocaleString('en-US',{timeZone:'America/New_York',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'})}});
@@ -263,6 +282,7 @@ function render(fit=false){
   reversalState=reversalStabilizer.update(rawReversal,reversalKey,cache?.serverTime??generation);
   const priceBands=weightedPriceBands(p,STEPS[$('interval').value]);priceBandMap=new Map(priceBands.map(x=>[x.t,x]));
   const volumeStrengthMap=new Map(volumeStrengthRows.map(x=>[x.t,x]));
+  wlrStatsData=wlrAgreementStatistics(p,rows.COMPOSITE??[],volumeStrengthRows,STEPS[$('interval').value]);renderWlrAgreementStats();
   series.priceMid.setData(priceLineData(priceBands,maps.COMPOSITE??new Map(),volumeStrengthMap));series.priceUpper.setData(lineData(priceBands,'upper'));series.priceLower.setData(lineData(priceBands,'lower'));
   for(const key of Object.keys(colors))series[key].setData(flowData(rows[key]??[],key));
   series.relative.setData(relativeData(alignment));
@@ -421,6 +441,7 @@ if(init()){
   for(const id of ['symbol','signal'])$(id).onchange=()=>render(false);
   for(const id of ['spy','qqq','composite','relative','alignment','price-bands','reversal-zone','cvd-spectrum-toggle','show-strength','spy-volume-strength','bands','markers','geometry-toggle','geometry-pivots'])$(id).onchange=toggle;
   for(const id of ['geometry-score','geometry-lines'])$(id).onchange=()=>render(false);
+  $('wlr-horizon').onchange=renderWlrAgreementStats;
   $('phase-width').onchange=()=>render(false);
   $('fit').onclick=fitChart;$('chart-fit').onclick=fitChart;$('fullscreen').onclick=toggleFullChart;
   document.addEventListener('fullscreenchange',syncFullChart);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.querySelector('.chart-card').classList.contains('fullscreen-fallback')){document.querySelector('.chart-card').classList.remove('fullscreen-fallback');syncFullChart();}});
