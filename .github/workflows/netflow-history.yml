@@ -1,0 +1,43 @@
+name: NetFlow M15 history
+
+on:
+  push:
+    paths:
+      - ".github/workflows/netflow-history.yml"
+      - "netflow-rth-lite/collect-history.py"
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: netflow-m15-history
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Collect closed Binance M15 bars
+        run: python netflow-rth-lite/collect-history.py
+      - name: Commit history shards
+        run: |
+          if git diff --quiet -- netflow-rth-lite/data/binance/m15; then
+            echo "No history changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add netflow-rth-lite/data/binance/m15
+          git commit -m "Update NetFlow M15 history"
+          git pull --rebase origin main
+          git push origin HEAD:main
