@@ -53,6 +53,8 @@ Mặc định chỉ vẽ bốn line đạt ít nhất 64 điểm, luôn ưu tiê
 
 Nhãn `GEO` công bố line tốt nhất: loại line, điểm, số lần chạm, tuổi và thống kê walk-forward. `backtestGeometry` chỉ đánh giá các phân kỳ đã xác nhận: vào ở close của nến `confirmedIndex`, tuyệt đối không vào tại nến pivot trước đó, rồi đo kết quả sau bốn nến theo ATR đã biết tại lúc vào. Đây là kiểm định causal mô tả để phát hiện leakage và xem độ ổn định của điều kiện; chưa gồm phí, funding, trượt giá hay lựa chọn tham số ngoài mẫu nên không phải backtest chiến lược hoàn chỉnh.
 
+Breakout/Retest dùng một snapshot line được dựng từ dữ liệu kết thúc trước hai nến kiểm tra. `Giữ hỗ trợ/kháng cự` cần wick chạm vùng 0,28 ATR và close đúng phía; `Phá thật` cần hai close vượt 0,35 ATR cùng xác nhận hướng của Strength Composite và Composite NetFlow; `Phá giả` là close vượt rồi nến sau giành lại phía cũ. Trạng thái được vẽ cạnh line, đưa vào thành phần Geometry 10% của REV6-3 và lưu cùng dự báo mới. Bảng **REV6-3 theo trạng thái line** chỉ chấm các bản ghi mới có nhãn causal, không suy đoán lại lịch sử cũ.
+
 ## Lịch Forex Factory & thống kê nhóm dấu Strength
 
 Ba thẻ `S/Q/C`, điểm xác nhận 0–100 và dải SPY↔QQQ đã nhường chỗ cho danh sách lịch Forex Factory. Card hiệu suất giao dịch `Màu nến PRE→RTH`, Win/EV/PF, chi phí RT, bộ nhớ lệnh và toàn bộ TREND6 đã được bỏ hoàn toàn. Các giá trị Strength/điểm xác nhận/dải SPY↔QQQ vẫn còn trong engine và tooltip. Crosshair chọn nến lịch sử; mỗi lần refresh giữ nến đang xem. Full chart vẫn ẩn tooltip. CSV giữ quote flows và Strength gốc để kiểm tra dữ liệu.

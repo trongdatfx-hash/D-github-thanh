@@ -4,13 +4,13 @@ import {loadPersistentHistory} from './history-store.mjs?v=20261015-1';
 import {strengthStatistics} from './strength-stats.mjs?v=20261015-1';
 import {reversalZone,REVERSAL_VERSION,REVERSAL_HORIZON,REVERSAL_MIN_MATCHES,REVERSAL_MIN_EFFECTIVE} from './reversal-zone.mjs?v=20261012-5';
 import {ReversalStabilizer} from './stability.mjs?v=20261012-5';
-import {analyzeGeometry,backtestGeometry} from './geometry.mjs?v=20261014-1';
+import {analyzeGeometry,analyzeBreakoutRetest,backtestGeometry} from './geometry.mjs?v=20261015-2';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261014-2';
 import {wlrAgreementStatistics,WLR_STATE_ROWS,WLR_AGREEMENT_ROWS,WLR_MIN_SAMPLES} from './wlr-agreement-stats.mjs?v=20261015-1';
-import {rev63Forecast,scoreForecastHistory,calibrationSummary,rev63ColorRegime,rev63ColorQualitySummary,REV63_COLOR_ROWS,REV63_HORIZON} from './rev6-3-v1.mjs?v=20261015-2';
+import {rev63Forecast,scoreForecastHistory,calibrationSummary,rev63ColorRegime,rev63ColorQualitySummary,rev63GeometryQualitySummary,REV63_COLOR_ROWS,REV63_GEOMETRY_ROWS,REV63_HORIZON} from './rev6-3-v1.mjs?v=20261015-3';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
-let chart,price,series={},marks,strengthMarks,cache=null,rows={},volumeStrengthRows=[],modelRows={},modelVolumeStrengthRows=[],modelStamp=null,trainingMeta=null,maps={},alignmentMap=new Map(),priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
+let chart,price,series={},marks,strengthMarks,cache=null,rows={},volumeStrengthRows=[],modelRows={},modelVolumeStrengthRows=[],modelStamp=null,trainingMeta=null,maps={},alignmentMap=new Map(),priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},breakoutState=null,geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
 const colors={SPYUSDT:'#5ba8ff',QQQUSDT:'#c194ff',COMPOSITE:'#38dfba'};
 const flowTitles={SPYUSDT:'S Taker NF',QQQUSDT:'Q Taker NF',COMPOSITE:'C Taker NF'};
 const flowColors={
@@ -126,21 +126,24 @@ function renderRev63(){
   const c=rev63State.components;
   $('rev63-components').textContent='REV6 '+signed(c.rev6)+' · WLR '+signed(c.wlr)+' · Agreement '+signed(c.agreement)+' · NetFlow '+signed(c.netflow)+' · Geometry '+signed(c.geometry);
   const latestColor=candleColorMap.get((rows[$('symbol').value]??[]).filter(row=>(row.end??row.t)<(cache?.serverTime??Infinity)).at(-1)?.t),colorLabel=latestColor?.direction>0?'đồng thuận tăng':latestColor?.direction<0?'đồng thuận giảm':'trung tính / trái dấu';
-  $('rev63-state').textContent=(rev63State.stateKey||'neutral')+' · '+(rev63State.agreementKey||'Agreement chưa đủ lịch sử')+(Number.isFinite(rev63State.agreementRank)?' · P'+Math.round(rev63State.agreementRank*100):'')+' · Màu '+colorLabel;
+  $('rev63-state').textContent=(rev63State.stateKey||'neutral')+' · '+(rev63State.agreementKey||'Agreement chưa đủ lịch sử')+(Number.isFinite(rev63State.agreementRank)?' · P'+Math.round(rev63State.agreementRank*100):'')+' · Màu '+colorLabel+(breakoutState?` · GEO ${breakoutState.label} ${breakoutState.direction>0?'↑':'↓'} ${breakoutState.lineScore??'—'}/100`:' · GEO chưa có setup');
   const cal=calibrationSummary(rev63History),bins=cal.bins.map(x=>x.label+': n='+x.n+(x.n?' · hit '+fmt(x.accuracy)+'% · Brier '+fmt(x.brier):'')).join(' | ');
   $('rev63-score').textContent=cal.n?'Đã chấm '+cal.n+' dự báo · đúng hướng '+fmt(cal.accuracy)+'% · Brier '+fmt(cal.brier):'Chưa có dự báo đủ 3 nến để tự chấm';
   $('rev63-calibration').textContent=bins;
   const colorQuality=rev63ColorQualitySummary(rev63History),body=$('rev63-color-body'),fragment=document.createDocumentFragment();
   for(const def of REV63_COLOR_ROWS){const summary=colorQuality.summaries[def.key],row=document.createElement('tr'),values=[def.label,summary.n,summary.n?fmt(summary.accuracy)+'%':'—',summary.n?fmt(summary.brier):'—',summary.n?returnText(summary.expectancy):'—'];row.dataset.key=def.key;for(const [i,value] of values.entries()){const cell=document.createElement(i?'td':'th');if(!i)cell.scope='row';cell.textContent=String(value);row.append(cell);}fragment.append(row);}body.replaceChildren(fragment);
   $('rev63-color-note').textContent=colorQuality.n?`Đã chấm ${colorQuality.n} dự báo có nhãn màu causal. EV hướng = lợi nhuận 3 nến theo phía dự báo; Xám→đồng thuận là nhóm con chuyển pha.`:'Bắt đầu tích lũy khi dự báo mới đủ 3 nến; lịch sử cũ không có nhãn màu nên không được suy đoán lại.';
+  const geometryQuality=rev63GeometryQualitySummary(rev63History),geometryBody=$('rev63-geometry-body'),geometryFragment=document.createDocumentFragment();
+  for(const def of REV63_GEOMETRY_ROWS){const summary=geometryQuality.summaries[def.key],row=document.createElement('tr'),values=[def.label,summary.n,summary.n?fmt(summary.accuracy)+'%':'—',summary.n?fmt(summary.brier):'—',summary.n?returnText(summary.expectancy):'—'];row.dataset.key=def.key;for(const [i,value] of values.entries()){const cell=document.createElement(i?'td':'th');if(!i)cell.scope='row';cell.textContent=String(value);row.append(cell);}geometryFragment.append(row);}geometryBody.replaceChildren(geometryFragment);
+  $('rev63-geometry-note').textContent=geometryQuality.n?`Đã chấm ${geometryQuality.n} dự báo có trạng thái line causal. Phá thật cần hai close vượt line cùng hướng Strength Composite và NetFlow; phá giả cần close quay lại phía cũ.`:'Bắt đầu tích lũy từ các dự báo mới có Giữ line / Phá thật / Phá giả; không gán hồi tố cho lịch sử cũ.';
 }
 function updateRev63(closedPrice){
   const latest=closedPrice.at(-1),alignment=[...alignmentMap.values()].filter(x=>x.t<=latest?.t).at(-1);
-  rev63State=rev63Forecast({reversal:reversalState,wlrStats:wlrStatsData,alignment,geometryEvents:geometryState.events,priceRows:closedPrice});
+  rev63State=rev63Forecast({reversal:reversalState,wlrStats:wlrStatsData,alignment,geometryEvents:geometryState.events,geometryRegime:breakoutState,priceRows:closedPrice});
   rev63History=scoreForecastHistory(closedPrice,loadRev63History(),REV63_HORIZON).filter(x=>!x.void);
   if(latest&&rev63State&&!rev63History.some(x=>x.entryTime===latest.t)){
     const previous=closedPrice.at(-2),color=rev63ColorRegime(candleColorMap.get(latest.t),previous?candleColorMap.get(previous.t):null);
-    rev63History.push({entryTime:latest.t,pUp:rev63State.pUp,step:STEPS[$('interval').value],label:rev63State.label,createdAt:Date.now(),...color});
+    rev63History.push({entryTime:latest.t,pUp:rev63State.pUp,step:STEPS[$('interval').value],label:rev63State.label,createdAt:Date.now(),geometryRegime:breakoutState?.key??null,geometryDirection:breakoutState?.direction??0,geometryLineScore:breakoutState?.lineScore??null,...color});
   }
   saveRev63History(rev63History);renderRev63();updateGeometryReadout();
 }
@@ -258,14 +261,14 @@ function updateGeometryReadout(){
   const up=Math.round(rev63State.pUp*100),down=100-up,conf=rev63State.confidence,wait=Math.max(0,100-conf);
   node.textContent=`UP ${up}% · DOWN ${down}% · WAIT ${wait}%`;
   node.className=`forecast ${rev63State.label.toLowerCase()}`;
-  node.title=`REV6-3 V1 · ${rev63State.label} · WAIT ${wait}% là chỉ số bất định = 100 − Confidence, không phải xác suất thứ ba độc lập · evidence ${fmt(rev63State.evidence)} · WLR ${rev63State.stateKey??'neutral'} · ${Number.isFinite(rev63State.agreementRank)?`Agreement P${Math.round(rev63State.agreementRank*100)}`:'Agreement chưa đủ lịch sử'}. Trendline GEO vẫn được vẽ trên chart và xem chi tiết qua tooltip/crosshair.`;
+  node.title=`REV6-3 V1 · ${rev63State.label} · WAIT ${wait}% là chỉ số bất định = 100 − Confidence, không phải xác suất thứ ba độc lập · evidence ${fmt(rev63State.evidence)} · WLR ${rev63State.stateKey??'neutral'} · ${Number.isFinite(rev63State.agreementRank)?`Agreement P${Math.round(rev63State.agreementRank*100)}`:'Agreement chưa đủ lịch sử'} · ${breakoutState?`GEO ${breakoutState.label} ${breakoutState.direction>0?'↑':'↓'}`:'GEO chưa có setup'}. Trendline GEO vẫn được vẽ trên chart và xem chi tiết qua tooltip/crosshair.`;
   requestAnimationFrame(positionForecastReadout);
 }
 function drawGeometryOverlay(){
   const canvas=$('geometry-overlay'),host=$('chart'),width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1;
   const bitmapWidth=Math.round(width*dpr),bitmapHeight=Math.round(height*dpr);if(canvas.width!==bitmapWidth||canvas.height!==bitmapHeight){canvas.width=bitmapWidth;canvas.height=bitmapHeight;}
   const context=canvas.getContext('2d');context.setTransform(dpr,0,0,dpr,0,0);context.clearRect(0,0,width,height);canvas.dataset.lines=String(geometryState.lines?.length??0);canvas.dataset.pivots=String(geometryState.pivots?.length??0);
-  if(!$('geometry-toggle').checked||!geometryState.lines?.length)return;
+  if(!$('geometry-toggle').checked||(!geometryState.lines?.length&&!breakoutState))return;
   const paneHeight=chart.panes()[0]?.getHeight?.()??height*.5,scaleWidth=chart.priceScale('right',0)?.width?.()??56,right=width-scaleWidth;
   context.save();context.lineJoin='round';context.lineCap='round';
   for(const line of [...geometryState.lines].reverse()){
@@ -273,6 +276,11 @@ function drawGeometryOverlay(){
     if(![x1,x2,y1,y2].every(Number.isFinite)||Math.max(x1,x2)<0||Math.min(x1,x2)>right||Math.max(y1,y2)<0||Math.min(y1,y2)>paneHeight)continue;
     const alpha=.48+.45*Math.max(0,Math.min(1,(line.score-55)/35));context.strokeStyle=line.kind==='support'?`rgba(54,221,189,${alpha})`:`rgba(255,180,84,${alpha})`;context.lineWidth=1.2+2*Math.max(0,Math.min(1,(line.score-55)/35));context.setLineDash(line.score>=75?[]:[6,4]);context.beginPath();context.moveTo(x1,y1);context.lineTo(x2,y2);context.stroke();
     if(width>=650&&x2>70&&x2<right-6&&y2>10&&y2<paneHeight-8){context.setLineDash([]);context.font='700 9px Inter,system-ui,sans-serif';context.textAlign='right';context.textBaseline='bottom';context.fillStyle=line.kind==='support'?'#7dffd9':'#ffd092';context.fillText(`${line.kind==='support'?'HT':'KC'} ${line.score} · ${line.touches}x`,x2-4,y2-3);}
+  }
+  if(breakoutState){
+    const x=chart.timeScale().timeToCoordinate(breakoutState.at/1000),y=price.priceToCoordinate(breakoutState.lineValue);if(Number.isFinite(x)&&Number.isFinite(y)&&x>=0&&x<=right&&y>=0&&y<=paneHeight){
+      const label=breakoutState.key==='hold_support'?'GIỮ HT':breakoutState.key==='hold_resistance'?'GIỮ KC':breakoutState.key==='true_break'?'PHÁ THẬT':'PHÁ GIẢ';context.setLineDash([]);context.fillStyle=breakoutState.direction>0?'#1ae0a3':'#ff6383';context.beginPath();context.arc(x,y,4,0,Math.PI*2);context.fill();context.font='800 9px Inter,system-ui,sans-serif';context.textAlign=x>right-90?'right':'left';context.textBaseline='bottom';context.fillText(`${label} ${breakoutState.direction>0?'↑':'↓'}`,x+(x>right-90?-7:7),y-5);
+    }
   }
   if($('geometry-pivots').checked){
     context.setLineDash([]);for(const pivot of geometryState.pivots.slice(-60)){
@@ -296,7 +304,8 @@ function render(fit=false){
   price.applyOptions({title:sourceName($('symbol').value)});
   const alignment=flowAlignment(rows.SPYUSDT??[],rows.QQQUSDT??[],{step:STEPS[$('interval').value]});alignmentMap=new Map(alignment.map(x=>[x.t,x]));
   const closedBefore=cache?.serverTime??Infinity,closedPrice=p.filter(row=>(row.end??row.t)<closedBefore),closedTimes=new Set(closedPrice.map(row=>row.t)),modelPrice=model[$('symbol').value]??p,modelClosedPrice=modelPrice.filter(row=>(row.end??row.t)<closedBefore),modelClosedTimes=new Set(modelClosedPrice.map(row=>row.t));
-  geometryState=analyzeGeometry({price:closedPrice,spy:(rows.SPYUSDT??[]).filter(row=>closedTimes.has(row.t)),qqq:(rows.QQQUSDT??[]).filter(row=>closedTimes.has(row.t)),flow:(rows.COMPOSITE??[]).filter(row=>closedTimes.has(row.t))},{minScore:Number($('geometry-score').value),maxLines:Number($('geometry-lines').value)});
+  const geometryInput={price:closedPrice,spy:(rows.SPYUSDT??[]).filter(row=>closedTimes.has(row.t)),qqq:(rows.QQQUSDT??[]).filter(row=>closedTimes.has(row.t)),flow:(rows.COMPOSITE??[]).filter(row=>closedTimes.has(row.t))},geometryOptions={minScore:Number($('geometry-score').value),maxLines:Number($('geometry-lines').value)};
+  geometryState=analyzeGeometry(geometryInput,geometryOptions);breakoutState=analyzeBreakoutRetest(geometryInput,geometryOptions);
   geometryBacktest=backtestGeometry(closedPrice,geometryState.events,{horizon:4,minMoveAtr:.35});
   const volumeStrengthMap=new Map(volumeStrengthRows.map(x=>[x.t,x]));
   candleColorMap=new Map(p.map(x=>[x.t,strengthAgreementCandleSignal(maps.COMPOSITE?.get(x.t),volumeStrengthMap.get(x.t))]));
@@ -364,7 +373,7 @@ function updateReversalZone(){
   node.title=`V2: Mahalanobis co rút 55% + hình dạng giá/Strength 25% + NetFlow SPY–QQQ 20%; trọng số Gaussian và prior nền. Mỗi lần đổi dấu đo cả cực đại và cực tiểu từ close cuối cụm đến nến đổi dấu. Tỷ lệ ${fmt(reversalState.rate*100)}%; nền ${fmt(reversalState.baselineRate*100)}%; cận 90% ${fmt(reversalState.lower*100)}%; ${reversalState.eventCount}/${reversalState.n} cụm; cỡ mẫu hữu hiệu ${fmt(reversalState.effectiveN)}.`;
 }
 function showTooltip(t){
-  const p=maps[$('symbol').value]?.get(t),record=statsMap.get(t),state=record?.state,colorSignal=candleColorMap.get(t),geometryEvent=geometryState.events?.find(event=>event.at===t),geometryLine=inspectedTime===null?geometryState.lines?.[0]:null;
+  const p=maps[$('symbol').value]?.get(t),record=statsMap.get(t),state=record?.state,colorSignal=candleColorMap.get(t),geometryEvent=geometryState.events?.find(event=>event.at===t),breakoutEvent=breakoutState?.at===t?breakoutState:null,geometryLine=inspectedTime===null?geometryState.lines?.[0]:null;
   const time=p?new Date(t).toLocaleString('vi-VN',{timeZone:'America/New_York'})+' ET':'Chưa có dữ liệu';
   const running=p&&p.end>=(cache?.serverTime??Infinity),mode=inspectedTime!==null?'NẾN ĐANG XEM':'MỚI NHẤT';
   if(!state){
@@ -383,6 +392,7 @@ function showTooltip(t){
   const colorText=$('candle-agreement-color').checked?`Màu nến ${regimeText}`:`Màu nến C×V đang tắt; chart dùng xanh/đỏ theo thân giá. Chế độ thống kê vẫn ghi nhận ${regimeText}`;
   const text=[`${mode} · ${time} · ${state.session} · Giá ${sourceName($('symbol').value)}, Strength phân tích ${sourceName($('signal').value)}${running?' · Nến đang chạy: điểm tạm thời, lịch sử so sánh dùng nến đóng':''}`,
     geometryLine?`GEO hiện tại: ${geometryLineText(geometryLine)}. Line chỉ xuất hiện từ ${new Date(geometryLine.knownAt).toLocaleString('vi-VN',{timeZone:'America/New_York'})} ET, sau khi pivot thứ hai được xác nhận; không dùng nến đang chạy.`:null,
+    breakoutEvent?`Breakout/Retest causal: ${breakoutEvent.label} ${breakoutEvent.direction>0?'↑':'↓'} tại ${breakoutEvent.lineKind==='support'?'hỗ trợ':'kháng cự'} ${fmt(breakoutEvent.lineValue)} · line ${breakoutEvent.lineScore}/100 · cách ${fmt(breakoutEvent.distanceAtr)} ATR${breakoutEvent.key==='true_break'?' · Strength Composite và NetFlow cùng xác nhận hướng phá':''}. Line tham chiếu được khóa trước hai nến kiểm tra.`:null,
     geometryEvent?`Dị biệt được xác nhận tại nến này: ${geometryEvent.direction==='bullish'?'phân kỳ tăng':geometryEvent.direction==='bearish'?'phân kỳ giảm':'SPY/QQQ luân phiên dẫn dắt'} · điểm ${geometryEvent.score}/100 · ΔStrength SPY ${signed(geometryEvent.spyDelta)} / QQQ ${signed(geometryEvent.qqqDelta)} · ΔNetFlow ${signed(geometryEvent.flowDelta)}${geometryEvent.pairSplit?` · Strength SPY và QQQ ngược nhau, giá đang gần nhịp ${geometryEvent.leader==='SPY'?'SPY':geometryEvent.leader==='QQQ'?'QQQ':'hỗn hợp'}`:''}. Đây là mô tả hợp lưu tại thời điểm xác nhận, không phải dự báo chắc chắn.`:null,
     colorText,
     `Điểm xác nhận ${state.score??'—'}/100 = Taker ${fmt(state.taker)}/50 + Dải ${fmt(state.pair)}/30 + |Strength| ${fmt(state.strength)}/20. Điểm theo quy tắc, không phải xác suất thắng.`];

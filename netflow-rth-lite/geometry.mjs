@@ -134,6 +134,40 @@ export function analyzeGeometry({price,spy=[],qqq=[],flow=[]},options={}){
   return {pivots,events,lines,summary:{support:lines.filter(line=>line.kind==='support').length,resistance:lines.filter(line=>line.kind==='resistance').length,divergences:events.filter(event=>event.type==='regular-divergence').length,rotations:events.filter(event=>event.detail?.pairSplit||event.pairSplit).length},atr};
 }
 
+const lineAt=(line,index)=>line.startValue+line.slope*(index-line.startIndex);
+const rowAt=(rows,time)=>rows.findLast?.(row=>row.t===time)??[...rows].reverse().find(row=>row.t===time);
+
+export function classifyBreakoutRetest(price,lines,{strengthDirection=0,flowDirection=0,touchToleranceAtr=.28,breakToleranceAtr=.35}={}){
+  if(!Array.isArray(price)||!Array.isArray(lines)||price.length<2)return null;
+  const atr=causalAtr(price),currentIndex=price.length-1,previousIndex=currentIndex-1,current=price[currentIndex],previous=price[previousIndex],scale=atr[currentIndex],previousScale=atr[previousIndex];
+  if(!finite(scale)||scale<=0||!finite(previousScale)||previousScale<=0)return null;
+  const candidates=[];
+  for(const line of lines){
+    if(!['support','resistance'].includes(line?.kind)||line.knownAt>previous.t)continue;
+    const previousLine=lineAt(line,previousIndex),currentLine=lineAt(line,currentIndex),isSupport=line.kind==='support',breakDirection=isSupport?-1:1,holdDirection=-breakDirection;
+    const previousBeyond=isSupport?previous.c<previousLine-breakToleranceAtr*previousScale:previous.c>previousLine+breakToleranceAtr*previousScale;
+    const currentBeyond=isSupport?current.c<currentLine-breakToleranceAtr*scale:current.c>currentLine+breakToleranceAtr*scale;
+    const reclaimed=isSupport?current.c>=currentLine-.08*scale:current.c<=currentLine+.08*scale;
+    const touched=isSupport?current.l<=currentLine+touchToleranceAtr*scale&&current.h>=currentLine-touchToleranceAtr*scale:current.h>=currentLine-touchToleranceAtr*scale&&current.l<=currentLine+touchToleranceAtr*scale;
+    const held=touched&&(isSupport?current.c>=currentLine:current.c<=currentLine),flowAligned=sign(strengthDirection)===breakDirection&&sign(flowDirection)===breakDirection;
+    let key=null,direction=0,priority=0;
+    if(previousBeyond&&reclaimed){key='false_break';direction=holdDirection;priority=3;}
+    else if(previousBeyond&&currentBeyond&&flowAligned){key='true_break';direction=breakDirection;priority=2;}
+    else if(held){key=isSupport?'hold_support':'hold_resistance';direction=holdDirection;priority=1;}
+    if(!key)continue;
+    const distanceAtr=Math.abs(current.c-currentLine)/scale,structure=Math.max(.45,Math.min(1,(line.score??64)/100)),confirmation=key==='true_break'?1:key==='false_break' ? .88 : .65;
+    candidates.push({key,label:key==='hold_support'?'Giữ hỗ trợ':key==='hold_resistance'?'Giữ kháng cự':key==='true_break'?'Phá thật':'Phá giả',direction,at:current.t,index:currentIndex,lineKind:line.kind,lineScore:line.score??null,lineValue:currentLine,distanceAtr,flowAligned,confidence:clamp(structure*confirmation),priority,line});
+  }
+  return candidates.sort((a,b)=>b.priority-a.priority||b.confidence-a.confidence||a.distanceAtr-b.distanceAtr)[0]??null;
+}
+
+export function analyzeBreakoutRetest({price,spy=[],qqq=[],flow=[]},options={}){
+  if(!Array.isArray(price)||price.length<18)return null;
+  const referenceLength=price.length-2,prefix={price:price.slice(0,referenceLength),spy:spy.filter(row=>row.t<=price[referenceLength-1].t),qqq:qqq.filter(row=>row.t<=price[referenceLength-1].t),flow:flow.filter(row=>row.t<=price[referenceLength-1].t)};
+  const geometry=analyzeGeometry(prefix,options),latest=price.at(-1),strength=rowAt(flow,latest.t)?.adjusted,netFlow=rowAt(flow,latest.t)?.nf;
+  return classifyBreakoutRetest(price,geometry.lines,{strengthDirection:sign(strength??0),flowDirection:sign(netFlow??0),touchToleranceAtr:options.touchToleranceAtr??GEOMETRY_DEFAULTS.touchToleranceAtr,breakToleranceAtr:options.breakoutToleranceAtr??.35});
+}
+
 export function backtestGeometry(price,events,{horizon=4,minMoveAtr=.35,atrPeriod=14}={}){
   if(!Array.isArray(price)||!Array.isArray(events)||!Number.isInteger(horizon)||horizon<1||!finite(minMoveAtr)||minMoveAtr<0)throw Error('Tham số backtest hình học không hợp lệ');
   const atr=causalAtr(price,{period:atrPeriod}),samples=[];

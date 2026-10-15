@@ -7,6 +7,12 @@ export const REV63_COLOR_ROWS=Object.freeze([
   {key:'neutral',label:'Trung tính / trái dấu'},
   {key:'neutral_to_agreement',label:'Xám → đồng thuận'}
 ]);
+export const REV63_GEOMETRY_ROWS=Object.freeze([
+  {key:'hold_support',label:'Giữ hỗ trợ'},
+  {key:'hold_resistance',label:'Giữ kháng cự'},
+  {key:'true_break',label:'Phá thật'},
+  {key:'false_break',label:'Phá giả'}
+]);
 const clamp=(x,a=-1,b=1)=>Math.max(a,Math.min(b,x));
 const sign=x=>x>0?1:x<0?-1:0;
 const bayesRate=(summary,prior=20)=>{
@@ -21,7 +27,7 @@ function agreementKey(rank){
   if(!Number.isFinite(rank))return null;
   if(rank<.25)return 'p0_25';if(rank<.5)return 'p25_50';if(rank<.75)return 'p50_75';if(rank<.9)return 'p75_90';return 'p90_100';
 }
-export function rev63Forecast({reversal,wlrStats,alignment,geometryEvents=[],priceRows=[],horizon=REV63_HORIZON,prior=20}={}){
+export function rev63Forecast({reversal,wlrStats,alignment,geometryEvents=[],geometryRegime=null,priceRows=[],horizon=REV63_HORIZON,prior=20}={}){
   const states=wlrStats?.states??[],latest=states.at(-1),h=wlrStats?.summaries?.[horizon]??{},compositeDirection=latest?.direction??0;
   let rev6=0;
   if(reversal?.ready&&Number.isFinite(reversal.rate)&&Number.isFinite(reversal.baselineRate)&&reversal.direction){
@@ -41,11 +47,15 @@ export function rev63Forecast({reversal,wlrStats,alignment,geometryEvents=[],pri
       if(d){geometry=d*clamp((e.score??0)/100,0,1);geometryEvent=e;break;}
     }
   }
+  if(geometryRegime?.direction){
+    const regimeEvidence=sign(geometryRegime.direction)*clamp(geometryRegime.confidence??0,0,1);
+    if(Math.abs(regimeEvidence)>=Math.abs(geometry))geometry=regimeEvidence;
+  }
   const components={rev6,wlr,agreement,netflow:nf,geometry};
   const evidence=Object.entries(REV63_WEIGHTS).reduce((sum,[key,w])=>sum+w*components[key],0);
   const pUp=clamp(.5+.45*evidence,.05,.95),pDown=1-pUp,confidence=Math.round(100*Math.abs(pUp-.5)*2);
   const label=pUp>=.65?'UP':pUp<=.35?'DOWN':'WAIT';
-  return {version:REV63_VERSION,horizon,pUp,pDown,confidence,label,evidence,components,stateKey,agreementKey:aKey,agreementRank:latest?.rank??null,geometryEvent,compositeDirection};
+  return {version:REV63_VERSION,horizon,pUp,pDown,confidence,label,evidence,components,stateKey,agreementKey:aKey,agreementRank:latest?.rank??null,geometryEvent,geometryRegime,compositeDirection};
 }
 export function scoreForecastHistory(priceRows,records,horizon=REV63_HORIZON){
   const map=new Map(priceRows.map((x,i)=>[x.t,i])),scored=[];
@@ -83,5 +93,10 @@ const summarizeColorRows=rows=>({
 export function rev63ColorQualitySummary(records){
   const done=records.filter(x=>x.scored&&!x.void&&['agreement_up','agreement_down','neutral'].includes(x.colorRegime)).map(colorQuality),summaries={};
   for(const row of REV63_COLOR_ROWS){const sample=row.key==='neutral_to_agreement'?done.filter(x=>x.colorTransition===row.key):done.filter(x=>x.colorRegime===row.key);summaries[row.key]=summarizeColorRows(sample);}
+  return {n:done.length,summaries};
+}
+export function rev63GeometryQualitySummary(records){
+  const done=records.filter(x=>x.scored&&!x.void&&REV63_GEOMETRY_ROWS.some(row=>row.key===x.geometryRegime)).map(colorQuality),summaries={};
+  for(const row of REV63_GEOMETRY_ROWS){const sample=done.filter(x=>x.geometryRegime===row.key);summaries[row.key]=summarizeColorRows(sample);}
   return {n:done.length,summaries};
 }

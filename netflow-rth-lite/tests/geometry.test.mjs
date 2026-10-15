@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {STEPS,parseKlines,composite,analyze} from '../engine.mjs';
-import {causalAtr,confirmedPricePivots,analyzeGeometry,backtestGeometry} from '../geometry.mjs';
+import {causalAtr,confirmedPricePivots,analyzeGeometry,classifyBreakoutRetest,backtestGeometry} from '../geometry.mjs';
 
 function synthetic(length=240){
   const step=STEPS['15m'],price=[],spy=[],qqq=[],flow=[];
@@ -51,4 +51,14 @@ test('real M15 fixtures produce bounded scored geometry and a completed causal b
   const geometry=analyzeGeometry({price:spy,spy,qqq,flow},{minScore:55,maxLines:4}),backtest=backtestGeometry(spy,geometry.events,{horizon:4,minMoveAtr:.35});
   assert(geometry.pivots.length>20);assert(geometry.lines.length<=4);assert(geometry.lines.every(line=>line.score>=55&&line.anchors.length>=2&&line.anchors.length<=3&&line.touches>=2));
   assert(geometry.events.every(event=>event.atIndex>event.pivotIndex));assert(backtest.samples.every(sample=>sample.exitIndex<spy.length));
+});
+
+test('breakout and retest classification uses only a previously known line and two closed bars',()=>{
+  const bars=Array.from({length:20},(_,index)=>({t:index*900000,o:101,h:101.5,l:99.8,c:101})),line={kind:'support',score:80,knownAt:bars[10].t,startIndex:0,startValue:100,slope:0};
+  const held=classifyBreakoutRetest(bars,[line]);assert.equal(held.key,'hold_support');assert.equal(held.direction,1);
+  const broken=bars.map(x=>({...x}));Object.assign(broken[18],{o:99,h:99.2,l:97.8,c:98});Object.assign(broken[19],{o:98,h:98.7,l:97.7,c:98.1});
+  assert.equal(classifyBreakoutRetest(broken,[line],{strengthDirection:-1,flowDirection:-1}).key,'true_break');
+  assert.equal(classifyBreakoutRetest(broken,[line],{strengthDirection:1,flowDirection:-1}),null);
+  const reclaimed=broken.map(x=>({...x}));Object.assign(reclaimed[19],{o:98,h:101.4,l:97.8,c:101});
+  const falseBreak=classifyBreakoutRetest(reclaimed,[line],{strengthDirection:1,flowDirection:1});assert.equal(falseBreak.key,'false_break');assert.equal(falseBreak.direction,1);
 });
