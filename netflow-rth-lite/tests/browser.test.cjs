@@ -50,7 +50,7 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   assert((await page.locator('#fit').innerText()).includes('1.5 ngày'));assert((await page.locator('#chart-fit').innerText()).includes('1.5 ngày'));
   const fitWindow=await page.locator('#chart').evaluate(node=>({hours:+node.dataset.fitWindowHours,start:+node.dataset.fitStart,end:+node.dataset.fitEnd}));assert.equal(fitWindow.hours,36);assert(fitWindow.end>fitWindow.start);assert(fitWindow.end-fitWindow.start<=36*60*60*1000);
   assert.equal(await page.locator('#geometry-score').inputValue(),'64');assert.equal(await page.locator('#geometry-lines').inputValue(),'4');
-  assert.match(await page.locator('#geometry-readout').innerText(),/^GEO (HT|KC) \d+/);assert((await page.locator('#geometry-readout').getAttribute('title')).includes('Walk-forward'));
+  assert.match(await page.locator('#geometry-readout').innerText(),/^REV6-3 · UP \d+% · DOWN \d+% · CONF \d+$/);assert((await page.locator('#geometry-readout').getAttribute('title')).includes('REV6-3 V1'));
   const geometryCanvas=page.locator('#geometry-overlay');assert(+(await geometryCanvas.getAttribute('data-lines'))>0);assert(+(await geometryCanvas.getAttribute('data-pivots'))>0);assert(await geometryCanvas.evaluate(canvas=>canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data.some((value,index)=>index%4===3&&value>0)));
   assert((await page.locator('label:has(#phase-width)').innerText()).includes('Composite × Volume'));
   assert(await page.locator('#chart canvas').count()>0);assert((await page.locator('#chart').boundingBox()).height>=800);
