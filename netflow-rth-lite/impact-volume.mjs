@@ -3,6 +3,7 @@ export const IMPACT_CONFIRM_MS=350;
 
 const finite=Number.isFinite;
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
+const eventSymbol=event=>event?.symbol??'SPYUSDT';
 
 export function geometryBarIndexAt(time,bars,closedIndex=null){
   if(!finite(time)||!Array.isArray(bars))return null;let index=-1;
@@ -29,12 +30,18 @@ export function pruneImpactEvents(events,now=Date.now(),retentionMs=IMPACT_RETEN
   return Array.isArray(events)?events.filter(event=>finite(event?.time)&&event.time>=cutoff&&event.time<=now+60_000&&[-1,1].includes(event.side)&&finite(event.quote)&&event.quote>0):[];
 }
 
-export function aggregateImpactHistogram(events,step,{now=Date.now(),retentionMs=IMPACT_RETENTION_MS}={}){
+function impactWeight(event){
+  const jump=clamp(Number(event.jumpSpreads)||1,1,3),score=clamp((Number(event.zoneScore)||64)/100,.4,1),distance=clamp(Number(event.distanceAtr)||0,0,.28);
+  return event.quote*jump*(.65+.35*score)*Math.exp(-distance/.28);
+}
+
+export function aggregateImpactHistogram(events,step,{now=Date.now(),retentionMs=IMPACT_RETENTION_MS,symbol=null}={}){
   if(!finite(step)||step<=0)throw Error('Khung tổng hợp impact không hợp lệ');
   const buckets=new Map();
   for(const event of pruneImpactEvents(events,now,retentionMs)){
-    const time=Math.floor(event.time/step)*step,record=buckets.get(time)??{time,buy:0,sell:0,buyCount:0,sellCount:0};
-    if(event.side>0){record.buy+=event.quote;record.buyCount++;}else{record.sell+=event.quote;record.sellCount++;}
+    if(symbol&&eventSymbol(event)!==symbol)continue;
+    const time=Math.floor(event.time/step)*step,record=buckets.get(time)??{time,buy:0,sell:0,buyImpact:0,sellImpact:0,buyCount:0,sellCount:0},weight=impactWeight(event);
+    if(event.side>0){record.buy+=event.quote;record.buyImpact+=weight;record.buyCount++;}else{record.sell+=event.quote;record.sellImpact+=weight;record.sellCount++;}
     buckets.set(time,record);
   }
   const ordered=[...buckets.values()].sort((a,b)=>a.time-b.time);
@@ -43,6 +50,15 @@ export function aggregateImpactHistogram(events,step,{now=Date.now(),retentionMs
     buy:ordered.filter(row=>row.buy>0).map(row=>({time:row.time/1000,value:row.buy,color:'rgba(26,224,163,.72)'})),
     sell:ordered.filter(row=>row.sell>0).map(row=>({time:row.time/1000,value:-row.sell,color:'rgba(255,77,112,.72)'}))
   };
+}
+
+export function aggregateRelativeImpact(events,step,{now=Date.now(),retentionMs=IMPACT_RETENTION_MS,dominance=.2}={}){
+  if(!finite(dominance)||dominance<0||dominance>=1)throw Error('Ngưỡng ưu thế impact không hợp lệ');
+  const spy=new Map(aggregateImpactHistogram(events,step,{now,retentionMs,symbol:'SPYUSDT'}).buckets.map(row=>[row.time,row])),qqq=new Map(aggregateImpactHistogram(events,step,{now,retentionMs,symbol:'QQQUSDT'}).buckets.map(row=>[row.time,row])),times=new Set([...spy.keys(),...qqq.keys()]);
+  return [...times].sort((a,b)=>a-b).map(time=>{
+    const s=spy.get(time),q=qqq.get(time),spyNet=(s?.buyImpact??0)-(s?.sellImpact??0),qqqNet=(q?.buyImpact??0)-(q?.sellImpact??0),relative=spyNet-qqqNet,total=Math.abs(spyNet)+Math.abs(qqqNet),balance=total?relative/total:0,direction=Math.abs(balance)>=dominance?Math.sign(balance):0;
+    return {time,direction,balance,relative,total,spyNet,qqqNet,spy:s??null,qqq:q??null};
+  });
 }
 
 export class SpreadImpactDetector{
@@ -56,12 +72,14 @@ export class SpreadImpactDetector{
     const book={time,bid,ask};this.books.push(book);this.books=this.books.filter(row=>row.time>=time-2000).slice(-80);this.#settle(book);
   }
   onTrade(event){
-    const time=Number(event?.T??event?.E),price=Number(event?.p),qty=Number(event?.q),side=event?.m===false?1:event?.m===true?-1:0;
+    // USDⓈ-M aggTrade may expose nq (normal-order quantity excluding hidden RPI flow).
+    // Prefer it because the public best bid/ask used for confirmation does not expose that hidden liquidity.
+    const time=Number(event?.T??event?.E),price=Number(event?.p),qty=Number(event?.nq??event?.q),side=event?.m===false?1:event?.m===true?-1:0;
     if(!finite(time)||!finite(price)||!finite(qty)||price<=0||qty<=0||!side)return;
     const before=[...this.books].reverse().find(book=>book.time<=time);if(!before)return;
     const spread=before.ask-before.bid,epsilon=Math.max(1e-10,spread*1e-6),crossed=side>0?price>=before.ask-epsilon:price<=before.bid+epsilon;if(!crossed)return;
     const zone=this.zoneResolver(price,time);if(!zone)return;
-    const pending={id:event?.a??event?.id??null,time,price,qty,quote:price*qty,side,before,spread,zone,deadline:time+this.confirmMs};this.pending.push(pending);
+    const pending={id:event?.a??event?.id??null,symbol:event?.s??null,time,price,qty,quote:price*qty,side,before,spread,zone,deadline:time+this.confirmMs};this.pending.push(pending);
     for(const book of this.books)if(book.time>=time)this.#settle(book);
   }
   #settle(book){
