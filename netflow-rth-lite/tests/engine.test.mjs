@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {STEPS,parseKlines,composite,flowAlignment,compositeCandleSignal,strengthPhaseLineWidth,calculateStrength,calculateVolumeStrength,analyze,regression,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
+import {STEPS,parseKlines,composite,flowAlignment,strengthAgreementCandleSignal,strengthPhaseLineWidth,calculateStrength,calculateVolumeStrength,analyze,regression,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
 import {load} from '../data.mjs';
 import {isUsMarketHoliday,isUsMarketTradingDay} from '../market-calendar.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL(p,import.meta.url),'utf8').replace(/^\uFEFF/,''));
@@ -23,13 +23,11 @@ test('SPY/QQQ alignment distinguishes agreement and divergence',()=>{
   const leader=flowAlignment([x],[{...y,net:0,nf:0}])[0];assert.equal(leader.detailState,'SPY DẪN MUA');assert.equal(leader.opposition,0);
   assert.equal(flowAlignment([x],[{...y,net:-5,nf:-10}])[0].score,.45);assert.equal(flowAlignment([x],[{...y,t:2}]).length,0);
 });
-test('composite candle keeps Composite direction and mutes SPY/QQQ divergence',()=>{
-  const compositeBar={adjusted:.8,confidence:1};
-  const agreed=compositeCandleSignal(compositeBar,{adjusted:.7},{adjusted:.4},{smoothSpyNf:30,smoothQqqNf:20,opposition:0,volumeConfidence:1});
-  const diverged=compositeCandleSignal(compositeBar,{adjusted:.7},{adjusted:-.4},{smoothSpyNf:30,smoothQqqNf:-30,opposition:.6,volumeConfidence:1});
-  assert.equal(agreed.adjusted,.8);assert.equal(agreed.colorRegime,'ĐỒNG THUẬN');assert.equal(diverged.colorRegime,'PHÂN KỲ');assert(agreed.colorConfidence>diverged.colorConfidence);
-  assert.equal(compositeCandleSignal(compositeBar,{adjusted:.7},{adjusted:0},{smoothSpyNf:20,smoothQqqNf:0,opposition:0,volumeConfidence:.5}).colorRegime,'XÁC NHẬN MỘT PHẦN');
-  assert.equal(compositeCandleSignal({adjusted:null},null,null,null).adjusted,null);
+test('candle color follows Composite × SPY Volume Strength agreement',()=>{
+  const up=strengthAgreementCandleSignal({adjusted:.8},{adjusted:.35}),down=strengthAgreementCandleSignal({adjusted:-.6},{adjusted:-.4});
+  assert.equal(up.direction,1);assert.equal(up.agreement,.35);assert.equal(up.colorRegime,'ĐỒNG THUẬN TĂNG');
+  assert.equal(down.direction,-1);assert.equal(down.agreement,.4);assert.equal(down.colorRegime,'ĐỒNG THUẬN GIẢM');
+  for(const neutral of [strengthAgreementCandleSignal({adjusted:.8},{adjusted:-.35}),strengthAgreementCandleSignal({adjusted:.8},{adjusted:0}),strengthAgreementCandleSignal({adjusted:.8},null)]){assert.equal(neutral.direction,0);assert.equal(neutral.agreement,0);assert.equal(neutral.colorRegime,'TRUNG TÍNH');}
 });
 test('WLR phase width follows the actual SPY/QQQ Strength signs',()=>{
   assert.equal(strengthPhaseLineWidth({adjusted:.4},{adjusted:.1}),6);assert.equal(strengthPhaseLineWidth({adjusted:-.4},{adjusted:-.1}),6);

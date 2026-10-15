@@ -10,6 +10,7 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   page.on('response',r=>{if(r.url().includes('fapi.binance.com'))requests.push([r.status(),new URL(r.url()).pathname]);});
   await page.route('http://netflow.test/**',async route=>{
    const u=new URL(route.request().url()),file=u.pathname==='/'?'index.html':decodeURIComponent(u.pathname).slice(1),target=path.resolve(root,file);
+   if(u.pathname==='/data/binance/m15/manifest.json')return route.fulfill({json:{interval:'15m',months:[],lastTime:Date.now(),updatedAt:new Date().toISOString()}});
    if(!target.startsWith(root+path.sep)||!fs.existsSync(target))return route.fulfill({status:404,body:''});
    await route.fulfill({contentType:file.endsWith('.mjs')||file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html',body:fs.readFileSync(target)});
   });
@@ -29,15 +30,12 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   await page.goto('http://netflow.test/');await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('TRADING'),{},{timeout:120000});
   assert.match(await page.locator('#stat-score').textContent(),/\d+\/100/);assert((await page.locator('.badge').innerText()).includes('chưa train'));
   assert.match(await page.locator('#stat-group').textContent(),/S[+−0]/);assert.equal(await page.locator('#status').isVisible(),false);assert.equal(await page.locator('.stats-table').count(),0);
-  assert.equal(await page.locator('.calendar-panel').isVisible(),true);assert.match(await page.locator('.calendar-panel').innerText(),/Forex Factory/);assert(await page.locator('.calendar-row').count()>0);assert.match(await page.locator('#calendar-status').innerText(),/đã có thực tế/);assert(await page.locator('.calendar-actual:not(.pending)').count()>0);
+  assert.equal(await page.locator('.calendar-panel').isVisible(),true);assert.match(await page.locator('.calendar-panel').innerText(),/Forex Factory/);assert(await page.locator('.calendar-row').count()>0);assert.match(await page.locator('#calendar-status').innerText(),/tin · \d+ đã có thực tế/);assert.equal(await page.locator('.calendar-actual').count(),await page.locator('.calendar-row').count());
   const smoothList=page.locator('#calendar-list'),firstCalendarRow=page.locator('.calendar-row').first();await firstCalendarRow.evaluate(node=>node.dataset.reuseProbe='kept');await smoothList.evaluate(node=>{node.style.scrollBehavior='auto';node.scrollTop=36;});await page.locator('#calendar-refresh').click();await page.waitForFunction(()=>!document.querySelector('#calendar-refresh').disabled);assert.equal(await page.locator('.calendar-row').first().getAttribute('data-reuse-probe'),'kept');assert(Math.abs(await smoothList.evaluate(node=>node.scrollTop)-36)<3);
   await page.locator('#calendar-impact').selectOption('high');assert(await page.locator('.calendar-row').count()>0);assert.equal(await page.locator('.calendar-impact.medium').count(),0);await page.locator('#calendar-impact').selectOption('important');
   await page.locator('#calendar-currency').selectOption('USD');assert(await page.locator('.calendar-row').count()>0);assert.equal(await page.locator('.calendar-currency').evaluateAll(nodes=>nodes.every(node=>node.textContent==='USD')),true);await page.locator('#calendar-currency').selectOption('all');
-  assert.equal(await page.locator('#trade-cost').inputValue(),'0.10');assert.match(await page.locator('#rev63-label').innerText(),/(UP|DOWN|WAIT)/);assert((await page.locator('#rev63-components').innerText()).includes('REV6'));assert((await page.locator('#rev63-calibration').innerText()).includes('50–60%'));
+  assert.equal(await page.locator('#stat-trade-level').count(),0);assert.equal(await page.locator('#trade-cost').count(),0);assert.equal(await page.locator('#stat-history').count(),0);assert.match(await page.locator('#rev63-label').innerText(),/(UP|DOWN|WAIT)/);assert((await page.locator('#rev63-components').innerText()).includes('REV6'));assert((await page.locator('#rev63-calibration').innerText()).includes('50–60%'));
   assert.equal(await page.locator('#wlr-horizon').inputValue(),'3');assert.equal(await page.locator('#wlr-stats-body tr').count(),8);assert((await page.locator('#wlr-stats-context').innerText()).includes('horizon 3 nến'));await page.locator('#wlr-horizon').selectOption('6');assert((await page.locator('#wlr-stats-context').innerText()).includes('horizon 6 nến'));await page.locator('#wlr-horizon').selectOption('3');
-  assert((await page.locator('#stats-context').innerText()).includes('ML chưa train'));
-  await page.locator('#stat-trade-level').selectOption('60');assert((await page.locator('#stat-history-note').innerText()).includes('TREND6 ≥60'));await page.locator('#stat-trade-level').selectOption('all');
-  await page.locator('#trade-cost').fill('0.20');await page.locator('#trade-cost').blur();assert((await page.locator('#stat-history-note').innerText()).includes('RT 0.2%'));await page.locator('#trade-cost').fill('0.10');await page.locator('#trade-cost').blur();
   const strengthReadout=await page.locator('#strength-readout').innerText();assert.match(strengthReadout,/SPY -?\d/);assert.match(strengthReadout,/QQQ -?\d/);assert.match(await page.locator('#strength-composite').innerText(),/^-?\d/);
   assert.match(await page.locator('#trend-strength').innerText(),/^TREND6 [↑↓] .+ \d+ · P(?:—|\d+) · n=\d+$/);
   const trendBox=await page.locator('#trend-strength').boundingBox(),chartBox=await page.locator('#chart').boundingBox();
@@ -54,16 +52,16 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   const geometryCanvas=page.locator('#geometry-overlay');assert(+(await geometryCanvas.getAttribute('data-lines'))>0);assert(+(await geometryCanvas.getAttribute('data-pivots'))>0);assert(await geometryCanvas.evaluate(canvas=>canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data.some((value,index)=>index%4===3&&value>0)));
   assert((await page.locator('label:has(#phase-width)').innerText()).includes('Composite × Volume'));
   assert(await page.locator('#chart canvas').count()>0);assert((await page.locator('#chart').boundingBox()).height>=800);
-  assert((await page.locator('#tooltip').innerText()).includes('Điểm xác nhận'));assert((await page.locator('#tooltip').innerText()).includes('không phải xác suất thắng'));assert((await page.locator('#tooltip').innerText()).includes('TREND6'));assert.match(await page.locator('#tooltip').innerText(),/Màu nến Composite (ĐỒNG THUẬN|PHÂN KỲ|XÁC NHẬN MỘT PHẦN)/);
+  assert((await page.locator('#tooltip').innerText()).includes('Điểm xác nhận'));assert((await page.locator('#tooltip').innerText()).includes('không phải xác suất thắng'));assert((await page.locator('#tooltip').innerText()).includes('TREND6'));assert.match(await page.locator('#tooltip').innerText(),/Màu nến Composite×Volume (ĐỒNG THUẬN TĂNG|ĐỒNG THUẬN GIẢM|TRUNG TÍNH)/);
   assert.equal(await page.locator('#cvd-spectrum').evaluate(canvas=>canvas.width>0&&canvas.height>0),true);
   assert.equal(await page.locator('#cvd-spectrum').getAttribute('data-source'),'COMPOSITE→SPY');
   const dayCanvas=page.locator('#day-separators');assert.equal(await dayCanvas.evaluate(canvas=>canvas.width>0&&canvas.height>0),true);assert(+(await dayCanvas.getAttribute('data-count'))>0);assert(await dayCanvas.evaluate(canvas=>canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data.some((value,index)=>index%4===3&&value>0)));
   await page.locator('#markers').uncheck();assert.equal(await dayCanvas.isVisible(),false);await page.locator('#markers').check();assert.equal(await dayCanvas.isVisible(),true);
   await page.locator('#symbol').selectOption('QQQUSDT');await page.locator('#signal').selectOption('SPYUSDT');
   assert.equal(await page.locator('#cvd-spectrum').getAttribute('data-source'),'QQQUSDT');
-  assert((await page.locator('#tooltip').innerText()).includes('Giá QQQ, dấu từ SPY'));
+  assert((await page.locator('#tooltip').innerText()).includes('Giá QQQ, Strength phân tích SPY'));
   for(const id of ['spy','qqq','composite','relative','alignment','price-bands','reversal-zone','phase-width','cvd-spectrum-toggle','show-strength','spy-volume-strength','bands','markers','geometry-toggle','geometry-pivots']){await page.locator('#'+id).uncheck();await page.locator('#'+id).check();}
-  await page.locator('#geometry-score').selectOption('72');assert((await page.locator('#geometry-readout').innerText()).startsWith('GEO '));await page.locator('#geometry-score').selectOption('64');
+  await page.locator('#geometry-score').selectOption('72');assert((await page.locator('#geometry-readout').innerText()).startsWith('REV6-3 '));assert(+(await geometryCanvas.getAttribute('data-lines'))>0);await page.locator('#geometry-score').selectOption('64');
   for(const interval of fixtureRoot||process.env.NETFLOW_LIVE?['5m','30m','1h','15m']:['15m']){
    await page.locator('#interval').selectOption(interval);await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('TRADING'),{},{timeout:120000});
    assert.match(await page.locator('#stat-score').textContent(),/\d+\/100/);
@@ -73,8 +71,8 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
    if(process.env.NETFLOW_SCREENSHOTS)await page.screenshot({path:path.join(process.env.NETFLOW_SCREENSHOTS,`stats-${width}.png`),fullPage:true});
    await page.locator('#chart').scrollIntoViewIfNeeded();
    const box=await page.locator('#chart').boundingBox();await page.mouse.move(box.x+Math.min(box.width*.6,box.width-120),box.y+80);
-   try{await page.waitForFunction(()=>document.querySelector('#stats-context').textContent.includes('NẾN ĐANG XEM'),{},{timeout:5000});}catch(e){console.log({width,box,context:await page.locator('#stats-context').innerText()});if(process.env.NETFLOW_SCREENSHOTS)await page.screenshot({path:path.join(process.env.NETFLOW_SCREENSHOTS,`crosshair-failure-${width}.png`)});throw e;}
-   const contextBefore=await page.locator('#stats-context').innerText();await page.waitForTimeout(3200);assert.equal(await page.locator('#stats-context').innerText(),contextBefore);
+   try{await page.waitForFunction(()=>document.querySelector('#tooltip').textContent.includes('NẾN ĐANG XEM'),{},{timeout:5000});}catch(e){console.log({width,box,context:await page.locator('#tooltip').innerText()});if(process.env.NETFLOW_SCREENSHOTS)await page.screenshot({path:path.join(process.env.NETFLOW_SCREENSHOTS,`crosshair-failure-${width}.png`)});throw e;}
+   const contextBefore=await page.locator('#tooltip').innerText();await page.waitForTimeout(3200);assert.equal(await page.locator('#tooltip').innerText(),contextBefore);
    await page.mouse.wheel(0,-200);
    await page.mouse.down();await page.mouse.move(box.x+box.width*.65,box.y+80,{steps:10});await page.mouse.up();await page.locator('#fit').click();
    if(process.env.NETFLOW_SCREENSHOTS)await page.screenshot({path:path.join(process.env.NETFLOW_SCREENSHOTS,`rth-${width}.png`),fullPage:true});

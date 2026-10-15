@@ -1,11 +1,9 @@
-import {STEPS,composite,flowAlignment,compositeCandleSignal,strengthPhaseLineWidth,calculateVolumeStrength,analyze,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs';
+import {STEPS,composite,flowAlignment,strengthAgreementCandleSignal,strengthPhaseLineWidth,calculateVolumeStrength,analyze,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs?v=20261015-1';
 import {load} from './data.mjs';
 import {loadPersistentHistory} from './history-store.mjs?v=20261015-1';
-import {strengthStatistics,trendStrength6,MIN_SAMPLES,TREND_MIN_HISTORY} from './strength-stats.mjs?v=20261013-1';
-import {colorTradeStatistics,COLOR_TRADE_LEVELS} from './color-trade-stats.mjs?v=20261013-2';
+import {strengthStatistics,trendStrength6,TREND_MIN_HISTORY} from './strength-stats.mjs?v=20261013-1';
 import {reversalZone,REVERSAL_VERSION,REVERSAL_HORIZON,REVERSAL_MIN_MATCHES,REVERSAL_MIN_EFFECTIVE} from './reversal-zone.mjs?v=20261012-5';
 import {ReversalStabilizer} from './stability.mjs?v=20261012-5';
-import {loadSampleMemory,saveSampleMemory,sampleMemoryKey} from './sample-memory.mjs?v=20261013-1';
 import {analyzeGeometry,backtestGeometry} from './geometry.mjs?v=20261014-1';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261014-2';
 import {wlrAgreementStatistics,WLR_STATE_ROWS,WLR_AGREEMENT_ROWS,WLR_MIN_SAMPLES} from './wlr-agreement-stats.mjs?v=20261015-1';
@@ -23,15 +21,12 @@ const flowColors={
 const LIVE_REFRESH_MS=3000;
 const CALENDAR_REFRESH_MS=5*60*1000;
 const FIT_WINDOW_MS=36*60*60*1000,DOUBLE_TAP_MS=360,DOUBLE_TAP_DISTANCE=28,TAP_MOVE_TOLERANCE=14;
-let statsMap=new Map(),trendMap=new Map(),colorTradeMap=new Map(),candleColorMap=new Map(),wlrStatsData=null,rev63State=null,rev63History=[],reversalState={ready:false,reason:'window',n:0},inspectedTime=null;
+let statsMap=new Map(),trendMap=new Map(),candleColorMap=new Map(),wlrStatsData=null,rev63State=null,rev63History=[],reversalState={ready:false,reason:'window',n:0},inspectedTime=null;
 let calendarState={events:[],updatedAt:null,loading:false};
-let sampleMemoryInfo={count:0,used:0,available:true};
 const reversalStabilizer=new ReversalStabilizer({alpha:.25,confirmations:3});
 const sourceName=key=>({SPYUSDT:'SPY',QQQUSDT:'QQQ',COMPOSITE:'Composite'}[key]);
 const signed=x=>Number.isFinite(x)?`${x>0?'+':''}${fmt(x)}`:'—';
 const returnText=x=>Number.isFinite(x)?`${x>0?'+':''}${x.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:4})}%`:'—';
-const profitFactorText=x=>x===Infinity?'∞':Number.isFinite(x)?x.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
-const tradeCostPct=()=>{const value=Number($('trade-cost')?.value);return Number.isFinite(value)?Math.max(0,Math.min(5,value)):.1;};
 const signLabel=x=>x>0?'+':x<0?'−':'0';
 const tone=x=>x>0?'positive':x<0?'negative':'neutral';
 const calendarDay=new Intl.DateTimeFormat('vi-VN',{timeZone:CALENDAR_TIME_ZONE,weekday:'short',day:'2-digit',month:'2-digit'});
@@ -178,12 +173,9 @@ function init(){
 }
 function mixColor(from,to,t){return '#'+from.map((v,i)=>Math.round(v+(to[i]-v)*t).toString(16).padStart(2,'0')).join('');}
 function candlePalette(x){
-  if(!Number.isFinite(x?.adjusted))return {body:'#68778a',wick:'#8290a2',border:'#76869a'};
-  const magnitude=Math.min(1,Math.abs(x.adjusted));
-  const directConfidence=.8+.2*Math.max(0,Math.min(1,x.confidence));
-  const compositeConfidence=Number.isFinite(x.colorConfidence)?Math.max(0,Math.min(1,x.colorConfidence)):null;
-  const intensity=compositeConfidence===null?Math.min(1,.18+.82*Math.sqrt(magnitude)*directConfidence):Math.min(1,.05+.95*Math.sqrt(Math.max(0,(magnitude-.02)/.98))*(.25+.75*compositeConfidence));
-  const target=x.adjusted>=0?[8,232,169]:[255,65,99];
+  if(!x?.direction)return {body:'#68778a',wick:'#8290a2',border:'#76869a'};
+  const intensity=Math.min(1,.12+.88*Math.sqrt(Math.max(0,Math.min(1,x.agreement))));
+  const target=x.direction>0?[8,232,169]:[255,65,99];
   return {body:mixColor([91,105,124],target,intensity),wick:mixColor([112,126,145],target,Math.min(1,intensity+.1)),border:mixColor([74,89,108],target,Math.min(1,intensity+.06))};
 }
 function lineData(data,key){return data.map(x=>Number.isFinite(x[key])?{time:x.t/1000,value:x[key]}:{time:x.t/1000});}
@@ -285,7 +277,7 @@ function drawGeometryOverlay(){
 }
 function render(fit=false){
   const range=chart.timeScale().getVisibleLogicalRange();
-  const p=rows[$('symbol').value]??[],signalRows=rows[$('signal').value]??[],signals=maps[$('signal').value]??new Map(),model=Object.keys(modelRows).length?modelRows:rows;
+  const p=rows[$('symbol').value]??[],signalRows=rows[$('signal').value]??[],model=Object.keys(modelRows).length?modelRows:rows;
   dayBoundaries=dayBoundaryTimes(p);
   const compositeCvd=$('symbol').value==='SPYUSDT',cvdBars=compositeCvd?projectNetFlowToPrice(p,rows.COMPOSITE??[]):p;
   cvdSourceLabel=compositeCvd?'C→S':'Q';$('cvd-spectrum').dataset.source=compositeCvd?'COMPOSITE→SPY':'QQQUSDT';
@@ -295,20 +287,15 @@ function render(fit=false){
   const closedBefore=cache?.serverTime??Infinity,closedPrice=p.filter(row=>(row.end??row.t)<closedBefore),closedTimes=new Set(closedPrice.map(row=>row.t)),modelPrice=model[$('symbol').value]??p,modelClosedPrice=modelPrice.filter(row=>(row.end??row.t)<closedBefore),modelClosedTimes=new Set(modelClosedPrice.map(row=>row.t));
   geometryState=analyzeGeometry({price:closedPrice,spy:(rows.SPYUSDT??[]).filter(row=>closedTimes.has(row.t)),qqq:(rows.QQQUSDT??[]).filter(row=>closedTimes.has(row.t)),flow:(rows.COMPOSITE??[]).filter(row=>closedTimes.has(row.t))},{minScore:Number($('geometry-score').value),maxLines:Number($('geometry-lines').value)});
   geometryBacktest=backtestGeometry(closedPrice,geometryState.events,{horizon:4,minMoveAtr:.35});
-  const compositeColors=$('signal').value==='COMPOSITE';
-  candleColorMap=new Map(p.map(x=>{const base=signals.get(x.t),colorSignal=compositeColors?compositeCandleSignal(base,maps.SPYUSDT?.get(x.t),maps.QQQUSDT?.get(x.t),alignmentMap.get(x.t)):base;return [x.t,colorSignal];}));
+  const volumeStrengthMap=new Map(volumeStrengthRows.map(x=>[x.t,x]));
+  candleColorMap=new Map(p.map(x=>[x.t,strengthAgreementCandleSignal(maps.COMPOSITE?.get(x.t),volumeStrengthMap.get(x.t))]));
   price.setData(p.map(x=>{const color=candlePalette(candleColorMap.get(x.t));return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color:color.body,wickColor:color.wick,borderColor:color.border};}));
-  const memoryKey=sampleMemoryKey($('symbol').value,$('signal').value,$('interval').value);
   statsMap=strengthStatistics({...rows,alignment},$('symbol').value,$('signal').value,STEPS[$('interval').value]);
   trendMap=trendStrength6({...rows,alignment},$('signal').value,STEPS[$('interval').value]);
-  const tradeMemory=loadSampleMemory(`${memoryKey}|color-trades-v1`);
-  colorTradeMap=colorTradeStatistics(rows,$('symbol').value,$('signal').value,STEPS[$('interval').value],trendMap,{memory:tradeMemory.samples,tradeCost:tradeCostPct()});
-  const saved=saveSampleMemory(`${memoryKey}|color-trades-v1`,colorTradeMap.samples);sampleMemoryInfo={...saved,used:colorTradeMap.rememberedSamples};
   const rawReversal=reversalZone(model,$('symbol').value,$('signal').value,STEPS[$('interval').value]);
   const reversalKey=`${$('symbol').value}|${$('signal').value}|${$('interval').value}|${p.at(-1)?.t??'empty'}`;
   reversalState=reversalStabilizer.update(rawReversal,reversalKey,cache?.serverTime??generation);
   const priceBands=weightedPriceBands(p,STEPS[$('interval').value]);priceBandMap=new Map(priceBands.map(x=>[x.t,x]));
-  const volumeStrengthMap=new Map(volumeStrengthRows.map(x=>[x.t,x]));
   wlrStatsData=wlrAgreementStatistics(modelClosedPrice,(model.COMPOSITE??[]).filter(row=>modelClosedTimes.has(row.t)),(modelVolumeStrengthRows.length?modelVolumeStrengthRows:volumeStrengthRows).filter(row=>modelClosedTimes.has(row.t)),STEPS[$('interval').value]);renderWlrAgreementStats();updateRev63(modelClosedPrice);
   series.priceMid.setData(priceLineData(priceBands,maps.COMPOSITE??new Map(),volumeStrengthMap));series.priceUpper.setData(lineData(priceBands,'upper'));series.priceLower.setData(lineData(priceBands,'lower'));
   for(const key of Object.keys(colors))series[key].setData(flowData(rows[key]??[],key));
@@ -332,7 +319,6 @@ function render(fit=false){
   $('export').disabled=!p.length;
 }
 function statValue(id,text,color='neutral'){const node=$(id);node.textContent=text;node.className=color;}
-function historyText(summary){return summary?.ready?`EV ${returnText(summary.expectancy)}`:`Mẫu mỏng · n=${summary?.n??0}`;}
 function latestStrength(key){const data=rows[key]??[];for(let i=data.length-1;i>=0;i--)if(Number.isFinite(data[i].adjusted))return data[i].adjusted;return null;}
 function updateStrengthLabels(){
   $('strength-readout').style.display=$('show-strength').checked?'flex':'none';
@@ -361,15 +347,13 @@ function updateReversalZone(){
   node.title=`V2: Mahalanobis co rút 55% + hình dạng giá/Strength 25% + NetFlow SPY–QQQ 20%; trọng số Gaussian và prior nền. Mỗi lần đổi dấu đo cả cực đại và cực tiểu từ close cuối cụm đến nến đổi dấu. Tỷ lệ ${fmt(reversalState.rate*100)}%; nền ${fmt(reversalState.baselineRate*100)}%; cận 90% ${fmt(reversalState.lower*100)}%; ${reversalState.eventCount}/${reversalState.n} cụm; cỡ mẫu hữu hiệu ${fmt(reversalState.effectiveN)}.`;
 }
 function showTooltip(t){
-  const p=maps[$('symbol').value]?.get(t),record=statsMap.get(t),tradeRecord=colorTradeMap.get(t),state=record?.state,trend=trendMap.get(t),colorSignal=candleColorMap.get(t),geometryEvent=geometryState.events?.find(event=>event.at===t),geometryLine=inspectedTime===null?geometryState.lines?.[0]:null;
+  const p=maps[$('symbol').value]?.get(t),record=statsMap.get(t),state=record?.state,trend=trendMap.get(t),colorSignal=candleColorMap.get(t),geometryEvent=geometryState.events?.find(event=>event.at===t),geometryLine=inspectedTime===null?geometryState.lines?.[0]:null;
   const time=p?new Date(t).toLocaleString('vi-VN',{timeZone:'America/New_York'})+' ET':'Chưa có dữ liệu';
   const running=p&&p.end>=(cache?.serverTime??Infinity),mode=inspectedTime!==null?'NẾN ĐANG XEM':'MỚI NHẤT';
-  $('stats-latest').hidden=inspectedTime===null;
-  $('stats-context').textContent=`${mode} · ${time}${p?` · ${running?'ĐANG CHẠY':'ĐÃ ĐÓNG'} · Giá ${sourceName($('symbol').value)} / Strength ${sourceName($('signal').value)}`:''} · Thống kê mô tả, ML chưa train`;
   if(!state){
-    for(const id of ['stat-group','stat-score','stat-pair','stat-history'])statValue(id,'—');
-    for(const id of ['stat-group-note','stat-score-note','stat-pair-note','stat-history-note'])$(id).textContent='Chờ đủ Strength và quote volume của SPY/QQQ';
-    $('tooltip').textContent=`${time} · Chưa đủ dữ liệu để chấm điểm và thống kê nhóm Strength.`;return;
+    for(const id of ['stat-group','stat-score','stat-pair'])statValue(id,'—');
+    for(const id of ['stat-group-note','stat-score-note','stat-pair-note'])$(id).textContent='Chờ đủ Strength và quote volume của SPY/QQQ';
+    $('tooltip').textContent=`${mode} · ${time} · Chưa đủ dữ liệu để chấm điểm và thống kê nhóm Strength.`;return;
   }
   $('stat-group').replaceChildren(...state.signs.map((s,i)=>{const span=document.createElement('span');span.className=tone(s);span.textContent=`${['S','Q','C'][i]}${signLabel(s)}`;return span;}));
   $('stat-group-note').textContent=`${sourceName($('signal').value)} ${signed(state.value)} · ${state.session}${state.marker?' · ● >0.95':state.extreme?' · <−0.95':''}`;
@@ -378,16 +362,13 @@ function showTooltip(t){
   const a=state.alignment;
   statValue('stat-pair',a.detailState, a.detailState==='THUẬN MUA'?'positive':a.detailState==='THUẬN BÁN'?'negative':'neutral');
   $('stat-pair-note').textContent=`NF% mượt · S ${signed(a.smoothSpyNf)} / Q ${signed(a.smoothQqqNf)}`;
-  const selectedLevel=$('stat-trade-level').value,history=tradeRecord?.stats[selectedLevel]??{n:0,ready:false};
-  statValue('stat-history',state.direction?historyText(history):'Strength bằng 0',history.ready?tone(history.expectancy):'neutral');
-  $('stat-history-note').textContent=`${COLOR_TRADE_LEVELS.find(x=>x.key===selectedLevel)?.label??'Tất cả'} · n=${history.n}${history.ready?` · Win ${fmt(history.winRate)}% · PF ${profitFactorText(history.profitFactor)}`:` · cần ≥${MIN_SAMPLES}`} · RT ${fmt(tradeCostPct())}%${sampleMemoryInfo.used?` · nhớ cũ ${sampleMemoryInfo.used}`:sampleMemoryInfo.available?` · bộ nhớ ${sampleMemoryInfo.count} lệnh`:' · không lưu được bộ nhớ'}`;
-  const text=[`${time} · ${state.session} · Giá ${sourceName($('symbol').value)}, dấu từ ${sourceName($('signal').value)}${running?' · Nến đang chạy: điểm tạm thời, lịch sử so sánh dùng nến đóng':''}`,
+  const colorText=colorSignal?.direction?`Màu nến Composite×Volume ${colorSignal.colorRegime}: Composite ${signed(colorSignal.compositeStrength)}, SPY Volume ${signed(colorSignal.volumeStrength)}; độ đậm theo min(|Composite|, |Volume|) = ${fmt(colorSignal.agreement)}.`:`Màu nến Composite×Volume TRUNG TÍNH${colorSignal?.neutralReason?` (${colorSignal.neutralReason.toLowerCase()})`:''}: Composite ${signed(colorSignal?.compositeStrength)}, SPY Volume ${signed(colorSignal?.volumeStrength)}; trái dấu, bằng 0 hoặc thiếu dữ liệu đều dùng xám.`;
+  const text=[`${mode} · ${time} · ${state.session} · Giá ${sourceName($('symbol').value)}, Strength phân tích ${sourceName($('signal').value)}${running?' · Nến đang chạy: điểm tạm thời, lịch sử so sánh dùng nến đóng':''}`,
     geometryLine?`GEO hiện tại: ${geometryLineText(geometryLine)}. Line chỉ xuất hiện từ ${new Date(geometryLine.knownAt).toLocaleString('vi-VN',{timeZone:'America/New_York'})} ET, sau khi pivot thứ hai được xác nhận; không dùng nến đang chạy.`:null,
     geometryEvent?`Dị biệt được xác nhận tại nến này: ${geometryEvent.direction==='bullish'?'phân kỳ tăng':geometryEvent.direction==='bearish'?'phân kỳ giảm':'SPY/QQQ luân phiên dẫn dắt'} · điểm ${geometryEvent.score}/100 · ΔStrength SPY ${signed(geometryEvent.spyDelta)} / QQQ ${signed(geometryEvent.qqqDelta)} · ΔNetFlow ${signed(geometryEvent.flowDelta)}${geometryEvent.pairSplit?` · Strength SPY và QQQ ngược nhau, giá đang gần nhịp ${geometryEvent.leader==='SPY'?'SPY':geometryEvent.leader==='QQQ'?'QQQ':'hỗn hợp'}`:''}. Đây là mô tả hợp lưu tại thời điểm xác nhận, không phải dự báo chắc chắn.`:null,
-    $('signal').value==='COMPOSITE'&&colorSignal?.colorRegime?`Màu nến Composite ${colorSignal.colorRegime}: hướng theo dấu Strength ${signed(colorSignal.adjusted)}; độ đậm ${Math.round(colorSignal.colorConfidence*100)}%, đồng thuận Strength SPY/QQQ ${Math.round(colorSignal.colorAgreement*100)}%, xác nhận Taker NF ${Math.round(colorSignal.colorFlowSupport*100)}%, nghịch pha ${Math.round(colorSignal.colorOpposition*100)}%.`:null,
+    colorText,
     `Điểm xác nhận ${state.score??'—'}/100 = Taker ${fmt(state.taker)}/50 + Dải ${fmt(state.pair)}/30 + |Strength| ${fmt(state.strength)}/20. Điểm theo quy tắc, không phải xác suất thắng.`,
-    trend?`TREND6 ${trend.label} ${trend.stableScore??trend.score}/100 (gốc ${trend.score})${trend.ready?` · P mượt ${Math.round(trend.stablePercentile??trend.percentile)} (gốc P${Math.round(trend.percentile)})`:' · chưa đủ phân vị'} · n=${trend.n} cụm đổi dấu ${trend.scope==='same-sign'?'cùng hướng':'hai hướng'}. Thành phần gốc ${trend.raw}: bền dấu ${fmt(trend.components.persistence)}/20 + biên độ ${fmt(trend.components.magnitude)}/15 + dốc ${fmt(trend.components.slope)}/10 + tổng Taker 6 nến ${fmt(trend.components.taker)}/20 + SPY↔QQQ ${fmt(trend.components.pair)}/10 + đồng thuận S/Q/C ${fmt(trend.components.consensus)}/25. BuyQ6 ${fmt(trend.buyTotal)} · SellQ6 ${fmt(trend.sellTotal)} · NetQ6 ${fmt(trend.netTotal)}.`:`TREND6 cần đủ 6 nến liên tiếp có Strength, Taker Buy/Sell và dải SPY↔QQQ. Phân vị chỉ bật từ ${TREND_MIN_HISTORY} cụm đổi dấu đã hoàn tất.`,
-    `Giao dịch màu nến trong PRE→RTH 04:00–16:00 ET: xanh = Long, đỏ = Short; vào tại close sau khi màu được xác nhận, thoát và đảo chiều tại close khi màu đổi. Vị thế còn mở đóng tại close cuối RTH; không giữ qua đêm.`];
+    trend?`TREND6 ${trend.label} ${trend.stableScore??trend.score}/100 (gốc ${trend.score})${trend.ready?` · P mượt ${Math.round(trend.stablePercentile??trend.percentile)} (gốc P${Math.round(trend.percentile)})`:' · chưa đủ phân vị'} · n=${trend.n} cụm đổi dấu ${trend.scope==='same-sign'?'cùng hướng':'hai hướng'}. Thành phần gốc ${trend.raw}: bền dấu ${fmt(trend.components.persistence)}/20 + biên độ ${fmt(trend.components.magnitude)}/15 + dốc ${fmt(trend.components.slope)}/10 + tổng Taker 6 nến ${fmt(trend.components.taker)}/20 + SPY↔QQQ ${fmt(trend.components.pair)}/10 + đồng thuận S/Q/C ${fmt(trend.components.consensus)}/25. BuyQ6 ${fmt(trend.buyTotal)} · SellQ6 ${fmt(trend.sellTotal)} · NetQ6 ${fmt(trend.netTotal)}.`:`TREND6 cần đủ 6 nến liên tiếp có Strength, Taker Buy/Sell và dải SPY↔QQQ. Phân vị chỉ bật từ ${TREND_MIN_HISTORY} cụm đổi dấu đã hoàn tất.`];
   const nodes=text.filter(Boolean).map(value=>{const div=document.createElement('div');div.textContent=value;return div;});
   $('tooltip').replaceChildren(...nodes);
 }
@@ -484,9 +465,6 @@ if(init()){
   $('fit').onclick=fitChart;$('chart-fit').onclick=fitChart;$('fullscreen').onclick=toggleFullChart;
   document.addEventListener('fullscreenchange',syncFullChart);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.querySelector('.chart-card').classList.contains('fullscreen-fallback')){document.querySelector('.chart-card').classList.remove('fullscreen-fallback');syncFullChart();}});
   $('export').onclick=exportCSV;
-  $('stat-trade-level').onchange=()=>showTooltip(inspectedTime??rows[$('symbol').value]?.at(-1)?.t);
-  $('trade-cost').onchange=()=>{const value=tradeCostPct();$('trade-cost').value=value.toFixed(2);render(false);};
-  $('stats-latest').onclick=()=>{inspectedTime=null;showTooltip(rows[$('symbol').value]?.at(-1)?.t);};
   const changeCalendarFilter=()=>{delete $('calendar-list').dataset.positioned;renderCalendar();};$('calendar-impact').onchange=changeCalendarFilter;$('calendar-currency').onchange=changeCalendarFilter;$('calendar-refresh').onclick=refreshCalendar;
   setLive(false);refreshCalendar();refresh(true);setInterval(()=>{updateCandleCountdown();if(lastSuccess&&Date.now()-lastSuccess>15000)setLive(false);if(!document.hidden&&!loading)refresh();},LIVE_REFRESH_MS);
   setInterval(()=>{if(!document.hidden)refreshCalendar();},CALENDAR_REFRESH_MS);
