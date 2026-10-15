@@ -106,7 +106,7 @@ function renderWlrAgreementStats(){
   for(const def of defs){
     const s=summaries[def.key]??{n:0,ready:false};const row=document.createElement('tr');row.dataset.key=def.key;row.className=s.ready?'ready':'thin-sample';
     const pf=s.profitFactor===Infinity?'∞':Number.isFinite(s.profitFactor)?fmt(s.profitFactor):'—';
-    const values=[def.label,s.n,Number.isFinite(s.winRate)?fmt(s.winRate)+'%':'—',Number.isFinite(s.expectancy)?returnText(s.expectancy):'—',pf,Number.isFinite(s.medianMfe)?fmt(s.medianMfe)+'%':'—',Number.isFinite(s.medianMae)?fmt(s.medianMae)+'%':'—'];
+    const values=[def.label,s.n,Number.isFinite(s.winRate)?fmt(s.winRate)+'%':'—',Number.isFinite(s.expectancy)?returnText(s.expectancy):'—',Number.isFinite(s.medianReturn)?returnText(s.medianReturn):'—',pf,Number.isFinite(s.medianMfe)?fmt(s.medianMfe)+'%':'—',Number.isFinite(s.medianMae)?fmt(s.medianMae)+'%':'—'];
     values.forEach((value,i)=>{const cell=document.createElement(i?'td':'th');if(!i)cell.scope='row';cell.textContent=String(value);row.append(cell);});fragment.append(row);
   }
   body.replaceChildren(fragment);
@@ -282,7 +282,7 @@ function render(fit=false){
   reversalState=reversalStabilizer.update(rawReversal,reversalKey,cache?.serverTime??generation);
   const priceBands=weightedPriceBands(p,STEPS[$('interval').value]);priceBandMap=new Map(priceBands.map(x=>[x.t,x]));
   const volumeStrengthMap=new Map(volumeStrengthRows.map(x=>[x.t,x]));
-  wlrStatsData=wlrAgreementStatistics(p,rows.COMPOSITE??[],volumeStrengthRows,STEPS[$('interval').value]);renderWlrAgreementStats();
+  wlrStatsData=wlrAgreementStatistics(closedPrice,(rows.COMPOSITE??[]).filter(row=>closedTimes.has(row.t)),volumeStrengthRows.filter(row=>closedTimes.has(row.t)),STEPS[$('interval').value]);renderWlrAgreementStats();
   series.priceMid.setData(priceLineData(priceBands,maps.COMPOSITE??new Map(),volumeStrengthMap));series.priceUpper.setData(lineData(priceBands,'upper'));series.priceLower.setData(lineData(priceBands,'lower'));
   for(const key of Object.keys(colors))series[key].setData(flowData(rows[key]??[],key));
   series.relative.setData(relativeData(alignment));
