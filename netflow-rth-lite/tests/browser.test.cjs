@@ -28,6 +28,7 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
    return route.fulfill({json});
   });
   await page.goto('http://netflow.test/');await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('TRADING'),{},{timeout:120000});
+  assert.equal(await page.locator('main > .chart-options').count(),1);assert.equal(await page.locator('.chart-card .toggles').count(),0);assert.equal(await page.locator('.chart-options + .chart-card').count(),1);
   assert.match(await page.locator('#stat-score').textContent(),/\d+\/100/);assert((await page.locator('.badge').innerText()).includes('chưa train'));
   assert.match(await page.locator('#stat-group').textContent(),/S[+−0]/);assert.equal(await page.locator('#status').isVisible(),false);assert.equal(await page.locator('.stats-table').count(),0);
   assert.equal(await page.locator('.calendar-panel').isVisible(),true);assert.match(await page.locator('.calendar-panel').innerText(),/Forex Factory/);assert(await page.locator('.calendar-row').count()>0);assert.match(await page.locator('#calendar-status').innerText(),/tin · \d+ đã có thực tế/);assert.equal(await page.locator('.calendar-actual').count(),await page.locator('.calendar-row').count());
