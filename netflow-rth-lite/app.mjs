@@ -8,9 +8,11 @@ import {analyzeGeometry,analyzeBreakoutRetest,backtestGeometry} from './geometry
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261014-2';
 import {wlrAgreementStatistics,WLR_STATE_ROWS,WLR_AGREEMENT_ROWS,WLR_MIN_SAMPLES} from './wlr-agreement-stats.mjs?v=20261015-1';
 import {rev63Forecast,scoreForecastHistory,calibrationSummary,rev63ColorRegime,rev63ColorQualitySummary,rev63GeometryQualitySummary,REV63_COLOR_ROWS,REV63_GEOMETRY_ROWS,REV63_HORIZON} from './rev6-3-v1.mjs?v=20261015-3';
+import {SpreadImpactDetector,aggregateImpactHistogram,geometryBarIndexAt,geometryZoneAt,pruneImpactEvents} from './impact-volume.mjs?v=20261015-1';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
 let chart,price,series={},marks,strengthMarks,cache=null,rows={},volumeStrengthRows=[],modelRows={},modelVolumeStrengthRows=[],modelStamp=null,trainingMeta=null,maps={},alignmentMap=new Map(),priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},breakoutState=null,geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
+let impactEvents=[],impactGeometry={lines:[],barIndex:null,atr:null,lastClosedTime:null,step:null},impactSocket=null,impactReconnect=null,impactStreamState='offline';
 const colors={SPYUSDT:'#5ba8ff',QQQUSDT:'#c194ff',COMPOSITE:'#38dfba'};
 const flowTitles={SPYUSDT:'S Taker NF',QQQUSDT:'Q Taker NF',COMPOSITE:'C Taker NF'};
 const flowColors={
@@ -20,6 +22,7 @@ const flowColors={
 };
 const LIVE_REFRESH_MS=3000;
 const CALENDAR_REFRESH_MS=5*60*1000;
+const IMPACT_STORAGE_KEY='spy-geometry-spread-impact-v1';
 const FIT_WINDOW_MS=36*60*60*1000,DOUBLE_TAP_MS=360,DOUBLE_TAP_DISTANCE=28,TAP_MOVE_TOLERANCE=14;
 let statsMap=new Map(),candleColorMap=new Map(),wlrStatsData=null,rev63State=null,rev63History=[],reversalState={ready:false,reason:'window',n:0},inspectedTime=null;
 let calendarState={events:[],updatedAt:null,loading:false};
@@ -32,6 +35,38 @@ const tone=x=>x>0?'positive':x<0?'negative':'neutral';
 const calendarDay=new Intl.DateTimeFormat('vi-VN',{timeZone:CALENDAR_TIME_ZONE,weekday:'short',day:'2-digit',month:'2-digit'});
 const calendarTime=new Intl.DateTimeFormat('vi-VN',{timeZone:CALENDAR_TIME_ZONE,hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
 const calendarImpactLabel={High:'High',Medium:'Medium',Low:'Low',Holiday:'Nghỉ','Non-Economic':'Khác'};
+
+function loadImpactEvents(){try{return pruneImpactEvents(JSON.parse(localStorage.getItem(IMPACT_STORAGE_KEY)||'[]'));}catch{return [];}}
+function saveImpactEvents(){impactEvents=pruneImpactEvents(impactEvents);try{localStorage.setItem(IMPACT_STORAGE_KEY,JSON.stringify(impactEvents));}catch{}}
+function impactBarIndex(time){
+  return geometryBarIndexAt(time,rows.SPYUSDT??[],impactGeometry.barIndex);
+}
+function resolveImpactZone(priceValue,time){
+  return geometryZoneAt(priceValue,time,impactGeometry.lines,{barIndex:impactBarIndex(time),atr:impactGeometry.atr,toleranceAtr:.28,minScore:Number($('geometry-score')?.value??64)});
+}
+function recordImpact(event){
+  const compact={id:event.id,time:event.time,confirmedAt:event.confirmedAt,side:event.side,price:event.price,quote:event.quote,jumpSpreads:event.jumpSpreads,zoneKind:event.zone.kind,zoneScore:event.zone.score,lineValue:event.zone.lineValue,distanceAtr:event.zone.distanceAtr};
+  if(impactEvents.some(item=>item.id!==null&&item.id===compact.id&&item.time===compact.time))return;
+  impactEvents.push(compact);saveImpactEvents();renderImpactHistogram();
+}
+const impactDetector=new SpreadImpactDetector({zoneResolver:resolveImpactZone,onImpact:recordImpact});
+function renderImpactHistogram(){
+  if(!series.impactBuy||!series.impactSell)return;
+  const data=aggregateImpactHistogram(impactEvents,STEPS[$('interval').value]);series.impactBuy.setData(data.buy);series.impactSell.setData(data.sell);
+  const enabled=$('geometry-impact')?.checked??true;series.impactBuy.applyOptions({visible:enabled});series.impactSell.applyOptions({visible:enabled});
+  const node=$('impact-status');if(node){const latest=data.buckets.at(-1),count=data.buckets.reduce((sum,row)=>sum+row.buyCount+row.sellCount,0);node.textContent=impactStreamState==='live'?`Impact GEO · 48h · ${count} lần${latest?` · M ${fmtK(latest.buy)} / B ${fmtK(latest.sell)}`:''}`:'Impact GEO · đang nối stream';node.className=impactStreamState==='live'?'live':'missing';}
+}
+function startImpactStream(){
+  if(impactSocket&&[WebSocket.OPEN,WebSocket.CONNECTING].includes(impactSocket.readyState))return;
+  clearTimeout(impactReconnect);impactStreamState='connecting';renderImpactHistogram();
+  try{
+    impactSocket=new WebSocket('wss://fstream.binance.com/stream?streams=spyusdt@bookTicker/spyusdt@aggTrade');
+    impactSocket.onopen=()=>{impactStreamState='live';renderImpactHistogram();};
+    impactSocket.onmessage=message=>{try{const packet=JSON.parse(message.data),event=packet.data??packet;if(event.e==='bookTicker')impactDetector.onBook(event);else if(event.e==='aggTrade')impactDetector.onTrade(event);}catch{}};
+    impactSocket.onerror=()=>{impactStreamState='offline';renderImpactHistogram();};
+    impactSocket.onclose=()=>{impactStreamState='offline';renderImpactHistogram();impactReconnect=setTimeout(startImpactStream,5000);};
+  }catch{impactStreamState='offline';renderImpactHistogram();impactReconnect=setTimeout(startImpactStream,5000);}
+}
 
 function renderCalendar(){
   const list=$('calendar-list'),statusNode=$('calendar-status');if(!list||!statusNode)return;
@@ -170,6 +205,9 @@ function init(){
   series.strength.createPriceLine({price:0,color:'#d7e5f3',lineWidth:2,lineStyle:L.LineStyle.Solid,axisLabelVisible:true,title:'0'});
   series.strength.priceScale().applyOptions({scaleMargins:{top:.08,bottom:.08}});
   series.volumeStrength=chart.addSeries(L.BaselineSeries,{baseValue:{type:'price',price:0},topLineColor:'#1ae0a3',topFillColor1:'rgba(26,224,163,.14)',topFillColor2:'rgba(26,224,163,0)',bottomLineColor:'#ff4d70',bottomFillColor1:'rgba(255,77,112,0)',bottomFillColor2:'rgba(255,77,112,.14)',lineWidth:3,title:'SPY V',priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:true,crosshairMarkerRadius:4},3);
+  series.impactBuy=chart.addSeries(L.HistogramSeries,{priceScaleId:'impact',base:0,color:'rgba(26,224,163,.72)',title:'GEO Buy Impact',priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',formatter:fmtK}},3);
+  series.impactSell=chart.addSeries(L.HistogramSeries,{priceScaleId:'impact',base:0,color:'rgba(255,77,112,.72)',title:'GEO Sell Impact',priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',formatter:fmtK}},3);
+  series.impactBuy.priceScale().applyOptions({scaleMargins:{top:.58,bottom:.04},visible:false});
   series.volumeStrength.createPriceLine({price:0,color:'#6f8299',lineWidth:1,lineStyle:L.LineStyle.Solid,axisLabelVisible:true,title:'0'});
   series.volumeStrength.priceScale().applyOptions({scaleMargins:{top:.08,bottom:.08}});
   series.COMPOSITE.createPriceLine({price:0,color:'#60748c',lineWidth:1,lineStyle:L.LineStyle.Solid,axisLabelVisible:false});
@@ -307,6 +345,10 @@ function render(fit=false){
   const geometryInput={price:closedPrice,spy:(rows.SPYUSDT??[]).filter(row=>closedTimes.has(row.t)),qqq:(rows.QQQUSDT??[]).filter(row=>closedTimes.has(row.t)),flow:(rows.COMPOSITE??[]).filter(row=>closedTimes.has(row.t)),volume:volumeStrengthRows.filter(row=>closedTimes.has(row.t))},geometryOptions={minScore:Number($('geometry-score').value),maxLines:Number($('geometry-lines').value)};
   geometryState=analyzeGeometry(geometryInput,geometryOptions);breakoutState=analyzeBreakoutRetest(geometryInput,geometryOptions);
   geometryBacktest=backtestGeometry(closedPrice,geometryState.events,{horizon:4,minMoveAtr:.35});
+  const impactPrice=(rows.SPYUSDT??[]).filter(row=>(row.end??row.t)<closedBefore),impactTimes=new Set(impactPrice.map(row=>row.t));
+  const impactInput={price:impactPrice,spy:(rows.SPYUSDT??[]).filter(row=>impactTimes.has(row.t)),qqq:(rows.QQQUSDT??[]).filter(row=>impactTimes.has(row.t)),flow:(rows.COMPOSITE??[]).filter(row=>impactTimes.has(row.t)),volume:volumeStrengthRows.filter(row=>impactTimes.has(row.t))};
+  const impactState=$('symbol').value==='SPYUSDT'?geometryState:analyzeGeometry(impactInput,geometryOptions),impactLast=impactPrice.at(-1);
+  impactGeometry={lines:impactState.lines??[],barIndex:impactPrice.length-1,atr:impactState.atr?.at(-1)??null,lastClosedTime:impactLast?.t??null,step:STEPS[$('interval').value]};
   const volumeStrengthMap=new Map(volumeStrengthRows.map(x=>[x.t,x]));
   candleColorMap=new Map(p.map(x=>[x.t,strengthAgreementCandleSignal(maps.COMPOSITE?.get(x.t),volumeStrengthMap.get(x.t))]));
   const agreementColors=$('candle-agreement-color').checked;
@@ -323,6 +365,7 @@ function render(fit=false){
   series.alignment.setData(alignmentData(alignment));
   series.strength.setData(lineData(signalRows,'adjusted'));
   series.volumeStrength.setData(lineData(volumeStrengthRows,'adjusted'));
+  renderImpactHistogram();
   strengthMarks.setMarkers(signalRows.filter(x=>Number.isFinite(x.adjusted)&&x.adjusted>.95).map(x=>({time:x.t/1000,position:'inBar',color:'#7dffd9',shape:'circle',text:''})));
   for(const key of ['mid','upper','lower'])series[key].setData(lineData(signalRows,key));
   let previousDay=null,previousSession=null;
@@ -389,11 +432,13 @@ function showTooltip(t){
   statValue('stat-pair',a.detailState, a.detailState==='THUẬN MUA'?'positive':a.detailState==='THUẬN BÁN'?'negative':'neutral');
   $('stat-pair-note').textContent=`NF% mượt · S ${signed(a.smoothSpyNf)} / Q ${signed(a.smoothQqqNf)}`;
   const regimeText=colorSignal?.direction?`Composite×Volume ${colorSignal.colorRegime}: Composite ${signed(colorSignal.compositeStrength)}, SPY Volume ${signed(colorSignal.volumeStrength)}; độ đậm theo min(|Composite|, |Volume|) = ${fmt(colorSignal.agreement)}.`:`Composite×Volume TRUNG TÍNH${colorSignal?.neutralReason?` (${colorSignal.neutralReason.toLowerCase()})`:''}: Composite ${signed(colorSignal?.compositeStrength)}, SPY Volume ${signed(colorSignal?.volumeStrength)}; trái dấu, bằng 0 hoặc thiếu dữ liệu đều dùng xám.`;
+  const impactBucket=aggregateImpactHistogram(impactEvents,STEPS[$('interval').value]).buckets.find(row=>row.time===Math.floor(t/STEPS[$('interval').value])*STEPS[$('interval').value]);
   const colorText=$('candle-agreement-color').checked?`Màu nến ${regimeText}`:`Màu nến C×V đang tắt; chart dùng xanh/đỏ theo thân giá. Chế độ thống kê vẫn ghi nhận ${regimeText}`;
   const text=[`${mode} · ${time} · ${state.session} · Giá ${sourceName($('symbol').value)}, Strength phân tích ${sourceName($('signal').value)}${running?' · Nến đang chạy: điểm tạm thời, lịch sử so sánh dùng nến đóng':''}`,
     geometryLine?`GEO hiện tại: ${geometryLineText(geometryLine)}. Line chỉ xuất hiện từ ${new Date(geometryLine.knownAt).toLocaleString('vi-VN',{timeZone:'America/New_York'})} ET, sau khi pivot thứ hai được xác nhận; không dùng nến đang chạy.`:null,
     breakoutEvent?`Breakout/Retest causal: ${breakoutEvent.label} ${breakoutEvent.direction>0?'↑':'↓'} tại ${breakoutEvent.lineKind==='support'?'hỗ trợ':'kháng cự'} ${fmt(breakoutEvent.lineValue)} · line ${breakoutEvent.lineScore}/100 · cách ${fmt(breakoutEvent.distanceAtr)} ATR${breakoutEvent.key==='true_break'?' · Strength Composite, SPY V và NetFlow cùng xác nhận hướng phá':''}. Line tham chiếu được khóa trước hai nến kiểm tra.`:null,
     geometryEvent?`Dị biệt được xác nhận tại nến này: ${geometryEvent.direction==='bullish'?'phân kỳ tăng':geometryEvent.direction==='bearish'?'phân kỳ giảm':'SPY/QQQ luân phiên dẫn dắt'} · điểm ${geometryEvent.score}/100 · ΔStrength SPY ${signed(geometryEvent.spyDelta)} / QQQ ${signed(geometryEvent.qqqDelta)} / SPY V ${signed(geometryEvent.volumeDelta)} · ΔNetFlow ${signed(geometryEvent.flowDelta)}${geometryEvent.pairSplit?` · Strength SPY và QQQ ngược nhau, giá đang gần nhịp ${geometryEvent.leader==='SPY'?'SPY':geometryEvent.leader==='QQQ'?'QQQ':'hỗn hợp'}`:''}. Đây là mô tả hợp lưu tại thời điểm xác nhận, không phải dự báo chắc chắn.`:null,
+    impactBucket?`Impact vùng GEO 48h: mua ${fmtK(impactBucket.buy)} (${impactBucket.buyCount} lần) · bán ${fmtK(impactBucket.sell)} (${impactBucket.sellCount} lần). Chỉ tính taker trade làm best bid/ask dịch ít nhất một spread trong ±0,28 ATR quanh line causal đã được xác nhận.`:'Impact vùng GEO: chưa có lần dịch spread đạt điều kiện trong nến này.',
     colorText,
     `Điểm xác nhận ${state.score??'—'}/100 = Taker ${fmt(state.taker)}/50 + Dải ${fmt(state.pair)}/30 + |Strength| ${fmt(state.strength)}/20. Điểm theo quy tắc, không phải xác suất thắng.`];
   const nodes=text.filter(Boolean).map(value=>{const div=document.createElement('div');div.textContent=value;return div;});
@@ -411,6 +456,7 @@ function toggle(){
   updateReversalZone();
   updateStrengthLabels();
   for(const key of ['mid','upper','lower'])series[key].applyOptions({visible:$('bands').checked});
+  renderImpactHistogram();
   marks.applyOptions({visible:$('markers').checked});
 }
 async function refresh(clear=false){
@@ -485,7 +531,7 @@ function bindChartGestures(){
 if(init()){
   $('refresh').onclick=()=>refresh();for(const id of ['interval','days'])$(id).onchange=()=>refresh(true);
   for(const id of ['symbol','signal'])$(id).onchange=()=>render(false);
-  for(const id of ['spy','qqq','composite','relative','alignment','price-bands','reversal-zone','cvd-spectrum-toggle','show-strength','spy-volume-strength','bands','markers','geometry-toggle','geometry-pivots'])$(id).onchange=toggle;
+  for(const id of ['spy','qqq','composite','relative','alignment','price-bands','reversal-zone','cvd-spectrum-toggle','show-strength','spy-volume-strength','geometry-impact','bands','markers','geometry-toggle','geometry-pivots'])$(id).onchange=toggle;
   for(const id of ['geometry-score','geometry-lines'])$(id).onchange=()=>render(false);
   $('wlr-horizon').onchange=renderWlrAgreementStats;
   $('phase-width').onchange=()=>render(false);
@@ -494,7 +540,7 @@ if(init()){
   document.addEventListener('fullscreenchange',syncFullChart);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.querySelector('.chart-card').classList.contains('fullscreen-fallback')){document.querySelector('.chart-card').classList.remove('fullscreen-fallback');syncFullChart();}});
   $('export').onclick=exportCSV;
   const changeCalendarFilter=()=>{delete $('calendar-list').dataset.positioned;renderCalendar();};$('calendar-impact').onchange=changeCalendarFilter;$('calendar-currency').onchange=changeCalendarFilter;$('calendar-refresh').onclick=refreshCalendar;
-  setLive(false);refreshCalendar();refresh(true);setInterval(()=>{updateCandleCountdown();if(lastSuccess&&Date.now()-lastSuccess>15000)setLive(false);if(!document.hidden&&!loading)refresh();},LIVE_REFRESH_MS);
+  impactEvents=loadImpactEvents();startImpactStream();setLive(false);refreshCalendar();refresh(true);setInterval(()=>{updateCandleCountdown();if(lastSuccess&&Date.now()-lastSuccess>15000)setLive(false);if(!document.hidden&&!loading)refresh();},LIVE_REFRESH_MS);
   setInterval(()=>{if(!document.hidden)refreshCalendar();},CALENDAR_REFRESH_MS);
   setInterval(updateCandleCountdown,250);
 }
