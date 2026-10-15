@@ -5,15 +5,16 @@ import {STEPS,parseKlines,composite,analyze} from '../engine.mjs';
 import {causalAtr,confirmedPricePivots,analyzeGeometry,classifyBreakoutRetest,backtestGeometry} from '../geometry.mjs';
 
 function synthetic(length=240){
-  const step=STEPS['15m'],price=[],spy=[],qqq=[],flow=[];
+  const step=STEPS['15m'],price=[],spy=[],qqq=[],flow=[],volume=[];
   for(let index=0;index<length;index++){
     const wave=Math.sin(index*Math.PI/10),c=100-.025*index+2.2*wave,t=index*step,end=t+step-1;
     price.push({t,end,o:c-.08,h:c+.32,l:c-.32,c,q:100,buy:50,net:0,nf:0,day:'2026-10-14',session:'RTH'});
     spy.push({t,adjusted:-.72+.0045*index+.3*wave});
     qqq.push({t,adjusted:-.62+.0035*index+.24*wave});
     flow.push({t,nf:-18+.14*index+9*wave});
+    volume.push({t,adjusted:-.55+.004*index+.2*wave});
   }
-  return {price,spy,qqq,flow};
+  return {price,spy,qqq,flow,volume};
 }
 
 test('ATR and pivot confirmation are prefix-causal with an explicit two-bar delay',()=>{
@@ -29,7 +30,7 @@ test('ATR and pivot confirmation are prefix-causal with an explicit two-bar dela
 
 test('divergences are emitted only at confirmation time and remain unchanged by future bars',()=>{
   const data=synthetic(),options={left:2,right:2,minProminenceAtr:.03,minScore:0,maxLines:6},full=analyzeGeometry(data,options);
-  assert(full.events.some(event=>event.direction==='bullish'));assert(full.lines.length>0);
+  assert(full.events.some(event=>event.direction==='bullish'));assert(full.events.some(event=>Number.isFinite(event.volumeDelta)));assert(full.lines.length>0);
   for(const length of [100,160,220]){
     const prefix=Object.fromEntries(Object.entries(data).map(([key,value])=>[key,value.slice(0,length)])),partial=analyzeGeometry(prefix,options);
     assert.deepEqual(partial.events,full.events.filter(event=>event.atIndex<length));
@@ -57,8 +58,8 @@ test('breakout and retest classification uses only a previously known line and t
   const bars=Array.from({length:20},(_,index)=>({t:index*900000,o:101,h:101.5,l:99.8,c:101})),line={kind:'support',score:80,knownAt:bars[10].t,startIndex:0,startValue:100,slope:0};
   const held=classifyBreakoutRetest(bars,[line]);assert.equal(held.key,'hold_support');assert.equal(held.direction,1);
   const broken=bars.map(x=>({...x}));Object.assign(broken[18],{o:99,h:99.2,l:97.8,c:98});Object.assign(broken[19],{o:98,h:98.7,l:97.7,c:98.1});
-  assert.equal(classifyBreakoutRetest(broken,[line],{strengthDirection:-1,flowDirection:-1}).key,'true_break');
-  assert.equal(classifyBreakoutRetest(broken,[line],{strengthDirection:1,flowDirection:-1}),null);
+  assert.equal(classifyBreakoutRetest(broken,[line],{strengthDirection:-1,flowDirection:-1,volumeDirection:-1}).key,'true_break');
+  assert.equal(classifyBreakoutRetest(broken,[line],{strengthDirection:-1,flowDirection:-1,volumeDirection:1}),null);
   const reclaimed=broken.map(x=>({...x}));Object.assign(reclaimed[19],{o:98,h:101.4,l:97.8,c:101});
   const falseBreak=classifyBreakoutRetest(reclaimed,[line],{strengthDirection:1,flowDirection:1});assert.equal(falseBreak.key,'false_break');assert.equal(falseBreak.direction,1);
 });

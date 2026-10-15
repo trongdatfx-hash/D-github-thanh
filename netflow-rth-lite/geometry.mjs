@@ -44,23 +44,23 @@ export function confirmedPricePivots(bars,options={}){
   return pivots.sort((a,b)=>a.confirmedIndex-b.confirmedIndex||a.index-b.index||a.type.localeCompare(b.type));
 }
 
-function contextAt(bars,spy,qqq,flow){
-  const spyMap=new Map(spy.map(row=>[row.t,row])),qqqMap=new Map(qqq.map(row=>[row.t,row])),flowMap=new Map(flow.map(row=>[row.t,row]));
-  return bars.map(bar=>({spy:spyMap.get(bar.t)?.adjusted,qqq:qqqMap.get(bar.t)?.adjusted,flow:flowMap.get(bar.t)?.nf}));
+function contextAt(bars,spy,qqq,flow,volume){
+  const spyMap=new Map(spy.map(row=>[row.t,row])),qqqMap=new Map(qqq.map(row=>[row.t,row])),flowMap=new Map(flow.map(row=>[row.t,row])),volumeMap=new Map(volume.map(row=>[row.t,row]));
+  return bars.map(bar=>({spy:spyMap.get(bar.t)?.adjusted,qqq:qqqMap.get(bar.t)?.adjusted,flow:flowMap.get(bar.t)?.nf,volume:volumeMap.get(bar.t)?.adjusted}));
 }
 
 function swingContext(first,second,context,config){
   const priceDeltaAtr=(second.value-first.value)/(second.atr||first.atr||1),a=context[first.index]??{},b=context[second.index]??{};
-  const spyDelta=finite(a.spy)&&finite(b.spy)?b.spy-a.spy:null,qqqDelta=finite(a.qqq)&&finite(b.qqq)?b.qqq-a.qqq:null,flowDelta=finite(a.flow)&&finite(b.flow)?b.flow-a.flow:null;
+  const spyDelta=finite(a.spy)&&finite(b.spy)?b.spy-a.spy:null,qqqDelta=finite(a.qqq)&&finite(b.qqq)?b.qqq-a.qqq:null,flowDelta=finite(a.flow)&&finite(b.flow)?b.flow-a.flow:null,volumeDelta=finite(a.volume)&&finite(b.volume)?b.volume-a.volume:null;
   const expected=second.type==='low'?1:-1,priceExtreme=second.type==='low'?priceDeltaAtr<=-config.minPriceSwingAtr:priceDeltaAtr>=config.minPriceSwingAtr;
-  const strengthVotes=[spyDelta,qqqDelta].filter(finite).map(delta=>clamp(expected*delta/config.minStrengthSwing));
+  const strengthVotes=[spyDelta,qqqDelta,volumeDelta].filter(finite).map(delta=>clamp(expected*delta/config.minStrengthSwing)),strengthVote=strengthVotes.reduce((sum,value)=>sum+value,0)/(strengthVotes.length||1);
   const flowVote=finite(flowDelta)?clamp(expected*flowDelta/config.minFlowSwing):0;
-  const divergence=priceExtreme?clamp(.4*(strengthVotes[0]??0)+.4*(strengthVotes[1]??0)+.2*flowVote):0;
+  const divergence=priceExtreme?clamp(.8*strengthVote+.2*flowVote):0;
   const pairSplit=finite(spyDelta)&&finite(qqqDelta)&&sign(spyDelta,config.minStrengthSwing/2)*sign(qqqDelta,config.minStrengthSwing/2)===-1;
   const priceDirection=sign(priceDeltaAtr,config.minPriceSwingAtr/2),spyDirection=sign(spyDelta??0,config.minStrengthSwing/2),qqqDirection=sign(qqqDelta??0,config.minStrengthSwing/2);
   const leader=pairSplit?(priceDirection===spyDirection?'SPY':priceDirection===qqqDirection?'QQQ':'MIXED'):null;
-  const confirmation=clamp((strengthVotes.reduce((sum,value)=>sum+value,0)/(strengthVotes.length||1))*.7+flowVote*.3);
-  return {priceDeltaAtr,spyDelta,qqqDelta,flowDelta,divergence,pairSplit,leader,confirmation};
+  const confirmation=clamp(strengthVote*.7+flowVote*.3);
+  return {priceDeltaAtr,spyDelta,qqqDelta,flowDelta,volumeDelta,divergence,pairSplit,leader,confirmation};
 }
 
 export function confirmedDivergences(pivots,context,options={}){
@@ -127,17 +127,17 @@ export function buildTrendlines(bars,pivots,context,options={}){
   return selected.slice(0,config.maxLines).sort((a,b)=>b.score-a.score);
 }
 
-export function analyzeGeometry({price,spy=[],qqq=[],flow=[]},options={}){
-  if(!Array.isArray(price)||!Array.isArray(spy)||!Array.isArray(qqq)||!Array.isArray(flow))throw Error('Nguồn hình học không hợp lệ');
+export function analyzeGeometry({price,spy=[],qqq=[],flow=[],volume=[]},options={}){
+  if(!Array.isArray(price)||!Array.isArray(spy)||!Array.isArray(qqq)||!Array.isArray(flow)||!Array.isArray(volume))throw Error('Nguồn hình học không hợp lệ');
   if(!price.length)return {pivots:[],events:[],lines:[],summary:{support:0,resistance:0,divergences:0,rotations:0}};
-  const config={...GEOMETRY_DEFAULTS,...options},atr=causalAtr(price,{period:config.atrPeriod}),pivots=confirmedPricePivots(price,{...config,atr}),context=contextAt(price,spy,qqq,flow),events=confirmedDivergences(pivots,context,config),lines=buildTrendlines(price,pivots,context,{...config,atr});
+  const config={...GEOMETRY_DEFAULTS,...options},atr=causalAtr(price,{period:config.atrPeriod}),pivots=confirmedPricePivots(price,{...config,atr}),context=contextAt(price,spy,qqq,flow,volume),events=confirmedDivergences(pivots,context,config),lines=buildTrendlines(price,pivots,context,{...config,atr});
   return {pivots,events,lines,summary:{support:lines.filter(line=>line.kind==='support').length,resistance:lines.filter(line=>line.kind==='resistance').length,divergences:events.filter(event=>event.type==='regular-divergence').length,rotations:events.filter(event=>event.detail?.pairSplit||event.pairSplit).length},atr};
 }
 
 const lineAt=(line,index)=>line.startValue+line.slope*(index-line.startIndex);
 const rowAt=(rows,time)=>rows.findLast?.(row=>row.t===time)??[...rows].reverse().find(row=>row.t===time);
 
-export function classifyBreakoutRetest(price,lines,{strengthDirection=0,flowDirection=0,touchToleranceAtr=.28,breakToleranceAtr=.35}={}){
+export function classifyBreakoutRetest(price,lines,{strengthDirection=0,flowDirection=0,volumeDirection=0,touchToleranceAtr=.28,breakToleranceAtr=.35}={}){
   if(!Array.isArray(price)||!Array.isArray(lines)||price.length<2)return null;
   const atr=causalAtr(price),currentIndex=price.length-1,previousIndex=currentIndex-1,current=price[currentIndex],previous=price[previousIndex],scale=atr[currentIndex],previousScale=atr[previousIndex];
   if(!finite(scale)||scale<=0||!finite(previousScale)||previousScale<=0)return null;
@@ -149,7 +149,7 @@ export function classifyBreakoutRetest(price,lines,{strengthDirection=0,flowDire
     const currentBeyond=isSupport?current.c<currentLine-breakToleranceAtr*scale:current.c>currentLine+breakToleranceAtr*scale;
     const reclaimed=isSupport?current.c>=currentLine-.08*scale:current.c<=currentLine+.08*scale;
     const touched=isSupport?current.l<=currentLine+touchToleranceAtr*scale&&current.h>=currentLine-touchToleranceAtr*scale:current.h>=currentLine-touchToleranceAtr*scale&&current.l<=currentLine+touchToleranceAtr*scale;
-    const held=touched&&(isSupport?current.c>=currentLine:current.c<=currentLine),flowAligned=sign(strengthDirection)===breakDirection&&sign(flowDirection)===breakDirection;
+    const held=touched&&(isSupport?current.c>=currentLine:current.c<=currentLine),flowAligned=sign(strengthDirection)===breakDirection&&sign(flowDirection)===breakDirection&&sign(volumeDirection)===breakDirection;
     let key=null,direction=0,priority=0;
     if(previousBeyond&&reclaimed){key='false_break';direction=holdDirection;priority=3;}
     else if(previousBeyond&&currentBeyond&&flowAligned){key='true_break';direction=breakDirection;priority=2;}
@@ -161,11 +161,11 @@ export function classifyBreakoutRetest(price,lines,{strengthDirection=0,flowDire
   return candidates.sort((a,b)=>b.priority-a.priority||b.confidence-a.confidence||a.distanceAtr-b.distanceAtr)[0]??null;
 }
 
-export function analyzeBreakoutRetest({price,spy=[],qqq=[],flow=[]},options={}){
+export function analyzeBreakoutRetest({price,spy=[],qqq=[],flow=[],volume=[]},options={}){
   if(!Array.isArray(price)||price.length<18)return null;
-  const referenceLength=price.length-2,prefix={price:price.slice(0,referenceLength),spy:spy.filter(row=>row.t<=price[referenceLength-1].t),qqq:qqq.filter(row=>row.t<=price[referenceLength-1].t),flow:flow.filter(row=>row.t<=price[referenceLength-1].t)};
-  const geometry=analyzeGeometry(prefix,options),latest=price.at(-1),strength=rowAt(flow,latest.t)?.adjusted,netFlow=rowAt(flow,latest.t)?.nf;
-  return classifyBreakoutRetest(price,geometry.lines,{strengthDirection:sign(strength??0),flowDirection:sign(netFlow??0),touchToleranceAtr:options.touchToleranceAtr??GEOMETRY_DEFAULTS.touchToleranceAtr,breakToleranceAtr:options.breakoutToleranceAtr??.35});
+  const referenceLength=price.length-2,prefix={price:price.slice(0,referenceLength),spy:spy.filter(row=>row.t<=price[referenceLength-1].t),qqq:qqq.filter(row=>row.t<=price[referenceLength-1].t),flow:flow.filter(row=>row.t<=price[referenceLength-1].t),volume:volume.filter(row=>row.t<=price[referenceLength-1].t)};
+  const geometry=analyzeGeometry(prefix,options),latest=price.at(-1),strength=rowAt(flow,latest.t)?.adjusted,netFlow=rowAt(flow,latest.t)?.nf,volumeStrength=rowAt(volume,latest.t)?.adjusted;
+  return classifyBreakoutRetest(price,geometry.lines,{strengthDirection:sign(strength??0),flowDirection:sign(netFlow??0),volumeDirection:sign(volumeStrength??0),touchToleranceAtr:options.touchToleranceAtr??GEOMETRY_DEFAULTS.touchToleranceAtr,breakToleranceAtr:options.breakoutToleranceAtr??.35});
 }
 
 export function backtestGeometry(price,events,{horizon=4,minMoveAtr=.35,atrPeriod=14}={}){
