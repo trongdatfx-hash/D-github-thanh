@@ -7,7 +7,7 @@ import {ReversalStabilizer} from './stability.mjs?v=20261012-5';
 import {analyzeGeometry,backtestGeometry} from './geometry.mjs?v=20261014-1';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261014-2';
 import {wlrAgreementStatistics,WLR_STATE_ROWS,WLR_AGREEMENT_ROWS,WLR_MIN_SAMPLES} from './wlr-agreement-stats.mjs?v=20261015-1';
-import {rev63Forecast,scoreForecastHistory,calibrationSummary,REV63_HORIZON} from './rev6-3-v1.mjs?v=20261015-1';
+import {rev63Forecast,scoreForecastHistory,calibrationSummary,rev63ColorRegime,rev63ColorQualitySummary,REV63_COLOR_ROWS,REV63_HORIZON} from './rev6-3-v1.mjs?v=20261015-2';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
 let chart,price,series={},marks,strengthMarks,cache=null,rows={},volumeStrengthRows=[],modelRows={},modelVolumeStrengthRows=[],modelStamp=null,trainingMeta=null,maps={},alignmentMap=new Map(),priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
@@ -125,16 +125,23 @@ function renderRev63(){
   $('rev63-confidence').textContent='Confidence '+rev63State.confidence+'/100';
   const c=rev63State.components;
   $('rev63-components').textContent='REV6 '+signed(c.rev6)+' · WLR '+signed(c.wlr)+' · Agreement '+signed(c.agreement)+' · NetFlow '+signed(c.netflow)+' · Geometry '+signed(c.geometry);
-  $('rev63-state').textContent=(rev63State.stateKey||'neutral')+' · '+(rev63State.agreementKey||'Agreement chưa đủ lịch sử')+(Number.isFinite(rev63State.agreementRank)?' · P'+Math.round(rev63State.agreementRank*100):'');
+  const latestColor=candleColorMap.get((rows[$('symbol').value]??[]).filter(row=>(row.end??row.t)<(cache?.serverTime??Infinity)).at(-1)?.t),colorLabel=latestColor?.direction>0?'đồng thuận tăng':latestColor?.direction<0?'đồng thuận giảm':'trung tính / trái dấu';
+  $('rev63-state').textContent=(rev63State.stateKey||'neutral')+' · '+(rev63State.agreementKey||'Agreement chưa đủ lịch sử')+(Number.isFinite(rev63State.agreementRank)?' · P'+Math.round(rev63State.agreementRank*100):'')+' · Màu '+colorLabel;
   const cal=calibrationSummary(rev63History),bins=cal.bins.map(x=>x.label+': n='+x.n+(x.n?' · hit '+fmt(x.accuracy)+'% · Brier '+fmt(x.brier):'')).join(' | ');
   $('rev63-score').textContent=cal.n?'Đã chấm '+cal.n+' dự báo · đúng hướng '+fmt(cal.accuracy)+'% · Brier '+fmt(cal.brier):'Chưa có dự báo đủ 3 nến để tự chấm';
   $('rev63-calibration').textContent=bins;
+  const colorQuality=rev63ColorQualitySummary(rev63History),body=$('rev63-color-body'),fragment=document.createDocumentFragment();
+  for(const def of REV63_COLOR_ROWS){const summary=colorQuality.summaries[def.key],row=document.createElement('tr'),values=[def.label,summary.n,summary.n?fmt(summary.accuracy)+'%':'—',summary.n?fmt(summary.brier):'—',summary.n?returnText(summary.expectancy):'—'];row.dataset.key=def.key;for(const [i,value] of values.entries()){const cell=document.createElement(i?'td':'th');if(!i)cell.scope='row';cell.textContent=String(value);row.append(cell);}fragment.append(row);}body.replaceChildren(fragment);
+  $('rev63-color-note').textContent=colorQuality.n?`Đã chấm ${colorQuality.n} dự báo có nhãn màu causal. EV hướng = lợi nhuận 3 nến theo phía dự báo; Xám→đồng thuận là nhóm con chuyển pha.`:'Bắt đầu tích lũy khi dự báo mới đủ 3 nến; lịch sử cũ không có nhãn màu nên không được suy đoán lại.';
 }
 function updateRev63(closedPrice){
   const latest=closedPrice.at(-1),alignment=[...alignmentMap.values()].filter(x=>x.t<=latest?.t).at(-1);
   rev63State=rev63Forecast({reversal:reversalState,wlrStats:wlrStatsData,alignment,geometryEvents:geometryState.events,priceRows:closedPrice});
   rev63History=scoreForecastHistory(closedPrice,loadRev63History(),REV63_HORIZON).filter(x=>!x.void);
-  if(latest&&rev63State&&!rev63History.some(x=>x.entryTime===latest.t))rev63History.push({entryTime:latest.t,pUp:rev63State.pUp,step:STEPS[$('interval').value],label:rev63State.label,createdAt:Date.now()});
+  if(latest&&rev63State&&!rev63History.some(x=>x.entryTime===latest.t)){
+    const previous=closedPrice.at(-2),color=rev63ColorRegime(candleColorMap.get(latest.t),previous?candleColorMap.get(previous.t):null);
+    rev63History.push({entryTime:latest.t,pUp:rev63State.pUp,step:STEPS[$('interval').value],label:rev63State.label,createdAt:Date.now(),...color});
+  }
   saveRev63History(rev63History);renderRev63();updateGeometryReadout();
 }
 function init(){
@@ -178,6 +185,7 @@ function candlePalette(x){
   const target=x.direction>0?[8,232,169]:[255,65,99];
   return {body:mixColor([91,105,124],target,intensity),wick:mixColor([112,126,145],target,Math.min(1,intensity+.1)),border:mixColor([74,89,108],target,Math.min(1,intensity+.06))};
 }
+function priceDirectionPalette(x){const up=x.c>=x.o,target=up?[8,190,145]:[235,76,101];return {body:mixColor([91,105,124],target,.78),wick:mixColor([112,126,145],target,.88),border:mixColor([74,89,108],target,.84)};}
 function lineData(data,key){return data.map(x=>Number.isFinite(x[key])?{time:x.t/1000,value:x[key]}:{time:x.t/1000});}
 function priceLineData(data,compositeStrength,volumeStrength){const variable=$('phase-width').checked;return data.map(x=>Number.isFinite(x.mid)?{time:x.t/1000,value:x.mid,width:variable?strengthPhaseLineWidth(compositeStrength.get(x.t),volumeStrength.get(x.t),{thick:6}):2}:{time:x.t/1000});}
 function flowData(data,key){const palette=flowColors[key];return data.map(x=>Number.isFinite(x.net)?{time:x.t/1000,value:x.net,color:x.net>=0?palette.up:palette.down}:{time:x.t/1000});}
@@ -289,7 +297,8 @@ function render(fit=false){
   geometryBacktest=backtestGeometry(closedPrice,geometryState.events,{horizon:4,minMoveAtr:.35});
   const volumeStrengthMap=new Map(volumeStrengthRows.map(x=>[x.t,x]));
   candleColorMap=new Map(p.map(x=>[x.t,strengthAgreementCandleSignal(maps.COMPOSITE?.get(x.t),volumeStrengthMap.get(x.t))]));
-  price.setData(p.map(x=>{const color=candlePalette(candleColorMap.get(x.t));return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color:color.body,wickColor:color.wick,borderColor:color.border};}));
+  const agreementColors=$('candle-agreement-color').checked;
+  price.setData(p.map(x=>{const color=agreementColors?candlePalette(candleColorMap.get(x.t)):priceDirectionPalette(x);return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color:color.body,wickColor:color.wick,borderColor:color.border};}));
   statsMap=strengthStatistics({...rows,alignment},$('symbol').value,$('signal').value,STEPS[$('interval').value]);
   trendMap=trendStrength6({...rows,alignment},$('signal').value,STEPS[$('interval').value]);
   const rawReversal=reversalZone(model,$('symbol').value,$('signal').value,STEPS[$('interval').value]);
@@ -362,7 +371,8 @@ function showTooltip(t){
   const a=state.alignment;
   statValue('stat-pair',a.detailState, a.detailState==='THUẬN MUA'?'positive':a.detailState==='THUẬN BÁN'?'negative':'neutral');
   $('stat-pair-note').textContent=`NF% mượt · S ${signed(a.smoothSpyNf)} / Q ${signed(a.smoothQqqNf)}`;
-  const colorText=colorSignal?.direction?`Màu nến Composite×Volume ${colorSignal.colorRegime}: Composite ${signed(colorSignal.compositeStrength)}, SPY Volume ${signed(colorSignal.volumeStrength)}; độ đậm theo min(|Composite|, |Volume|) = ${fmt(colorSignal.agreement)}.`:`Màu nến Composite×Volume TRUNG TÍNH${colorSignal?.neutralReason?` (${colorSignal.neutralReason.toLowerCase()})`:''}: Composite ${signed(colorSignal?.compositeStrength)}, SPY Volume ${signed(colorSignal?.volumeStrength)}; trái dấu, bằng 0 hoặc thiếu dữ liệu đều dùng xám.`;
+  const regimeText=colorSignal?.direction?`Composite×Volume ${colorSignal.colorRegime}: Composite ${signed(colorSignal.compositeStrength)}, SPY Volume ${signed(colorSignal.volumeStrength)}; độ đậm theo min(|Composite|, |Volume|) = ${fmt(colorSignal.agreement)}.`:`Composite×Volume TRUNG TÍNH${colorSignal?.neutralReason?` (${colorSignal.neutralReason.toLowerCase()})`:''}: Composite ${signed(colorSignal?.compositeStrength)}, SPY Volume ${signed(colorSignal?.volumeStrength)}; trái dấu, bằng 0 hoặc thiếu dữ liệu đều dùng xám.`;
+  const colorText=$('candle-agreement-color').checked?`Màu nến ${regimeText}`:`Màu nến C×V đang tắt; chart dùng xanh/đỏ theo thân giá. Chế độ thống kê vẫn ghi nhận ${regimeText}`;
   const text=[`${mode} · ${time} · ${state.session} · Giá ${sourceName($('symbol').value)}, Strength phân tích ${sourceName($('signal').value)}${running?' · Nến đang chạy: điểm tạm thời, lịch sử so sánh dùng nến đóng':''}`,
     geometryLine?`GEO hiện tại: ${geometryLineText(geometryLine)}. Line chỉ xuất hiện từ ${new Date(geometryLine.knownAt).toLocaleString('vi-VN',{timeZone:'America/New_York'})} ET, sau khi pivot thứ hai được xác nhận; không dùng nến đang chạy.`:null,
     geometryEvent?`Dị biệt được xác nhận tại nến này: ${geometryEvent.direction==='bullish'?'phân kỳ tăng':geometryEvent.direction==='bearish'?'phân kỳ giảm':'SPY/QQQ luân phiên dẫn dắt'} · điểm ${geometryEvent.score}/100 · ΔStrength SPY ${signed(geometryEvent.spyDelta)} / QQQ ${signed(geometryEvent.qqqDelta)} · ΔNetFlow ${signed(geometryEvent.flowDelta)}${geometryEvent.pairSplit?` · Strength SPY và QQQ ngược nhau, giá đang gần nhịp ${geometryEvent.leader==='SPY'?'SPY':geometryEvent.leader==='QQQ'?'QQQ':'hỗn hợp'}`:''}. Đây là mô tả hợp lưu tại thời điểm xác nhận, không phải dự báo chắc chắn.`:null,
@@ -462,6 +472,7 @@ if(init()){
   for(const id of ['geometry-score','geometry-lines'])$(id).onchange=()=>render(false);
   $('wlr-horizon').onchange=renderWlrAgreementStats;
   $('phase-width').onchange=()=>render(false);
+  $('candle-agreement-color').onchange=()=>render(false);
   $('fit').onclick=fitChart;$('chart-fit').onclick=fitChart;$('fullscreen').onclick=toggleFullChart;
   document.addEventListener('fullscreenchange',syncFullChart);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.querySelector('.chart-card').classList.contains('fullscreen-fallback')){document.querySelector('.chart-card').classList.remove('fullscreen-fallback');syncFullChart();}});
   $('export').onclick=exportCSV;

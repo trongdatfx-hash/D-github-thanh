@@ -1,6 +1,12 @@
 export const REV63_VERSION='REV6-3 V1';
 export const REV63_HORIZON=3;
 export const REV63_WEIGHTS=Object.freeze({rev6:.40,wlr:.25,agreement:.15,netflow:.10,geometry:.10});
+export const REV63_COLOR_ROWS=Object.freeze([
+  {key:'agreement_up',label:'Đồng thuận tăng'},
+  {key:'agreement_down',label:'Đồng thuận giảm'},
+  {key:'neutral',label:'Trung tính / trái dấu'},
+  {key:'neutral_to_agreement',label:'Xám → đồng thuận'}
+]);
 const clamp=(x,a=-1,b=1)=>Math.max(a,Math.min(b,x));
 const sign=x=>x>0?1:x<0?-1:0;
 const bayesRate=(summary,prior=20)=>{
@@ -59,4 +65,23 @@ export function calibrationSummary(records){
     return {label:hi>1?'≥80%':`${Math.round(lo*100)}–${Math.round(hi*100)}%`,n:rows.length,accuracy:rows.length?100*rows.filter(x=>x.correct).length/rows.length:null,brier:rows.length?rows.reduce((s,x)=>s+x.brier,0)/rows.length:null};
   });
   return {n:done.length,accuracy:done.length?100*done.filter(x=>x.correct).length/done.length:null,brier:done.length?done.reduce((s,x)=>s+x.brier,0)/done.length:null,bins};
+}
+export function rev63ColorRegime(signal,previousSignal=null){
+  const direction=signal?.direction>0?1:signal?.direction<0?-1:0,previousDirection=previousSignal?.direction>0?1:previousSignal?.direction<0?-1:0;
+  return {colorRegime:direction>0?'agreement_up':direction<0?'agreement_down':'neutral',colorTransition:direction!==0&&previousDirection===0?'neutral_to_agreement':null,colorAgreement:Number.isFinite(signal?.agreement)?signal.agreement:null};
+}
+const colorQuality=row=>{
+  const direction=row.pUp>=.5?1:-1;
+  return {...row,directionalReturn:Number.isFinite(row.returnPct)?direction*row.returnPct:null};
+};
+const summarizeColorRows=rows=>({
+  n:rows.length,
+  accuracy:rows.length?100*rows.filter(x=>x.correct).length/rows.length:null,
+  brier:rows.length?rows.reduce((sum,x)=>sum+x.brier,0)/rows.length:null,
+  expectancy:rows.length?rows.reduce((sum,x)=>sum+(x.directionalReturn??0),0)/rows.length:null
+});
+export function rev63ColorQualitySummary(records){
+  const done=records.filter(x=>x.scored&&!x.void&&['agreement_up','agreement_down','neutral'].includes(x.colorRegime)).map(colorQuality),summaries={};
+  for(const row of REV63_COLOR_ROWS){const sample=row.key==='neutral_to_agreement'?done.filter(x=>x.colorTransition===row.key):done.filter(x=>x.colorRegime===row.key);summaries[row.key]=summarizeColorRows(sample);}
+  return {n:done.length,summaries};
 }
