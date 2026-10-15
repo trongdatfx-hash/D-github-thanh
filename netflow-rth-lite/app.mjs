@@ -252,11 +252,10 @@ function geometryLineText(line){
 function updateGeometryReadout(){
   const node=$('geometry-readout');if(!node)return;node.style.display='block';
   if(!rev63State){node.textContent='REV6-3 V1 · UP — / DOWN — · CONF —';node.className='forecast wait';node.title='Chờ đủ nến đã đóng để tính dự báo 3 nến.';return;}
-  const up=Math.round(rev63State.pUp*100),down=100-up,conf=rev63State.confidence;
-  const state=rev63State.label==='WAIT'?' · WAIT':'';
-  node.textContent=`REV6-3 · UP ${up}% · DOWN ${down}% · CONF ${conf}${state}`;
+  const up=Math.round(rev63State.pUp*100),down=100-up,conf=rev63State.confidence,wait=Math.max(0,100-conf);
+  node.textContent=`REV6-3 · UP ${up}% · DOWN ${down}% · WAIT ${wait}% · CONF ${conf}`;
   node.className=`forecast ${rev63State.label.toLowerCase()}`;
-  node.title=`REV6-3 V1 · ${rev63State.label} · evidence ${fmt(rev63State.evidence)} · WLR ${rev63State.stateKey??'neutral'} · ${Number.isFinite(rev63State.agreementRank)?`Agreement P${Math.round(rev63State.agreementRank*100)}`:'Agreement chưa đủ lịch sử'}. Trendline GEO vẫn được vẽ trên chart và xem chi tiết qua tooltip/crosshair.`;
+  node.title=`REV6-3 V1 · ${rev63State.label} · WAIT ${wait}% là chỉ số bất định = 100 − Confidence, không phải xác suất thứ ba độc lập · evidence ${fmt(rev63State.evidence)} · WLR ${rev63State.stateKey??'neutral'} · ${Number.isFinite(rev63State.agreementRank)?`Agreement P${Math.round(rev63State.agreementRank*100)}`:'Agreement chưa đủ lịch sử'}. Trendline GEO vẫn được vẽ trên chart và xem chi tiết qua tooltip/crosshair.`;
 }
 function drawGeometryOverlay(){
   const canvas=$('geometry-overlay'),host=$('chart'),width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1;
