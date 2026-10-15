@@ -8,6 +8,7 @@ import {loadSampleMemory,saveSampleMemory,sampleMemoryKey} from './sample-memory
 import {analyzeGeometry,backtestGeometry} from './geometry.mjs?v=20261014-1';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261014-2';
 import {wlrAgreementStatistics,WLR_STATE_ROWS,WLR_AGREEMENT_ROWS,WLR_MIN_SAMPLES} from './wlr-agreement-stats.mjs?v=20261015-1';
+import {rev63Forecast,scoreForecastHistory,calibrationSummary,REV63_HORIZON} from './rev6-3-v1.mjs?v=20261015-1';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
 let chart,price,series={},marks,strengthMarks,cache=null,rows={},volumeStrengthRows=[],maps={},alignmentMap=new Map(),priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
@@ -21,7 +22,7 @@ const flowColors={
 const LIVE_REFRESH_MS=3000;
 const CALENDAR_REFRESH_MS=5*60*1000;
 const FIT_WINDOW_MS=36*60*60*1000,DOUBLE_TAP_MS=360,DOUBLE_TAP_DISTANCE=28,TAP_MOVE_TOLERANCE=14;
-let statsMap=new Map(),trendMap=new Map(),colorTradeMap=new Map(),candleColorMap=new Map(),wlrStatsData=null,reversalState={ready:false,reason:'window',n:0},inspectedTime=null;
+let statsMap=new Map(),trendMap=new Map(),colorTradeMap=new Map(),candleColorMap=new Map(),wlrStatsData=null,rev63State=null,rev63History=[],reversalState={ready:false,reason:'window',n:0},inspectedTime=null;
 let calendarState={events:[],updatedAt:null,loading:false};
 let sampleMemoryInfo={count:0,used:0,available:true};
 const reversalStabilizer=new ReversalStabilizer({alpha:.25,confirmations:3});
@@ -116,6 +117,29 @@ function renderWlrAgreementStats(){
   if(p90?.ready&&p0?.ready)parts.push(`Agreement P90 vs P0–25: ΔWin ${signed(p90.winRate-p0.winRate)} điểm %, ΔEV ${returnText(p90.expectancy-p0.expectancy)}`);
   insight.textContent=parts.length?parts.join(' · '):`Cần ≥${WLR_MIN_SAMPLES} mẫu không chồng lấn ở mỗi nhóm để so sánh đáng tin hơn.`;
   context.textContent=`Giá ${sourceName($('symbol').value)} · hướng theo dấu Composite · horizon ${h} nến ${$('interval').value.toUpperCase()} · phân vị Agreement causal từ lịch sử trước tín hiệu · cửa sổ kết quả cùng ngày, không chồng lấn trong từng nhóm.`;
+}
+function rev63StorageKey(){return 'rev63-v1|'+$('symbol').value+'|'+$('interval').value;}
+function loadRev63History(){try{return JSON.parse(localStorage.getItem(rev63StorageKey())||'[]');}catch{return [];}}
+function saveRev63History(data){try{localStorage.setItem(rev63StorageKey(),JSON.stringify(data.slice(-500)));}catch{}}
+function renderRev63(){
+  const box=$('rev63-panel');if(!box||!rev63State)return;
+  const p=Math.round(rev63State.pUp*100),down=100-p,label=$('rev63-label');
+  label.textContent=rev63State.label==='UP'?'↑ UP '+p+'%':rev63State.label==='DOWN'?'↓ DOWN '+down+'%':'WAIT · UP '+p+'% / DOWN '+down+'%';
+  label.className=rev63State.label==='UP'?'up':rev63State.label==='DOWN'?'down':'wait';
+  $('rev63-confidence').textContent='Confidence '+rev63State.confidence+'/100';
+  const c=rev63State.components;
+  $('rev63-components').textContent='REV6 '+signed(c.rev6)+' · WLR '+signed(c.wlr)+' · Agreement '+signed(c.agreement)+' · NetFlow '+signed(c.netflow)+' · Geometry '+signed(c.geometry);
+  $('rev63-state').textContent=(rev63State.stateKey||'neutral')+' · '+(rev63State.agreementKey||'Agreement chưa đủ lịch sử')+(Number.isFinite(rev63State.agreementRank)?' · P'+Math.round(rev63State.agreementRank*100):'');
+  const cal=calibrationSummary(rev63History),bins=cal.bins.map(x=>x.label+': n='+x.n+(x.n?' · hit '+fmt(x.accuracy)+'% · Brier '+fmt(x.brier):'')).join(' | ');
+  $('rev63-score').textContent=cal.n?'Đã chấm '+cal.n+' dự báo · đúng hướng '+fmt(cal.accuracy)+'% · Brier '+fmt(cal.brier):'Chưa có dự báo đủ 3 nến để tự chấm';
+  $('rev63-calibration').textContent=bins;
+}
+function updateRev63(closedPrice){
+  const latest=closedPrice.at(-1),alignment=[...alignmentMap.values()].filter(x=>x.t<=latest?.t).at(-1);
+  rev63State=rev63Forecast({reversal:reversalState,wlrStats:wlrStatsData,alignment,geometryEvents:geometryState.events,priceRows:closedPrice});
+  rev63History=scoreForecastHistory(closedPrice,loadRev63History(),REV63_HORIZON).filter(x=>!x.void);
+  if(latest&&rev63State&&!rev63History.some(x=>x.entryTime===latest.t))rev63History.push({entryTime:latest.t,pUp:rev63State.pUp,step:STEPS[$('interval').value],label:rev63State.label,createdAt:Date.now()});
+  saveRev63History(rev63History);renderRev63();
 }
 function init(){
   if(!L){status('Không tải được thư viện chart cục bộ. Kiểm tra network hoặc tải lại trang.',true);return false;}
@@ -282,7 +306,7 @@ function render(fit=false){
   reversalState=reversalStabilizer.update(rawReversal,reversalKey,cache?.serverTime??generation);
   const priceBands=weightedPriceBands(p,STEPS[$('interval').value]);priceBandMap=new Map(priceBands.map(x=>[x.t,x]));
   const volumeStrengthMap=new Map(volumeStrengthRows.map(x=>[x.t,x]));
-  wlrStatsData=wlrAgreementStatistics(closedPrice,(rows.COMPOSITE??[]).filter(row=>closedTimes.has(row.t)),volumeStrengthRows.filter(row=>closedTimes.has(row.t)),STEPS[$('interval').value]);renderWlrAgreementStats();
+  wlrStatsData=wlrAgreementStatistics(closedPrice,(rows.COMPOSITE??[]).filter(row=>closedTimes.has(row.t)),volumeStrengthRows.filter(row=>closedTimes.has(row.t)),STEPS[$('interval').value]);renderWlrAgreementStats();updateRev63(closedPrice);
   series.priceMid.setData(priceLineData(priceBands,maps.COMPOSITE??new Map(),volumeStrengthMap));series.priceUpper.setData(lineData(priceBands,'upper'));series.priceLower.setData(lineData(priceBands,'lower'));
   for(const key of Object.keys(colors))series[key].setData(flowData(rows[key]??[],key));
   series.relative.setData(relativeData(alignment));
