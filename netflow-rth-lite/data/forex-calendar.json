@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-10-15T05:12:01.208Z",
+  "updatedAt": "2026-10-15T09:55:37.879Z",
   "events": [
     {
       "title": "Bank Holiday",
@@ -576,8 +576,8 @@
     {
       "title": "RBA Annual Report",
       "country": "AUD",
-      "date": "2026-10-15T04:25:00.000Z",
-      "timestamp": 1792038300000,
+      "date": "2026-10-15T04:30:00.000Z",
+      "timestamp": 1792038600000,
       "impact": "Low",
       "actual": "",
       "forecast": "",
@@ -609,9 +609,9 @@
       "date": "2026-10-15T06:00:00.000Z",
       "timestamp": 1792044000000,
       "impact": "Low",
-      "actual": "",
+      "actual": "-0.2%",
       "forecast": "0.0%",
-      "previous": "0.1%"
+      "previous": "-0.5%"
     },
     {
       "title": "GDP m/m",
@@ -619,7 +619,7 @@
       "date": "2026-10-15T06:00:00.000Z",
       "timestamp": 1792044000000,
       "impact": "High",
-      "actual": "",
+      "actual": "0.1%",
       "forecast": "-0.1%",
       "previous": "0.4%"
     },
@@ -629,9 +629,9 @@
       "date": "2026-10-15T06:00:00.000Z",
       "timestamp": 1792044000000,
       "impact": "Low",
-      "actual": "",
+      "actual": "-18.0B",
       "forecast": "-21.9B",
-      "previous": "-21.0B"
+      "previous": "-19.3B"
     },
     {
       "title": "Index of Services 3m/3m",
@@ -639,9 +639,9 @@
       "date": "2026-10-15T06:00:00.000Z",
       "timestamp": 1792044000000,
       "impact": "Low",
-      "actual": "",
+      "actual": "0.9%",
       "forecast": "0.8%",
-      "previous": "0.6%"
+      "previous": "0.7%"
     },
     {
       "title": "Industrial Production m/m",
@@ -649,9 +649,9 @@
       "date": "2026-10-15T06:00:00.000Z",
       "timestamp": 1792044000000,
       "impact": "Low",
-      "actual": "",
+      "actual": "0.8%",
       "forecast": "-0.1%",
-      "previous": "0.2%"
+      "previous": "0.3%"
     },
     {
       "title": "Manufacturing Production m/m",
@@ -659,9 +659,9 @@
       "date": "2026-10-15T06:00:00.000Z",
       "timestamp": 1792044000000,
       "impact": "Low",
-      "actual": "",
+      "actual": "1.2%",
       "forecast": "-0.1%",
-      "previous": "0.9%"
+      "previous": "1.0%"
     },
     {
       "title": "PPI m/m",
@@ -669,7 +669,7 @@
       "date": "2026-10-15T06:30:00.000Z",
       "timestamp": 1792045800000,
       "impact": "Low",
-      "actual": "",
+      "actual": "0.3%",
       "forecast": "0.6%",
       "previous": "0.7%"
     },
@@ -679,7 +679,7 @@
       "date": "2026-10-15T06:45:00.000Z",
       "timestamp": 1792046700000,
       "impact": "Low",
-      "actual": "",
+      "actual": "-0.3%",
       "forecast": "-0.3%",
       "previous": "-0.3%"
     },
@@ -729,9 +729,9 @@
       "date": "2026-10-15T09:00:00.000Z",
       "timestamp": 1792054800000,
       "impact": "Low",
-      "actual": "",
+      "actual": "-0.5%",
       "forecast": "0.0%",
-      "previous": "-0.1%"
+      "previous": "-0.3%"
     },
     {
       "title": "EU Economic Summit",
