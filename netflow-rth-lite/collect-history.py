@@ -73,6 +73,14 @@ def main():
     cutoff=server_time-RETENTION_DAYS*86400000
     existing_manifest=load(MANIFEST,{}) or {}
     first_run=not existing_manifest.get("months")
+    if os.path.isdir(ROOT):
+        for name in os.listdir(ROOT):
+            if len(name)==12 and name.endswith(".json") and name[:7].count("-")==1:
+                try:
+                    y,m=map(int,name[:7].split("-")); ny,nm=next_month(y,m)
+                    if month_start_ms(ny,nm)-1<cutoff: os.remove(os.path.join(ROOT,name))
+                except Exception:
+                    pass
     target_months=months_between(cutoff,server_time) if first_run else months_between(max(cutoff,server_time-40*86400000),server_time)
     touched=[]
     for y,m in target_months:
