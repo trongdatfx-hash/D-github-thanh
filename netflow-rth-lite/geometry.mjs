@@ -127,11 +127,33 @@ export function buildTrendlines(bars,pivots,context,options={}){
   return selected.slice(0,config.maxLines).sort((a,b)=>b.score-a.score);
 }
 
+export function provisionalTrendlines(bars,pivots,options={}){
+  const config={...GEOMETRY_DEFAULTS,...options},atr=options.atr??causalAtr(bars,{period:config.atrPeriod}),last=bars.length-1,lines=[];
+  if(last<config.left+config.right+config.minAnchorGap)return lines;
+  for(const type of ['low','high']){
+    let candidate=null;
+    for(let index=Math.max(config.left,last-config.right+1);index<=last;index++){
+      const bar=bars[index],left=bars.slice(index-config.left,index),scale=atr[index];
+      if(!finite(scale)||scale<=0||!left.every(row=>finite(row?.h)&&finite(row?.l)))continue;
+      const value=type==='low'?bar.l:bar.h,previous=type==='low'?Math.min(...left.map(row=>row.l)):Math.max(...left.map(row=>row.h));
+      const prominence=(type==='low'?previous-value:value-previous)/scale;
+      if(prominence<config.minProminenceAtr)continue;
+      if(!candidate||index>candidate.index)candidate={index,t:bar.t,value};
+    }
+    if(!candidate)continue;
+    const first=[...pivots].reverse().find(pivot=>pivot.type===type&&candidate.index-pivot.index>=config.minAnchorGap&&candidate.index-pivot.index<=config.maxAnchorGap);
+    if(!first)continue;
+    const slope=(candidate.value-first.value)/(candidate.index-first.index),endValue=candidate.value+slope*(last-candidate.index);
+    lines.push({kind:type==='low'?'support':'resistance',provisional:true,startIndex:first.index,startTime:first.t,startValue:first.value,endIndex:last,endTime:bars[last].t,endValue,slope,knownAt:bars[last].t,candidateIndex:candidate.index});
+  }
+  return lines;
+}
+
 export function analyzeGeometry({price,spy=[],qqq=[],flow=[],volume=[]},options={}){
   if(!Array.isArray(price)||!Array.isArray(spy)||!Array.isArray(qqq)||!Array.isArray(flow)||!Array.isArray(volume))throw Error('Nguồn hình học không hợp lệ');
   if(!price.length)return {pivots:[],events:[],lines:[],summary:{support:0,resistance:0,divergences:0,rotations:0}};
-  const config={...GEOMETRY_DEFAULTS,...options},atr=causalAtr(price,{period:config.atrPeriod}),pivots=confirmedPricePivots(price,{...config,atr}),context=contextAt(price,spy,qqq,flow,volume),events=confirmedDivergences(pivots,context,config),lines=buildTrendlines(price,pivots,context,{...config,atr});
-  return {pivots,events,lines,summary:{support:lines.filter(line=>line.kind==='support').length,resistance:lines.filter(line=>line.kind==='resistance').length,divergences:events.filter(event=>event.type==='regular-divergence').length,rotations:events.filter(event=>event.detail?.pairSplit||event.pairSplit).length},atr};
+  const config={...GEOMETRY_DEFAULTS,...options},atr=causalAtr(price,{period:config.atrPeriod}),pivots=confirmedPricePivots(price,{...config,atr}),context=contextAt(price,spy,qqq,flow,volume),events=confirmedDivergences(pivots,context,config),lines=buildTrendlines(price,pivots,context,{...config,atr}),provisionalLines=provisionalTrendlines(price,pivots,{...config,atr});
+  return {pivots,events,lines,provisionalLines,summary:{support:lines.filter(line=>line.kind==='support').length,resistance:lines.filter(line=>line.kind==='resistance').length,divergences:events.filter(event=>event.type==='regular-divergence').length,rotations:events.filter(event=>event.detail?.pairSplit||event.pairSplit).length},atr};
 }
 
 const lineAt=(line,index)=>line.startValue+line.slope*(index-line.startIndex);

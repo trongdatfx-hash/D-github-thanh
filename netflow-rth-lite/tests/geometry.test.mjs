@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {STEPS,parseKlines,composite,analyze} from '../engine.mjs';
-import {causalAtr,confirmedPricePivots,analyzeGeometry,classifyBreakoutRetest,recentCausalLineStates,backtestGeometry} from '../geometry.mjs';
+import {causalAtr,confirmedPricePivots,provisionalTrendlines,analyzeGeometry,classifyBreakoutRetest,recentCausalLineStates,backtestGeometry} from '../geometry.mjs';
 
 function synthetic(length=240){
   const step=STEPS['15m'],price=[],spy=[],qqq=[],flow=[],volume=[];
@@ -26,6 +26,14 @@ test('ATR and pivot confirmation are prefix-causal with an explicit two-bar dela
   }
   const changed=data.price.map((bar,index)=>index>=180?{...bar,h:bar.h+50,l:bar.l-50,c:bar.c+20}:bar);
   assert.deepEqual(confirmedPricePivots(changed.slice(0,180),options),full.filter(pivot=>pivot.confirmedIndex<180));
+});
+
+test('provisional line uses a closed candidate before right-side pivot confirmation',()=>{
+  const data=synthetic(201),atr=causalAtr(data.price),first={type:'low',index:170,t:data.price[170].t,value:data.price[170].l};
+  const bars=data.price.map(row=>({...row}));bars[200].l-=3;
+  const lines=provisionalTrendlines(bars,[first],{left:2,right:2,minAnchorGap:6,maxAnchorGap:160,minProminenceAtr:.03,atr:causalAtr(bars)});
+  const support=lines.find(line=>line.kind==='support');assert(support?.provisional);assert.equal(support.candidateIndex,200);assert.equal(support.knownAt,bars[200].t);
+  assert.equal(provisionalTrendlines(bars.slice(0,200),[first],{left:2,right:2,minAnchorGap:6,maxAnchorGap:160,minProminenceAtr:.03,atr:atr.slice(0,200)}).some(line=>line.candidateIndex===200),false);
 });
 
 test('divergences are emitted only at confirmation time and remain unchanged by future bars',()=>{
