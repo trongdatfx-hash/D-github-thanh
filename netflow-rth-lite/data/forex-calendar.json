@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-10-15T23:55:36.229Z",
+  "updatedAt": "2026-10-16T13:31:24.751Z",
   "events": [
     {
       "title": "Bank Holiday",
@@ -949,7 +949,7 @@
       "date": "2026-10-16T09:00:00.000Z",
       "timestamp": 1792141200000,
       "impact": "Low",
-      "actual": "",
+      "actual": "2.5%",
       "forecast": "2.5%",
       "previous": "2.5%"
     },
@@ -959,7 +959,7 @@
       "date": "2026-10-16T09:00:00.000Z",
       "timestamp": 1792141200000,
       "impact": "Low",
-      "actual": "",
+      "actual": "3.8%",
       "forecast": "3.8%",
       "previous": "3.8%"
     },
@@ -969,9 +969,9 @@
       "date": "2026-10-16T09:00:00.000Z",
       "timestamp": 1792141200000,
       "impact": "Low",
-      "actual": "",
+      "actual": "-6.8B",
       "forecast": "4.5B",
-      "previous": "5.0B"
+      "previous": "1.4B"
     },
     {
       "title": "Italian Trade Balance",
@@ -979,9 +979,9 @@
       "date": "2026-10-16T10:00:00.000Z",
       "timestamp": 1792144800000,
       "impact": "Low",
-      "actual": "",
+      "actual": "1.77B",
       "forecast": "7.50B",
-      "previous": "8.24B"
+      "previous": "8.25B"
     },
     {
       "title": "Gov Council Member Alexopoulos Speaks",
@@ -999,9 +999,9 @@
       "date": "2026-10-16T12:15:00.000Z",
       "timestamp": 1792152900000,
       "impact": "Low",
-      "actual": "",
+      "actual": "249K",
       "forecast": "234K",
-      "previous": "229K"
+      "previous": "242K"
     },
     {
       "title": "Foreign Securities Purchases",
@@ -1009,9 +1009,9 @@
       "date": "2026-10-16T12:30:00.000Z",
       "timestamp": 1792153800000,
       "impact": "Low",
-      "actual": "",
+      "actual": "-17.31B",
       "forecast": "23.59B",
-      "previous": "20.65B"
+      "previous": "20.63B"
     },
     {
       "title": "Import Prices m/m",
@@ -1019,9 +1019,9 @@
       "date": "2026-10-16T12:30:00.000Z",
       "timestamp": 1792153800000,
       "impact": "Low",
-      "actual": "",
+      "actual": "1.1%",
       "forecast": "0.9%",
-      "previous": "0.7%"
+      "previous": "0.5%"
     },
     {
       "title": "Capacity Utilization Rate",
