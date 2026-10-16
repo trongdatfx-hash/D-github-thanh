@@ -226,7 +226,7 @@ function init(){
 function mixColor(from,to,t){return '#'+from.map((v,i)=>Math.round(v+(to[i]-v)*t).toString(16).padStart(2,'0')).join('');}
 function candlePalette(x){
   if(!x?.direction)return {body:'#68778a',wick:'#8290a2',border:'#76869a'};
-  const intensity=Math.min(1,.12+.88*Math.sqrt(Math.max(0,Math.min(1,x.agreement))));
+  const intensity=Math.min(1,.32+.68*Math.sqrt(Math.max(0,Math.min(1,x.agreement))));
   const target=x.direction>0?[8,232,169]:[255,65,99];
   return {body:mixColor([91,105,124],target,intensity),wick:mixColor([112,126,145],target,Math.min(1,intensity+.1)),border:mixColor([74,89,108],target,Math.min(1,intensity+.06))};
 }
