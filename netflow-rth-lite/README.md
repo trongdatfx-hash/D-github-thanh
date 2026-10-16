@@ -85,6 +85,8 @@ Các retest bốn nến đã hoàn tất *trước* sự kiện hiện tại cho
 
 Histogram **C NF** trong pane giá SPY đặt sát trục giá, với mốc 0 nằm giữa vùng hỗ trợ và kháng cự đang hiệu lực. Các cột gom Composite Taker NF (`BuyQ − SellQ`) từ các nến giữa hai pivot giá khác phía gần nhất; cột dương (buy) hướng lên, âm (sell) hướng xuống. Chỉ vẽ sau khi pivot thứ hai được xác nhận, khi nguồn Composite phủ ít nhất 80% nhịp và khi cả hai vùng không chồng nhau, cùng nhìn thấy trên pane giá. Histogram ẩn với chart QQQ, khi thiếu vùng hoặc thiếu dữ liệu; nó không phải lá phiếu OFI độc lập và không khẳng định dòng tiền dẫn giá.
 
+Huy hiệu số liệu REV6 Pivot Zones trong pane giá được ẩn, còn hai vùng và nút bật/tắt vẫn hoạt động. Bề rộng mỗi cột C NF bằng `2 × barSpacing` hiện tại của chart; zoom làm thay đổi bề rộng ngay. Khi vùng vẽ gần trục giá không đủ chỗ, chỉ các cột cuối còn hiển thị, và nhãn cho biết số cột đang thấy so với cả nhịp; phần trăm tổng vẫn tính trên toàn nhịp.
+
 ## ML tương lai
 
 `modelStatus.trained=false`. REV6 Pivot Zones là thuật toán thống kê mô tả, chưa có dataset snapshot intrabar hoặc training; backtest hình học mới chỉ là phép đo causal bốn nến, chưa phải chiến lược đã hiệu chỉnh ngoài mẫu. `engine.mjs` tách khỏi UI/data để thay adapter bằng model sau khi có provenance dữ liệu, nhãn RTH, train/validation/test theo thời gian có purge/embargo, walk-forward ngoài mẫu và chi phí giao dịch. Không tự bật ML theo số nến. Hướng dẫn Binance: https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Kline-Candlestick-Data ; chart: https://tradingview.github.io/lightweight-charts/docs/5.0/ .

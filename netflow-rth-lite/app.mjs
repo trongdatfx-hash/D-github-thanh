@@ -3,6 +3,7 @@ import {load} from './data.mjs';
 import {loadPersistentHistory} from './history-store.mjs?v=20261015-1';
 import {strengthStatistics} from './strength-stats.mjs?v=20261015-1';
 import {pivotZones,PIVOT_ZONE_VERSION} from './pivot-zones.mjs?v=20261016-2';
+import {pivotFlowLayout} from './pivot-flow-layout.mjs?v=20261016-1';
 import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeometry} from './geometry.mjs?v=20261016-3';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261014-2';
 import {wlrAgreementStatistics,WLR_STATE_ROWS,WLR_AGREEMENT_ROWS,WLR_MIN_SAMPLES} from './wlr-agreement-stats.mjs?v=20261015-1';
@@ -250,26 +251,25 @@ function schedulePivotFlowOverlay(){if(pivotFlowFrame)return;pivotFlowFrame=requ
 function drawPivotFlowOverlay(){
   const canvas=$('pivot-flow-overlay'),host=$('chart'),width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1;
   const bitmapWidth=Math.round(width*dpr),bitmapHeight=Math.round(height*dpr);if(canvas.width!==bitmapWidth||canvas.height!==bitmapHeight){canvas.width=bitmapWidth;canvas.height=bitmapHeight;}
-  const context=canvas.getContext('2d');context.setTransform(dpr,0,0,dpr,0,0);context.clearRect(0,0,width,height);canvas.dataset.status='hidden';canvas.dataset.bins='0';canvas.setAttribute('aria-label','Histogram Composite NF giữa hai pivot xác nhận: chưa hiển thị vì thiếu vùng hỗ trợ/kháng cự hoặc chart không phải SPY.');
+  const context=canvas.getContext('2d');context.setTransform(dpr,0,0,dpr,0,0);context.clearRect(0,0,width,height);canvas.dataset.status='hidden';canvas.dataset.bins='0';delete canvas.dataset.barWidth;delete canvas.dataset.barSpacing;canvas.setAttribute('aria-label','Histogram Composite NF giữa hai pivot xác nhận: chưa hiển thị vì thiếu vùng hỗ trợ/kháng cự hoặc chart không phải SPY.');
   const {support,resistance,flow}=pivotZoneState;
   if(!$('pivot-zones').checked||$('symbol').value!=='SPYUSDT'||!support||!resistance||!flow)return;
   const paneHeight=chart.panes()[0]?.getHeight?.()??height*.5,top=price.priceToCoordinate(resistance.low),bottom=price.priceToCoordinate(support.high);
   if(!Number.isFinite(top)||!Number.isFinite(bottom)||top<6||bottom>paneHeight-6||bottom<=top)return;
-  const scaleWidth=chart.priceScale('right',0)?.width?.()??56,right=width-scaleWidth-7,panelWidth=width<650?76:116,left=right-panelWidth;
-  if(left<12)return;
-  const zero=(top+bottom)/2,halfHeight=Math.min(width<650?26:36,zero-20,paneHeight-zero-20),bars=flow.bins,maxPct=Math.max(10,...bars.map(bar=>Math.abs(bar.pct??0)));
+  const scaleWidth=chart.priceScale('right',0)?.width?.()??56,right=width-scaleWidth-7,layout=pivotFlowLayout(chart.timeScale().options().barSpacing,flow.bins.length,right-12);
+  if(!layout)return;
+  const {panelWidth,barWidth,gap,shownCount}=layout,left=right-panelWidth,zero=(top+bottom)/2,halfHeight=Math.min(width<650?26:36,zero-20,paneHeight-zero-20),bars=flow.bins.slice(-shownCount),maxPct=Math.max(10,...bars.map(bar=>Math.abs(bar.pct??0)));
   if(halfHeight<14)return;
   context.save();context.fillStyle='rgba(9,18,31,.87)';context.strokeStyle='rgba(113,137,165,.65)';context.lineWidth=1;context.fillRect(left,zero-halfHeight-15,panelWidth,2*halfHeight+30);context.strokeRect(left+.5,zero-halfHeight-14.5,panelWidth-1,2*halfHeight+29);
   context.strokeStyle='rgba(151,168,188,.75)';context.setLineDash([2,3]);context.beginPath();context.moveTo(left+3,zero+.5);context.lineTo(right-3,zero+.5);context.stroke();context.setLineDash([]);
-  const gap=2,barWidth=(panelWidth-12-(bars.length-1)*gap)/bars.length;
   for(let i=0;i<bars.length;i++){
     const value=bars[i].pct;if(!Number.isFinite(value))continue;
     const x=left+6+i*(barWidth+gap),size=Math.max(1,Math.min(halfHeight-3,Math.abs(value)/maxPct*(halfHeight-3)));
     context.fillStyle=value>0?'rgba(26,224,163,.88)':value<0?'rgba(255,77,112,.88)':'rgba(120,138,158,.7)';context.fillRect(x,value>=0?zero-size:zero,barWidth,size);
   }
-  context.font=`700 ${width<650?8:9}px Inter,system-ui,sans-serif`;context.textBaseline='middle';context.textAlign='left';context.fillStyle='#c7d4e4';context.fillText('C NF',left+5,zero-halfHeight-7);
+  context.font=`700 ${width<650?8:9}px Inter,system-ui,sans-serif`;context.textBaseline='middle';context.textAlign='left';context.fillStyle='#c7d4e4';context.fillText(shownCount<flow.bins.length?`C NF ${shownCount}/${flow.bins.length}`:'C NF',left+5,zero-halfHeight-7);
   context.textAlign='right';context.fillStyle=flow.pct>0?'#1ae0a3':flow.pct<0?'#ff6383':'#9aadc2';context.fillText(`${flow.pct>0?'+':''}${fmt(flow.pct)}%`,right-5,zero-halfHeight-7);
-  context.textAlign='right';context.fillStyle='#9aadc2';context.fillText('0',right-5,zero+9);context.restore();canvas.dataset.status='visible';canvas.dataset.bins=String(bars.length);canvas.setAttribute('aria-label',`Composite NF giữa hai pivot xác nhận: ${flow.pct>0?'mua':flow.pct<0?'bán':'cân bằng'} ${fmt(Math.abs(flow.pct))}% tổng quote volume; cột buy trên mốc 0, sell dưới mốc 0. Không phải tín hiệu OFI độc lập.`);
+  context.textAlign='right';context.fillStyle='#9aadc2';context.fillText('0',right-5,zero+9);context.restore();canvas.dataset.status='visible';canvas.dataset.bins=String(bars.length);canvas.dataset.barWidth=String(barWidth);canvas.dataset.barSpacing=String(layout.barSpacing);canvas.setAttribute('aria-label',`Composite NF giữa hai pivot xác nhận: ${flow.pct>0?'mua':flow.pct<0?'bán':'cân bằng'} ${fmt(Math.abs(flow.pct))}% tổng quote volume của toàn nhịp; đang hiện ${shownCount}/${flow.bins.length} cột cuối, mỗi cột rộng gấp đôi bước nến giá. Buy trên mốc 0, sell dưới. Không phải tín hiệu OFI độc lập.`);
 }
 function positionForecastReadout(){
   const node=$('geometry-readout'),paneHeight=chart?.panes?.()[0]?.getHeight?.();
