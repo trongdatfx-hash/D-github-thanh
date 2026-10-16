@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {pivotZones,pivotFlowBetween,randomWalkBridge,PIVOT_ZONE_VERSION} from '../pivot-zones.mjs';
+import {pivotZones,pivotFlowBetween,pivotFlowRealtime,randomWalkBridge,PIVOT_ZONE_VERSION} from '../pivot-zones.mjs';
 import {STEPS,parseKlines,composite as combine,analyze,calculateVolumeStrength} from '../engine.mjs';
 
 const STEP=900_000,BASE=1_700_000_000_000;
@@ -43,6 +43,24 @@ test('histogram NF chỉ cộng dữ liệu giữa hai pivot xác nhận',()=>{
   assert.deepEqual(pivotFlowBetween(changed.price,changed.composite),flow);
   const thin=sample();thin.composite=thin.composite.filter((_,index)=>index%2===0);
   assert.equal(pivotFlowBetween(thin.price,thin.composite),null);
+});
+test('C NF tiếp tục tới nến đang chạy và đổi theo quote volume mới, vùng pivot vẫn khóa',()=>{
+  const input=sample(),anchor=pivotFlowBetween(input.price,input.composite),serverTime=input.price.at(-1).t+STEP/2;
+  assert(anchor);
+  for(const bar of input.price)bar.end=bar.t+STEP-1;
+  const zoneBefore=pivotZones({price:input.price.slice(0,-1),composite:input.composite.slice(0,-1),volume:input.volume.slice(0,-1)},STEP);
+  const first=pivotFlowRealtime(anchor,input.price,input.composite,serverTime);
+  assert(first?.live);assert.equal(first.latestTime,input.price.at(-1).t);
+  assert.equal(first.liveBinIndex,first.bins.length-1);
+  const changed=structuredClone(input);changed.composite.at(-1).net+=70;changed.composite.at(-1).q+=100;
+  const updated=pivotFlowRealtime(anchor,changed.price,changed.composite,serverTime);
+  assert.equal(updated.totalNet-first.totalNet,70);
+  assert.equal(updated.totalQuote-first.totalQuote,100);
+  assert.notEqual(updated.bins.at(-1).pct,first.bins.at(-1).pct);
+  assert.deepEqual(pivotZones({price:changed.price.slice(0,-1),composite:changed.composite.slice(0,-1),volume:changed.volume.slice(0,-1)},STEP),zoneBefore);
+  assert.equal(pivotFlowRealtime(anchor,changed.price,changed.composite,serverTime+STEP).live,false);
+  const incomplete=structuredClone(input);incomplete.composite.pop();
+  assert.equal(pivotFlowRealtime(anchor,incomplete.price,incomplete.composite,serverTime).live,false);
 });
 test('fixture Binance M15 tạo đủ hai vùng và nhịp NF để hiển thị',()=>{
   const read=path=>JSON.parse(fs.readFileSync(new URL(path,import.meta.url),'utf8').replace(/^\uFEFF/,''));

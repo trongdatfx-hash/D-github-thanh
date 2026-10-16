@@ -91,6 +91,31 @@ export function pivotFlowBetween(price,composite,pivots=confirmedPricePivots(pri
   return {firstPivotTime:first.t,secondPivotTime:second.t,confirmedAt:second.confirmedAt,bins,totalNet,totalQuote,pct:100*totalNet/totalQuote,coverage:covered/interval.length};
 }
 
+// The pivot anchors stay confirmed, while the display-only flow continues
+// through the latest shared SPY/QQQ candle (including an unfinished candle).
+export function pivotFlowRealtime(anchor,price,composite,serverTime){
+  if(!anchor||!Array.isArray(price)||!Array.isArray(composite)||!Number.isFinite(serverTime))return null;
+  const source=new Map(composite.map(row=>[row.t,row]));
+  const latestShared=price.findLast(bar=>bar.t<=serverTime&&source.has(bar.t));
+  const interval=latestShared?price.filter(bar=>bar.t>=anchor.firstPivotTime&&bar.t<=latestShared.t):[];
+  if(!interval.length||interval[0].t!==anchor.firstPivotTime||interval.at(-1).t<anchor.secondPivotTime)return null;
+  const count=Math.min(10,Math.max(4,Math.round(Math.sqrt(interval.length)))),bins=[];
+  let covered=0,totalNet=0,totalQuote=0;
+  for(let bin=0;bin<count;bin++){
+    const start=Math.floor(bin*interval.length/count),end=Math.floor((bin+1)*interval.length/count);
+    let net=0,quote=0;
+    for(const bar of interval.slice(start,end)){
+      const row=source.get(bar.t);
+      if(!Number.isFinite(row?.net)||!Number.isFinite(row?.q)||row.q<=0)continue;
+      net+=row.net;quote+=row.q;covered++;
+    }
+    bins.push({net,quote,pct:quote?100*net/quote:null});totalNet+=net;totalQuote+=quote;
+  }
+  if(covered/interval.length<.8||!totalQuote)return null;
+  const latest=interval.at(-1),live=Number.isFinite(latest.end)&&latest.end>=serverTime;
+  return {...anchor,bins,totalNet,totalQuote,pct:100*totalNet/totalQuote,coverage:covered/interval.length,latestTime:latest.t,live,liveBinIndex:live?bins.length-1:null};
+}
+
 export function pivotZones({price=[],composite=[],volume=[]},step,{horizon=4,neighbors=60,maxAge=96,draws=64}={}){
   if(!Array.isArray(price)||!Array.isArray(composite)||!Array.isArray(volume)||!(step>0)||!Number.isInteger(horizon)||horizon<1||!Number.isInteger(neighbors)||neighbors<1||!Number.isInteger(maxAge)||maxAge<1)return {ready:false,reason:'input',support:null,resistance:null};
   if(price.length<40)return {ready:false,reason:'history',support:null,resistance:null};

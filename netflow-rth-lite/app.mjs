@@ -2,7 +2,7 @@ import {STEPS,composite,flowAlignment,strengthAgreementCandleSignal,strengthPhas
 import {load} from './data.mjs';
 import {loadPersistentHistory} from './history-store.mjs?v=20261015-1';
 import {strengthStatistics} from './strength-stats.mjs?v=20261015-1';
-import {pivotZones,PIVOT_ZONE_VERSION} from './pivot-zones.mjs?v=20261016-2';
+import {pivotZones,pivotFlowRealtime,PIVOT_ZONE_VERSION} from './pivot-zones.mjs?v=20261016-3';
 import {pivotFlowLayout} from './pivot-flow-layout.mjs?v=20261016-1';
 import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeometry} from './geometry.mjs?v=20261016-3';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261014-2';
@@ -24,7 +24,7 @@ const LIVE_REFRESH_MS=3000;
 const CALENDAR_REFRESH_MS=5*60*1000;
 const IMPACT_STORAGE_KEY='spy-geometry-spread-impact-v1';
 const FIT_WINDOW_MS=36*60*60*1000,DOUBLE_TAP_MS=360,DOUBLE_TAP_DISTANCE=28,TAP_MOVE_TOLERANCE=14;
-let statsMap=new Map(),candleColorMap=new Map(),wlrStatsData=null,rev63State=null,rev63History=[],pivotZoneState={ready:false,reason:'history',support:null,resistance:null},pivotZoneKey='',inspectedTime=null;
+let statsMap=new Map(),candleColorMap=new Map(),wlrStatsData=null,rev63State=null,rev63History=[],pivotZoneState={ready:false,reason:'history',support:null,resistance:null},pivotFlowState=null,pivotZoneKey='',inspectedTime=null;
 let calendarState={events:[],updatedAt:null,loading:false};
 const sourceName=key=>({SPYUSDT:'SPY',QQQUSDT:'QQQ',COMPOSITE:'Composite'}[key]);
 const signed=x=>Number.isFinite(x)?`${x>0?'+':''}${fmt(x)}`:'—';
@@ -251,8 +251,8 @@ function schedulePivotFlowOverlay(){if(pivotFlowFrame)return;pivotFlowFrame=requ
 function drawPivotFlowOverlay(){
   const canvas=$('pivot-flow-overlay'),host=$('chart'),width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1;
   const bitmapWidth=Math.round(width*dpr),bitmapHeight=Math.round(height*dpr);if(canvas.width!==bitmapWidth||canvas.height!==bitmapHeight){canvas.width=bitmapWidth;canvas.height=bitmapHeight;}
-  const context=canvas.getContext('2d');context.setTransform(dpr,0,0,dpr,0,0);context.clearRect(0,0,width,height);canvas.dataset.status='hidden';canvas.dataset.bins='0';delete canvas.dataset.barWidth;delete canvas.dataset.barSpacing;canvas.setAttribute('aria-label','Histogram Composite NF giữa hai pivot xác nhận: chưa hiển thị vì thiếu vùng hỗ trợ/kháng cự hoặc chart không phải SPY.');
-  const {support,resistance,flow}=pivotZoneState;
+  const context=canvas.getContext('2d');context.setTransform(dpr,0,0,dpr,0,0);context.clearRect(0,0,width,height);canvas.dataset.status='hidden';canvas.dataset.bins='0';canvas.dataset.live='false';delete canvas.dataset.barWidth;delete canvas.dataset.barSpacing;canvas.setAttribute('aria-label','Histogram Composite NF từ hai pivot xác nhận tới nến hiện tại: chưa hiển thị vì thiếu vùng hỗ trợ/kháng cự hoặc chart không phải SPY.');
+  const {support,resistance}=pivotZoneState,flow=pivotFlowState,live=!!flow?.live&&$('live-indicator').className==='live'&&!!lastSuccess&&Date.now()-lastSuccess<15000;
   if(!$('pivot-zones').checked||$('symbol').value!=='SPYUSDT'||!support||!resistance||!flow)return;
   const paneHeight=chart.panes()[0]?.getHeight?.()??height*.5,top=price.priceToCoordinate(resistance.low),bottom=price.priceToCoordinate(support.high);
   if(!Number.isFinite(top)||!Number.isFinite(bottom)||top<6||bottom>paneHeight-6||bottom<=top)return;
@@ -266,10 +266,11 @@ function drawPivotFlowOverlay(){
     const value=bars[i].pct;if(!Number.isFinite(value))continue;
     const x=left+6+i*(barWidth+gap),size=Math.max(1,Math.min(halfHeight-3,Math.abs(value)/maxPct*(halfHeight-3)));
     context.fillStyle=value>0?'rgba(26,224,163,.88)':value<0?'rgba(255,77,112,.88)':'rgba(120,138,158,.7)';context.fillRect(x,value>=0?zero-size:zero,barWidth,size);
+    if(live&&i===bars.length-1){context.strokeStyle='#f8bc62';context.lineWidth=1.5;context.strokeRect(x-.5,(value>=0?zero-size:zero)-.5,barWidth+1,size+1);}
   }
-  context.font=`700 ${width<650?8:9}px Inter,system-ui,sans-serif`;context.textBaseline='middle';context.textAlign='left';context.fillStyle='#c7d4e4';context.fillText(shownCount<flow.bins.length?`C NF ${shownCount}/${flow.bins.length}`:'C NF',left+5,zero-halfHeight-7);
+  context.font=`700 ${width<650?8:9}px Inter,system-ui,sans-serif`;context.textBaseline='middle';context.textAlign='left';context.fillStyle='#c7d4e4';context.fillText(`C NF${live?' • LIVE':''}${shownCount<flow.bins.length?` ${shownCount}/${flow.bins.length}`:''}`,left+5,zero-halfHeight-7);
   context.textAlign='right';context.fillStyle=flow.pct>0?'#1ae0a3':flow.pct<0?'#ff6383':'#9aadc2';context.fillText(`${flow.pct>0?'+':''}${fmt(flow.pct)}%`,right-5,zero-halfHeight-7);
-  context.textAlign='right';context.fillStyle='#9aadc2';context.fillText('0',right-5,zero+9);context.restore();canvas.dataset.status='visible';canvas.dataset.bins=String(bars.length);canvas.dataset.barWidth=String(barWidth);canvas.dataset.barSpacing=String(layout.barSpacing);canvas.setAttribute('aria-label',`Composite NF giữa hai pivot xác nhận: ${flow.pct>0?'mua':flow.pct<0?'bán':'cân bằng'} ${fmt(Math.abs(flow.pct))}% tổng quote volume của toàn nhịp; đang hiện ${shownCount}/${flow.bins.length} cột cuối, mỗi cột rộng gấp đôi bước nến giá. Buy trên mốc 0, sell dưới. Không phải tín hiệu OFI độc lập.`);
+  context.textAlign='right';context.fillStyle='#9aadc2';context.fillText('0',right-5,zero+9);context.restore();canvas.dataset.status='visible';canvas.dataset.live=String(live);canvas.dataset.bins=String(bars.length);canvas.dataset.barWidth=String(barWidth);canvas.dataset.barSpacing=String(layout.barSpacing);canvas.setAttribute('aria-label',`Composite NF từ hai pivot xác nhận tới nến hiện tại: ${flow.pct>0?'mua':flow.pct<0?'bán':'cân bằng'} ${fmt(Math.abs(flow.pct))}% tổng quote volume; đang hiện ${shownCount}/${flow.bins.length} cột cuối, mỗi cột rộng gấp đôi bước nến giá. ${live?'Cột cuối có viền vàng, đang cập nhật và có thể đổi tới khi nến đóng.':'Chưa có dữ liệu nến đang chạy mới từ cả SPY và QQQ.'} Buy trên mốc 0, sell dưới. Không phải tín hiệu OFI độc lập.`);
 }
 function positionForecastReadout(){
   const node=$('geometry-readout'),paneHeight=chart?.panes?.()[0]?.getHeight?.();
@@ -398,6 +399,7 @@ function render(fit=false){
   const pivotComposite=(model.COMPOSITE??[]).filter(row=>modelClosedTimes.has(row.t)),pivotVolume=(modelVolumeStrengthRows.length?modelVolumeStrengthRows:volumeStrengthRows).filter(row=>modelClosedTimes.has(row.t));
   const nextPivotKey=`${$('symbol').value}|${$('interval').value}|${modelClosedPrice.at(-1)?.t??0}|${modelClosedPrice.length}|${pivotComposite.length}|${pivotVolume.length}`;
   if(nextPivotKey!==pivotZoneKey){pivotZoneState=pivotZones({price:modelClosedPrice,composite:pivotComposite,volume:pivotVolume},STEPS[$('interval').value]);pivotZoneKey=nextPivotKey;}
+  pivotFlowState=pivotFlowRealtime(pivotZoneState.flow,rows.SPYUSDT??[],rows.COMPOSITE??[],closedBefore)??pivotZoneState.flow??null;
   const priceBands=weightedPriceBands(p,STEPS[$('interval').value]);priceBandMap=new Map(priceBands.map(x=>[x.t,x]));
   wlrStatsData=wlrAgreementStatistics(modelClosedPrice,(model.COMPOSITE??[]).filter(row=>modelClosedTimes.has(row.t)),(modelVolumeStrengthRows.length?modelVolumeStrengthRows:volumeStrengthRows).filter(row=>modelClosedTimes.has(row.t)),STEPS[$('interval').value]);renderWlrAgreementStats();updateRev63(modelClosedPrice,geometryInput);
   series.priceMid.setData(priceLineData(priceBands,maps.COMPOSITE??new Map(),volumeStrengthMap));series.priceUpper.setData(lineData(priceBands,'upper'));series.priceLower.setData(lineData(priceBands,'lower'));
@@ -506,7 +508,7 @@ function toggle(){
 async function refresh(clear=false){
   controller?.abort();controller=new AbortController();const gen=++generation;
   loading=true;$('refresh').disabled=true;
-  if(clear){cache=null;rows={};volumeStrengthRows=[];modelRows={};modelVolumeStrengthRows=[];modelStamp=null;trainingMeta=null;maps={};lastSuccess=null;inspectedTime=null;pivotZoneKey='';pivotZoneState={ready:false,reason:'history',support:null,resistance:null};render(true);}
+  if(clear){cache=null;rows={};volumeStrengthRows=[];modelRows={};modelVolumeStrengthRows=[];modelStamp=null;trainingMeta=null;maps={};lastSuccess=null;inspectedTime=null;pivotZoneKey='';pivotZoneState={ready:false,reason:'history',support:null,resistance:null};pivotFlowState=null;render(true);}
   const interval=$('interval').value,days=+$('days').value;
   status(`Đang xác minh SPYUSDT/QQQUSDT và tải ${interval} · ${days} ngày…`);
   try{
@@ -530,7 +532,7 @@ async function refresh(clear=false){
     status(`SPYUSDT + QQQUSDT · TRADING / ${data.contracts.map(x=>x.contractType).join(' + ')} · ${rows.SPYUSDT.length}/${rows.QQQUSDT.length} nến, gồm nến đang chạy · ${rows.COMPOSITE.length} timestamp chung${modelText} · ${data.incremental?'cập nhật realtime ~3 giây':'tải lịch sử song song'} · cập nhật ${lastSuccess.toLocaleTimeString('vi-VN')} · ${rows.COMPOSITE.length?'Dữ liệu thật Binance':'Composite chưa có dữ liệu giao nhau'}`);
   }catch(e){
     if(gen!==generation)return;
-    setLive(false);status(`${e.message}. Có thể bị CORS, vùng truy cập, mất mạng hoặc rate limit. ${cache?`Dữ liệu cũ chưa cập nhật (lần thành công ${lastSuccess.toLocaleTimeString('vi-VN')}).`:'Không có dữ liệu thay thế; biểu đồ để trống.'} Dùng Tải lại sau khi kiểm tra kết nối.`,true);
+    setLive(false);schedulePivotFlowOverlay();status(`${e.message}. Có thể bị CORS, vùng truy cập, mất mạng hoặc rate limit. ${cache?`Dữ liệu cũ chưa cập nhật (lần thành công ${lastSuccess.toLocaleTimeString('vi-VN')}).`:'Không có dữ liệu thay thế; biểu đồ để trống.'} Dùng Tải lại sau khi kiểm tra kết nối.`,true);
   }finally{if(gen===generation){loading=false;$('refresh').disabled=false;}}
 }
 function exportCSV(){
@@ -584,7 +586,7 @@ if(init()){
   document.addEventListener('fullscreenchange',syncFullChart);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.querySelector('.chart-card').classList.contains('fullscreen-fallback')){document.querySelector('.chart-card').classList.remove('fullscreen-fallback');syncFullChart();}});
   $('export').onclick=exportCSV;
   const changeCalendarFilter=()=>{delete $('calendar-list').dataset.positioned;renderCalendar();};$('calendar-impact').onchange=changeCalendarFilter;$('calendar-currency').onchange=changeCalendarFilter;$('calendar-refresh').onclick=refreshCalendar;
-  impactEvents=loadImpactEvents();startImpactStream();setLive(false);refreshCalendar();refresh(true);setInterval(()=>{updateCandleCountdown();if(lastSuccess&&Date.now()-lastSuccess>15000)setLive(false);if(!document.hidden&&!loading)refresh();},LIVE_REFRESH_MS);
+  impactEvents=loadImpactEvents();startImpactStream();setLive(false);refreshCalendar();refresh(true);setInterval(()=>{updateCandleCountdown();if(lastSuccess&&Date.now()-lastSuccess>15000){setLive(false);schedulePivotFlowOverlay();}if(!document.hidden&&!loading)refresh();},LIVE_REFRESH_MS);
   setInterval(()=>{if(!document.hidden)refreshCalendar();},CALENDAR_REFRESH_MS);
   setInterval(updateCandleCountdown,250);
 }

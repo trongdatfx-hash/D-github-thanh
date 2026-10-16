@@ -51,7 +51,7 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   const forecastBox=await page.locator('#geometry-readout').boundingBox(),chartBox=await page.locator('#chart').boundingBox();
   assert(forecastBox.x+forecastBox.width<=chartBox.x+chartBox.width);assert(forecastBox.y-chartBox.y>chartBox.height*.35);assert(forecastBox.y+forecastBox.height<chartBox.y+chartBox.height*.65);
   assert.equal(await page.locator('#pivot-zone-readout').isVisible(),false);
-  const pivotFlow=page.locator('#pivot-flow-overlay');assert.equal(await pivotFlow.count(),1);assert.match(await pivotFlow.getAttribute('aria-label'),/Composite NF giữa hai pivot xác nhận/);assert(['hidden','visible'].includes(await pivotFlow.getAttribute('data-status')));
+  const pivotFlow=page.locator('#pivot-flow-overlay');assert.equal(await pivotFlow.count(),1);assert.match(await pivotFlow.getAttribute('aria-label'),/Composite NF từ hai pivot xác nhận tới nến hiện tại/);assert(['hidden','visible'].includes(await pivotFlow.getAttribute('data-status')));
   if(await pivotFlow.getAttribute('data-status')==='visible'){const width=await pivotFlow.evaluate(node=>({bar:+node.dataset.barWidth,spacing:+node.dataset.barSpacing}));assert(Math.abs(width.bar-2*width.spacing)<.01);}
   assert.equal(await page.locator('#live-indicator').innerText(),'● LIVE');assert(await page.locator('#live-indicator').evaluate(el=>el.classList.contains('live')));
   assert.equal(await page.locator('#days').inputValue(),'30');
