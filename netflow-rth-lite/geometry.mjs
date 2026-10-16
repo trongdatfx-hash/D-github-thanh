@@ -156,7 +156,7 @@ export function classifyBreakoutRetest(price,lines,{strengthDirection=0,flowDire
     else if(held){key=isSupport?'hold_support':'hold_resistance';direction=holdDirection;priority=1;}
     if(!key)continue;
     const distanceAtr=Math.abs(current.c-currentLine)/scale,structure=Math.max(.45,Math.min(1,(line.score??64)/100)),confirmation=key==='true_break'?1:key==='false_break' ? .88 : .65;
-    candidates.push({key,label:key==='hold_support'?'Giữ hỗ trợ':key==='hold_resistance'?'Giữ kháng cự':key==='true_break'?'Phá thật':'Phá giả',direction,at:current.t,index:currentIndex,lineKind:line.kind,lineScore:line.score??null,lineValue:currentLine,distanceAtr,flowAligned,confidence:clamp(structure*confirmation),priority,line});
+    candidates.push({key,label:key==='hold_support'?'Giữ hỗ trợ':key==='hold_resistance'?'Giữ kháng cự':key==='true_break'?'Phá thật':'Phá giả',direction,breakDirection,at:current.t,index:currentIndex,lineKind:line.kind,lineScore:line.score??null,lineValue:currentLine,distanceAtr,flowAligned,confidence:clamp(structure*confirmation),priority,line});
   }
   return candidates.sort((a,b)=>b.priority-a.priority||b.confidence-a.confidence||a.distanceAtr-b.distanceAtr)[0]??null;
 }
@@ -170,11 +170,13 @@ export function analyzeBreakoutRetest({price,spy=[],qqq=[],flow=[],volume=[]},op
 
 export function recentCausalLineStates({price,spy=[],qqq=[],flow=[],volume=[]},options={},limit=4){
   if(!Array.isArray(price)||!Array.isArray(spy)||!Array.isArray(qqq)||!Array.isArray(flow)||!Array.isArray(volume)||!Number.isInteger(limit)||limit<1||limit>20)throw Error('Nguồn trạng thái line gần nhất không hợp lệ');
-  const start=Math.max(0,price.length-limit);
-  return price.slice(start).map((bar,offset)=>{
-    const end=start+offset+1,at=bar.t,prefix={price:price.slice(0,end),spy:spy.filter(row=>row.t<=at),qqq:qqq.filter(row=>row.t<=at),flow:flow.filter(row=>row.t<=at),volume:volume.filter(row=>row.t<=at)},state=analyzeBreakoutRetest(prefix,options);
-    return {at,index:end-1,key:state?.key??'waiting',label:state?.label??'Chờ trạng thái',direction:state?.direction??0,lineValue:state?.lineValue??bar.c,lineKind:state?.lineKind??null,lineScore:state?.lineScore??null,distanceAtr:state?.distanceAtr??null,active:Boolean(state)};
-  });
+  const found=[],lookback=Math.max(limit,Math.min(price.length,Number.isInteger(options.stateLookbackBars)?options.stateLookbackBars:600)),first=Math.max(18,price.length-lookback+1);
+  for(let end=price.length;end>=first&&found.length<limit;end--){
+    const at=price[end-1].t,prefix={price:price.slice(0,end),spy:spy.filter(row=>row?.t<=at),qqq:qqq.filter(row=>row?.t<=at),flow:flow.filter(row=>row?.t<=at),volume:volume.filter(row=>row?.t<=at)},state=analyzeBreakoutRetest(prefix,options);
+    if(!state||!['true_break','false_break'].includes(state.key))continue;
+    found.push({at,index:end-1,key:state.key,label:state.label,direction:state.direction,breakDirection:state.breakDirection,lineValue:state.lineValue,lineKind:state.lineKind,lineScore:state.lineScore,distanceAtr:state.distanceAtr});
+  }
+  return found.reverse();
 }
 
 export function backtestGeometry(price,events,{horizon=4,minMoveAtr=.35,atrPeriod=14}={}){

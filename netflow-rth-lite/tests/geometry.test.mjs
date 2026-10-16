@@ -61,11 +61,13 @@ test('breakout and retest classification uses only a previously known line and t
   assert.equal(classifyBreakoutRetest(broken,[line],{strengthDirection:-1,flowDirection:-1,volumeDirection:-1}).key,'true_break');
   assert.equal(classifyBreakoutRetest(broken,[line],{strengthDirection:-1,flowDirection:-1,volumeDirection:1}),null);
   const reclaimed=broken.map(x=>({...x}));Object.assign(reclaimed[19],{o:98,h:101.4,l:97.8,c:101});
-  const falseBreak=classifyBreakoutRetest(reclaimed,[line],{strengthDirection:1,flowDirection:1});assert.equal(falseBreak.key,'false_break');assert.equal(falseBreak.direction,1);
+  const falseBreak=classifyBreakoutRetest(reclaimed,[line],{strengthDirection:1,flowDirection:1});assert.equal(falseBreak.key,'false_break');assert.equal(falseBreak.direction,1);assert.equal(falseBreak.breakDirection,-1);
 });
 
-test('four latest line-state points are prefix-causal',()=>{
-  const data=synthetic(200),options={left:2,right:2,minProminenceAtr:.03,minScore:0,maxLines:4},points=recentCausalLineStates(data,options,4),extended=synthetic(201);extended.price[200]={...extended.price[200],h:180,l:40,c:160};
-  const extendedPoints=recentCausalLineStates(extended,options,5);
-  assert.equal(points.length,4);assert.deepEqual(points.map(point=>point.at),data.price.slice(-4).map(bar=>bar.t));assert.deepEqual(extendedPoints.slice(0,4),points);assert(points.every(point=>['waiting','hold_support','hold_resistance','true_break','false_break'].includes(point.key)&&Number.isFinite(point.lineValue)));
+test('four latest line-cross notifications are causal and direction-aware',()=>{
+  const read=path=>JSON.parse(fs.readFileSync(new URL(path,import.meta.url),'utf8').replace(/^\uFEFF/,'')),now=read('../../netflow-ml/tests/fixtures/time.json').serverTime;
+  const spyRaw=parseKlines(read('../../netflow-ml/tests/fixtures/SPYUSDT.json'),now,STEPS['15m']),qqqRaw=parseKlines(read('../../netflow-ml/tests/fixtures/QQQUSDT.json'),now,STEPS['15m']);
+  const price=analyze(spyRaw,STEPS['15m']),spy=price,qqq=analyze(qqqRaw,STEPS['15m']),flow=analyze(composite(spyRaw,qqqRaw),STEPS['15m']),options={minScore:55,maxLines:4,stateLookbackBars:600},points=recentCausalLineStates({price,spy,qqq,flow},options,4);
+  assert.equal(points.length,4);assert(points.every(point=>['true_break','false_break'].includes(point.key)&&[-1,1].includes(point.breakDirection)&&Number.isFinite(point.lineValue)));
+  for(const point of points){const end=point.index+1,at=point.at,prefix={price:price.slice(0,end),spy:spy.filter(row=>row.t<=at),qqq:qqq.filter(row=>row.t<=at),flow:flow.filter(row=>row.t<=at)};assert.deepEqual(recentCausalLineStates(prefix,options,1).at(-1),point);}
 });
