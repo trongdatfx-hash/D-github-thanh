@@ -20,7 +20,7 @@ const flowColors={
 };
 const LIVE_REFRESH_MS=3000;
 const CALENDAR_REFRESH_MS=5*60*1000;
-const FIT_WINDOW_MS=36*60*60*1000,DOUBLE_TAP_MS=360,DOUBLE_TAP_DISTANCE=28,TAP_MOVE_TOLERANCE=14;
+const FIT_WINDOW_MS=36*60*60*1000,FIT_HALF_WINDOW_MS=12*60*60*1000,DOUBLE_TAP_MS=360,DOUBLE_TAP_DISTANCE=28,TAP_MOVE_TOLERANCE=14;
 let statsMap=new Map(),candleColorMap=new Map(),wlrStatsData=null,rev63State=null,rev63History=[],pivotZoneState={ready:false,reason:'history',support:null,resistance:null},pivotFlowState=null,pivotZoneKey='',inspectedTime=null;
 let calendarState={events:[],updatedAt:null,loading:false};
 const sourceName=key=>({SPYUSDT:'SPY',QQQUSDT:'QQQ',COMPOSITE:'Composite'}[key]);
@@ -95,6 +95,12 @@ class VariableWidthLineSeries{
 }
 function status(text,error=false){$('status').textContent=text;$('status').classList.toggle('error',error);}
 function setLive(live){const node=$('live-indicator');node.textContent=live?'● LIVE':'● KHÔNG LIVE';node.className=live?'live':'offline';}
+function setupChartActions(){
+  const actions=document.querySelector('.chart-actions'),fit=$('chart-fit'),live=$('live-indicator');
+  if(!actions||!fit||!live)return;
+  fit.insertAdjacentElement('afterend',live);
+  const half=document.createElement('button');half.id='chart-fit-half';half.type='button';half.title='Hiển thị các nến trong 0,5 ngày gần nhất';half.textContent='Fit 0.5 ngày';live.insertAdjacentElement('afterend',half);
+}
 function renderWlrAgreementStats(){
   const body=$('wlr-stats-body'),insight=$('wlr-stats-insight'),context=$('wlr-stats-context');if(!body||!insight||!context)return;
   const h=Number($('wlr-horizon').value),summaries=wlrStatsData?.summaries?.[h]??{},defs=[...WLR_STATE_ROWS,...WLR_AGREEMENT_ROWS];
@@ -244,9 +250,9 @@ function updateCandleCountdown(){
   const minutes=Math.floor(seconds/60),rest=seconds%60;
   node.textContent=`${String(minutes).padStart(2,'0')}:${String(rest).padStart(2,'0')}`;
   node.className=remaining>0?'':'missing';
-  const y=price.priceToCoordinate(bar.c),paneHeight=chart?.panes?.()[0]?.getHeight?.(),axisWidth=chart.priceScale('right',0)?.width?.()??56;
-  node.style.right=`${axisWidth+6}px`;
-  if(Number.isFinite(y)&&Number.isFinite(paneHeight))node.style.top=`${Math.max(node.offsetHeight/2+2,Math.min(paneHeight-node.offsetHeight/2-2,y))}px`;
+  const y=price.priceToCoordinate(bar.c),paneHeight=chart?.panes?.()[0]?.getHeight?.();
+  node.style.right='2px';
+  if(Number.isFinite(y)&&Number.isFinite(paneHeight))node.style.top=`${Math.max(2,Math.min(paneHeight-node.offsetHeight-2,y+11))}px`;
 }
 function drawCvdSpectrum(){
   const canvas=$('cvd-spectrum'),host=$('chart'),width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1;
@@ -491,13 +497,13 @@ function exportCSV(){
   const csv=[keys.join(','),...data.map(x=>keys.map(k=>x[k]??'').join(','))].join('\n');
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download=`${source}-${$('interval').value}-quote-netflow.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
-function fitChart(){
+function fitChart(windowMs=FIT_WINDOW_MS){
   for(let pane=0;pane<4;pane++)chart.priceScale('right',pane).applyOptions({autoScale:true});series.relative.priceScale().applyOptions({autoScale:true});series.alignment.priceScale().applyOptions({autoScale:true});
   const data=rows[$('symbol').value]??[],host=$('chart');
   if(data.length){
-    const lastIndex=data.length-1,lastTime=data[lastIndex].t,cutoff=lastTime-FIT_WINDOW_MS,firstIndex=Math.max(0,data.findIndex(bar=>bar.t>=cutoff));
+    const lastIndex=data.length-1,lastTime=data[lastIndex].t,cutoff=lastTime-windowMs,firstIndex=Math.max(0,data.findIndex(bar=>bar.t>=cutoff));
     const rightPadding=Math.min(6,Math.max(2,Math.round((lastIndex-firstIndex+1)*.04)));
-    chart.timeScale().setVisibleLogicalRange({from:firstIndex-.5,to:lastIndex+rightPadding});host.dataset.fitWindowHours='36';host.dataset.fitStart=String(data[firstIndex].t);host.dataset.fitEnd=String(lastTime);
+    chart.timeScale().setVisibleLogicalRange({from:firstIndex-.5,to:lastIndex+rightPadding});host.dataset.fitWindowHours=String(windowMs/3600000);host.dataset.fitStart=String(data[firstIndex].t);host.dataset.fitEnd=String(lastTime);
   }else{chart.timeScale().fitContent();delete host.dataset.fitWindowHours;delete host.dataset.fitStart;delete host.dataset.fitEnd;}
   scheduleCvdSpectrum();scheduleDaySeparators();scheduleGeometryOverlay();
 }
@@ -525,6 +531,7 @@ function bindChartGestures(){
   host.addEventListener('pointerup',finish,{capture:true});host.addEventListener('pointercancel',event=>{if(event.pointerType==='touch'){activeTouches.delete(event.pointerId);start=null;lastTap=null;if(!activeTouches.size)multiTouch=false;}},{capture:true});
 }
 if(init()){
+  setupChartActions();
   $('refresh').onclick=()=>refresh();for(const id of ['interval','days'])$(id).onchange=()=>refresh(true);
   for(const id of ['symbol','signal'])$(id).onchange=()=>render(false);
   for(const id of ['spy','qqq','composite','relative','alignment','price-bands','pivot-zones','cvd-spectrum-toggle','show-strength','spy-volume-strength','bands','markers','geometry-toggle','geometry-pivots'])$(id).onchange=toggle;
@@ -532,7 +539,7 @@ if(init()){
   $('wlr-horizon').onchange=renderWlrAgreementStats;
   $('phase-width').onchange=()=>render(false);
   $('candle-agreement-color').onchange=()=>render(false);
-  $('fit').onclick=fitChart;$('chart-fit').onclick=fitChart;$('fullscreen').onclick=toggleFullChart;
+  $('fit').onclick=()=>fitChart();$('chart-fit').onclick=()=>fitChart();$('chart-fit-half').onclick=()=>fitChart(FIT_HALF_WINDOW_MS);$('fullscreen').onclick=toggleFullChart;
   document.addEventListener('fullscreenchange',syncFullChart);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.querySelector('.chart-card').classList.contains('fullscreen-fallback')){document.querySelector('.chart-card').classList.remove('fullscreen-fallback');syncFullChart();}});
   $('export').onclick=exportCSV;
   const changeCalendarFilter=()=>{delete $('calendar-list').dataset.positioned;renderCalendar();};$('calendar-impact').onchange=changeCalendarFilter;$('calendar-currency').onchange=changeCalendarFilter;$('calendar-refresh').onclick=refreshCalendar;
