@@ -398,14 +398,11 @@ function positionStrengthReadout(){
   const host=$('strength-readout'),panes=chart?.panes?.();if(!host||!panes?.[2]||!series.strength)return;
   const heights=panes.map(pane=>pane.getHeight()),chartHeight=$('chart').clientHeight,total=heights.reduce((sum,height)=>sum+height,0),gap=panes.length>1?Math.max(0,chartHeight-total)/(panes.length-1):0;
   const paneTop=heights[0]+heights[1]+2*gap,paneHeight=heights[2],topLimit=paneTop+4,bottomLimit=paneTop+paneHeight-4;
-  const points=[['SPYUSDT','strength-spy'],['QQQUSDT','strength-qqq'],['COMPOSITE','strength-composite']].map(([key,id])=>{
-    const node=$(id),value=latestStrength(key),coordinate=Number.isFinite(value)?series.strength.priceToCoordinate(value):null;
-    return {node,height:node.offsetHeight||20,target:Number.isFinite(coordinate)?paneTop+coordinate:null};
-  }).filter(point=>point.target!==null).sort((a,b)=>a.target-b.target);
-  for(let i=0;i<points.length;i++)points[i].top=Math.max(topLimit,points[i].target-points[i].height/2,i?points[i-1].top+points[i-1].height+4:-Infinity);
-  for(let i=points.length-1;i>=0;i--)points[i].top=Math.min(points[i].top,bottomLimit-points[i].height,i<points.length-1?points[i+1].top-points[i].height-4:Infinity);
-  for(const point of points)point.node.style.top=`${Math.round(point.top)}px`;
-  host.dataset.paneTop=String(Math.round(paneTop));host.dataset.paneBottom=String(Math.round(paneTop+paneHeight));
+  const zeroCoordinate=series.strength.priceToCoordinate(0);if(!Number.isFinite(zeroCoordinate))return;
+  const points=['strength-spy','strength-qqq','strength-composite'].map(id=>{const node=$(id);return {node,height:node.offsetHeight||20};}),labelGap=4,stackHeight=points.reduce((sum,point)=>sum+point.height,0)+labelGap*(points.length-1),zeroY=paneTop+zeroCoordinate;
+  let top=Math.max(topLimit,Math.min(bottomLimit-stackHeight,zeroY-stackHeight/2));
+  for(const point of points){point.node.style.top=`${Math.round(top)}px`;top+=point.height+labelGap;}
+  host.dataset.paneTop=String(Math.round(paneTop));host.dataset.paneBottom=String(Math.round(paneTop+paneHeight));host.dataset.zeroY=String(Math.round(zeroY));
 }
 function updateStrengthLabels(){
   $('strength-readout').style.display=$('show-strength').checked?'block':'none';
