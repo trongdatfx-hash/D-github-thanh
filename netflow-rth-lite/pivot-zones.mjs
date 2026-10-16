@@ -68,6 +68,29 @@ function zoneFor(event,events,price,step,atr,{horizon,neighbors,maxAge,draws}){
   return {kind:event.kind,low,level:anchor,high,start:event.at,end:price[last].t+4*step,pivotTime:event.pivot.t,confirmedAt:event.at,ageBars:age,divergence:event.divergence,compositeRank:event.compositeRank,volumeRank:event.volumeRank,n:matched.length,effectiveN,rwHalfAtr:rwHalf/event.atr,bridgePercentile:bridge.percentile,statistical,quantiles:statistical?[q25,q50,q75]:null};
 }
 
+// Aggregate only the candles bracketed by two confirmed, opposite-side price
+// pivots. Composite NF is taker buy quote minus taker sell quote, not an
+// independent book-imbalance vote or a prediction of the next candle.
+export function pivotFlowBetween(price,composite,pivots=confirmedPricePivots(price)){
+  if(!Array.isArray(price)||!Array.isArray(composite)||!Array.isArray(pivots))return null;
+  const second=pivots.at(-1),first=pivots.findLast(pivot=>second&&pivot.index<second.index&&pivot.type!==second.type);
+  if(!first||!second||second.index-first.index<4||second.index-first.index>160)return null;
+  const source=new Map(composite.map(row=>[row.t,row])),interval=price.slice(first.index,second.index+1),count=Math.min(10,Math.max(4,Math.round(Math.sqrt(interval.length)))),bins=[];
+  let covered=0,totalNet=0,totalQuote=0;
+  for(let bin=0;bin<count;bin++){
+    const start=Math.floor(bin*interval.length/count),end=Math.floor((bin+1)*interval.length/count);
+    let net=0,quote=0;
+    for(const bar of interval.slice(start,end)){
+      const row=source.get(bar.t);
+      if(!Number.isFinite(row?.net)||!Number.isFinite(row?.q)||row.q<=0)continue;
+      net+=row.net;quote+=row.q;covered++;
+    }
+    bins.push({net,quote,pct:quote?100*net/quote:null});totalNet+=net;totalQuote+=quote;
+  }
+  if(covered/interval.length<.8||!totalQuote)return null;
+  return {firstPivotTime:first.t,secondPivotTime:second.t,confirmedAt:second.confirmedAt,bins,totalNet,totalQuote,pct:100*totalNet/totalQuote,coverage:covered/interval.length};
+}
+
 export function pivotZones({price=[],composite=[],volume=[]},step,{horizon=4,neighbors=60,maxAge=96,draws=64}={}){
   if(!Array.isArray(price)||!Array.isArray(composite)||!Array.isArray(volume)||!(step>0)||!Number.isInteger(horizon)||horizon<1||!Number.isInteger(neighbors)||neighbors<1||!Number.isInteger(maxAge)||maxAge<1)return {ready:false,reason:'input',support:null,resistance:null};
   if(price.length<40)return {ready:false,reason:'history',support:null,resistance:null};
@@ -75,5 +98,5 @@ export function pivotZones({price=[],composite=[],volume=[]},step,{horizon=4,nei
   const c=price.map(row=>compositeMap.get(row.t)),v=price.map(row=>volumeMap.get(row.t)),pivots=confirmedPricePivots(price,{atr}),events=pivotEvents(price,pivots,atr,c,v,step,horizon),settings={horizon,neighbors,maxAge,draws};
   const supportEvent=events.findLast(event=>event.kind==='support'),resistanceEvent=events.findLast(event=>event.kind==='resistance');
   const support=supportEvent?zoneFor(supportEvent,events,price,step,atr,settings):null,resistance=resistanceEvent?zoneFor(resistanceEvent,events,price,step,atr,settings):null;
-  return {version:PIVOT_ZONE_VERSION,ready:!!(support||resistance),reason:support||resistance?null:'no-active-pivot',support,resistance,asOf:price.at(-1).t};
+  return {version:PIVOT_ZONE_VERSION,ready:!!(support||resistance),reason:support||resistance?null:'no-active-pivot',support,resistance,flow:pivotFlowBetween(price,composite,pivots),asOf:price.at(-1).t};
 }

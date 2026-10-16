@@ -51,6 +51,7 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   const forecastBox=await page.locator('#geometry-readout').boundingBox(),chartBox=await page.locator('#chart').boundingBox();
   assert(forecastBox.x+forecastBox.width<=chartBox.x+chartBox.width);assert(forecastBox.y-chartBox.y>chartBox.height*.35);assert(forecastBox.y+forecastBox.height<chartBox.y+chartBox.height*.65);
   assert.match(await page.locator('#pivot-zone-readout').innerText(),/^REV6 Pivot Zones /);
+  const pivotFlow=page.locator('#pivot-flow-overlay');assert.equal(await pivotFlow.count(),1);assert.match(await pivotFlow.getAttribute('aria-label'),/Composite NF giữa hai pivot xác nhận/);assert(['hidden','visible'].includes(await pivotFlow.getAttribute('data-status')));
   assert.equal(await page.locator('#live-indicator').innerText(),'● LIVE');assert(await page.locator('#live-indicator').evaluate(el=>el.classList.contains('live')));
   assert.equal(await page.locator('#days').inputValue(),'30');
   for(const id of ['spy','qqq','relative'])assert.equal(await page.locator('#'+id).isChecked(),false);
@@ -70,6 +71,7 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   const dayCanvas=page.locator('#day-separators');assert.equal(await dayCanvas.evaluate(canvas=>canvas.width>0&&canvas.height>0),true);assert(+(await dayCanvas.getAttribute('data-count'))>0);assert(await dayCanvas.evaluate(canvas=>canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data.some((value,index)=>index%4===3&&value>0)));
   await page.locator('#markers').uncheck();assert.equal(await dayCanvas.isVisible(),false);await page.locator('#markers').check();assert.equal(await dayCanvas.isVisible(),true);
   await page.locator('#symbol').selectOption('QQQUSDT');await page.locator('#signal').selectOption('SPYUSDT');
+  await page.waitForFunction(()=>document.querySelector('#pivot-flow-overlay')?.dataset.status==='hidden');
   assert.equal(await page.locator('#cvd-spectrum').getAttribute('data-source'),'QQQUSDT');
   assert((await page.locator('#tooltip').innerText()).includes('Giá QQQ, Strength phân tích SPY'));
   for(const id of ['spy','qqq','composite','relative','alignment','price-bands','pivot-zones','phase-width','candle-agreement-color','cvd-spectrum-toggle','show-strength','spy-volume-strength','geometry-impact','bands','markers','geometry-toggle','geometry-pivots']){await page.locator('#'+id).uncheck();await page.locator('#'+id).check();}
