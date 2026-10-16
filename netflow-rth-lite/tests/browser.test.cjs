@@ -50,12 +50,12 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   assert.equal(await page.locator('#trend-strength').count(),0);
   const forecastBox=await page.locator('#geometry-readout').boundingBox(),chartBox=await page.locator('#chart').boundingBox();
   assert(forecastBox.x+forecastBox.width<=chartBox.x+chartBox.width);assert(forecastBox.y-chartBox.y>chartBox.height*.35);assert(forecastBox.y+forecastBox.height<chartBox.y+chartBox.height*.65);
-  assert.match(await page.locator('#reversal-readout').innerText(),/^REV6 V2→2 /);
+  assert.match(await page.locator('#pivot-zone-readout').innerText(),/^REV6 Pivot Zones /);
   assert.equal(await page.locator('#live-indicator').innerText(),'● LIVE');assert(await page.locator('#live-indicator').evaluate(el=>el.classList.contains('live')));
   assert.equal(await page.locator('#days').inputValue(),'30');
   for(const id of ['spy','qqq','relative'])assert.equal(await page.locator('#'+id).isChecked(),false);
   assert((await page.locator('label:has(#relative)').getAttribute('title')).includes('SPY và QQQ cùng Buy Impact'));
-  for(const id of ['composite','alignment','price-bands','reversal-zone','phase-width','candle-agreement-color','cvd-spectrum-toggle','show-strength','spy-volume-strength','geometry-impact','bands','markers','geometry-toggle','geometry-pivots','double-tap-full'])assert.equal(await page.locator('#'+id).isChecked(),true);
+  for(const id of ['composite','alignment','price-bands','pivot-zones','phase-width','candle-agreement-color','cvd-spectrum-toggle','show-strength','spy-volume-strength','geometry-impact','bands','markers','geometry-toggle','geometry-pivots','double-tap-full'])assert.equal(await page.locator('#'+id).isChecked(),true);
   assert((await page.locator('#fit').innerText()).includes('1.5 ngày'));assert((await page.locator('#chart-fit').innerText()).includes('1.5 ngày'));
   const fitWindow=await page.locator('#chart').evaluate(node=>({hours:+node.dataset.fitWindowHours,start:+node.dataset.fitStart,end:+node.dataset.fitEnd}));assert.equal(fitWindow.hours,36);assert(fitWindow.end>fitWindow.start);assert(fitWindow.end-fitWindow.start<=36*60*60*1000);
   assert.equal(await page.locator('#geometry-score').inputValue(),'55');assert.equal(await page.locator('#geometry-lines').inputValue(),'6');
@@ -72,7 +72,7 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   await page.locator('#symbol').selectOption('QQQUSDT');await page.locator('#signal').selectOption('SPYUSDT');
   assert.equal(await page.locator('#cvd-spectrum').getAttribute('data-source'),'QQQUSDT');
   assert((await page.locator('#tooltip').innerText()).includes('Giá QQQ, Strength phân tích SPY'));
-  for(const id of ['spy','qqq','composite','relative','alignment','price-bands','reversal-zone','phase-width','candle-agreement-color','cvd-spectrum-toggle','show-strength','spy-volume-strength','geometry-impact','bands','markers','geometry-toggle','geometry-pivots']){await page.locator('#'+id).uncheck();await page.locator('#'+id).check();}
+  for(const id of ['spy','qqq','composite','relative','alignment','price-bands','pivot-zones','phase-width','candle-agreement-color','cvd-spectrum-toggle','show-strength','spy-volume-strength','geometry-impact','bands','markers','geometry-toggle','geometry-pivots']){await page.locator('#'+id).uncheck();await page.locator('#'+id).check();}
   await page.locator('#geometry-score').selectOption('72');assert((await page.locator('#geometry-readout').innerText()).startsWith('UP '));assert(+(await geometryCanvas.getAttribute('data-lines'))>0);await page.locator('#geometry-score').selectOption('55');
   for(const interval of fixtureRoot||process.env.NETFLOW_LIVE?['5m','30m','1h','15m']:['15m']){
    await page.locator('#interval').selectOption(interval);await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('TRADING'),{},{timeout:120000});

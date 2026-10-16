@@ -2,8 +2,7 @@ import {STEPS,composite,flowAlignment,strengthAgreementCandleSignal,strengthPhas
 import {load} from './data.mjs';
 import {loadPersistentHistory} from './history-store.mjs?v=20261015-1';
 import {strengthStatistics} from './strength-stats.mjs?v=20261015-1';
-import {reversalZone,REVERSAL_VERSION,REVERSAL_HORIZON,REVERSAL_MIN_MATCHES,REVERSAL_MIN_EFFECTIVE} from './reversal-zone.mjs?v=20261012-5';
-import {ReversalStabilizer} from './stability.mjs?v=20261012-5';
+import {pivotZones,PIVOT_ZONE_VERSION} from './pivot-zones.mjs?v=20261016-1';
 import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeometry} from './geometry.mjs?v=20261016-3';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261014-2';
 import {wlrAgreementStatistics,WLR_STATE_ROWS,WLR_AGREEMENT_ROWS,WLR_MIN_SAMPLES} from './wlr-agreement-stats.mjs?v=20261015-1';
@@ -24,9 +23,8 @@ const LIVE_REFRESH_MS=3000;
 const CALENDAR_REFRESH_MS=5*60*1000;
 const IMPACT_STORAGE_KEY='spy-geometry-spread-impact-v1';
 const FIT_WINDOW_MS=36*60*60*1000,DOUBLE_TAP_MS=360,DOUBLE_TAP_DISTANCE=28,TAP_MOVE_TOLERANCE=14;
-let statsMap=new Map(),candleColorMap=new Map(),wlrStatsData=null,rev63State=null,rev63History=[],reversalState={ready:false,reason:'window',n:0},inspectedTime=null;
+let statsMap=new Map(),candleColorMap=new Map(),wlrStatsData=null,rev63State=null,rev63History=[],pivotZoneState={ready:false,reason:'history',support:null,resistance:null},pivotZoneKey='',inspectedTime=null;
 let calendarState={events:[],updatedAt:null,loading:false};
-const reversalStabilizer=new ReversalStabilizer({alpha:.25,confirmations:3});
 const sourceName=key=>({SPYUSDT:'SPY',QQQUSDT:'QQQ',COMPOSITE:'Composite'}[key]);
 const signed=x=>Number.isFinite(x)?`${x>0?'+':''}${fmt(x)}`:'—';
 const returnText=x=>Number.isFinite(x)?`${x>0?'+':''}${x.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:4})}%`:'—';
@@ -194,8 +192,8 @@ function init(){
   series.priceMid=chart.addCustomSeries(new VariableWidthLineSeries,{color:'#f6c85f',baseLineVisible:false,priceLineVisible:false,lastValueVisible:false,title:''},0);
   for(const key of ['priceUpper','priceLower'])series[key]=chart.addSeries(L.LineSeries,{color:'#4aa3ff',lineWidth:1,lineStyle:L.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,title:''},0);
   for(const [key,color,width,style,last,title] of [
-    ['reversalResistanceLow','rgba(255,180,84,.55)',1,L.LineStyle.Dashed,false,''],['reversalResistanceHigh','rgba(255,180,84,.55)',1,L.LineStyle.Dashed,false,''],['reversalResistanceMid','#ffb454',3,L.LineStyle.Solid,true,'REV6 V2→2 KC'],
-    ['reversalSupportLow','rgba(91,200,255,.55)',1,L.LineStyle.Dashed,false,''],['reversalSupportHigh','rgba(91,200,255,.55)',1,L.LineStyle.Dashed,false,''],['reversalSupportMid','#5bc8ff',3,L.LineStyle.Solid,true,'REV6 V2→2 HT']
+    ['pivotResistanceLow','rgba(255,180,84,.55)',1,L.LineStyle.Dashed,false,''],['pivotResistanceHigh','rgba(255,180,84,.55)',1,L.LineStyle.Dashed,false,''],['pivotResistanceMid','#ffb454',3,L.LineStyle.Solid,true,'REV6 Pivot KC'],
+    ['pivotSupportLow','rgba(91,200,255,.55)',1,L.LineStyle.Dashed,false,''],['pivotSupportHigh','rgba(91,200,255,.55)',1,L.LineStyle.Dashed,false,''],['pivotSupportMid','#5bc8ff',3,L.LineStyle.Solid,true,'REV6 Pivot HT']
   ])series[key]=chart.addSeries(L.LineSeries,{color,lineWidth:width,lineStyle:style,priceLineVisible:false,lastValueVisible:last,crosshairMarkerVisible:false,title},0);
   for(const key of Object.keys(colors))series[key]=chart.addSeries(L.HistogramSeries,{base:0,color:flowColors[key].up,title:flowTitles[key],priceLineVisible:false,priceFormat:{type:'custom',formatter:fmtK}},1);
   series.relative=chart.addSeries(L.HistogramSeries,{priceScaleId:'relative',base:0,color:'rgba(112,126,145,.3)',title:'SPY−QQQ tương đối',priceLineVisible:false,lastValueVisible:true,priceFormat:{type:'custom',formatter:x=>`${fmt(x)}%`}},1);
@@ -371,9 +369,9 @@ function render(fit=false){
   const agreementColors=$('candle-agreement-color').checked;
   price.setData(p.map(x=>{const color=agreementColors?candlePalette(candleColorMap.get(x.t)):priceDirectionPalette(x);return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color:color.body,wickColor:color.wick,borderColor:color.border};}));
   statsMap=strengthStatistics({...rows,alignment},$('symbol').value,$('signal').value,STEPS[$('interval').value]);
-  const rawReversal=reversalZone(model,$('symbol').value,$('signal').value,STEPS[$('interval').value]);
-  const reversalKey=`${$('symbol').value}|${$('signal').value}|${$('interval').value}|${p.at(-1)?.t??'empty'}`;
-  reversalState=reversalStabilizer.update(rawReversal,reversalKey,cache?.serverTime??generation);
+  const pivotComposite=(model.COMPOSITE??[]).filter(row=>modelClosedTimes.has(row.t)),pivotVolume=(modelVolumeStrengthRows.length?modelVolumeStrengthRows:volumeStrengthRows).filter(row=>modelClosedTimes.has(row.t));
+  const nextPivotKey=`${$('symbol').value}|${$('interval').value}|${modelClosedPrice.at(-1)?.t??0}|${modelClosedPrice.length}|${pivotComposite.length}|${pivotVolume.length}`;
+  if(nextPivotKey!==pivotZoneKey){pivotZoneState=pivotZones({price:modelClosedPrice,composite:pivotComposite,volume:pivotVolume},STEPS[$('interval').value]);pivotZoneKey=nextPivotKey;}
   const priceBands=weightedPriceBands(p,STEPS[$('interval').value]);priceBandMap=new Map(priceBands.map(x=>[x.t,x]));
   wlrStatsData=wlrAgreementStatistics(modelClosedPrice,(model.COMPOSITE??[]).filter(row=>modelClosedTimes.has(row.t)),(modelVolumeStrengthRows.length?modelVolumeStrengthRows:volumeStrengthRows).filter(row=>modelClosedTimes.has(row.t)),STEPS[$('interval').value]);renderWlrAgreementStats();updateRev63(modelClosedPrice,geometryInput);
   series.priceMid.setData(priceLineData(priceBands,maps.COMPOSITE??new Map(),volumeStrengthMap));series.priceUpper.setData(lineData(priceBands,'upper'));series.priceLower.setData(lineData(priceBands,'lower'));
@@ -415,19 +413,22 @@ function updateStrengthLabels(){
   for(const [key,id,label] of [['SPYUSDT','strength-spy','SPY'],['QQQUSDT','strength-qqq','QQQ'],['COMPOSITE','strength-composite','']]){const value=latestStrength(key),node=$(id);node.textContent=label?`${label} ${fmt(value)}`:fmt(value);node.className=Number.isFinite(value)?value>=0?'positive':'negative':'missing';}
   requestAnimationFrame(positionStrengthReadout);
 }
-function updateReversalZone(){
-  const enabled=$('reversal-zone').checked,node=$('reversal-readout'),visible=enabled&&reversalState.ready;
-  const zoneKeys=['reversalResistanceLow','reversalResistanceMid','reversalResistanceHigh','reversalSupportLow','reversalSupportMid','reversalSupportHigh'];
-  if(!visible){for(const key of zoneKeys)series[key].setData([]);node.style.display=enabled?'block':'none';node.className='missing';const sample=Number.isFinite(reversalState.rate)?` · ${fmt(reversalState.rate*100)}% vs nền ${fmt(reversalState.baselineRate*100)}% · n=${reversalState.n} · nₑ=${fmt(reversalState.effectiveN)}`:'';node.textContent=reversalState.reason==='matches'?`${REVERSAL_VERSION}→${REVERSAL_HORIZON} — cần ≥${REVERSAL_MIN_MATCHES} mẫu${sample}`:reversalState.reason==='effective'?`${REVERSAL_VERSION}→${REVERSAL_HORIZON} — mẫu hữu hiệu <${REVERSAL_MIN_EFFECTIVE}${sample}`:reversalState.reason==='events'?`${REVERSAL_VERSION}→${REVERSAL_HORIZON} — quá ít lần đảo dấu${sample}`:reversalState.reason==='confidence'?`${REVERSAL_VERSION}→${REVERSAL_HORIZON} — chưa vượt tỷ lệ nền${sample}`:`${REVERSAL_VERSION}→${REVERSAL_HORIZON} — chờ đủ 6 nến`;node.title=`V2 dùng Mahalanobis co rút 55%, hình dạng giá/Strength 25% và NetFlow SPY–QQQ 20%; hàng xóm có trọng số Gaussian. Chỉ vẽ hai vùng khi tỷ lệ đổi dấu vượt nền với đủ cỡ mẫu hữu hiệu và cận tin cậy một phía 90%.`;return;}
-  const line=(value)=>[{time:reversalState.start/1000,value},{time:reversalState.end/1000,value}];
-  for(const [key,value] of [['reversalResistanceLow',reversalState.resistanceLow],['reversalResistanceMid',reversalState.resistanceLevel],['reversalResistanceHigh',reversalState.resistanceHigh],['reversalSupportLow',reversalState.supportLow],['reversalSupportMid',reversalState.supportLevel],['reversalSupportHigh',reversalState.supportHigh]])series[key].setData(line(value));
-  node.style.display='block';node.className='both-zones';node.replaceChildren();
-  const resistance=document.createElement('span'),support=document.createElement('span'),stats=document.createElement('span');
-  resistance.className='resistance';resistance.textContent=`KC ${fmt(reversalState.resistanceLow)}–${fmt(reversalState.resistanceHigh)}`;
-  support.className='support';support.textContent=`HT ${fmt(reversalState.supportLow)}–${fmt(reversalState.supportHigh)}`;
-  stats.className='zone-stats';stats.textContent=` · ${fmt(reversalState.rate*100)}% vs nền ${fmt(reversalState.baselineRate*100)}% · n=${reversalState.n} · nₑ=${fmt(reversalState.effectiveN)}${reversalState.stabilizing?' · giữ ổn định':''}`;
-  node.append(`${REVERSAL_VERSION}→${REVERSAL_HORIZON} `,resistance,' · ',support,stats);
-  node.title=`V2: Mahalanobis co rút 55% + hình dạng giá/Strength 25% + NetFlow SPY–QQQ 20%; trọng số Gaussian và prior nền. Mỗi lần đổi dấu đo cả cực đại và cực tiểu từ close cuối cụm đến nến đổi dấu. Tỷ lệ ${fmt(reversalState.rate*100)}%; nền ${fmt(reversalState.baselineRate*100)}%; cận 90% ${fmt(reversalState.lower*100)}%; ${reversalState.eventCount}/${reversalState.n} cụm; cỡ mẫu hữu hiệu ${fmt(reversalState.effectiveN)}.`;
+function updatePivotZones(){
+  const enabled=$('pivot-zones').checked,node=$('pivot-zone-readout'),zones=pivotZoneState;
+  for(const [kind,prefix] of [['resistance','pivotResistance'],['support','pivotSupport']]){
+    const zone=enabled?zones[kind]:null;
+    for(const [suffix,value] of [['Low',zone?.low],['Mid',zone?.level],['High',zone?.high]])series[prefix+suffix].setData(zone&&Number.isFinite(value)?[{time:zone.start/1000,value},{time:zone.end/1000,value}]:[]);
+  }
+  node.style.display=enabled?'block':'none';node.replaceChildren();
+  if(!zones.ready){node.className='missing';node.textContent=zones.reason==='history'?'REV6 Pivot Zones — chờ đủ nến':'REV6 Pivot Zones — chưa có pivot còn hiệu lực';return;}
+  node.className='both-zones';node.append(`${PIVOT_ZONE_VERSION} `);
+  for(const [kind,label,css] of [['resistance','KC','resistance'],['support','HT','support']]){
+    const zone=zones[kind];if(!zone)continue;
+    const span=document.createElement('span');span.className=css;span.textContent=`${label} ${fmt(zone.low)}–${fmt(zone.high)}`;
+    const stats=document.createElement('span');stats.className='zone-stats';stats.textContent=zone.statistical?` (n=${zone.n}, nₑ=${fmt(zone.effectiveN)})`:' (RW tham chiếu)';
+    if(node.childNodes.length>1)node.append(' · ');node.append(span,stats);
+  }
+  node.title='REV6 Pivot Zones: pivot giá chỉ được dùng sau khi xác nhận 2 nến. Vùng neo tại pivot; phân vị lịch sử của các lần retest tương đồng và biên tham chiếu từ hoán vị bước giá giữa hai pivot quyết định độ rộng. Strength Composite, SPY V và phân kỳ dùng để so mẫu. RW chỉ hiệu chỉnh biên độ, không phải xác suất vùng sẽ giữ.';
 }
 function showTooltip(t){
   const p=maps[$('symbol').value]?.get(t),record=statsMap.get(t),state=record?.state,colorSignal=candleColorMap.get(t),geometryEvent=geometryState.events?.find(event=>event.at===t),breakoutEvent=geometryStatePoints.find(event=>event.at===t)??(breakoutState&&breakoutState.at===t&&['true_break','false_break'].includes(breakoutState.key)?breakoutState:null),geometryLine=inspectedTime===null?geometryState.lines?.[0]:null;
@@ -468,7 +469,7 @@ function toggle(){
   series.relative.applyOptions({visible:$('relative').checked});
   series.alignment.applyOptions({visible:$('alignment').checked});
   for(const key of ['priceMid','priceUpper','priceLower'])series[key].applyOptions({visible:$('price-bands').checked});
-  updateReversalZone();
+  updatePivotZones();
   updateStrengthLabels();
   for(const key of ['mid','upper','lower'])series[key].applyOptions({visible:$('bands').checked});
   renderImpactHistogram();
@@ -477,7 +478,7 @@ function toggle(){
 async function refresh(clear=false){
   controller?.abort();controller=new AbortController();const gen=++generation;
   loading=true;$('refresh').disabled=true;
-  if(clear){cache=null;rows={};volumeStrengthRows=[];modelRows={};modelVolumeStrengthRows=[];modelStamp=null;trainingMeta=null;maps={};lastSuccess=null;inspectedTime=null;render(true);}
+  if(clear){cache=null;rows={};volumeStrengthRows=[];modelRows={};modelVolumeStrengthRows=[];modelStamp=null;trainingMeta=null;maps={};lastSuccess=null;inspectedTime=null;pivotZoneKey='';pivotZoneState={ready:false,reason:'history',support:null,resistance:null};render(true);}
   const interval=$('interval').value,days=+$('days').value;
   status(`Đang xác minh SPYUSDT/QQQUSDT và tải ${interval} · ${days} ngày…`);
   try{
@@ -546,7 +547,7 @@ function bindChartGestures(){
 if(init()){
   $('refresh').onclick=()=>refresh();for(const id of ['interval','days'])$(id).onchange=()=>refresh(true);
   for(const id of ['symbol','signal'])$(id).onchange=()=>render(false);
-  for(const id of ['spy','qqq','composite','relative','alignment','price-bands','reversal-zone','cvd-spectrum-toggle','show-strength','spy-volume-strength','geometry-impact','bands','markers','geometry-toggle','geometry-pivots'])$(id).onchange=toggle;
+  for(const id of ['spy','qqq','composite','relative','alignment','price-bands','pivot-zones','cvd-spectrum-toggle','show-strength','spy-volume-strength','geometry-impact','bands','markers','geometry-toggle','geometry-pivots'])$(id).onchange=toggle;
   for(const id of ['geometry-score','geometry-lines'])$(id).onchange=()=>render(false);
   $('wlr-horizon').onchange=renderWlrAgreementStats;
   $('phase-width').onchange=()=>render(false);
