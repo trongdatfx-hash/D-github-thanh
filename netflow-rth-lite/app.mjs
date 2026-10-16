@@ -189,7 +189,7 @@ function init(){
   if(controls&&card){controls.classList.add('chart-options');controls.setAttribute('aria-label','Tùy chọn biểu đồ');card.before(controls);}
   $('relative').closest('label').title='Màu xanh khi SPY và QQQ cùng Buy Impact; đỏ khi cùng Sell Impact; cam khi trái dấu; xám khi thiếu hoặc cân bằng.';
   chart=L.createChart($('chart'),{autoSize:true,layout:{background:{type:'solid',color:'#0e1726'},textColor:'#91a5bd',attributionLogo:true},grid:{vertLines:{color:'#1a283a'},horzLines:{color:'#1a283a'}},crosshair:{mode:L.CrosshairMode.Normal,vertLine:{visible:true,labelVisible:true},horzLine:{visible:true,labelVisible:true}},timeScale:{timeVisible:true,secondsVisible:false,rightOffset:22},rightPriceScale:{autoScale:true},handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},handleScale:{mouseWheel:true,pinch:true,axisPressedMouseMove:{time:true,price:true},axisDoubleClickReset:{time:true,price:true}},localization:{locale:'vi-VN',timeFormatter:t=>new Date(t*1000).toLocaleString('en-US',{timeZone:'America/New_York',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'})}});
-  price=chart.addSeries(L.CandlestickSeries,{title:'SPY',priceLineVisible:true,priceLineColor:'#36ddbd',priceLineWidth:1,priceLineStyle:L.LineStyle.Dashed,lastValueVisible:true,borderVisible:false},0);
+  price=chart.addSeries(L.CandlestickSeries,{title:'',priceLineVisible:true,priceLineColor:'#36ddbd',priceLineWidth:1,priceLineStyle:L.LineStyle.Dashed,lastValueVisible:true,borderVisible:false},0);
   series.priceMid=chart.addCustomSeries(new VariableWidthLineSeries,{color:'#f6c85f',baseLineVisible:false,priceLineVisible:false,lastValueVisible:false,title:''},0);
   for(const key of ['priceUpper','priceLower'])series[key]=chart.addSeries(L.LineSeries,{color:'#4aa3ff',lineWidth:1,lineStyle:L.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,title:''},0);
   for(const [key,color,width,style,last,title] of [
@@ -286,7 +286,7 @@ function updateCandleCountdown(){
   node.style.display='block';
   const serverNow=Date.now()+serverOffsetMs,remaining=Math.max(0,bar.end+1-serverNow),seconds=Math.ceil(remaining/1000);
   const minutes=Math.floor(seconds/60),rest=seconds%60;
-  node.textContent=`M15 đóng ${String(minutes).padStart(2,'0')}:${String(rest).padStart(2,'0')}`;
+  node.textContent=`${String(minutes).padStart(2,'0')}:${String(rest).padStart(2,'0')}`;
   node.className=remaining>0?'':'missing';
   const y=price.priceToCoordinate(bar.c),paneHeight=chart?.panes?.()[0]?.getHeight?.();
   if(Number.isFinite(y)&&Number.isFinite(paneHeight))node.style.top=`${Math.max(2,Math.min(paneHeight-node.offsetHeight-18,y))}px`;
@@ -382,7 +382,6 @@ function render(fit=false){
   const compositeCvd=$('symbol').value==='SPYUSDT',cvdBars=compositeCvd?projectNetFlowToPrice(p,rows.COMPOSITE??[]):p;
   cvdSourceLabel=compositeCvd?'C→S':'Q';$('cvd-spectrum').dataset.source=compositeCvd?'COMPOSITE→SPY':'QQQUSDT';
   cvdProfile=continuousCvdSpectrum(cvdBars);cvdAnchorTime=cvdBars.at(-1)?.t??null;
-  price.applyOptions({title:sourceName($('symbol').value)});
   const alignment=flowAlignment(rows.SPYUSDT??[],rows.QQQUSDT??[],{step:STEPS[$('interval').value]});alignmentMap=new Map(alignment.map(x=>[x.t,x]));
   const closedBefore=cache?.serverTime??Infinity,closedPrice=p.filter(row=>(row.end??row.t)<closedBefore),closedTimes=new Set(closedPrice.map(row=>row.t)),modelPrice=model[$('symbol').value]??p,modelClosedPrice=modelPrice.filter(row=>(row.end??row.t)<closedBefore),modelClosedTimes=new Set(modelClosedPrice.map(row=>row.t));
   const geometryInput={price:closedPrice,spy:(rows.SPYUSDT??[]).filter(row=>closedTimes.has(row.t)),qqq:(rows.QQQUSDT??[]).filter(row=>closedTimes.has(row.t)),flow:(rows.COMPOSITE??[]).filter(row=>closedTimes.has(row.t)),volume:volumeStrengthRows.filter(row=>closedTimes.has(row.t))},geometryOptions={minScore:Number($('geometry-score').value),maxLines:Number($('geometry-lines').value)};
