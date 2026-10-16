@@ -7,7 +7,7 @@ import {ReversalStabilizer} from './stability.mjs?v=20261012-5';
 import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeometry} from './geometry.mjs?v=20261016-3';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261014-2';
 import {wlrAgreementStatistics,WLR_STATE_ROWS,WLR_AGREEMENT_ROWS,WLR_MIN_SAMPLES} from './wlr-agreement-stats.mjs?v=20261015-1';
-import {rev63Forecast,scoreForecastHistory,calibrationSummary,rev63ColorRegime,rev63ColorQualitySummary,rev63GeometryQualitySummary,REV63_COLOR_ROWS,REV63_GEOMETRY_ROWS,REV63_HORIZON} from './rev6-3-v1.mjs?v=20261016-1';
+import {rev63Forecast,scoreForecastHistory,calibrationSummary,rev63ColorRegime,rev63ColorQualitySummary,rev63GeometryQualitySummary,REV63_COLOR_ROWS,REV63_GEOMETRY_ROWS,REV63_HORIZON} from './rev6-3-v1.mjs?v=20261016-2';
 import {SpreadImpactDetector,aggregateImpactHistogram,aggregatePairImpactAgreement,geometryBarIndexAt,geometryZoneAt,pruneImpactEvents} from './impact-volume.mjs?v=20261015-3';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
@@ -150,7 +150,7 @@ function renderWlrAgreementStats(){
   insight.textContent=parts.length?parts.join(' · '):`Cần ≥${WLR_MIN_SAMPLES} mẫu không chồng lấn ở mỗi nhóm để so sánh đáng tin hơn.`;
   context.textContent=`Giá ${sourceName($('symbol').value)} · hướng theo dấu Composite · horizon ${h} nến ${$('interval').value.toUpperCase()} · phân vị Agreement causal từ lịch sử trước tín hiệu · cửa sổ kết quả cùng ngày, không chồng lấn trong từng nhóm.`;
 }
-function rev63StorageKey(){return 'rev63-trend-v2|'+$('symbol').value+'|'+$('interval').value;}
+function rev63StorageKey(){return 'rev63-trend-v2-confluence|'+$('symbol').value+'|'+$('interval').value;}
 function loadRev63History(){try{return JSON.parse(localStorage.getItem(rev63StorageKey())||'[]');}catch{return [];}}
 function saveRev63History(data){try{localStorage.setItem(rev63StorageKey(),JSON.stringify(data.slice(-500)));}catch{}}
 function renderRev63(){
@@ -160,7 +160,7 @@ function renderRev63(){
   label.className=rev63State.label==='UP'?'up':rev63State.label==='DOWN'?'down':'wait';
   $('rev63-confidence').textContent='Confidence '+rev63State.confidence+'/100';
   const c=rev63State.components;
-  $('rev63-components').textContent='Trend '+rev63State.trendScore+'/100 · Line '+signed(c.line)+' · Pivot '+signed(c.pivot)+' · Nến '+signed(c.candle)+' · Qua line '+signed(c.regime);
+  $('rev63-components').textContent='Trend '+rev63State.trendScore+'/100 · Hợp lưu '+rev63State.confluence+'/4 · Line '+signed(c.line)+' · Pivot '+signed(c.pivot)+' · Nến '+signed(c.candle)+' · Qua line '+signed(c.regime);
   const latestColor=candleColorMap.get((rows[$('symbol').value]??[]).filter(row=>(row.end??row.t)<(cache?.serverTime??Infinity)).at(-1)?.t),colorLabel=latestColor?.direction>0?'đồng thuận tăng':latestColor?.direction<0?'đồng thuận giảm':'trung tính / trái dấu';
   $('rev63-state').textContent=(rev63State.activeLine?`Line ${rev63State.activeLine.kind==='support'?'hỗ trợ':'kháng cự'} ${rev63State.activeLine.score}/100`:'Chưa có line xác nhận')+(rev63State.geometryEvent?` · Pivot/phân kỳ ${rev63State.geometryEvent.score}/100`:' · Chưa có phân kỳ gần')+` · Màu ${colorLabel}`+(breakoutState?` · GEO ${breakoutState.label} ${breakoutState.direction>0?'↑':'↓'}`:'');
   const cal=calibrationSummary(rev63History),bins=cal.bins.map(x=>x.label+': n='+x.n+(x.n?' · hit '+fmt(x.accuracy)+'% · Brier '+fmt(x.brier):'')).join(' | ');
@@ -308,7 +308,7 @@ function updateGeometryReadout(){
   const up=Math.round(rev63State.pUp*100),down=100-up,conf=rev63State.confidence,wait=Math.max(0,100-conf);
   node.textContent=`UP ${up}% · DOWN ${down}% · WAIT ${wait}%`;
   node.className=`forecast ${rev63State.label.toLowerCase()}`;
-  node.title=`REV6-3 Trend V2 · ${rev63State.label} · Trend ${rev63State.trendScore}/100 · WAIT ${wait}% là chỉ số bất định = 100 − Confidence, không phải xác suất thứ ba độc lập. Chỉ dùng line đã xác nhận, pivot/phân kỳ, hình học nến và trạng thái đi qua line từ nến đã đóng; line nét đứt chưa xác nhận không tính điểm. UP/DOWN là điểm quy tắc, chưa hiệu chỉnh thành xác suất thực nghiệm.`;
+  node.title=`REV6-3 Trend V2 · ${rev63State.label} · Trend ${rev63State.trendScore}/100 · Hợp lưu ${rev63State.confluence}/4, xung đột ${rev63State.conflict}/4 · WAIT ${wait}% là chỉ số bất định = 100 − Confidence, không phải xác suất thứ ba độc lập. Chỉ dùng line đã xác nhận, pivot/phân kỳ, hình học nến và trạng thái đi qua line từ nến đã đóng; line nét đứt chưa xác nhận không tính điểm. Từ hai nhóm cùng hướng sẽ tăng điểm; tín hiệu trái hướng làm giảm điểm. UP/DOWN là điểm quy tắc, chưa hiệu chỉnh thành xác suất thực nghiệm.`;
   requestAnimationFrame(positionForecastReadout);
 }
 function drawGeometryOverlay(){

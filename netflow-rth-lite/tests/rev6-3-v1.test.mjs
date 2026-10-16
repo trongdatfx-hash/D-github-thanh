@@ -41,3 +41,12 @@ test('REV6-3 trend uses only confirmed causal lines and closed candle geometry',
   assert(confirmed.components.line>0);assert.equal(provisional.components.line,0);assert.equal(future.components.line,0);
   assert(confirmed.trendScore>provisional.trendScore);assert.equal(provisional.pUp,future.pUp);
 });
+
+test('REV6-3 stays neutral without a regime and rewards independent agreement',()=>{
+  const empty=rev63Forecast();assert.equal(empty.pUp,.5);assert.equal(empty.label,'WAIT');
+  const priceRows=[{t:1,o:100,h:102,l:99,c:100},{t:2,o:100,h:103,l:99,c:102},{t:3,o:102,h:104,l:101,c:103}],line={kind:'support',score:90,knownAt:2,endValue:102.5};
+  const candleOnly=rev63Forecast({priceRows});
+  const agreed=rev63Forecast({priceRows,geometryLines:[line]});
+  const conflicted=rev63Forecast({priceRows,geometryLines:[{...line,kind:'resistance'}]});
+  assert(agreed.confluence>=2);assert(agreed.pUp>candleOnly.pUp);assert(conflicted.conflict>0);assert(conflicted.pUp<agreed.pUp);
+});

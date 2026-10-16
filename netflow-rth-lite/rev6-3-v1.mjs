@@ -31,13 +31,15 @@ export function rev63Forecast({geometryLines=[],geometryEvents=[],geometryRegime
   }
   const recent=priceRows.slice(-4),first=recent[0],validCandle=recent.length>=3&&[first?.c,latest?.o,latest?.h,latest?.l,latest?.c].every(Number.isFinite);
   const candle=validCandle?clamp(.5*clamp((latest.c-first.c)/(Math.max(scale,Math.abs(latest.c)*.001)*2))+.3*clamp((latest.c-latest.o)/scale)+.2*clamp(2*(latest.c-latest.l)/scale-1)):0;
-  const regime=geometryRegime?.at===latest?.t?sign(geometryRegime.direction)*clamp(geometryRegime.confidence??0):0;
+  const regime=geometryRegime&&latest&&geometryRegime.at===latest.t?sign(geometryRegime.direction)*clamp(geometryRegime.confidence??0):0;
   const components={line,pivot,candle,regime};
   const available={line:usableLines.length>0,pivot:!!geometryEvent,candle:validCandle,regime:regime!==0};
-  const evidence=Object.entries(REV63_WEIGHTS).reduce((sum,[key,w])=>sum+w*components[key],0);
+  const votes=Object.values(components).filter(value=>Math.abs(value)>=.12),upVotes=votes.filter(value=>value>0).length,downVotes=votes.filter(value=>value<0).length;
+  const consensus=Math.max(upVotes,downVotes),conflict=Math.min(upVotes,downVotes),weighted=Object.entries(REV63_WEIGHTS).reduce((sum,[key,w])=>sum+w*components[key],0);
+  const evidence=weighted*(consensus>=2?1+.2*(consensus-1):.55)/(1+.55*conflict);
   const pUp=clamp(.5+.45*evidence,.05,.95),pDown=1-pUp,confidence=Math.round(100*Math.abs(pUp-.5)*2);
   const label=pUp>=.65?'UP':pUp<=.35?'DOWN':'WAIT';
-  return {version:REV63_VERSION,horizon,pUp,pDown,confidence,label,evidence,trendScore:Math.round(50+50*evidence),components,available,geometryEvent,geometryRegime,activeLine:nearest?.line??null};
+  return {version:REV63_VERSION,horizon,pUp,pDown,confidence,label,evidence,trendScore:Math.round(clamp(50+50*evidence,0,100)),confluence:consensus,conflict,components,available,geometryEvent,geometryRegime,activeLine:nearest?.line??null};
 }
 export function scoreForecastHistory(priceRows,records,horizon=REV63_HORIZON){
   const map=new Map(priceRows.map((x,i)=>[x.t,i])),scored=[];
