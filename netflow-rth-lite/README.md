@@ -85,7 +85,7 @@ Các retest bốn nến đã hoàn tất *trước* sự kiện hiện tại cho
 
 Histogram **C NF** trong pane giá SPY đặt sát trục giá. Khi có cặp pivot giá khác phía gần nhất đã xác nhận, các cột gom Composite Taker NF (`BuyQ − SellQ`) từ pivot đầu tới nến hiện tại; nếu chưa có cặp pivot dùng 96 nến gần nhất. Cột dương (buy) hướng lên, âm (sell) hướng xuống. Mốc 0 đặt giữa vùng hỗ trợ và kháng cự khi cả hai vùng cùng nhìn thấy; nếu chỉ có một vùng, hai vùng nằm ngoài khung hoặc chưa có vùng, mốc 0 đặt giữa pane giá. Khi trang mở, Binance được đọc lại khoảng 3 giây/lần; cột cuối viền vàng và nhãn `LIVE` nếu nến chưa đóng, nên giá trị này có thể thay đổi hoặc đảo dấu. Các vùng hỗ trợ/kháng cự vẫn chỉ dùng nến đã đóng. Histogram chỉ vẽ khi nguồn Composite phủ ít nhất 80% chuỗi; ẩn với chart QQQ, khi người dùng tắt REV6 Pivot Zones hoặc khi thiếu dữ liệu SPY/QQQ. Nó không phải lá phiếu OFI độc lập và không khẳng định dòng tiền dẫn giá. Khi trang đóng, histogram không tự thu thập intrabar.
 
-Huy hiệu số liệu REV6 Pivot Zones trong pane giá được ẩn, còn hai vùng và nút bật/tắt vẫn hoạt động. Bề rộng mỗi cột C NF bằng `2 × barSpacing` hiện tại của chart; zoom làm thay đổi bề rộng ngay. Khi vùng vẽ gần trục giá không đủ chỗ, chỉ các cột cuối còn hiển thị, và nhãn cho biết số cột đang thấy so với cả chuỗi từ pivot đầu; phần trăm tổng vẫn tính trên toàn chuỗi.
+Huy hiệu số liệu REV6 Pivot Zones trong pane giá được ẩn, còn hai vùng và nút bật/tắt vẫn hoạt động. Bề rộng mỗi cột C NF bằng `2 × barSpacing` hiện tại của chart; zoom làm thay đổi bề rộng ngay. Khi vùng vẽ gần trục giá không đủ chỗ, chỉ các cột cuối còn hiển thị; phần trăm tổng vẫn tính trên toàn chuỗi và được đặt ở dòng riêng dưới các cột để không chồng với nhãn LIVE.
 
 ## ML tương lai
 
