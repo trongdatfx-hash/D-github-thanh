@@ -7,7 +7,7 @@ import {ReversalStabilizer} from './stability.mjs?v=20261012-5';
 import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeometry} from './geometry.mjs?v=20261016-3';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261014-2';
 import {wlrAgreementStatistics,WLR_STATE_ROWS,WLR_AGREEMENT_ROWS,WLR_MIN_SAMPLES} from './wlr-agreement-stats.mjs?v=20261015-1';
-import {rev63Forecast,scoreForecastHistory,calibrationSummary,rev63ColorRegime,rev63ColorQualitySummary,rev63GeometryQualitySummary,REV63_COLOR_ROWS,REV63_GEOMETRY_ROWS,REV63_HORIZON} from './rev6-3-v1.mjs?v=20261016-2';
+import {rev63Forecast,scoreForecastHistory,calibrationSummary,rev63ColorRegime,rev63ColorQualitySummary,rev63GeometryQualitySummary,REV63_COLOR_ROWS,REV63_GEOMETRY_ROWS,REV63_HORIZON} from './rev6-3-v1.mjs?v=20261016-3';
 import {SpreadImpactDetector,aggregateImpactHistogram,aggregatePairImpactAgreement,geometryBarIndexAt,geometryZoneAt,pruneImpactEvents} from './impact-volume.mjs?v=20261015-3';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
@@ -150,7 +150,7 @@ function renderWlrAgreementStats(){
   insight.textContent=parts.length?parts.join(' · '):`Cần ≥${WLR_MIN_SAMPLES} mẫu không chồng lấn ở mỗi nhóm để so sánh đáng tin hơn.`;
   context.textContent=`Giá ${sourceName($('symbol').value)} · hướng theo dấu Composite · horizon ${h} nến ${$('interval').value.toUpperCase()} · phân vị Agreement causal từ lịch sử trước tín hiệu · cửa sổ kết quả cùng ngày, không chồng lấn trong từng nhóm.`;
 }
-function rev63StorageKey(){return 'rev63-trend-v2-confluence|'+$('symbol').value+'|'+$('interval').value;}
+function rev63StorageKey(){return 'rev63-trend-v2-pivot-strength|'+$('symbol').value+'|'+$('interval').value;}
 function loadRev63History(){try{return JSON.parse(localStorage.getItem(rev63StorageKey())||'[]');}catch{return [];}}
 function saveRev63History(data){try{localStorage.setItem(rev63StorageKey(),JSON.stringify(data.slice(-500)));}catch{}}
 function renderRev63(){
@@ -162,7 +162,8 @@ function renderRev63(){
   const c=rev63State.components;
   $('rev63-components').textContent='Trend '+rev63State.trendScore+'/100 · Hợp lưu '+rev63State.confluence+'/4 · Line '+signed(c.line)+' · Pivot '+signed(c.pivot)+' · Nến '+signed(c.candle)+' · Qua line '+signed(c.regime);
   const latestColor=candleColorMap.get((rows[$('symbol').value]??[]).filter(row=>(row.end??row.t)<(cache?.serverTime??Infinity)).at(-1)?.t),colorLabel=latestColor?.direction>0?'đồng thuận tăng':latestColor?.direction<0?'đồng thuận giảm':'trung tính / trái dấu';
-  $('rev63-state').textContent=(rev63State.activeLine?`Line ${rev63State.activeLine.kind==='support'?'hỗ trợ':'kháng cự'} ${rev63State.activeLine.score}/100`:'Chưa có line xác nhận')+(rev63State.geometryEvent?` · Pivot/phân kỳ ${rev63State.geometryEvent.score}/100`:' · Chưa có phân kỳ gần')+` · Màu ${colorLabel}`+(breakoutState?` · GEO ${breakoutState.label} ${breakoutState.direction>0?'↑':'↓'}`:'');
+  const pivotState={aligned:'Composite + SPY V cùng hướng',opposed:'Composite + SPY V ngược hướng',split:'Composite/SPY V trái dấu',neutral:'Composite/SPY V trung tính',missing:'thiếu Composite hoặc SPY V'}[rev63State.pivotConfirmation.state];
+  $('rev63-state').textContent=(rev63State.activeLine?`Line ${rev63State.activeLine.kind==='support'?'hỗ trợ':'kháng cự'} ${rev63State.activeLine.score}/100`:'Chưa có line xác nhận')+(rev63State.geometryEvent?` · Pivot/phân kỳ ${rev63State.geometryEvent.score}/100 · ${pivotState}`:' · Chưa có phân kỳ gần')+` · Màu ${colorLabel}`+(breakoutState?` · GEO ${breakoutState.label} ${breakoutState.direction>0?'↑':'↓'}`:'');
   const cal=calibrationSummary(rev63History),bins=cal.bins.map(x=>x.label+': n='+x.n+(x.n?' · hit '+fmt(x.accuracy)+'% · Brier '+fmt(x.brier):'')).join(' | ');
   $('rev63-score').textContent=cal.n?'Đã chấm '+cal.n+' dự báo · đúng hướng '+fmt(cal.accuracy)+'% · Brier '+fmt(cal.brier):'Chưa có dự báo đủ 3 nến để tự chấm';
   $('rev63-calibration').textContent=bins;
@@ -173,9 +174,9 @@ function renderRev63(){
   for(const def of REV63_GEOMETRY_ROWS){const summary=geometryQuality.summaries[def.key],row=document.createElement('tr'),values=[def.label,summary.n,summary.n?fmt(summary.accuracy)+'%':'—',summary.n?fmt(summary.brier):'—',summary.n?returnText(summary.expectancy):'—'];row.dataset.key=def.key;for(const [i,value] of values.entries()){const cell=document.createElement(i?'td':'th');if(!i)cell.scope='row';cell.textContent=String(value);row.append(cell);}geometryFragment.append(row);}geometryBody.replaceChildren(geometryFragment);
   $('rev63-geometry-note').textContent=geometryQuality.n?`Đã chấm ${geometryQuality.n} dự báo có trạng thái line causal. Phá thật cần hai close vượt line cùng hướng Strength Composite, SPY V và NetFlow; phá giả cần close quay lại phía cũ.`:'Bắt đầu tích lũy từ các dự báo mới có Giữ line / Phá thật / Phá giả; không gán hồi tố cho lịch sử cũ.';
 }
-function updateRev63(closedPrice){
+function updateRev63(closedPrice,geometryInput){
   const latest=closedPrice.at(-1);
-  rev63State=rev63Forecast({geometryLines:geometryState.lines,geometryEvents:geometryState.events,geometryRegime:breakoutState,priceRows:closedPrice});
+  rev63State=rev63Forecast({geometryLines:geometryState.lines,geometryEvents:geometryState.events,geometryRegime:breakoutState,priceRows:closedPrice,strengthRows:geometryInput.flow,volumeRows:geometryInput.volume});
   rev63History=scoreForecastHistory(closedPrice,loadRev63History(),REV63_HORIZON).filter(x=>!x.void);
   if(latest&&rev63State&&!rev63History.some(x=>x.entryTime===latest.t)){
     const previous=closedPrice.at(-2),color=rev63ColorRegime(candleColorMap.get(latest.t),previous?candleColorMap.get(previous.t):null);
@@ -308,7 +309,7 @@ function updateGeometryReadout(){
   const up=Math.round(rev63State.pUp*100),down=100-up,conf=rev63State.confidence,wait=Math.max(0,100-conf);
   node.textContent=`UP ${up}% · DOWN ${down}% · WAIT ${wait}%`;
   node.className=`forecast ${rev63State.label.toLowerCase()}`;
-  node.title=`REV6-3 Trend V2 · ${rev63State.label} · Trend ${rev63State.trendScore}/100 · Hợp lưu ${rev63State.confluence}/4, xung đột ${rev63State.conflict}/4 · WAIT ${wait}% là chỉ số bất định = 100 − Confidence, không phải xác suất thứ ba độc lập. Chỉ dùng line đã xác nhận, pivot/phân kỳ, hình học nến và trạng thái đi qua line từ nến đã đóng; line nét đứt chưa xác nhận không tính điểm. Từ hai nhóm cùng hướng sẽ tăng điểm; tín hiệu trái hướng làm giảm điểm. UP/DOWN là điểm quy tắc, chưa hiệu chỉnh thành xác suất thực nghiệm.`;
+  node.title=`REV6-3 Trend V2 · ${rev63State.label} · Trend ${rev63State.trendScore}/100 · Hợp lưu ${rev63State.confluence}/4, xung đột ${rev63State.conflict}/4 · Pivot ×${rev63State.pivotConfirmation.factor}: ${rev63State.pivotConfirmation.state} · WAIT ${wait}% là chỉ số bất định = 100 − Confidence, không phải xác suất thứ ba độc lập. Pivot được tăng điểm khi Composite và SPY V tại nến đóng mới nhất cùng hướng, giảm khi ngược/trái dấu/thiếu; không thêm thành phiếu độc lập. Chỉ dùng line đã xác nhận, pivot/phân kỳ, hình học nến và trạng thái đi qua line từ nến đã đóng; line nét đứt chưa xác nhận không tính điểm. UP/DOWN là điểm quy tắc, chưa hiệu chỉnh thành xác suất thực nghiệm.`;
   requestAnimationFrame(positionForecastReadout);
 }
 function drawGeometryOverlay(){
@@ -374,7 +375,7 @@ function render(fit=false){
   const reversalKey=`${$('symbol').value}|${$('signal').value}|${$('interval').value}|${p.at(-1)?.t??'empty'}`;
   reversalState=reversalStabilizer.update(rawReversal,reversalKey,cache?.serverTime??generation);
   const priceBands=weightedPriceBands(p,STEPS[$('interval').value]);priceBandMap=new Map(priceBands.map(x=>[x.t,x]));
-  wlrStatsData=wlrAgreementStatistics(modelClosedPrice,(model.COMPOSITE??[]).filter(row=>modelClosedTimes.has(row.t)),(modelVolumeStrengthRows.length?modelVolumeStrengthRows:volumeStrengthRows).filter(row=>modelClosedTimes.has(row.t)),STEPS[$('interval').value]);renderWlrAgreementStats();updateRev63(modelClosedPrice);
+  wlrStatsData=wlrAgreementStatistics(modelClosedPrice,(model.COMPOSITE??[]).filter(row=>modelClosedTimes.has(row.t)),(modelVolumeStrengthRows.length?modelVolumeStrengthRows:volumeStrengthRows).filter(row=>modelClosedTimes.has(row.t)),STEPS[$('interval').value]);renderWlrAgreementStats();updateRev63(modelClosedPrice,geometryInput);
   series.priceMid.setData(priceLineData(priceBands,maps.COMPOSITE??new Map(),volumeStrengthMap));series.priceUpper.setData(lineData(priceBands,'upper'));series.priceLower.setData(lineData(priceBands,'lower'));
   for(const key of Object.keys(colors))series[key].setData(flowData(rows[key]??[],key));
   series.relative.setData(relativeData(alignment));

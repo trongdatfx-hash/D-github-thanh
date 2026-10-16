@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {rev63Forecast,rev63ColorRegime,rev63ColorQualitySummary,rev63GeometryQualitySummary,REV63_COLOR_ROWS,REV63_GEOMETRY_ROWS} from '../rev6-3-v1.mjs';
+import {rev63Forecast,pivotStrengthConfirmation,rev63ColorRegime,rev63ColorQualitySummary,rev63GeometryQualitySummary,REV63_COLOR_ROWS,REV63_GEOMETRY_ROWS} from '../rev6-3-v1.mjs';
 
 test('REV6-3 color regime labels agreement and gray-to-agreement causally',()=>{
   assert.deepEqual(rev63ColorRegime({direction:1,agreement:.35},{direction:0}),{colorRegime:'agreement_up',colorTransition:'neutral_to_agreement',colorAgreement:.35});
@@ -49,4 +49,15 @@ test('REV6-3 stays neutral without a regime and rewards independent agreement',(
   const agreed=rev63Forecast({priceRows,geometryLines:[line]});
   const conflicted=rev63Forecast({priceRows,geometryLines:[{...line,kind:'resistance'}]});
   assert(agreed.confluence>=2);assert(agreed.pUp>candleOnly.pUp);assert(conflicted.conflict>0);assert(conflicted.pUp<agreed.pUp);
+});
+
+test('pivot confirmation uses Composite and SPY V at the latest closed candle only',()=>{
+  const priceRows=[{t:1,o:100,h:101,l:99,c:100},{t:2,o:100,h:102,l:99,c:101},{t:3,o:101,h:103,l:100,c:102}],geometryEvents=[{at:2,direction:'bullish',score:80}];
+  const aligned=rev63Forecast({priceRows,geometryEvents,strengthRows:[{t:3,adjusted:.6}],volumeRows:[{t:3,adjusted:.4}]});
+  const split=rev63Forecast({priceRows,geometryEvents,strengthRows:[{t:3,adjusted:.6}],volumeRows:[{t:3,adjusted:-.4}]});
+  const opposed=rev63Forecast({priceRows,geometryEvents,strengthRows:[{t:3,adjusted:-.6}],volumeRows:[{t:3,adjusted:-.4}]});
+  const future=rev63Forecast({priceRows,geometryEvents,strengthRows:[{t:4,adjusted:.6}],volumeRows:[{t:4,adjusted:.4}]});
+  assert.equal(aligned.pivotConfirmation.state,'aligned');assert.equal(split.pivotConfirmation.state,'split');assert.equal(opposed.pivotConfirmation.state,'opposed');assert.equal(future.pivotConfirmation.state,'missing');
+  assert(aligned.components.pivot>split.components.pivot);assert(split.components.pivot>opposed.components.pivot);assert(opposed.components.pivot>0);
+  assert.equal(pivotStrengthConfirmation(-1,3,[{t:3,adjusted:-.5}],[{t:3,adjusted:-.3}]).state,'aligned');
 });
