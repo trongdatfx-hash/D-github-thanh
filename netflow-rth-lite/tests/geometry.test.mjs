@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {STEPS,parseKlines,composite,analyze} from '../engine.mjs';
-import {causalAtr,confirmedPricePivots,analyzeGeometry,classifyBreakoutRetest,backtestGeometry} from '../geometry.mjs';
+import {causalAtr,confirmedPricePivots,analyzeGeometry,classifyBreakoutRetest,recentCausalLineStates,backtestGeometry} from '../geometry.mjs';
 
 function synthetic(length=240){
   const step=STEPS['15m'],price=[],spy=[],qqq=[],flow=[],volume=[];
@@ -62,4 +62,10 @@ test('breakout and retest classification uses only a previously known line and t
   assert.equal(classifyBreakoutRetest(broken,[line],{strengthDirection:-1,flowDirection:-1,volumeDirection:1}),null);
   const reclaimed=broken.map(x=>({...x}));Object.assign(reclaimed[19],{o:98,h:101.4,l:97.8,c:101});
   const falseBreak=classifyBreakoutRetest(reclaimed,[line],{strengthDirection:1,flowDirection:1});assert.equal(falseBreak.key,'false_break');assert.equal(falseBreak.direction,1);
+});
+
+test('four latest line-state points are prefix-causal',()=>{
+  const data=synthetic(200),options={left:2,right:2,minProminenceAtr:.03,minScore:0,maxLines:4},points=recentCausalLineStates(data,options,4),extended=synthetic(201);extended.price[200]={...extended.price[200],h:180,l:40,c:160};
+  const extendedPoints=recentCausalLineStates(extended,options,5);
+  assert.equal(points.length,4);assert.deepEqual(points.map(point=>point.at),data.price.slice(-4).map(bar=>bar.t));assert.deepEqual(extendedPoints.slice(0,4),points);assert(points.every(point=>['waiting','hold_support','hold_resistance','true_break','false_break'].includes(point.key)&&Number.isFinite(point.lineValue)));
 });

@@ -168,6 +168,15 @@ export function analyzeBreakoutRetest({price,spy=[],qqq=[],flow=[],volume=[]},op
   return classifyBreakoutRetest(price,geometry.lines,{strengthDirection:sign(strength??0),flowDirection:sign(netFlow??0),volumeDirection:sign(volumeStrength??0),touchToleranceAtr:options.touchToleranceAtr??GEOMETRY_DEFAULTS.touchToleranceAtr,breakToleranceAtr:options.breakoutToleranceAtr??.35});
 }
 
+export function recentCausalLineStates({price,spy=[],qqq=[],flow=[],volume=[]},options={},limit=4){
+  if(!Array.isArray(price)||!Array.isArray(spy)||!Array.isArray(qqq)||!Array.isArray(flow)||!Array.isArray(volume)||!Number.isInteger(limit)||limit<1||limit>20)throw Error('Nguồn trạng thái line gần nhất không hợp lệ');
+  const start=Math.max(0,price.length-limit);
+  return price.slice(start).map((bar,offset)=>{
+    const end=start+offset+1,at=bar.t,prefix={price:price.slice(0,end),spy:spy.filter(row=>row.t<=at),qqq:qqq.filter(row=>row.t<=at),flow:flow.filter(row=>row.t<=at),volume:volume.filter(row=>row.t<=at)},state=analyzeBreakoutRetest(prefix,options);
+    return {at,index:end-1,key:state?.key??'waiting',label:state?.label??'Chờ trạng thái',direction:state?.direction??0,lineValue:state?.lineValue??bar.c,lineKind:state?.lineKind??null,lineScore:state?.lineScore??null,distanceAtr:state?.distanceAtr??null,active:Boolean(state)};
+  });
+}
+
 export function backtestGeometry(price,events,{horizon=4,minMoveAtr=.35,atrPeriod=14}={}){
   if(!Array.isArray(price)||!Array.isArray(events)||!Number.isInteger(horizon)||horizon<1||!finite(minMoveAtr)||minMoveAtr<0)throw Error('Tham số backtest hình học không hợp lệ');
   const atr=causalAtr(price,{period:atrPeriod}),samples=[];

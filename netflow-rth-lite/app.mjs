@@ -4,14 +4,14 @@ import {loadPersistentHistory} from './history-store.mjs?v=20261015-1';
 import {strengthStatistics} from './strength-stats.mjs?v=20261015-1';
 import {reversalZone,REVERSAL_VERSION,REVERSAL_HORIZON,REVERSAL_MIN_MATCHES,REVERSAL_MIN_EFFECTIVE} from './reversal-zone.mjs?v=20261012-5';
 import {ReversalStabilizer} from './stability.mjs?v=20261012-5';
-import {analyzeGeometry,analyzeBreakoutRetest,backtestGeometry} from './geometry.mjs?v=20261015-3';
+import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeometry} from './geometry.mjs?v=20261016-1';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261014-2';
 import {wlrAgreementStatistics,WLR_STATE_ROWS,WLR_AGREEMENT_ROWS,WLR_MIN_SAMPLES} from './wlr-agreement-stats.mjs?v=20261015-1';
 import {rev63Forecast,scoreForecastHistory,calibrationSummary,rev63ColorRegime,rev63ColorQualitySummary,rev63GeometryQualitySummary,REV63_COLOR_ROWS,REV63_GEOMETRY_ROWS,REV63_HORIZON} from './rev6-3-v1.mjs?v=20261015-3';
 import {SpreadImpactDetector,aggregateImpactHistogram,aggregatePairImpactAgreement,geometryBarIndexAt,geometryZoneAt,pruneImpactEvents} from './impact-volume.mjs?v=20261015-3';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
-let chart,price,series={},marks,strengthMarks,cache=null,rows={},volumeStrengthRows=[],modelRows={},modelVolumeStrengthRows=[],modelStamp=null,trainingMeta=null,maps={},alignmentMap=new Map(),priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},breakoutState=null,geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
+let chart,price,series={},marks,strengthMarks,cache=null,rows={},volumeStrengthRows=[],modelRows={},modelVolumeStrengthRows=[],modelStamp=null,trainingMeta=null,maps={},alignmentMap=new Map(),priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},geometryStatePoints=[],breakoutState=null,geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
 let impactEvents=[],relativeImpactMap=new Map(),impactGeometry={SPYUSDT:{lines:[],barIndex:null,atr:null},QQQUSDT:{lines:[],barIndex:null,atr:null}},impactSocket=null,impactReconnect=null,impactStreamState='offline';
 const colors={SPYUSDT:'#5ba8ff',QQQUSDT:'#c194ff',COMPOSITE:'#38dfba'};
 const flowTitles={SPYUSDT:'S Taker NF',QQQUSDT:'Q Taker NF',COMPOSITE:'C Taker NF'};
@@ -314,8 +314,8 @@ function updateGeometryReadout(){
 function drawGeometryOverlay(){
   const canvas=$('geometry-overlay'),host=$('chart'),width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1;
   const bitmapWidth=Math.round(width*dpr),bitmapHeight=Math.round(height*dpr);if(canvas.width!==bitmapWidth||canvas.height!==bitmapHeight){canvas.width=bitmapWidth;canvas.height=bitmapHeight;}
-  const context=canvas.getContext('2d');context.setTransform(dpr,0,0,dpr,0,0);context.clearRect(0,0,width,height);canvas.dataset.lines=String(geometryState.lines?.length??0);canvas.dataset.pivots=String(geometryState.pivots?.length??0);
-  if(!$('geometry-toggle').checked||(!geometryState.lines?.length&&!breakoutState))return;
+  const context=canvas.getContext('2d');context.setTransform(dpr,0,0,dpr,0,0);context.clearRect(0,0,width,height);canvas.dataset.lines=String(geometryState.lines?.length??0);canvas.dataset.pivots=String(geometryState.pivots?.length??0);canvas.dataset.states=String(geometryStatePoints.length);
+  if(!$('geometry-toggle').checked||(!geometryState.lines?.length&&!breakoutState&&!geometryStatePoints.length))return;
   const paneHeight=chart.panes()[0]?.getHeight?.()??height*.5,scaleWidth=chart.priceScale('right',0)?.width?.()??56,right=width-scaleWidth;
   context.save();context.lineJoin='round';context.lineCap='round';
   for(const line of [...geometryState.lines].reverse()){
@@ -329,14 +329,19 @@ function drawGeometryOverlay(){
       const label=breakoutState.key==='hold_support'?'GIỮ HT':breakoutState.key==='hold_resistance'?'GIỮ KC':breakoutState.key==='true_break'?'PHÁ THẬT':'PHÁ GIẢ';context.setLineDash([]);context.fillStyle=breakoutState.direction>0?'#1ae0a3':'#ff6383';context.beginPath();context.arc(x,y,4,0,Math.PI*2);context.fill();context.font='800 9px Inter,system-ui,sans-serif';context.textAlign=x>right-90?'right':'left';context.textBaseline='bottom';context.fillText(`${label} ${breakoutState.direction>0?'↑':'↓'}`,x+(x>right-90?-7:7),y-5);
     }
   }
+  context.setLineDash([]);for(const point of geometryStatePoints){
+    const x=chart.timeScale().timeToCoordinate(point.at/1000),y=price.priceToCoordinate(point.lineValue);if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||x>right||y<0||y>paneHeight)continue;
+    const color=point.key==='hold_support'?'#1ae0a3':point.key==='hold_resistance'?'#ffb454':point.key==='true_break'?'#5bc8ff':point.key==='false_break'?'#c194ff':'#7f91a8';context.fillStyle=color;context.strokeStyle='rgba(9,18,31,.92)';context.lineWidth=1.5;context.beginPath();context.arc(x,y,point.active?4:3,0,Math.PI*2);context.fill();context.stroke();
+  }
   if($('geometry-pivots').checked){
     context.setLineDash([]);for(const pivot of geometryState.pivots.slice(-60)){
       const x=chart.timeScale().timeToCoordinate(pivot.t/1000),y=price.priceToCoordinate(pivot.value);if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||x>right||y<0||y>paneHeight)continue;
       context.fillStyle=pivot.type==='low'?'rgba(54,221,189,.8)':'rgba(255,180,84,.8)';context.beginPath();context.arc(x,y,Math.min(4,2+pivot.prominenceAtr),0,Math.PI*2);context.fill();
     }
-    const threshold=Number($('geometry-score').value);for(const event of geometryState.events.filter(event=>event.score>=threshold).slice(-16)){
-      const pivot=event.secondPivot,x=chart.timeScale().timeToCoordinate(pivot.t/1000),y=price.priceToCoordinate(pivot.value);if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||x>right||y<0||y>paneHeight)continue;
-      context.font='900 13px Inter,system-ui,sans-serif';context.textAlign='center';context.textBaseline=event.direction==='bearish'?'bottom':'top';context.fillStyle=event.direction==='bullish'?'#7dffd9':event.direction==='bearish'?'#ffb454':'#c194ff';context.fillText(event.direction==='bullish'?'↗':event.direction==='bearish'?'↘':'⇄',x,y+(event.direction==='bearish'?-5:5));
+    const priceRows=new Map((rows[$('symbol').value]??[]).map(row=>[row.t,row])),threshold=Number($('geometry-score').value);for(const event of geometryState.events.filter(event=>event.score>=threshold).slice(-16)){
+      const pivot=event.secondPivot,confirmed=priceRows.get(event.at),x=chart.timeScale().timeToCoordinate(pivot.t/1000),y=price.priceToCoordinate(pivot.value),tipX=chart.timeScale().timeToCoordinate(event.at/1000),tipY=price.priceToCoordinate(confirmed?.c);if(![x,y,tipX,tipY].every(Number.isFinite)||Math.max(x,tipX)<0||Math.min(x,tipX)>right||Math.max(y,tipY)<0||Math.min(y,tipY)>paneHeight)continue;
+      const color=event.direction==='bullish'?'#7dffd9':event.direction==='bearish'?'#ffb454':'#c194ff',dx=tipX-x,dy=tipY-y,length=Math.hypot(dx,dy)||1,ux=dx/length,uy=dy/length,endX=tipX-ux*5,endY=tipY-uy*5,angle=Math.atan2(dy,dx),head=6;context.strokeStyle=color;context.fillStyle=color;context.lineWidth=2.2;context.beginPath();context.moveTo(x,y);context.lineTo(endX,endY);context.stroke();context.beginPath();context.moveTo(tipX,tipY);context.lineTo(tipX-head*Math.cos(angle-Math.PI/6),tipY-head*Math.sin(angle-Math.PI/6));context.lineTo(tipX-head*Math.cos(angle+Math.PI/6),tipY-head*Math.sin(angle+Math.PI/6));context.closePath();context.fill();
+      if(event.direction==='rotation'){const back=angle+Math.PI;context.beginPath();context.moveTo(x,y);context.lineTo(x-head*Math.cos(back-Math.PI/6),y-head*Math.sin(back-Math.PI/6));context.lineTo(x-head*Math.cos(back+Math.PI/6),y-head*Math.sin(back+Math.PI/6));context.closePath();context.fill();}
     }
   }
   context.restore();
@@ -352,7 +357,7 @@ function render(fit=false){
   const alignment=flowAlignment(rows.SPYUSDT??[],rows.QQQUSDT??[],{step:STEPS[$('interval').value]});alignmentMap=new Map(alignment.map(x=>[x.t,x]));
   const closedBefore=cache?.serverTime??Infinity,closedPrice=p.filter(row=>(row.end??row.t)<closedBefore),closedTimes=new Set(closedPrice.map(row=>row.t)),modelPrice=model[$('symbol').value]??p,modelClosedPrice=modelPrice.filter(row=>(row.end??row.t)<closedBefore),modelClosedTimes=new Set(modelClosedPrice.map(row=>row.t));
   const geometryInput={price:closedPrice,spy:(rows.SPYUSDT??[]).filter(row=>closedTimes.has(row.t)),qqq:(rows.QQQUSDT??[]).filter(row=>closedTimes.has(row.t)),flow:(rows.COMPOSITE??[]).filter(row=>closedTimes.has(row.t)),volume:volumeStrengthRows.filter(row=>closedTimes.has(row.t))},geometryOptions={minScore:Number($('geometry-score').value),maxLines:Number($('geometry-lines').value)};
-  geometryState=analyzeGeometry(geometryInput,geometryOptions);breakoutState=analyzeBreakoutRetest(geometryInput,geometryOptions);
+  geometryState=analyzeGeometry(geometryInput,geometryOptions);breakoutState=analyzeBreakoutRetest(geometryInput,geometryOptions);geometryStatePoints=recentCausalLineStates(geometryInput,geometryOptions,4);
   geometryBacktest=backtestGeometry(closedPrice,geometryState.events,{horizon:4,minMoveAtr:.35});
   for(const symbol of ['SPYUSDT','QQQUSDT']){
     const impactPrice=(rows[symbol]??[]).filter(row=>(row.end??row.t)<closedBefore),impactTimes=new Set(impactPrice.map(row=>row.t));
