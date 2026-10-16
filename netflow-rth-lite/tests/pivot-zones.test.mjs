@@ -44,31 +44,37 @@ test('histogram NF chỉ cộng dữ liệu giữa hai pivot xác nhận',()=>{
   const thin=sample();thin.composite=thin.composite.filter((_,index)=>index%2===0);
   assert.equal(pivotFlowBetween(thin.price,thin.composite),null);
 });
-test('C NF tiếp tục tới nến đang chạy và đổi theo quote volume mới, vùng pivot vẫn khóa',()=>{
+test('histogram và phần trăm C NF cùng cập nhật theo nến live',()=>{
   const input=sample(),anchor=pivotFlowBetween(input.price,input.composite),serverTime=input.price.at(-1).t+STEP/2;
   assert(anchor);
   for(const bar of input.price)bar.end=bar.t+STEP-1;
   const zoneBefore=pivotZones({price:input.price.slice(0,-1),composite:input.composite.slice(0,-1),volume:input.volume.slice(0,-1)},STEP);
   const first=pivotFlowRealtime(anchor,input.price,input.composite,serverTime);
   assert(first?.live);assert.equal(first.latestTime,input.price.at(-1).t);
+  assert.equal(first.bins.length,5);assert.deepEqual(first.bins.map(bin=>bin.t),input.price.slice(-5).map(bar=>bar.t));
   assert.equal(first.liveBinIndex,first.bins.length-1);
   const changed=structuredClone(input);changed.composite.at(-1).net+=70;changed.composite.at(-1).q+=100;
   const updated=pivotFlowRealtime(anchor,changed.price,changed.composite,serverTime);
   assert.equal(updated.totalNet-first.totalNet,70);
   assert.equal(updated.totalQuote-first.totalQuote,100);
+  assert.notEqual(updated.pct,first.pct);
+  assert.equal(updated.pctHalfLife,32);
   assert.notEqual(updated.bins.at(-1).pct,first.bins.at(-1).pct);
   assert.deepEqual(pivotZones({price:changed.price.slice(0,-1),composite:changed.composite.slice(0,-1),volume:changed.volume.slice(0,-1)},STEP),zoneBefore);
   assert.equal(pivotFlowRealtime(anchor,changed.price,changed.composite,serverTime+STEP).live,false);
   const incomplete=structuredClone(input);incomplete.composite.pop();
   assert.equal(pivotFlowRealtime(anchor,incomplete.price,incomplete.composite,serverTime).live,false);
 });
-test('C NF dùng 96 nến gần nhất khi chưa có cặp pivot, vẫn cập nhật nến hiện tại',()=>{
+test('C NF dùng 96 nến gần nhất khi chưa có cặp pivot và phần trăm EWMA vẫn chạy live',()=>{
   const input=sample(120),serverTime=input.price.at(-1).t+STEP/2;
   for(const bar of input.price)bar.end=bar.t+STEP-1;
   const flow=pivotFlowRealtime(null,input.price,input.composite,serverTime);
-  assert.equal(flow.mode,'rolling');assert.equal(flow.live,true);assert.equal(flow.coverage,1);
+  assert.equal(flow.mode,'rolling');assert.equal(flow.live,true);assert.equal(flow.coverage,1);assert.equal(flow.bins.length,5);
   const changed=structuredClone(input);changed.composite.at(-1).net+=25;
-  assert.equal(pivotFlowRealtime(null,changed.price,changed.composite,serverTime).totalNet-flow.totalNet,25);
+  const changedFlow=pivotFlowRealtime(null,changed.price,changed.composite,serverTime);
+  assert.equal(changedFlow.totalNet-flow.totalNet,25);
+  assert.notEqual(changedFlow.pct,flow.pct);
+  assert.equal(changedFlow.pctHalfLife,32);
   assert.equal(pivotFlowRealtime(null,input.price,input.composite,serverTime-STEP*2).latestTime,input.price.at(-3).t);
 });
 test('fixture Binance M15 tạo đủ hai vùng và nhịp NF để hiển thị',()=>{
