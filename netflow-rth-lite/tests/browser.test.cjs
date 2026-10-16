@@ -47,7 +47,7 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   assert.equal((await page.locator('label:has(#spy-volume-strength)').innerText()).trim(),'SPY V');
   assert.match(await page.locator('#candle-countdown').innerText(),/^\d{2}:\d{2}$/);
   assert(await page.locator('#candle-countdown').evaluate(node=>parseFloat(node.style.right)>=48));
-  assert.equal((await page.locator('label:has(#geometry-impact)').innerText()).trim(),'Impact vùng GEO 48h');assert.equal(await page.locator('#geometry-impact').isChecked(),true);assert.match(await page.locator('#impact-status').innerText(),/^Impact GEO · 48h/);
+  assert.equal(await page.locator('#geometry-impact').count(),0);assert.equal(await page.locator('#impact-status').count(),0);
   const strengthLabels=await page.locator('#strength-readout').evaluate(node=>{const top=+node.dataset.paneTop,bottom=+node.dataset.paneBottom,zeroY=+node.dataset.zeroY,host=node.getBoundingClientRect(),boxes=[...node.children].map(child=>{const rect=child.getBoundingClientRect();return {top:child.offsetTop,bottom:child.offsetTop+child.offsetHeight,right:rect.right};}).sort((a,b)=>a.top-b.top);return {top,bottom,zeroY,right:host.right,boxes};});assert(strengthLabels.boxes.every(box=>box.top>=strengthLabels.top&&box.bottom<=strengthLabels.bottom&&Math.abs(box.right-strengthLabels.right)<2));for(let i=1;i<strengthLabels.boxes.length;i++)assert(strengthLabels.boxes[i].top-strengthLabels.boxes[i-1].bottom>=3);assert(Math.abs((strengthLabels.boxes[0].top+strengthLabels.boxes.at(-1).bottom)/2-strengthLabels.zeroY)<2);
   assert.equal(await page.locator('#trend-strength').count(),0);
   const forecastBox=await page.locator('#geometry-readout').boundingBox(),chartBox=await page.locator('#chart').boundingBox();
@@ -58,8 +58,8 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   assert.equal(await page.locator('#live-indicator').innerText(),'● LIVE');assert(await page.locator('#live-indicator').evaluate(el=>el.classList.contains('live')));
   assert.equal(await page.locator('#days').inputValue(),'30');
   for(const id of ['spy','qqq','relative'])assert.equal(await page.locator('#'+id).isChecked(),false);
-  assert((await page.locator('label:has(#relative)').getAttribute('title')).includes('SPY và QQQ cùng Buy Impact'));
-  for(const id of ['composite','alignment','price-bands','pivot-zones','phase-width','candle-agreement-color','cvd-spectrum-toggle','show-strength','spy-volume-strength','geometry-impact','bands','markers','geometry-toggle','geometry-pivots','double-tap-full'])assert.equal(await page.locator('#'+id).isChecked(),true);
+  assert((await page.locator('label:has(#relative)').getAttribute('title')).includes('NetFlow cùng nến'));
+  for(const id of ['composite','alignment','price-bands','pivot-zones','phase-width','candle-agreement-color','cvd-spectrum-toggle','show-strength','spy-volume-strength','bands','markers','geometry-toggle','geometry-pivots','double-tap-full'])assert.equal(await page.locator('#'+id).isChecked(),true);
   assert((await page.locator('#fit').innerText()).includes('1.5 ngày'));assert((await page.locator('#chart-fit').innerText()).includes('1.5 ngày'));
   const fitWindow=await page.locator('#chart').evaluate(node=>({hours:+node.dataset.fitWindowHours,start:+node.dataset.fitStart,end:+node.dataset.fitEnd}));assert.equal(fitWindow.hours,36);assert(fitWindow.end>fitWindow.start);assert(fitWindow.end-fitWindow.start<=36*60*60*1000);
   assert.equal(await page.locator('#geometry-score').inputValue(),'55');assert.equal(await page.locator('#geometry-lines').inputValue(),'6');
@@ -77,7 +77,7 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   await page.waitForFunction(()=>document.querySelector('#pivot-flow-overlay')?.dataset.status==='hidden');
   assert.equal(await page.locator('#cvd-spectrum').getAttribute('data-source'),'QQQUSDT');
   assert((await page.locator('#tooltip').innerText()).includes('Giá QQQ, Strength phân tích SPY'));
-  for(const id of ['spy','qqq','composite','relative','alignment','price-bands','pivot-zones','phase-width','candle-agreement-color','cvd-spectrum-toggle','show-strength','spy-volume-strength','geometry-impact','bands','markers','geometry-toggle','geometry-pivots']){await page.locator('#'+id).uncheck();await page.locator('#'+id).check();}
+  for(const id of ['spy','qqq','composite','relative','alignment','price-bands','pivot-zones','phase-width','candle-agreement-color','cvd-spectrum-toggle','show-strength','spy-volume-strength','bands','markers','geometry-toggle','geometry-pivots']){await page.locator('#'+id).uncheck();await page.locator('#'+id).check();}
   await page.locator('#geometry-score').selectOption('72');assert((await page.locator('#geometry-readout').innerText()).startsWith('UP '));assert(+(await geometryCanvas.getAttribute('data-lines'))>0);await page.locator('#geometry-score').selectOption('55');
   for(const interval of fixtureRoot||process.env.NETFLOW_LIVE?['5m','30m','1h','15m']:['15m']){
    await page.locator('#interval').selectOption(interval);await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('TRADING'),{},{timeout:120000});

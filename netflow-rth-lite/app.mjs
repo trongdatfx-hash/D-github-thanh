@@ -1,4 +1,4 @@
-import {STEPS,composite,flowAlignment,strengthAgreementCandleSignal,strengthPhaseLineWidth,calculateVolumeStrength,analyze,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs?v=20261015-1';
+import {STEPS,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,strengthPhaseLineWidth,calculateVolumeStrength,analyze,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs?v=20261016-1';
 import {load} from './data.mjs';
 import {loadPersistentHistory} from './history-store.mjs?v=20261015-1';
 import {strengthStatistics} from './strength-stats.mjs?v=20261015-1';
@@ -8,11 +8,9 @@ import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeo
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261014-2';
 import {wlrAgreementStatistics,WLR_STATE_ROWS,WLR_AGREEMENT_ROWS,WLR_MIN_SAMPLES} from './wlr-agreement-stats.mjs?v=20261015-1';
 import {rev63Forecast,scoreForecastHistory,calibrationSummary,rev63ColorRegime,rev63ColorQualitySummary,rev63GeometryQualitySummary,REV63_COLOR_ROWS,REV63_GEOMETRY_ROWS,REV63_HORIZON} from './rev6-3-v1.mjs?v=20261016-3';
-import {SpreadImpactDetector,aggregateImpactHistogram,aggregatePairImpactAgreement,geometryBarIndexAt,geometryZoneAt,pruneImpactEvents} from './impact-volume.mjs?v=20261015-3';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
-let chart,price,series={},marks,strengthMarks,cache=null,rows={},volumeStrengthRows=[],modelRows={},modelVolumeStrengthRows=[],modelStamp=null,trainingMeta=null,maps={},alignmentMap=new Map(),priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,pivotFlowFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},geometryStatePoints=[],geometryStatePointsKey='',breakoutState=null,geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
-let impactEvents=[],relativeImpactMap=new Map(),impactGeometry={SPYUSDT:{lines:[],barIndex:null,atr:null},QQQUSDT:{lines:[],barIndex:null,atr:null}},impactSocket=null,impactReconnect=null,impactStreamState='offline';
+let chart,price,series={},marks,strengthMarks,cache=null,rows={},volumeStrengthRows=[],modelRows={},modelVolumeStrengthRows=[],modelStamp=null,trainingMeta=null,maps={},priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,pivotFlowFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},geometryStatePoints=[],geometryStatePointsKey='',breakoutState=null,geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
 const colors={SPYUSDT:'#5ba8ff',QQQUSDT:'#c194ff',COMPOSITE:'#38dfba'};
 const flowTitles={SPYUSDT:'S Taker NF',QQQUSDT:'Q Taker NF',COMPOSITE:'C Taker NF'};
 const flowColors={
@@ -22,7 +20,6 @@ const flowColors={
 };
 const LIVE_REFRESH_MS=3000;
 const CALENDAR_REFRESH_MS=5*60*1000;
-const IMPACT_STORAGE_KEY='spy-geometry-spread-impact-v1';
 const FIT_WINDOW_MS=36*60*60*1000,DOUBLE_TAP_MS=360,DOUBLE_TAP_DISTANCE=28,TAP_MOVE_TOLERANCE=14;
 let statsMap=new Map(),candleColorMap=new Map(),wlrStatsData=null,rev63State=null,rev63History=[],pivotZoneState={ready:false,reason:'history',support:null,resistance:null},pivotFlowState=null,pivotZoneKey='',inspectedTime=null;
 let calendarState={events:[],updatedAt:null,loading:false};
@@ -34,39 +31,6 @@ const tone=x=>x>0?'positive':x<0?'negative':'neutral';
 const calendarDay=new Intl.DateTimeFormat('vi-VN',{timeZone:CALENDAR_TIME_ZONE,weekday:'short',day:'2-digit',month:'2-digit'});
 const calendarTime=new Intl.DateTimeFormat('vi-VN',{timeZone:CALENDAR_TIME_ZONE,hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
 const calendarImpactLabel={High:'High',Medium:'Medium',Low:'Low',Holiday:'Nghỉ','Non-Economic':'Khác'};
-
-function loadImpactEvents(){try{return pruneImpactEvents(JSON.parse(localStorage.getItem(IMPACT_STORAGE_KEY)||'[]'));}catch{return [];}}
-function saveImpactEvents(){impactEvents=pruneImpactEvents(impactEvents);try{localStorage.setItem(IMPACT_STORAGE_KEY,JSON.stringify(impactEvents));}catch{}}
-function impactBarIndex(symbol,time){
-  return geometryBarIndexAt(time,rows[symbol]??[],impactGeometry[symbol]?.barIndex);
-}
-function resolveImpactZone(symbol,priceValue,time){
-  const state=impactGeometry[symbol];return geometryZoneAt(priceValue,time,state?.lines,{barIndex:impactBarIndex(symbol,time),atr:state?.atr,toleranceAtr:.28,minScore:Number($('geometry-score')?.value??55)});
-}
-function recordImpact(event){
-  const compact={id:event.id,symbol:event.symbol??'SPYUSDT',time:event.time,confirmedAt:event.confirmedAt,side:event.side,price:event.price,quote:event.quote,jumpSpreads:event.jumpSpreads,zoneKind:event.zone.kind,zoneScore:event.zone.score,lineValue:event.zone.lineValue,distanceAtr:event.zone.distanceAtr};
-  if(impactEvents.some(item=>(item.symbol??'SPYUSDT')===compact.symbol&&item.id!==null&&item.id===compact.id&&item.time===compact.time))return;
-  impactEvents.push(compact);saveImpactEvents();renderImpactHistogram();
-}
-const impactDetectors=Object.fromEntries(['SPYUSDT','QQQUSDT'].map(symbol=>[symbol,new SpreadImpactDetector({zoneResolver:(priceValue,time)=>resolveImpactZone(symbol,priceValue,time),onImpact:event=>recordImpact({...event,symbol})})]));
-function renderImpactHistogram(){
-  if(!series.impactBuy||!series.impactSell)return;
-  const step=STEPS[$('interval').value],data=aggregateImpactHistogram(impactEvents,step,{symbol:'SPYUSDT'});series.impactBuy.setData(data.buy);series.impactSell.setData(data.sell);
-  relativeImpactMap=new Map(aggregatePairImpactAgreement(impactEvents,step).map(row=>[row.time,row]));if(series.relative)series.relative.setData(relativeData([...alignmentMap.values()],relativeImpactMap));
-  const enabled=$('geometry-impact')?.checked??true;series.impactBuy.applyOptions({visible:enabled});series.impactSell.applyOptions({visible:enabled});
-  const node=$('impact-status');if(node){const latest=data.buckets.at(-1),count=data.buckets.reduce((sum,row)=>sum+row.buyCount+row.sellCount,0);node.textContent=impactStreamState==='live'?`Impact GEO · 48h · ${count} lần${latest?` · M ${fmtK(latest.buy)} / B ${fmtK(latest.sell)}`:''}`:'Impact GEO · đang nối stream';node.className=impactStreamState==='live'?'live':'missing';}
-}
-function startImpactStream(){
-  if(impactSocket&&[WebSocket.OPEN,WebSocket.CONNECTING].includes(impactSocket.readyState))return;
-  clearTimeout(impactReconnect);impactStreamState='connecting';renderImpactHistogram();
-  try{
-    impactSocket=new WebSocket('wss://fstream.binance.com/stream?streams=spyusdt@bookTicker/spyusdt@aggTrade/qqqusdt@bookTicker/qqqusdt@aggTrade');
-    impactSocket.onopen=()=>{impactStreamState='live';renderImpactHistogram();};
-    impactSocket.onmessage=message=>{try{const packet=JSON.parse(message.data),event=packet.data??packet,symbol=event.s??packet.stream?.split('@')[0]?.toUpperCase(),detector=impactDetectors[symbol];if(event.e==='bookTicker')detector?.onBook(event);else if(event.e==='aggTrade')detector?.onTrade(event);}catch{}};
-    impactSocket.onerror=()=>{impactStreamState='offline';renderImpactHistogram();};
-    impactSocket.onclose=()=>{impactStreamState='offline';renderImpactHistogram();impactReconnect=setTimeout(startImpactStream,5000);};
-  }catch{impactStreamState='offline';renderImpactHistogram();impactReconnect=setTimeout(startImpactStream,5000);}
-}
 
 function renderCalendar(){
   const list=$('calendar-list'),statusNode=$('calendar-status');if(!list||!statusNode)return;
@@ -187,7 +151,7 @@ function init(){
   if(!L){status('Không tải được thư viện chart cục bộ. Kiểm tra network hoặc tải lại trang.',true);return false;}
   const controls=document.querySelector('.toggles'),card=document.querySelector('.chart-card');
   if(controls&&card){controls.classList.add('chart-options');controls.setAttribute('aria-label','Tùy chọn biểu đồ');card.before(controls);}
-  $('relative').closest('label').title='Màu xanh khi SPY và QQQ cùng Buy Impact; đỏ khi cùng Sell Impact; cam khi trái dấu; xám khi thiếu hoặc cân bằng.';
+  $('relative').closest('label').title='Màu theo NetFlow cùng nến: SPY và QQQ cùng mua xanh, cùng bán đỏ, trái dấu cam, thiếu hoặc cân bằng xám. Chiều cao vẫn là Relative NetFlow mượt.';
   chart=L.createChart($('chart'),{autoSize:true,layout:{background:{type:'solid',color:'#0e1726'},textColor:'#91a5bd',attributionLogo:true},grid:{vertLines:{color:'#1a283a'},horzLines:{color:'#1a283a'}},crosshair:{mode:L.CrosshairMode.Normal,vertLine:{visible:true,labelVisible:true},horzLine:{visible:true,labelVisible:true}},timeScale:{timeVisible:true,secondsVisible:false,rightOffset:22},rightPriceScale:{autoScale:true},handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},handleScale:{mouseWheel:true,pinch:true,axisPressedMouseMove:{time:true,price:true},axisDoubleClickReset:{time:true,price:true}},localization:{locale:'vi-VN',timeFormatter:t=>new Date(t*1000).toLocaleString('en-US',{timeZone:'America/New_York',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'})}});
   price=chart.addSeries(L.CandlestickSeries,{title:'',priceFormat:{type:'price',precision:1,minMove:.1},priceLineVisible:true,priceLineColor:'#36ddbd',priceLineWidth:1,priceLineStyle:L.LineStyle.Dashed,lastValueVisible:true,borderVisible:false},0);
   series.priceMid=chart.addCustomSeries(new VariableWidthLineSeries,{color:'#f6c85f',baseLineVisible:false,priceLineVisible:false,lastValueVisible:false,title:''},0);
@@ -207,9 +171,6 @@ function init(){
   series.strength.createPriceLine({price:0,color:'rgba(145,165,189,.28)',lineWidth:1,lineStyle:L.LineStyle.Dotted,axisLabelVisible:false,title:''});
   series.strength.priceScale().applyOptions({scaleMargins:{top:.08,bottom:.08}});
   series.volumeStrength=chart.addSeries(L.BaselineSeries,{baseValue:{type:'price',price:0},topLineColor:'#1ae0a3',topFillColor1:'rgba(26,224,163,.14)',topFillColor2:'rgba(26,224,163,0)',bottomLineColor:'#ff4d70',bottomFillColor1:'rgba(255,77,112,0)',bottomFillColor2:'rgba(255,77,112,.14)',lineWidth:3,title:'SPY V',priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:true,crosshairMarkerRadius:4},3);
-  series.impactBuy=chart.addSeries(L.HistogramSeries,{priceScaleId:'impact',base:0,color:'rgba(26,224,163,.72)',title:'GEO Buy Impact',priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',formatter:fmtK}},3);
-  series.impactSell=chart.addSeries(L.HistogramSeries,{priceScaleId:'impact',base:0,color:'rgba(255,77,112,.72)',title:'GEO Sell Impact',priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',formatter:fmtK}},3);
-  series.impactBuy.priceScale().applyOptions({scaleMargins:{top:.58,bottom:.04},visible:false});
   series.volumeStrength.createPriceLine({price:0,color:'#6f8299',lineWidth:1,lineStyle:L.LineStyle.Solid,axisLabelVisible:true,title:'0'});
   series.volumeStrength.priceScale().applyOptions({scaleMargins:{top:.08,bottom:.08}});
   series.COMPOSITE.createPriceLine({price:0,color:'#60748c',lineWidth:1,lineStyle:L.LineStyle.Solid,axisLabelVisible:false});
@@ -235,13 +196,8 @@ function priceDirectionPalette(x){const up=x.c>=x.o,target=up?[8,190,145]:[235,7
 function lineData(data,key){return data.map(x=>Number.isFinite(x[key])?{time:x.t/1000,value:x[key]}:{time:x.t/1000});}
 function priceLineData(data,compositeStrength,volumeStrength){const variable=$('phase-width').checked;return data.map(x=>Number.isFinite(x.mid)?{time:x.t/1000,value:x.mid,width:variable?strengthPhaseLineWidth(compositeStrength.get(x.t),volumeStrength.get(x.t),{thick:6}):2}:{time:x.t/1000});}
 function flowData(data,key){const palette=flowColors[key];return data.map(x=>Number.isFinite(x.net)?{time:x.t/1000,value:x.net,color:x.net>=0?palette.up:palette.down}:{time:x.t/1000});}
-function relativeData(data,impactMap=relativeImpactMap){
-  return data.map(x=>{
-    const impact=impactMap.get(x.t),active=impact?.regime&&impact.regime!=='neutral';
-    const alpha=active ? .36+.54*Math.min(1,impact.agreement) : .30;
-    const color=impact?.regime==='buy_agreement'?`rgba(26,224,163,${alpha})`:impact?.regime==='sell_agreement'?`rgba(255,77,112,${alpha})`:impact?.regime==='divergence'?`rgba(245,166,35,${alpha})`:'rgba(112,126,145,.30)';
-    return Number.isFinite(x.relative)?{time:x.t/1000,value:x.relative,color}:{time:x.t/1000};
-  });
+function relativeData(data){
+  return data.map(x=>Number.isFinite(x.relative)?{time:x.t/1000,value:x.relative,color:relativeFlowColor(x)}:{time:x.t/1000});
 }
 function alignmentData(data){return data.map(x=>({time:x.t/1000,value:x.score,color:x.state==='THUẬN MUA'?`rgba(26,224,163,${.48+.45*x.intensity})`:x.state==='THUẬN BÁN'?`rgba(255,77,112,${.48+.45*x.intensity})`:`rgba(245,166,35,${.58+.35*x.intensity})`}));}
 function scheduleCvdSpectrum(){if(cvdFrame)return;cvdFrame=requestAnimationFrame(()=>{cvdFrame=requestAnimationFrame(()=>{cvdFrame=0;drawCvdSpectrum();});});}
@@ -383,17 +339,11 @@ function render(fit=false){
   const compositeCvd=$('symbol').value==='SPYUSDT',cvdBars=compositeCvd?projectNetFlowToPrice(p,rows.COMPOSITE??[]):p;
   cvdSourceLabel=compositeCvd?'C→S':'Q';$('cvd-spectrum').dataset.source=compositeCvd?'COMPOSITE→SPY':'QQQUSDT';
   cvdProfile=continuousCvdSpectrum(cvdBars);cvdAnchorTime=cvdBars.at(-1)?.t??null;
-  const alignment=flowAlignment(rows.SPYUSDT??[],rows.QQQUSDT??[],{step:STEPS[$('interval').value]});alignmentMap=new Map(alignment.map(x=>[x.t,x]));
+  const alignment=flowAlignment(rows.SPYUSDT??[],rows.QQQUSDT??[],{step:STEPS[$('interval').value]});
   const closedBefore=cache?.serverTime??Infinity,closedPrice=p.filter(row=>(row.end??row.t)<closedBefore),closedTimes=new Set(closedPrice.map(row=>row.t)),modelPrice=model[$('symbol').value]??p,modelClosedPrice=modelPrice.filter(row=>(row.end??row.t)<closedBefore),modelClosedTimes=new Set(modelClosedPrice.map(row=>row.t));
   const geometryInput={price:closedPrice,spy:(rows.SPYUSDT??[]).filter(row=>closedTimes.has(row.t)),qqq:(rows.QQQUSDT??[]).filter(row=>closedTimes.has(row.t)),flow:(rows.COMPOSITE??[]).filter(row=>closedTimes.has(row.t)),volume:volumeStrengthRows.filter(row=>closedTimes.has(row.t))},geometryOptions={minScore:Number($('geometry-score').value),maxLines:Number($('geometry-lines').value)};
   geometryState=analyzeGeometry(geometryInput,geometryOptions);breakoutState=analyzeBreakoutRetest(geometryInput,geometryOptions);const statePointsKey=`${$('symbol').value}|${$('interval').value}|${$('days').value}|${closedPrice.at(-1)?.t??0}|${closedPrice.length}|${geometryOptions.minScore}|${geometryOptions.maxLines}`;if(statePointsKey!==geometryStatePointsKey){geometryStatePoints=recentCausalLineStates(geometryInput,{...geometryOptions,stateLookbackBars:600},4);geometryStatePointsKey=statePointsKey;}
   geometryBacktest=backtestGeometry(closedPrice,geometryState.events,{horizon:4,minMoveAtr:.35});
-  for(const symbol of ['SPYUSDT','QQQUSDT']){
-    const impactPrice=(rows[symbol]??[]).filter(row=>(row.end??row.t)<closedBefore),impactTimes=new Set(impactPrice.map(row=>row.t));
-    const impactInput={price:impactPrice,spy:(rows.SPYUSDT??[]).filter(row=>impactTimes.has(row.t)),qqq:(rows.QQQUSDT??[]).filter(row=>impactTimes.has(row.t)),flow:(rows.COMPOSITE??[]).filter(row=>impactTimes.has(row.t)),volume:volumeStrengthRows.filter(row=>impactTimes.has(row.t))};
-    const impactState=$('symbol').value===symbol?geometryState:analyzeGeometry(impactInput,geometryOptions);
-    impactGeometry[symbol]={lines:impactState.lines??[],barIndex:impactPrice.length-1,atr:impactState.atr?.at(-1)??null};
-  }
   const volumeStrengthMap=new Map(volumeStrengthRows.map(x=>[x.t,x]));
   candleColorMap=new Map(p.map(x=>[x.t,strengthAgreementCandleSignal(maps.COMPOSITE?.get(x.t),volumeStrengthMap.get(x.t))]));
   const agreementColors=$('candle-agreement-color').checked;
@@ -412,7 +362,6 @@ function render(fit=false){
   series.alignment.setData(alignmentData(alignment));
   series.strength.setData(lineData(signalRows,'adjusted'));
   series.volumeStrength.setData(lineData(volumeStrengthRows,'adjusted'));
-  renderImpactHistogram();
   strengthMarks.setMarkers(signalRows.filter(x=>Number.isFinite(x.adjusted)&&x.adjusted>.95).map(x=>({time:x.t/1000,position:'inBar',color:'#7dffd9',shape:'circle',text:''})));
   for(const key of ['mid','upper','lower'])series[key].setData(lineData(signalRows,key));
   let previousDay=null,previousSession=null;
@@ -480,14 +429,12 @@ function showTooltip(t){
   statValue('stat-pair',a.detailState, a.detailState==='THUẬN MUA'?'positive':a.detailState==='THUẬN BÁN'?'negative':'neutral');
   $('stat-pair-note').textContent=`NF% mượt · S ${signed(a.smoothSpyNf)} / Q ${signed(a.smoothQqqNf)}`;
   const regimeText=colorSignal?.direction?`Composite×Volume ${colorSignal.colorRegime}: Composite ${signed(colorSignal.compositeStrength)}, SPY Volume ${signed(colorSignal.volumeStrength)}; độ đậm theo min(|Composite|, |Volume|) = ${fmt(colorSignal.agreement)}.`:`Composite×Volume TRUNG TÍNH${colorSignal?.neutralReason?` (${colorSignal.neutralReason.toLowerCase()})`:''}: Composite ${signed(colorSignal?.compositeStrength)}, SPY Volume ${signed(colorSignal?.volumeStrength)}; trái dấu, bằng 0 hoặc thiếu dữ liệu đều dùng xám.`;
-  const bucketTime=Math.floor(t/STEPS[$('interval').value])*STEPS[$('interval').value],impactBucket=aggregateImpactHistogram(impactEvents,STEPS[$('interval').value],{symbol:'SPYUSDT'}).buckets.find(row=>row.time===bucketTime),relativeImpact=relativeImpactMap.get(bucketTime);
   const colorText=$('candle-agreement-color').checked?`Màu nến ${regimeText}`:`Màu nến C×V đang tắt; chart dùng xanh/đỏ theo thân giá. Chế độ thống kê vẫn ghi nhận ${regimeText}`;
   const text=[`${mode} · ${time} · ${state.session} · Giá ${sourceName($('symbol').value)}, Strength phân tích ${sourceName($('signal').value)}${running?' · Nến đang chạy: điểm tạm thời, lịch sử so sánh dùng nến đóng':''}`,
     geometryLine?`GEO hiện tại: ${geometryLineText(geometryLine)}. Line chỉ xuất hiện từ ${new Date(geometryLine.knownAt).toLocaleString('vi-VN',{timeZone:'America/New_York'})} ET, sau khi pivot thứ hai được xác nhận; không dùng nến đang chạy.`:null,
     breakoutEvent?`Thông báo cắt Trendline causal: ${breakoutEvent.label} ${breakoutEvent.breakDirection>0?'lên ↑':'xuống ↓'} tại ${breakoutEvent.lineKind==='support'?'hỗ trợ':'kháng cự'} ${fmt(breakoutEvent.lineValue)} · line ${breakoutEvent.lineScore}/100 · cách ${fmt(breakoutEvent.distanceAtr)} ATR${breakoutEvent.key==='true_break'?' · Strength Composite, SPY V và NetFlow cùng xác nhận hướng phá':' · giá đã giành lại phía cũ của line'}. Line tham chiếu đã tồn tại và được khóa trước hai nến xác nhận.`:null,
     geometryEvent?`Dị biệt được xác nhận tại nến này: ${geometryEvent.direction==='bullish'?'phân kỳ tăng':geometryEvent.direction==='bearish'?'phân kỳ giảm':'SPY/QQQ luân phiên dẫn dắt'} · điểm ${geometryEvent.score}/100 · ΔStrength SPY ${signed(geometryEvent.spyDelta)} / QQQ ${signed(geometryEvent.qqqDelta)} / SPY V ${signed(geometryEvent.volumeDelta)} · ΔNetFlow ${signed(geometryEvent.flowDelta)}${geometryEvent.pairSplit?` · Strength SPY và QQQ ngược nhau, giá đang gần nhịp ${geometryEvent.leader==='SPY'?'SPY':geometryEvent.leader==='QQQ'?'QQQ':'hỗn hợp'}`:''}. Đây là mô tả hợp lưu tại thời điểm xác nhận, không phải dự báo chắc chắn.`:null,
-    impactBucket?`Impact SPY vùng GEO 48h: mua ${fmtK(impactBucket.buy)} (${impactBucket.buyCount} lần) · bán ${fmtK(impactBucket.sell)} (${impactBucket.sellCount} lần). Chỉ tính taker trade làm best bid/ask dịch ít nhất một spread trong ±0,28 ATR quanh line causal đã được xác nhận.`:'Impact SPY vùng GEO: chưa có lần dịch spread đạt điều kiện trong nến này.',
-    relativeImpact?.regime==='buy_agreement'?`Màu SPY−QQQ tương đối: XANH — SPY và QQQ cùng Buy Impact · đồng thuận ${fmt(relativeImpact.agreement*100)}% · SPY ${signed(relativeImpact.spyNet)} / QQQ ${signed(relativeImpact.qqqNet)}.`:relativeImpact?.regime==='sell_agreement'?`Màu SPY−QQQ tương đối: ĐỎ — SPY và QQQ cùng Sell Impact · đồng thuận ${fmt(relativeImpact.agreement*100)}% · SPY ${signed(relativeImpact.spyNet)} / QQQ ${signed(relativeImpact.qqqNet)}.`:relativeImpact?.regime==='divergence'?`Màu SPY−QQQ tương đối: CAM — SPY và QQQ Impact trái dấu · SPY ${signed(relativeImpact.spyNet)} / QQQ ${signed(relativeImpact.qqqNet)}.`:'Màu SPY−QQQ tương đối: XÁM — thiếu impact hoặc một trong hai mã chưa lệch tối thiểu 20%.',
+    `Màu SPY−QQQ tương đối dùng dấu NetFlow cùng nến: ${a.state} · SPY ${signed(a.spyNet)} / QQQ ${signed(a.qqqNet)}. Chiều cao vẫn là Relative NetFlow mượt, không dùng dữ liệu sổ lệnh.`,
     colorText,
     `Điểm xác nhận ${state.score??'—'}/100 = Taker ${fmt(state.taker)}/50 + Dải ${fmt(state.pair)}/30 + |Strength| ${fmt(state.strength)}/20. Điểm theo quy tắc, không phải xác suất thắng.`];
   const nodes=text.filter(Boolean).map(value=>{const div=document.createElement('div');div.textContent=value;return div;});
@@ -506,7 +453,6 @@ function toggle(){
   schedulePivotFlowOverlay();
   updateStrengthLabels();
   for(const key of ['mid','upper','lower'])series[key].applyOptions({visible:$('bands').checked});
-  renderImpactHistogram();
   marks.applyOptions({visible:$('markers').checked});
 }
 async function refresh(clear=false){
@@ -581,7 +527,7 @@ function bindChartGestures(){
 if(init()){
   $('refresh').onclick=()=>refresh();for(const id of ['interval','days'])$(id).onchange=()=>refresh(true);
   for(const id of ['symbol','signal'])$(id).onchange=()=>render(false);
-  for(const id of ['spy','qqq','composite','relative','alignment','price-bands','pivot-zones','cvd-spectrum-toggle','show-strength','spy-volume-strength','geometry-impact','bands','markers','geometry-toggle','geometry-pivots'])$(id).onchange=toggle;
+  for(const id of ['spy','qqq','composite','relative','alignment','price-bands','pivot-zones','cvd-spectrum-toggle','show-strength','spy-volume-strength','bands','markers','geometry-toggle','geometry-pivots'])$(id).onchange=toggle;
   for(const id of ['geometry-score','geometry-lines'])$(id).onchange=()=>render(false);
   $('wlr-horizon').onchange=renderWlrAgreementStats;
   $('phase-width').onchange=()=>render(false);
@@ -590,7 +536,7 @@ if(init()){
   document.addEventListener('fullscreenchange',syncFullChart);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.querySelector('.chart-card').classList.contains('fullscreen-fallback')){document.querySelector('.chart-card').classList.remove('fullscreen-fallback');syncFullChart();}});
   $('export').onclick=exportCSV;
   const changeCalendarFilter=()=>{delete $('calendar-list').dataset.positioned;renderCalendar();};$('calendar-impact').onchange=changeCalendarFilter;$('calendar-currency').onchange=changeCalendarFilter;$('calendar-refresh').onclick=refreshCalendar;
-  impactEvents=loadImpactEvents();startImpactStream();setLive(false);refreshCalendar();refresh(true);setInterval(()=>{updateCandleCountdown();if(lastSuccess&&Date.now()-lastSuccess>15000){setLive(false);schedulePivotFlowOverlay();}if(!document.hidden&&!loading)refresh();},LIVE_REFRESH_MS);
+  setLive(false);refreshCalendar();refresh(true);setInterval(()=>{updateCandleCountdown();if(lastSuccess&&Date.now()-lastSuccess>15000){setLive(false);schedulePivotFlowOverlay();}if(!document.hidden&&!loading)refresh();},LIVE_REFRESH_MS);
   setInterval(()=>{if(!document.hidden)refreshCalendar();},CALENDAR_REFRESH_MS);
   setInterval(updateCandleCountdown,250);
 }

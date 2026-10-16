@@ -64,6 +64,10 @@ export function flowAlignment(spy,qqq,{halfLife=2,step=null,neutralThreshold=5,v
     return [{t:a.t,state,score,intensity,detailState:valid?detailedFlowState(smoothSpy,smoothQqq,neutralThreshold):'TRUNG TÍNH',smoothSpyNf:smoothSpy,smoothQqqNf:smoothQqq,commonNf,relative,opposition,agreement,volumeConfidence,spyNet:a.net,qqqNet:b.net,spyNf:a.nf,qqqNf:b.nf}];
   });
 }
+export function relativeFlowColor(row){
+  const alpha=.36+.5*Math.min(1,Math.min(Math.abs(row?.spyNf??0),Math.abs(row?.qqqNf??0))/50);
+  return row?.spyNet>0&&row?.qqqNet>0?`rgba(26,224,163,${alpha})`:row?.spyNet<0&&row?.qqqNet<0?`rgba(255,77,112,${alpha})`:(row?.spyNet??0)*(row?.qqqNet??0)<0?`rgba(245,166,35,${alpha})`:'rgba(112,126,145,.30)';
+}
 export function strengthAgreementCandleSignal(compositeBar,volumeBar){
   const compositeStrength=compositeBar?.adjusted,volumeStrength=volumeBar?.adjusted;
   const values={compositeStrength:Number.isFinite(compositeStrength)?compositeStrength:null,volumeStrength:Number.isFinite(volumeStrength)?volumeStrength:null};

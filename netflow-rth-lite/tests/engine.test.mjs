@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {STEPS,parseKlines,composite,flowAlignment,strengthAgreementCandleSignal,strengthPhaseLineWidth,calculateStrength,calculateVolumeStrength,analyze,regression,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
+import {STEPS,parseKlines,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,strengthPhaseLineWidth,calculateStrength,calculateVolumeStrength,analyze,regression,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
 import {load} from '../data.mjs';
 import {isUsMarketHoliday,isUsMarketTradingDay} from '../market-calendar.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL(p,import.meta.url),'utf8').replace(/^\uFEFF/,''));
@@ -22,6 +22,14 @@ test('SPY/QQQ alignment distinguishes agreement and divergence',()=>{
   const opposite=flowAlignment([{...x,net:-10,nf:-20}],[y])[0];assert.equal(opposite.state,'NGHỊCH · SPY bán / QQQ mua');assert.equal(opposite.detailState,'NGHỊCH · SPY bán / QQQ mua');assert(Math.abs(opposite.opposition-Math.sqrt(200)/50)<1e-12);assert.equal(opposite.intensity,.2);
   const leader=flowAlignment([x],[{...y,net:0,nf:0}])[0];assert.equal(leader.detailState,'SPY DẪN MUA');assert.equal(leader.opposition,0);
   assert.equal(flowAlignment([x],[{...y,net:-5,nf:-10}])[0].score,.45);assert.equal(flowAlignment([x],[{...y,t:2}]).length,0);
+});
+test('relative NF color follows same-candle taker signs without GEO impact',()=>{
+  const row={spyNf:20,qqqNf:10,spyNet:10,qqqNet:5};
+  assert.match(relativeFlowColor(row),/^rgba\(26,224,163,/);
+  assert.match(relativeFlowColor({...row,spyNet:-10,qqqNet:-5}),/^rgba\(255,77,112,/);
+  assert.match(relativeFlowColor({...row,qqqNet:-5}),/^rgba\(245,166,35,/);
+  assert.equal(relativeFlowColor({...row,qqqNet:0}),'rgba(112,126,145,.30)');
+  assert.equal(relativeFlowColor(null),'rgba(112,126,145,.30)');
 });
 test('candle color follows Composite × SPY Volume Strength agreement',()=>{
   const up=strengthAgreementCandleSignal({adjusted:.8},{adjusted:.35}),down=strengthAgreementCandleSignal({adjusted:-.6},{adjusted:-.4});
