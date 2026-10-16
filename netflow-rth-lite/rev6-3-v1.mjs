@@ -1,6 +1,6 @@
-export const REV63_VERSION='REV6-3 V1';
+export const REV63_VERSION='REV6-3 Trend V2';
 export const REV63_HORIZON=3;
-export const REV63_WEIGHTS=Object.freeze({rev6:.40,wlr:.25,agreement:.15,netflow:.10,geometry:.10});
+export const REV63_WEIGHTS=Object.freeze({line:.35,pivot:.25,candle:.20,regime:.20});
 export const REV63_COLOR_ROWS=Object.freeze([
   {key:'agreement_up',label:'Đồng thuận tăng'},
   {key:'agreement_down',label:'Đồng thuận giảm'},
@@ -15,47 +15,29 @@ export const REV63_GEOMETRY_ROWS=Object.freeze([
 ]);
 const clamp=(x,a=-1,b=1)=>Math.max(a,Math.min(b,x));
 const sign=x=>x>0?1:x<0?-1:0;
-const bayesRate=(summary,prior=20)=>{
-  const n=summary?.n??0,rate=Number.isFinite(summary?.winRate)?summary.winRate/100:.5;
-  return (rate*n+.5*prior)/(n+prior);
-};
-function rowEvidence(summary,direction,prior=20){
-  if(!direction||!(summary?.n>0))return 0;
-  return direction*clamp(2*(bayesRate(summary,prior)-.5));
-}
-function agreementKey(rank){
-  if(!Number.isFinite(rank))return null;
-  if(rank<.25)return 'p0_25';if(rank<.5)return 'p25_50';if(rank<.75)return 'p50_75';if(rank<.9)return 'p75_90';return 'p90_100';
-}
-export function rev63Forecast({reversal,wlrStats,alignment,geometryEvents=[],geometryRegime=null,priceRows=[],horizon=REV63_HORIZON,prior=20}={}){
-  const states=wlrStats?.states??[],latest=states.at(-1),h=wlrStats?.summaries?.[horizon]??{},compositeDirection=latest?.direction??0;
-  let rev6=0;
-  if(reversal?.ready&&Number.isFinite(reversal.rate)&&Number.isFinite(reversal.baselineRate)&&reversal.direction){
-    const uplift=Math.max(0,reversal.rate-reversal.baselineRate),quality=clamp(uplift/.25,0,1)*(Number.isFinite(reversal.similarity)?clamp(reversal.similarity,0,1):1);
-    rev6=-sign(reversal.direction)*quality;
-  }
-  const stateKey=latest?.transition==='thin_to_thick'?'thin_to_thick':latest?.state;
-  const wlr=rowEvidence(h?.[stateKey],compositeDirection,prior);
-  const aKey=agreementKey(latest?.rank),agreement=rowEvidence(h?.[aKey],compositeDirection,prior);
-  const nf=Number.isFinite(alignment?.commonNf)?Math.tanh(alignment.commonNf/25):0;
-  let geometry=0,geometryEvent=null;
+export function rev63Forecast({geometryLines=[],geometryEvents=[],geometryRegime=null,priceRows=[],horizon=REV63_HORIZON}={}){
+  const latest=priceRows.at(-1),lastIndex=priceRows.length-1,scale=Math.max(1e-9,latest?.h-latest?.l||0);
+  const usableLines=geometryLines.filter(line=>!line.provisional&&line.knownAt<=latest?.t&&Number.isFinite(line.endValue)&&Number.isFinite(line.score));
+  const nearest=usableLines.map(line=>({line,distance:Math.abs(latest.c-line.endValue)/scale})).sort((a,b)=>a.distance-b.distance)[0];
+  const line=nearest&&nearest.distance<=2?(nearest.line.kind==='support'?1:-1)*clamp(nearest.line.score/100)*clamp(1-nearest.distance/2):0;
+  let pivot=0,geometryEvent=null;
   if(priceRows.length&&geometryEvents.length){
     const index=new Map(priceRows.map((x,i)=>[x.t,i])),lastIndex=priceRows.length-1;
     for(let i=geometryEvents.length-1;i>=0;i--){
       const e=geometryEvents[i],idx=index.get(e.at);if(idx===undefined||lastIndex-idx>6)continue;
       const d=e.direction==='bullish'?1:e.direction==='bearish'?-1:0;
-      if(d){geometry=d*clamp((e.score??0)/100,0,1);geometryEvent=e;break;}
+      if(d){pivot=d*clamp((e.score??0)/100,0,1)*clamp(1-(lastIndex-idx)/7);geometryEvent=e;break;}
     }
   }
-  if(geometryRegime?.direction){
-    const regimeEvidence=sign(geometryRegime.direction)*clamp(geometryRegime.confidence??0,0,1);
-    if(Math.abs(regimeEvidence)>=Math.abs(geometry))geometry=regimeEvidence;
-  }
-  const components={rev6,wlr,agreement,netflow:nf,geometry};
+  const recent=priceRows.slice(-4),first=recent[0],validCandle=recent.length>=3&&[first?.c,latest?.o,latest?.h,latest?.l,latest?.c].every(Number.isFinite);
+  const candle=validCandle?clamp(.5*clamp((latest.c-first.c)/(Math.max(scale,Math.abs(latest.c)*.001)*2))+.3*clamp((latest.c-latest.o)/scale)+.2*clamp(2*(latest.c-latest.l)/scale-1)):0;
+  const regime=geometryRegime?.at===latest?.t?sign(geometryRegime.direction)*clamp(geometryRegime.confidence??0):0;
+  const components={line,pivot,candle,regime};
+  const available={line:usableLines.length>0,pivot:!!geometryEvent,candle:validCandle,regime:regime!==0};
   const evidence=Object.entries(REV63_WEIGHTS).reduce((sum,[key,w])=>sum+w*components[key],0);
   const pUp=clamp(.5+.45*evidence,.05,.95),pDown=1-pUp,confidence=Math.round(100*Math.abs(pUp-.5)*2);
   const label=pUp>=.65?'UP':pUp<=.35?'DOWN':'WAIT';
-  return {version:REV63_VERSION,horizon,pUp,pDown,confidence,label,evidence,components,stateKey,agreementKey:aKey,agreementRank:latest?.rank??null,geometryEvent,geometryRegime,compositeDirection};
+  return {version:REV63_VERSION,horizon,pUp,pDown,confidence,label,evidence,trendScore:Math.round(50+50*evidence),components,available,geometryEvent,geometryRegime,activeLine:nearest?.line??null};
 }
 export function scoreForecastHistory(priceRows,records,horizon=REV63_HORIZON){
   const map=new Map(priceRows.map((x,i)=>[x.t,i])),scored=[];
