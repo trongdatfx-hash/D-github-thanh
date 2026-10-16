@@ -7,3 +7,9 @@ export function pivotFlowLayout(barSpacing,binCount,availableWidth){
   if(shownCount<1)return null;
   return {barWidth,barSpacing,gap,shownCount,panelWidth:padding+shownCount*barWidth+(shownCount-1)*gap};
 }
+
+export function pivotFlowZeroCoordinate(paneHeight,resistanceY,supportY){
+  if(!Number.isFinite(paneHeight)||paneHeight<=0)return null;
+  const bothVisible=Number.isFinite(resistanceY)&&Number.isFinite(supportY)&&resistanceY>=6&&supportY<=paneHeight-6&&supportY>resistanceY;
+  return {zero:bothVisible?(resistanceY+supportY)/2:paneHeight/2,placement:bothVisible?'between-zones':'pane-center'};
+}

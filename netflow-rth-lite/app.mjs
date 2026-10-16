@@ -2,8 +2,8 @@ import {STEPS,composite,flowAlignment,strengthAgreementCandleSignal,strengthPhas
 import {load} from './data.mjs';
 import {loadPersistentHistory} from './history-store.mjs?v=20261015-1';
 import {strengthStatistics} from './strength-stats.mjs?v=20261015-1';
-import {pivotZones,pivotFlowRealtime,PIVOT_ZONE_VERSION} from './pivot-zones.mjs?v=20261016-3';
-import {pivotFlowLayout} from './pivot-flow-layout.mjs?v=20261016-1';
+import {pivotZones,pivotFlowRealtime,PIVOT_ZONE_VERSION} from './pivot-zones.mjs?v=20261016-4';
+import {pivotFlowLayout,pivotFlowZeroCoordinate} from './pivot-flow-layout.mjs?v=20261016-2';
 import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeometry} from './geometry.mjs?v=20261016-3';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261014-2';
 import {wlrAgreementStatistics,WLR_STATE_ROWS,WLR_AGREEMENT_ROWS,WLR_MIN_SAMPLES} from './wlr-agreement-stats.mjs?v=20261015-1';
@@ -251,14 +251,14 @@ function schedulePivotFlowOverlay(){if(pivotFlowFrame)return;pivotFlowFrame=requ
 function drawPivotFlowOverlay(){
   const canvas=$('pivot-flow-overlay'),host=$('chart'),width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1;
   const bitmapWidth=Math.round(width*dpr),bitmapHeight=Math.round(height*dpr);if(canvas.width!==bitmapWidth||canvas.height!==bitmapHeight){canvas.width=bitmapWidth;canvas.height=bitmapHeight;}
-  const context=canvas.getContext('2d');context.setTransform(dpr,0,0,dpr,0,0);context.clearRect(0,0,width,height);canvas.dataset.status='hidden';canvas.dataset.bins='0';canvas.dataset.live='false';delete canvas.dataset.barWidth;delete canvas.dataset.barSpacing;canvas.setAttribute('aria-label','Histogram Composite NF từ hai pivot xác nhận tới nến hiện tại: chưa hiển thị vì thiếu vùng hỗ trợ/kháng cự hoặc chart không phải SPY.');
+  const context=canvas.getContext('2d');context.setTransform(dpr,0,0,dpr,0,0);context.clearRect(0,0,width,height);canvas.dataset.status='hidden';canvas.dataset.bins='0';canvas.dataset.live='false';delete canvas.dataset.barWidth;delete canvas.dataset.barSpacing;delete canvas.dataset.placement;delete canvas.dataset.mode;canvas.setAttribute('aria-label','Histogram Composite NF tới nến hiện tại: chưa hiển thị vì thiếu dữ liệu SPY/QQQ hoặc chart không phải SPY.');
   const {support,resistance}=pivotZoneState,flow=pivotFlowState,live=!!flow?.live&&$('live-indicator').className==='live'&&!!lastSuccess&&Date.now()-lastSuccess<15000;
-  if(!$('pivot-zones').checked||$('symbol').value!=='SPYUSDT'||!support||!resistance||!flow)return;
-  const paneHeight=chart.panes()[0]?.getHeight?.()??height*.5,top=price.priceToCoordinate(resistance.low),bottom=price.priceToCoordinate(support.high);
-  if(!Number.isFinite(top)||!Number.isFinite(bottom)||top<6||bottom>paneHeight-6||bottom<=top)return;
+  if(!$('pivot-zones').checked||$('symbol').value!=='SPYUSDT'||!flow)return;
+  const paneHeight=chart.panes()[0]?.getHeight?.()??height*.5,position=pivotFlowZeroCoordinate(paneHeight,resistance?price.priceToCoordinate(resistance.low):null,support?price.priceToCoordinate(support.high):null);
+  if(!position)return;
   const scaleWidth=chart.priceScale('right',0)?.width?.()??56,right=width-scaleWidth-7,layout=pivotFlowLayout(chart.timeScale().options().barSpacing,flow.bins.length,right-12);
   if(!layout)return;
-  const {panelWidth,barWidth,gap,shownCount}=layout,left=right-panelWidth,zero=(top+bottom)/2,halfHeight=Math.min(width<650?26:36,zero-20,paneHeight-zero-20),bars=flow.bins.slice(-shownCount),maxPct=Math.max(10,...bars.map(bar=>Math.abs(bar.pct??0)));
+  const {panelWidth,barWidth,gap,shownCount}=layout,left=right-panelWidth,zero=position.zero,halfHeight=Math.min(width<650?26:36,zero-20,paneHeight-zero-20),bars=flow.bins.slice(-shownCount),maxPct=Math.max(10,...bars.map(bar=>Math.abs(bar.pct??0)));
   if(halfHeight<14)return;
   context.save();context.fillStyle='rgba(9,18,31,.87)';context.strokeStyle='rgba(113,137,165,.65)';context.lineWidth=1;context.fillRect(left,zero-halfHeight-15,panelWidth,2*halfHeight+30);context.strokeRect(left+.5,zero-halfHeight-14.5,panelWidth-1,2*halfHeight+29);
   context.strokeStyle='rgba(151,168,188,.75)';context.setLineDash([2,3]);context.beginPath();context.moveTo(left+3,zero+.5);context.lineTo(right-3,zero+.5);context.stroke();context.setLineDash([]);
@@ -270,7 +270,7 @@ function drawPivotFlowOverlay(){
   }
   context.font=`700 ${width<650?8:9}px Inter,system-ui,sans-serif`;context.textBaseline='middle';context.textAlign='left';context.fillStyle='#c7d4e4';context.fillText(`C NF${live?' • LIVE':''}${shownCount<flow.bins.length?` ${shownCount}/${flow.bins.length}`:''}`,left+5,zero-halfHeight-7);
   context.textAlign='right';context.fillStyle=flow.pct>0?'#1ae0a3':flow.pct<0?'#ff6383':'#9aadc2';context.fillText(`${flow.pct>0?'+':''}${fmt(flow.pct)}%`,right-5,zero-halfHeight-7);
-  context.textAlign='right';context.fillStyle='#9aadc2';context.fillText('0',right-5,zero+9);context.restore();canvas.dataset.status='visible';canvas.dataset.live=String(live);canvas.dataset.bins=String(bars.length);canvas.dataset.barWidth=String(barWidth);canvas.dataset.barSpacing=String(layout.barSpacing);canvas.setAttribute('aria-label',`Composite NF từ hai pivot xác nhận tới nến hiện tại: ${flow.pct>0?'mua':flow.pct<0?'bán':'cân bằng'} ${fmt(Math.abs(flow.pct))}% tổng quote volume; đang hiện ${shownCount}/${flow.bins.length} cột cuối, mỗi cột rộng gấp đôi bước nến giá. ${live?'Cột cuối có viền vàng, đang cập nhật và có thể đổi tới khi nến đóng.':'Chưa có dữ liệu nến đang chạy mới từ cả SPY và QQQ.'} Buy trên mốc 0, sell dưới. Không phải tín hiệu OFI độc lập.`);
+  context.textAlign='right';context.fillStyle='#9aadc2';context.fillText('0',right-5,zero+9);context.restore();canvas.dataset.status='visible';canvas.dataset.live=String(live);canvas.dataset.mode=flow.mode??'pivot';canvas.dataset.placement=position.placement;canvas.dataset.bins=String(bars.length);canvas.dataset.barWidth=String(barWidth);canvas.dataset.barSpacing=String(layout.barSpacing);canvas.setAttribute('aria-label',`Composite NF ${flow.mode==='rolling'?'của 96 nến gần nhất':'từ cặp pivot xác nhận tới nến hiện tại'}: ${flow.pct>0?'mua':flow.pct<0?'bán':'cân bằng'} ${fmt(Math.abs(flow.pct))}% tổng quote volume; đang hiện ${shownCount}/${flow.bins.length} cột cuối, mỗi cột rộng gấp đôi bước nến giá. ${position.placement==='pane-center'?'Mốc 0 đặt giữa pane vì chưa thấy đủ hai vùng hỗ trợ/kháng cự.':'Mốc 0 đặt giữa hỗ trợ và kháng cự.'} ${live?'Cột cuối có viền vàng, đang cập nhật và có thể đổi tới khi nến đóng.':'Chưa có dữ liệu nến đang chạy mới từ cả SPY và QQQ.'} Buy trên mốc 0, sell dưới. Không phải tín hiệu OFI độc lập.`);
 }
 function positionForecastReadout(){
   const node=$('geometry-readout'),paneHeight=chart?.panes?.()[0]?.getHeight?.();
@@ -399,7 +399,7 @@ function render(fit=false){
   const pivotComposite=(model.COMPOSITE??[]).filter(row=>modelClosedTimes.has(row.t)),pivotVolume=(modelVolumeStrengthRows.length?modelVolumeStrengthRows:volumeStrengthRows).filter(row=>modelClosedTimes.has(row.t));
   const nextPivotKey=`${$('symbol').value}|${$('interval').value}|${modelClosedPrice.at(-1)?.t??0}|${modelClosedPrice.length}|${pivotComposite.length}|${pivotVolume.length}`;
   if(nextPivotKey!==pivotZoneKey){pivotZoneState=pivotZones({price:modelClosedPrice,composite:pivotComposite,volume:pivotVolume},STEPS[$('interval').value]);pivotZoneKey=nextPivotKey;}
-  pivotFlowState=pivotFlowRealtime(pivotZoneState.flow,rows.SPYUSDT??[],rows.COMPOSITE??[],closedBefore)??pivotZoneState.flow??null;
+  pivotFlowState=pivotFlowRealtime(pivotZoneState.flow,rows.SPYUSDT??[],rows.COMPOSITE??[],closedBefore);
   const priceBands=weightedPriceBands(p,STEPS[$('interval').value]);priceBandMap=new Map(priceBands.map(x=>[x.t,x]));
   wlrStatsData=wlrAgreementStatistics(modelClosedPrice,(model.COMPOSITE??[]).filter(row=>modelClosedTimes.has(row.t)),(modelVolumeStrengthRows.length?modelVolumeStrengthRows:volumeStrengthRows).filter(row=>modelClosedTimes.has(row.t)),STEPS[$('interval').value]);renderWlrAgreementStats();updateRev63(modelClosedPrice,geometryInput);
   series.priceMid.setData(priceLineData(priceBands,maps.COMPOSITE??new Map(),volumeStrengthMap));series.priceUpper.setData(lineData(priceBands,'upper'));series.priceLower.setData(lineData(priceBands,'lower'));

@@ -62,6 +62,15 @@ test('C NF tiếp tục tới nến đang chạy và đổi theo quote volume m�
   const incomplete=structuredClone(input);incomplete.composite.pop();
   assert.equal(pivotFlowRealtime(anchor,incomplete.price,incomplete.composite,serverTime).live,false);
 });
+test('C NF dùng 96 nến gần nhất khi chưa có cặp pivot, vẫn cập nhật nến hiện tại',()=>{
+  const input=sample(120),serverTime=input.price.at(-1).t+STEP/2;
+  for(const bar of input.price)bar.end=bar.t+STEP-1;
+  const flow=pivotFlowRealtime(null,input.price,input.composite,serverTime);
+  assert.equal(flow.mode,'rolling');assert.equal(flow.live,true);assert.equal(flow.coverage,1);
+  const changed=structuredClone(input);changed.composite.at(-1).net+=25;
+  assert.equal(pivotFlowRealtime(null,changed.price,changed.composite,serverTime).totalNet-flow.totalNet,25);
+  assert.equal(pivotFlowRealtime(null,input.price,input.composite,serverTime-STEP*2).latestTime,input.price.at(-3).t);
+});
 test('fixture Binance M15 tạo đủ hai vùng và nhịp NF để hiển thị',()=>{
   const read=path=>JSON.parse(fs.readFileSync(new URL(path,import.meta.url),'utf8').replace(/^\uFEFF/,''));
   const now=read('../../netflow-ml/tests/fixtures/time.json').serverTime,step=STEPS['15m'];

@@ -93,12 +93,16 @@ export function pivotFlowBetween(price,composite,pivots=confirmedPricePivots(pri
 
 // The pivot anchors stay confirmed, while the display-only flow continues
 // through the latest shared SPY/QQQ candle (including an unfinished candle).
+// Without a usable pivot pair, keep the display alive on recent candles;
+// this fallback does not create or alter any support/resistance zone.
 export function pivotFlowRealtime(anchor,price,composite,serverTime){
-  if(!anchor||!Array.isArray(price)||!Array.isArray(composite)||!Number.isFinite(serverTime))return null;
+  if(!Array.isArray(price)||!Array.isArray(composite)||!Number.isFinite(serverTime))return null;
   const source=new Map(composite.map(row=>[row.t,row]));
   const latestShared=price.findLast(bar=>bar.t<=serverTime&&source.has(bar.t));
-  const interval=latestShared?price.filter(bar=>bar.t>=anchor.firstPivotTime&&bar.t<=latestShared.t):[];
-  if(!interval.length||interval[0].t!==anchor.firstPivotTime||interval.at(-1).t<anchor.secondPivotTime)return null;
+  const available=latestShared?price.filter(bar=>bar.t<=latestShared.t):[];
+  const anchored=anchor&&available.some(bar=>bar.t===anchor.firstPivotTime)&&latestShared.t>=anchor.secondPivotTime;
+  const interval=anchored?available.filter(bar=>bar.t>=anchor.firstPivotTime):available.slice(-96);
+  if(interval.length<4)return null;
   const count=Math.min(10,Math.max(4,Math.round(Math.sqrt(interval.length)))),bins=[];
   let covered=0,totalNet=0,totalQuote=0;
   for(let bin=0;bin<count;bin++){
@@ -113,7 +117,7 @@ export function pivotFlowRealtime(anchor,price,composite,serverTime){
   }
   if(covered/interval.length<.8||!totalQuote)return null;
   const latest=interval.at(-1),live=Number.isFinite(latest.end)&&latest.end>=serverTime;
-  return {...anchor,bins,totalNet,totalQuote,pct:100*totalNet/totalQuote,coverage:covered/interval.length,latestTime:latest.t,live,liveBinIndex:live?bins.length-1:null};
+  return {...(anchored?anchor:{}),mode:anchored?'pivot':'rolling',bins,totalNet,totalQuote,pct:100*totalNet/totalQuote,coverage:covered/interval.length,latestTime:latest.t,live,liveBinIndex:live?bins.length-1:null};
 }
 
 export function pivotZones({price=[],composite=[],volume=[]},step,{horizon=4,neighbors=60,maxAge=96,draws=64}={}){
