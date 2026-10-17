@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {pivotZones,pivotFlowBetween,pivotFlowRealtime,randomWalkBridge,PIVOT_ZONE_VERSION} from '../pivot-zones.mjs';
+import {pivotZones,pivotFlowBetween,pivotFlowRealtime,randomWalkBridge,wlrPivotPhase,PIVOT_ZONE_VERSION} from '../pivot-zones.mjs';
 import {STEPS,parseKlines,composite as combine,analyze,calculateVolumeStrength} from '../engine.mjs';
 
 const STEP=900_000,BASE=1_700_000_000_000;
@@ -18,6 +18,12 @@ test('bridge hoán vị xác định, giữ trong đoạn hai pivot',()=>{
   assert.deepEqual(a,b);assert(a.q75>0);assert(a.percentile>=0&&a.percentile<=1);
   assert.deepEqual(a,randomWalkBridge([...price,...sample(20).price],15,35));
 });
+test('cohort Pivot Zones dùng đúng màu và độ dày WLR Composite × Volume',()=>{
+  assert.deepEqual(wlrPivotPhase(.4,.2),{key:'thick_up',label:'Dày xanh',width:6,color:'#1ae0a3',direction:1});
+  assert.deepEqual(wlrPivotPhase(-.4,-.2),{key:'thick_down',label:'Dày đỏ',width:6,color:'#ff4d70',direction:-1});
+  assert.deepEqual(wlrPivotPhase(.4,-.2),{key:'thin',label:'Vàng mỏng',width:1,color:'#f6c85f',direction:0});
+  assert.deepEqual(wlrPivotPhase(0,.2),{key:'neutral',label:'Vàng trung tính',width:2,color:'#f6c85f',direction:0});
+});
 test('REV6 Pivot Zones dùng dữ liệu tới thời điểm đang xét',()=>{
   const input=sample(),at=150,prefix=Object.fromEntries(Object.entries(input).map(([key,value])=>[key,value.slice(0,at)]));
   const result=pivotZones(prefix,STEP),again=pivotZones(prefix,STEP);
@@ -27,7 +33,9 @@ test('REV6 Pivot Zones dùng dữ liệu tới thời điểm đang xét',()=>{
   assert.deepEqual(pivotZones(Object.fromEntries(Object.entries(changed).map(([key,value])=>[key,value.slice(0,at)])),STEP),result);
   for(const zone of [result.support,result.resistance].filter(Boolean)){
     assert(zone.confirmedAt<=prefix.price.at(-1).t);assert(zone.low<=zone.level&&zone.level<=zone.high);
-    assert(zone.n>=0);assert(zone.effectiveN>=0);
+    assert(['thick_up','thick_down','thin','neutral'].includes(zone.phase.key));assert([1,2,6].includes(zone.phase.width));
+    assert(zone.n>=0);assert(zone.phaseCohortN>=zone.n);assert(zone.effectiveN>=0);
+    if(zone.statistical){assert.equal(zone.quantiles.length,3);assert.equal(zone.quantilePrices.length,3);}
   }
 });
 test('không báo sẵn sàng nếu thiếu lịch sử',()=>{

@@ -2,7 +2,7 @@ import {STEPS,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleS
 import {load} from './data.mjs';
 import {loadPersistentHistory} from './history-store.mjs?v=20261015-1';
 import {strengthStatistics} from './strength-stats.mjs?v=20261015-1';
-import {pivotZones,pivotFlowRealtime,PIVOT_ZONE_VERSION} from './pivot-zones.mjs?v=20261016-5';
+import {pivotZones,pivotFlowRealtime,PIVOT_ZONE_VERSION} from './pivot-zones.mjs?v=20261017-1';
 import {pivotFlowLayout,pivotFlowZeroCoordinate} from './pivot-flow-layout.mjs?v=20261016-2';
 import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeometry} from './geometry.mjs?v=20261016-3';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261014-2';
@@ -106,7 +106,7 @@ function setupChartActions(){
   const save=document.createElement('button');save.id='chart-save';save.type='button';save.title='Lưu toàn bộ lựa chọn và vùng thời gian đang xem trên trình duyệt này';save.textContent='Lưu setup';save.setAttribute('aria-live','polite');half.insertAdjacentElement('afterend',save);
   const alignmentLabel=$('alignment')?.closest('label');if(alignmentLabel){alignmentLabel.lastChild.textContent='SPY V Δ nến';alignmentLabel.title='Volume gốc SPY mang dấu theo thân nến rồi chia SMA20 volume: nến tăng xanh, nến giảm đỏ, doji bằng 0. Đây là đầu vào từng nến của Strength SPY V, không phải taker buy−sell delta.';}
   const phaseLabel=$('phase-width')?.closest('label');if(phaseLabel)phaseLabel.title='WLR dày và xanh khi Composite × SPY V cùng dương; dày và đỏ khi cùng âm; trái dấu hoặc trung tính giữ vàng.';
-  const hint=document.querySelector('.hint');if(hint)hint.textContent=hint.textContent.replace('Histogram C NF sát trục giá SPY cộng Composite Taker NetFlow từ pivot đầu đã xác nhận tới nến hiện tại; khi chưa có cặp pivot, dùng 96 nến gần nhất. Cập nhật khoảng 3 giây khi trang mở. Cột cuối viền vàng là nến chưa đóng và có thể thay đổi.','Histogram C NF sát trục giá SPY chỉ vẽ 5 nến M15 gần nhất. Số % dùng EWMA half-life 32 trên nhóm pivot hoặc 96 nến khi chưa có pivot, đồng thời vẫn cập nhật theo nến live. Cột cuối viền vàng là nến chưa đóng và có thể thay đổi.');
+  const hint=document.querySelector('.hint');if(hint){hint.textContent=hint.textContent.replace('Histogram C NF sát trục giá SPY cộng Composite Taker NetFlow từ pivot đầu đã xác nhận tới nến hiện tại; khi chưa có cặp pivot, dùng 96 nến gần nhất. Cập nhật khoảng 3 giây khi trang mở. Cột cuối viền vàng là nến chưa đóng và có thể thay đổi.','Histogram C NF sát trục giá SPY chỉ vẽ 5 nến M15 gần nhất. Số % dùng EWMA half-life 32 trên nhóm pivot hoặc 96 nến khi chưa có pivot, đồng thời vẫn cập nhật theo nến live. Cột cuối viền vàng là nến chưa đóng và có thể thay đổi.');hint.textContent=hint.textContent.replace('Huy hiệu số liệu Pivot Zones trên chart được ẩn để biểu đồ gọn hơn;','Huy hiệu Pivot Zones C×V hiển thị cohort WLR và P25/P50/P75 riêng cho hỗ trợ, kháng cự;');}
 }
 function restoreSavedSetup(){
   try{
@@ -437,16 +437,18 @@ function updatePivotZones(){
     const zone=enabled?zones[kind]:null;
     for(const [suffix,value] of [['Low',zone?.low],['Mid',zone?.level],['High',zone?.high]])series[prefix+suffix].setData(zone&&Number.isFinite(value)?[{time:zone.start/1000,value},{time:zone.end/1000,value}]:[]);
   }
-  node.style.display=enabled?'block':'none';node.replaceChildren();
+  node.style.display=enabled?'block':'none';node.setAttribute('aria-hidden',String(!enabled));node.replaceChildren();if(!enabled)return;
   if(!zones.ready){node.className='missing';node.textContent=zones.reason==='history'?'REV6 Pivot Zones — chờ đủ nến':'REV6 Pivot Zones — chưa có pivot còn hiệu lực';return;}
-  node.className='both-zones';node.append(`${PIVOT_ZONE_VERSION} `);
+  node.className='both-zones';const heading=document.createElement('div');heading.className='zone-heading';heading.textContent=PIVOT_ZONE_VERSION;node.append(heading);
   for(const [kind,label,css] of [['resistance','KC','resistance'],['support','HT','support']]){
     const zone=zones[kind];if(!zone)continue;
+    const line=document.createElement('div');line.className='zone-line';
     const span=document.createElement('span');span.className=css;span.textContent=`${label} ${fmt(zone.low)}–${fmt(zone.high)}`;
-    const stats=document.createElement('span');stats.className='zone-stats';stats.textContent=zone.statistical?` (n=${zone.n}, nₑ=${fmt(zone.effectiveN)})`:' (RW tham chiếu)';
-    if(node.childNodes.length>1)node.append(' · ');node.append(span,stats);
+    const phase=document.createElement('span');phase.className=`zone-phase ${zone.phase.key}`;phase.textContent=zone.phase.label;
+    const stats=document.createElement('span');stats.className='zone-stats';stats.textContent=zone.statistical?`P25 ${signed(zone.quantiles[0])} · P50 ${signed(zone.quantiles[1])} · P75 ${signed(zone.quantiles[2])} ATR · n=${zone.n}, nₑ=${fmt(zone.effectiveN)}`:`Chưa đủ phân vị · cùng pha ${zone.phaseCohortN} mẫu, nₑ=${fmt(zone.effectiveN)} · RW ±${fmt(zone.rwHalfAtr)} ATR`;
+    line.append(span,' · ',phase,' · ',stats);node.append(line);
   }
-  node.title='REV6 Pivot Zones: pivot giá chỉ được dùng sau khi xác nhận 2 nến. Vùng neo tại pivot; phân vị lịch sử của các lần retest tương đồng và biên tham chiếu từ hoán vị bước giá giữa hai pivot quyết định độ rộng. Strength Composite, SPY V và phân kỳ dùng để so mẫu. RW chỉ hiệu chỉnh biên độ, không phải xác suất vùng sẽ giữ.';
+  node.title='REV6 Pivot Zones C×V: tại nến xác nhận pivot, trạng thái WLR được khóa thành Dày xanh, Dày đỏ, Vàng mỏng hoặc Vàng trung tính. P25/P50/P75 chỉ dùng các pivot lịch sử cùng loại vùng và đúng cùng trạng thái WLR; không trộn màu/độ dày. Khi n hoặc nₑ chưa đủ, vùng dùng random-walk tham chiếu và ghi rõ chưa đủ phân vị.';
 }
 function showTooltip(t){
   const p=maps[$('symbol').value]?.get(t),record=statsMap.get(t),state=record?.state,colorSignal=candleColorMap.get(t),geometryEvent=geometryState.events?.find(event=>event.at===t),breakoutEvent=geometryStatePoints.find(event=>event.at===t)??(breakoutState&&breakoutState.at===t&&['true_break','false_break'].includes(breakoutState.key)?breakoutState:null),geometryLine=inspectedTime===null?geometryState.lines?.[0]:null;

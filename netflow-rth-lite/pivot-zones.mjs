@@ -3,11 +3,16 @@
 // calibrated probability that support or resistance will hold.
 import {causalAtr,confirmedPricePivots} from './geometry.mjs';
 
-export const PIVOT_ZONE_VERSION='REV6 Pivot Zones';
+export const PIVOT_ZONE_VERSION='REV6 Pivot Zones C×V';
 const clamp=(x,lo,hi)=>Math.max(lo,Math.min(hi,x));
 const sign=x=>x>.05?1:x<-.05?-1:0;
 const quantile=(values,p)=>{if(!values.length)return null;const sorted=[...values].sort((a,b)=>a-b),at=(sorted.length-1)*p,i=Math.floor(at);return sorted[i]+(sorted[i+1]===undefined?0:(sorted[i+1]-sorted[i])*(at-i));};
 const weightedQuantile=(rows,p)=>{const sorted=rows.filter(row=>Number.isFinite(row.value)&&row.weight>0).sort((a,b)=>a.value-b.value),total=sorted.reduce((sum,row)=>sum+row.weight,0);if(!total)return null;let weight=0;for(const row of sorted){weight+=row.weight;if(weight>=p*total)return row.value;}return sorted.at(-1).value;};
+export function wlrPivotPhase(composite,volume){
+  if(!Number.isFinite(composite)||!Number.isFinite(volume)||composite===0||volume===0)return {key:'neutral',label:'Vàng trung tính',width:2,color:'#f6c85f',direction:0};
+  if(Math.sign(composite)!==Math.sign(volume))return {key:'thin',label:'Vàng mỏng',width:1,color:'#f6c85f',direction:0};
+  const direction=Math.sign(composite);return {key:direction>0?'thick_up':'thick_down',label:direction>0?'Dày xanh':'Dày đỏ',width:6,color:direction>0?'#1ae0a3':'#ff4d70',direction};
+}
 function rankAt(values,index){const current=values[index];if(!Number.isFinite(current))return null;let n=0,below=0;for(let j=Math.max(0,index-500);j<index;j++){if(Number.isFinite(values[j])){n++;below+=Math.abs(values[j])<=Math.abs(current);}}return n>=30?below/n:null;}
 function seedRandom(seed){let state=seed>>>0||1;return ()=>{state^=state<<13;state^=state>>>17;state^=state<<5;return (state>>>0)/4294967296;};}
 
@@ -41,7 +46,7 @@ function pivotEvents(price,pivots,atr,composite,volume,step,horizon){
     let offset=null;
     if(index+horizon<price.length){let continuous=true;for(let j=index+1;j<=index+horizon;j++)if(price[j].t-price[j-1].t!==step)continuous=false;
       if(continuous){const future=price.slice(index+1,index+horizon+1),extreme=pivot.type==='low'?Math.min(...future.map(bar=>bar.l)):Math.max(...future.map(bar=>bar.h));offset=(extreme-pivot.value)/scale;}}
-    events.push({kind:pivot.type==='low'?'support':'resistance',first,pivot,index,at:price[index].t,atr:scale,gap,swing:Math.abs(pivot.value-first.value)/scale,compositeRank:rankAt(composite,index),volumeRank:rankAt(volume,index),compositeSign:sign(c??0),volumeSign:sign(v??0),divergence,offset});
+    events.push({kind:pivot.type==='low'?'support':'resistance',first,pivot,index,at:price[index].t,atr:scale,gap,swing:Math.abs(pivot.value-first.value)/scale,compositeRank:rankAt(composite,index),volumeRank:rankAt(volume,index),compositeSign:sign(c??0),volumeSign:sign(v??0),phase:wlrPivotPhase(c,v),divergence,offset});
   }
   return events;
 }
@@ -55,7 +60,8 @@ function zoneFor(event,events,price,step,atr,{horizon,neighbors,maxAge,draws}){
   const bridge=randomWalkBridge(price,event.first.index,event.pivot.index,{draws});
   if(!bridge)return null;
   const rwHalf=clamp(.5*bridge.q75/Math.sqrt(bridge.gap),.15*event.atr,.6*event.atr);
-  const matched=events.filter(row=>row.kind===event.kind&&row!==event&&row.index+horizon<event.index&&Number.isFinite(row.offset)).map(row=>({...row,distance:distance(event,row)})).sort((a,b)=>a.distance-b.distance||b.index-a.index).slice(0,neighbors);
+  const cohort=events.filter(row=>row.kind===event.kind&&row!==event&&row.phase.key===event.phase.key&&row.index+horizon<event.index&&Number.isFinite(row.offset));
+  const matched=cohort.map(row=>({...row,distance:distance(event,row)})).sort((a,b)=>a.distance-b.distance||b.index-a.index).slice(0,neighbors);
   const weighted=matched.map(row=>({value:row.offset,weight:Math.exp(-((row.distance/.55)**2))})),sum=weighted.reduce((total,row)=>total+row.weight,0),squares=weighted.reduce((total,row)=>total+row.weight**2,0),effectiveN=squares>0?sum*sum/squares:0;
   const statistical=matched.length>=12&&effectiveN>=8,q25=statistical?weightedQuantile(weighted,.25):null,q50=statistical?weightedQuantile(weighted,.5):null,q75=statistical?weightedQuantile(weighted,.75):null;
   const anchor=event.pivot.value,low=anchor+clamp(Math.min(-rwHalf,(q25??0)*event.atr),-.9*event.atr,0),high=anchor+clamp(Math.max(rwHalf,(q75??0)*event.atr),0,.9*event.atr);
@@ -65,7 +71,7 @@ function zoneFor(event,events,price,step,atr,{horizon,neighbors,maxAge,draws}){
     if(outside(i-1)&&outside(i)){broken=true;break;}
   }
   if(broken)return null;
-  return {kind:event.kind,low,level:anchor,high,start:event.at,end:price[last].t+4*step,pivotTime:event.pivot.t,confirmedAt:event.at,ageBars:age,divergence:event.divergence,compositeRank:event.compositeRank,volumeRank:event.volumeRank,n:matched.length,effectiveN,rwHalfAtr:rwHalf/event.atr,bridgePercentile:bridge.percentile,statistical,quantiles:statistical?[q25,q50,q75]:null};
+  return {kind:event.kind,low,level:anchor,high,start:event.at,end:price[last].t+4*step,pivotTime:event.pivot.t,confirmedAt:event.at,ageBars:age,divergence:event.divergence,compositeRank:event.compositeRank,volumeRank:event.volumeRank,phase:event.phase,phaseCohortN:cohort.length,n:matched.length,effectiveN,rwHalfAtr:rwHalf/event.atr,bridgePercentile:bridge.percentile,statistical,quantiles:statistical?[q25,q50,q75]:null,quantilePrices:statistical?[q25,q50,q75].map(value=>anchor+value*event.atr):null};
 }
 
 // Aggregate only the candles bracketed by two confirmed, opposite-side price
