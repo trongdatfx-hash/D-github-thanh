@@ -138,7 +138,7 @@ export function volumeDeltaStrengthColor(deltaValue,strengthValue){
   return deltaSign>0?`rgba(26,224,163,${alpha})`:`rgba(255,77,112,${alpha})`;
 }
 export function volumeDeltaStrengthValue(deltaValue){
-  return Number.isFinite(deltaValue)?Math.tanh(deltaValue):0;
+  return Number.isFinite(deltaValue)?Math.max(-1,Math.min(1,deltaValue/2)):0;
 }
 export function calculateVolumeStrength(bars,step,{normLen=20,strLen=8,halfLife=2,lookback=500}={}){
   if(!Array.isArray(bars)||!Object.values(STEPS).includes(step)||![normLen,strLen,lookback].every(x=>Number.isInteger(x)&&x>0)||!Number.isFinite(halfLife)||halfLife<0)throw Error('Tham số Volume Strength không hợp lệ');

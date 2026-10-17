@@ -42,9 +42,13 @@ test('SPY volume delta histogram exposes four delta × Strength colors',()=>{
 });
 test('SPY volume delta is centered at zero and balanced inside the Strength range',()=>{
   assert.equal(volumeDeltaStrengthValue(0),0);
-  assert.equal(volumeDeltaStrengthValue(-1),-volumeDeltaStrengthValue(1));
-  assert(volumeDeltaStrengthValue(1)>0&&volumeDeltaStrengthValue(1)<1);
-  assert(volumeDeltaStrengthValue(10)<1&&volumeDeltaStrengthValue(-10)>-1);
+  assert.equal(volumeDeltaStrengthValue(1),.5);
+  assert.equal(volumeDeltaStrengthValue(-1),-.5);
+  assert.equal(volumeDeltaStrengthValue(1.5),.75);
+  assert.equal(volumeDeltaStrengthValue(2),1);
+  assert.equal(volumeDeltaStrengthValue(-2),-1);
+  assert.equal(volumeDeltaStrengthValue(10),1);
+  assert.equal(volumeDeltaStrengthValue(-10),-1);
   assert.equal(volumeDeltaStrengthValue(null),0);
 });
 test('candle color follows Composite × SPY Volume Strength agreement',()=>{
