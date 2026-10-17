@@ -57,7 +57,7 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   if(await pivotFlow.getAttribute('data-status')==='visible'){const width=await pivotFlow.evaluate(node=>({bar:+node.dataset.barWidth,spacing:+node.dataset.barSpacing}));assert(Math.abs(width.bar-2*width.spacing)<.01);}
   assert.equal(await page.locator('#live-indicator').innerText(),'● LIVE');assert(await page.locator('#live-indicator').evaluate(el=>el.classList.contains('live')));assert(await page.locator('#live-indicator').evaluate(el=>el.parentElement.classList.contains('chart-actions')));
   assert.equal(await page.locator('#days').inputValue(),'30');
-  assert.equal((await page.locator('label:has(#alignment)').innerText()).trim(),'Dải C NF');assert.match(await page.locator('label:has(#alignment)').getAttribute('title'),/Composite NF%/);
+  assert.equal((await page.locator('label:has(#alignment)').innerText()).trim(),'SPY V Δ nến');assert.match(await page.locator('label:has(#alignment)').getAttribute('title'),/không phải taker buy−sell delta/);
   for(const id of ['spy','qqq','relative'])assert.equal(await page.locator('#'+id).isChecked(),false);
   assert((await page.locator('label:has(#relative)').getAttribute('title')).includes('NetFlow cùng nến'));
   for(const id of ['composite','alignment','price-bands','pivot-zones','phase-width','candle-agreement-color','cvd-spectrum-toggle','show-strength','spy-volume-strength','bands','markers','geometry-toggle','geometry-pivots','double-tap-full'])assert.equal(await page.locator('#'+id).isChecked(),true);

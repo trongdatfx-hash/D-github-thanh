@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {STEPS,parseKlines,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,strengthPhaseLineWidth,calculateStrength,calculateVolumeStrength,analyze,regression,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
+import {STEPS,parseKlines,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,strengthPhaseLineWidth,calculateStrength,directionalVolumeDelta,calculateVolumeStrength,analyze,regression,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
 import {load} from '../data.mjs';
 import {isUsMarketHoliday,isUsMarketTradingDay} from '../market-calendar.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL(p,import.meta.url),'utf8').replace(/^\uFEFF/,''));
@@ -129,4 +129,9 @@ test('SPY original-volume Strength is causal, directional and bounded',()=>{
   assert.equal(a.length,bars.length);assert(a.filter(Number.isFinite).every(x=>x>=-1&&x<=1));assert(a[20]>0);assert(a.at(-1)<0);
   const changed=bars.map((b,i)=>i===bars.length-1?{...b,v:999999,c:b.o-1}:b),b=calculateVolumeStrength(changed,step,{normLen:3,strLen:3,halfLife:1,lookback:5});
   assert.deepEqual(a.slice(0,-1),b.slice(0,-1));assert.notEqual(a.at(-1),b.at(-1));
+});
+test('SPY V candle delta is signed body volume normalized by causal SMA volume',()=>{
+  const step=STEPS['15m'],bars=[{t:0,o:1,c:2,v:10},{t:step,o:2,c:1,v:20},{t:2*step,o:1,c:1,v:30},{t:4*step,o:1,c:2,v:40}],delta=directionalVolumeDelta(bars,step,{normLen:2});
+  assert.deepEqual(delta.map(x=>x.direction),[1,-1,0,1]);assert.deepEqual(delta.map(x=>x.value),[1,-20/15,0,1]);assert.equal(delta[3].mean,40);
+  assert.throws(()=>directionalVolumeDelta(bars,step,{normLen:0}),/không hợp lệ/);
 });

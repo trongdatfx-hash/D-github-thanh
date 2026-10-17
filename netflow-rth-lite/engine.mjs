@@ -113,18 +113,24 @@ export function calculateStrength(bars,step,{normLen=20,strLen=8,halfLife=2,look
 // Directional SPY Strength from Binance original base-asset volume (kline[5]).
 // Each candle assigns its original volume to the candle-body direction; doji volume is neutral.
 // The rest of the causal normalization/smoothing mirrors the existing Strength chain.
-export function calculateVolumeStrength(bars,step,{normLen=20,strLen=8,halfLife=2,lookback=500}={}){
-  if(!Array.isArray(bars)||!Object.values(STEPS).includes(step)||![normLen,strLen,lookback].every(x=>Number.isInteger(x)&&x>0)||!Number.isFinite(halfLife)||halfLife<0)throw Error('Tham số Volume Strength không hợp lệ');
-  let volumes=[],impulses=[],magnitudes=[],ew=null,previous=null;
-  const alpha=halfLife>0?1-2**(-1/Math.max(1,halfLife)):1;
+export function directionalVolumeDelta(bars,step,{normLen=20}={}){
+  if(!Array.isArray(bars)||!Object.values(STEPS).includes(step)||!Number.isInteger(normLen)||normLen<1)throw Error('Tham số Volume Delta không hợp lệ');
+  let volumes=[],previous=null;
   return bars.map(b=>{
-    if(previous!==null&&b.t-previous!==step){volumes=[];impulses=[];magnitudes=[];ew=null;}previous=b.t;
+    if(previous!==null&&b.t-previous!==step)volumes=[];previous=b.t;
     if(!Number.isFinite(b.v)||b.v<0||![b.o,b.c].every(Number.isFinite))throw Error('SPY thiếu volume gốc Binance');
     volumes.push(b.v);if(volumes.length>normLen)volumes.shift();
-    const mean=volumes.reduce((s,x)=>s+x,0)/volumes.length;
-    const direction=b.c>b.o?1:b.c<b.o?-1:0;
-    const impulse=mean>0?direction*b.v/mean:0;
-    impulses.push(impulse);if(impulses.length>strLen)impulses.shift();
+    const mean=volumes.reduce((s,x)=>s+x,0)/volumes.length,direction=b.c>b.o?1:b.c<b.o?-1:0;
+    return {t:b.t,value:mean>0?direction*b.v/mean:0,volume:b.v,mean,direction};
+  });
+}
+export function calculateVolumeStrength(bars,step,{normLen=20,strLen=8,halfLife=2,lookback=500}={}){
+  if(!Array.isArray(bars)||!Object.values(STEPS).includes(step)||![normLen,strLen,lookback].every(x=>Number.isInteger(x)&&x>0)||!Number.isFinite(halfLife)||halfLife<0)throw Error('Tham số Volume Strength không hợp lệ');
+  const deltas=directionalVolumeDelta(bars,step,{normLen});let impulses=[],magnitudes=[],ew=null,previous=null;
+  const alpha=halfLife>0?1-2**(-1/Math.max(1,halfLife)):1;
+  return deltas.map(delta=>{
+    if(previous!==null&&delta.t-previous!==step){impulses=[];magnitudes=[];ew=null;}previous=delta.t;
+    impulses.push(delta.value);if(impulses.length>strLen)impulses.shift();
     if(impulses.length<strLen)return null;
     const r=impulses.reduce((s,x)=>s+x,0);
     ew=ew===null?r:ew+alpha*(r-ew);
