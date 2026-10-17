@@ -129,6 +129,10 @@ export function directionalVolumeDelta(bars,step,{normLen=20}={}){
     return {t:b.t,value:mean>0?direction*b.v/mean:0,volume:b.v,mean,direction};
   });
 }
+export function volumeDeltaStrengthColor(deltaValue,strengthValue){
+  const intensity=Math.min(1,Math.abs(Number.isFinite(deltaValue)?deltaValue:0)/2),alpha=.42+.5*intensity;
+  return strengthValue>0?`rgba(26,224,163,${alpha})`:strengthValue<0?`rgba(255,77,112,${alpha})`:'rgba(112,126,145,.34)';
+}
 export function calculateVolumeStrength(bars,step,{normLen=20,strLen=8,halfLife=2,lookback=500}={}){
   if(!Array.isArray(bars)||!Object.values(STEPS).includes(step)||![normLen,strLen,lookback].every(x=>Number.isInteger(x)&&x>0)||!Number.isFinite(halfLife)||halfLife<0)throw Error('Tham số Volume Strength không hợp lệ');
   const deltas=directionalVolumeDelta(bars,step,{normLen});let impulses=[],magnitudes=[],ew=null,previous=null;

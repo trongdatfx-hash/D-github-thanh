@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {STEPS,parseKlines,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,strengthPhaseLineWidth,strengthPhaseLineStyle,calculateStrength,directionalVolumeDelta,calculateVolumeStrength,analyze,regression,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
+import {STEPS,parseKlines,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,strengthPhaseLineWidth,strengthPhaseLineStyle,calculateStrength,directionalVolumeDelta,volumeDeltaStrengthColor,calculateVolumeStrength,analyze,regression,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
 import {load} from '../data.mjs';
 import {isUsMarketHoliday,isUsMarketTradingDay} from '../market-calendar.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL(p,import.meta.url),'utf8').replace(/^\uFEFF/,''));
@@ -30,6 +30,12 @@ test('relative NF color follows same-candle taker signs without GEO impact',()=>
   assert.match(relativeFlowColor({...row,qqqNet:-5}),/^rgba\(245,166,35,/);
   assert.equal(relativeFlowColor({...row,qqqNet:0}),'rgba(112,126,145,.30)');
   assert.equal(relativeFlowColor(null),'rgba(112,126,145,.30)');
+});
+test('SPY volume delta histogram color follows SPY Volume Strength sign',()=>{
+  assert.match(volumeDeltaStrengthColor(-1,.4),/^rgba\(26,224,163,/);
+  assert.match(volumeDeltaStrengthColor(1,-.4),/^rgba\(255,77,112,/);
+  assert.equal(volumeDeltaStrengthColor(1,0),'rgba(112,126,145,.34)');
+  assert.equal(volumeDeltaStrengthColor(-1,null),'rgba(112,126,145,.34)');
 });
 test('candle color follows Composite × SPY Volume Strength agreement',()=>{
   const up=strengthAgreementCandleSignal({adjusted:.8},{adjusted:.35}),down=strengthAgreementCandleSignal({adjusted:-.6},{adjusted:-.4});
