@@ -451,6 +451,9 @@ function updateFixedPaneReadouts(){
   const volumeValue=latestFiniteValue(volumeStrengthRows,'adjusted'),volumeNode=$('spy-volume-fixed');volumeNode.textContent=`SPY V ${signed(volumeValue)}`;volumeNode.className=`pane-fixed-readout spy-volume ${Number.isFinite(volumeValue)?volumeValue>=0?'positive':'negative':'missing'}`;volumeNode.style.display=$('spy-volume-strength').checked?'block':'none';
   requestAnimationFrame(positionFixedPaneReadouts);
 }
+function updateNetflowPaneLayout(){
+  const visible=$('spy').checked||$('qqq').checked||$('relative').checked,pane=chart?.panes?.()[1];if(!pane)return;pane.setStretchFactor(visible?.20:.01);$('chart').dataset.netflowPane=visible?'expanded':'collapsed';requestAnimationFrame(positionStrengthReadout);requestAnimationFrame(positionFixedPaneReadouts);
+}
 function updatePivotZones(){
   const enabled=$('pivot-zones').checked,node=$('pivot-zone-readout');
   for(const [kind,prefix] of [['resistance','pivotResistance'],['support','pivotSupport']]){
@@ -494,6 +497,7 @@ function toggle(){
   $('day-separators').style.display=$('markers').checked?'block':'none';scheduleDaySeparators();
   $('geometry-overlay').style.display=$('geometry-toggle').checked?'block':'none';scheduleGeometryOverlay();updateGeometryReadout();
   series.relative.applyOptions({visible:$('relative').checked});
+  updateNetflowPaneLayout();
   series.alignment.applyOptions({visible:$('alignment').checked});
   for(const key of ['priceMid','priceUpper','priceLower'])series[key].applyOptions({visible:$('price-bands').checked});
   updatePivotZones();
