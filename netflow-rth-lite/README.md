@@ -85,7 +85,9 @@ Huy hiệu chi tiết REV6 Pivot Zones C×V được ẩn để pane giá gọn 
 
 ## ML tương lai
 
-`modelStatus.trained=false`. REV6 Pivot Zones là thuật toán thống kê mô tả, chưa có dataset snapshot intrabar hoặc training; backtest hình học mới chỉ là phép đo causal bốn nến, chưa phải chiến lược đã hiệu chỉnh ngoài mẫu. `engine.mjs` tách khỏi UI/data để thay adapter bằng model sau khi có provenance dữ liệu, nhãn RTH, train/validation/test theo thời gian có purge/embargo, walk-forward ngoài mẫu và chi phí giao dịch. Không tự bật ML theo số nến. Hướng dẫn Binance: https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Kline-Candlestick-Data ; chart: https://tradingview.github.io/lightweight-charts/docs/5.0/ .
+`modelStatus.trained=false`. REV6 Pivot Zones là thuật toán thống kê mô tả, chưa có dataset snapshot intrabar hoặc training; backtest hình học mới chỉ là phép đo causal bốn nến, chưa phải chiến lược đã hiệu chỉnh ngoài mẫu. `engine.mjs` tách khỏi UI/data để thay adapter bằng model sau khi có provenance dữ liệu, nhãn RTH, train/validation/test theo thời gian có purge/embargo, walk-forward ngoài mẫu và chi phí giao dịch. Không tự bật ML theo số nến. Hướng dẫn Binance: https://developers.binance.com/docs/derivatives/usds-margined-futures/market-data/rest-api/Kline-Candlestick-Data ; chart: https://tradingview.github.io/lightweight-charts/docs/ .
+
+Chart dùng TradingView Lightweight Charts 5.2.1. Hồ sơ Android/coarse-pointer bật pinch zoom, kinetic scroll, kéo trục giá, vùng chạm tối thiểu 44 px và thang giá phải tối thiểu 58 px. Ở trang thường, kéo dọc một ngón vẫn cuộn trang; trong Full chart, kéo dọc được giao cho chart. Khi xoay màn hình, visible range được khóa và các overlay được căn lại. `rightOffsetPixels` giữ khoảng trống cuối chart ổn định theo pixel, còn tick density tăng trên màn hình hẹp để nhãn giá không chồng nhau.
 
 
 ## WLR Composite × SPY Volume Strength
