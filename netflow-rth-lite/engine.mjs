@@ -131,7 +131,14 @@ export function directionalVolumeDelta(bars,step,{normLen=20}={}){
 }
 export function volumeDeltaStrengthColor(deltaValue,strengthValue){
   const intensity=Math.min(1,Math.abs(Number.isFinite(deltaValue)?deltaValue:0)/2),alpha=.42+.5*intensity;
-  return strengthValue>0?`rgba(26,224,163,${alpha})`:strengthValue<0?`rgba(255,77,112,${alpha})`:'rgba(112,126,145,.34)';
+  const deltaSign=deltaValue>0?1:deltaValue<0?-1:0,strengthSign=strengthValue>0?1:strengthValue<0?-1:0;
+  if(!deltaSign)return 'rgba(0,0,0,0)';
+  if(strengthSign>0)return deltaSign>0?`rgba(26,224,163,${alpha})`:`rgba(20,86,255,${alpha})`;
+  if(strengthSign<0)return deltaSign>0?`rgba(255,168,184,${alpha})`:`rgba(255,77,112,${alpha})`;
+  return deltaSign>0?`rgba(26,224,163,${alpha})`:`rgba(255,77,112,${alpha})`;
+}
+export function volumeDeltaStrengthValue(deltaValue){
+  return Number.isFinite(deltaValue)?Math.tanh(deltaValue):0;
 }
 export function calculateVolumeStrength(bars,step,{normLen=20,strLen=8,halfLife=2,lookback=500}={}){
   if(!Array.isArray(bars)||!Object.values(STEPS).includes(step)||![normLen,strLen,lookback].every(x=>Number.isInteger(x)&&x>0)||!Number.isFinite(halfLife)||halfLife<0)throw Error('Tham số Volume Strength không hợp lệ');

@@ -1,4 +1,4 @@
-import {STEPS,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,strengthPhaseLineStyle,directionalVolumeDelta,volumeDeltaStrengthColor,calculateVolumeStrength,analyze,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs?v=20261017-4';
+import {STEPS,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,strengthPhaseLineStyle,directionalVolumeDelta,volumeDeltaStrengthColor,volumeDeltaStrengthValue,calculateVolumeStrength,analyze,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs?v=20261017-5';
 import {load} from './data.mjs';
 import {loadPersistentHistory} from './history-store.mjs?v=20261015-1';
 import {strengthStatistics} from './strength-stats.mjs?v=20261015-1';
@@ -104,7 +104,7 @@ function setupChartActions(){
   fit.insertAdjacentElement('afterend',live);
   const half=document.createElement('button');half.id='chart-fit-half';half.type='button';half.title='Hiển thị các nến trong 0,5 ngày gần nhất';half.textContent='Fit 0.5 ngày';live.insertAdjacentElement('afterend',half);
   const save=document.createElement('button');save.id='chart-save';save.type='button';save.title='Lưu toàn bộ lựa chọn và vùng thời gian đang xem trên trình duyệt này';save.textContent='Lưu setup';save.setAttribute('aria-live','polite');half.insertAdjacentElement('afterend',save);
-  const alignmentLabel=$('alignment')?.closest('label');if(alignmentLabel){alignmentLabel.lastChild.textContent='SPY V Δ nến';alignmentLabel.dataset.pane='strength-spy-v';alignmentLabel.title='Histogram nằm chung pane Strength SPY V. Chiều cao là volume gốc SPY mang dấu theo thân nến rồi chia SMA20 volume; màu xanh/đỏ đi theo dấu Strength SPY V tại cùng nến, trung tính màu xám. Đây không phải taker buy−sell delta.';}
+  const alignmentLabel=$('alignment')?.closest('label');if(alignmentLabel){alignmentLabel.lastChild.textContent='SPY V Δ nến';alignmentLabel.dataset.pane='strength-spy-v';alignmentLabel.title='Histogram chung thang −1…+1 với Strength SPY V và có 4 màu theo cặp dấu: Δ+/V+ xanh lá, Δ−/V+ xanh dương, Δ+/V− hồng nhạt, Δ−/V− đỏ.';}
   const phaseLabel=$('phase-width')?.closest('label');if(phaseLabel)phaseLabel.title='WLR dày và xanh khi Composite × SPY V cùng dương; dày và đỏ khi cùng âm; trái dấu hoặc trung tính giữ vàng.';
   const hint=document.querySelector('.hint');if(hint){hint.textContent=hint.textContent.replace('Histogram C NF sát trục giá SPY cộng Composite Taker NetFlow từ pivot đầu đã xác nhận tới nến hiện tại; khi chưa có cặp pivot, dùng 96 nến gần nhất. Cập nhật khoảng 3 giây khi trang mở. Cột cuối viền vàng là nến chưa đóng và có thể thay đổi.','Histogram C NF sát trục giá SPY chỉ vẽ 5 nến M15 gần nhất. Tiêu đề VOL phân loại biến động 5 nến thành thấp, trung bình hoặc cao theo phân vị causal của biên độ giá, realized volatility, quote volume và taker imbalance. Số % phía dưới vẫn là C NF dùng EWMA half-life 32 trên nhóm pivot hoặc 96 nến khi chưa có pivot; cả hai cập nhật theo nến live. Cột cuối viền vàng là nến chưa đóng và có thể thay đổi.');}
 }
@@ -204,13 +204,12 @@ function init(){
   for(const key of ['mid','upper','lower'])series[key]=chart.addSeries(L.LineSeries,{color:key==='mid'?'#9db5d1':'#8596ad',lineWidth:key==='mid'?2:1,lineStyle:key==='mid'?L.LineStyle.Dotted:L.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,title:''},2);
   series.strength.createPriceLine({price:0,color:'rgba(145,165,189,.28)',lineWidth:1,lineStyle:L.LineStyle.Dotted,axisLabelVisible:false,title:''});
   series.strength.priceScale().applyOptions({scaleMargins:{top:.08,bottom:.08}});
-  series.alignment=chart.addSeries(L.HistogramSeries,{priceScaleId:'alignment',base:0,color:'#68778a',title:'SPY V Δ',priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',formatter:()=>''}},3);
-  series.alignment.priceScale().applyOptions({scaleMargins:{top:.70,bottom:.04}});
-  series.volumeStrength=chart.addSeries(L.BaselineSeries,{baseValue:{type:'price',price:0},topLineColor:'#f6c85f',topFillColor1:'rgba(246,200,95,.12)',topFillColor2:'rgba(246,200,95,0)',bottomLineColor:'#f3f6fb',bottomFillColor1:'rgba(243,246,251,0)',bottomFillColor2:'rgba(243,246,251,.09)',lineWidth:3,title:'SPY V',priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:true,crosshairMarkerRadius:4},3);
+  series.alignment=chart.addSeries(L.HistogramSeries,{priceScaleId:'right',base:0,color:'#68778a',title:'SPY V Δ',priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',formatter:()=>''}},3);
+  series.volumeStrength=chart.addSeries(L.BaselineSeries,{baseValue:{type:'price',price:0},topLineColor:'#f6c85f',topFillColor1:'rgba(246,200,95,.12)',topFillColor2:'rgba(246,200,95,0)',bottomLineColor:'#f3f6fb',bottomFillColor1:'rgba(243,246,251,0)',bottomFillColor2:'rgba(243,246,251,.09)',lineWidth:3,title:'SPY V',priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:true,crosshairMarkerRadius:4,autoscaleInfoProvider:()=>({priceRange:{minValue:-1,maxValue:1}})},3);
   series.volumeStrength.createPriceLine({price:0,color:'#6f8299',lineWidth:1,lineStyle:L.LineStyle.Solid,axisLabelVisible:true,title:'0'});
   series.volumeStrength.priceScale().applyOptions({scaleMargins:{top:.08,bottom:.08}});
   series.COMPOSITE.createPriceLine({price:0,color:'#60748c',lineWidth:1,lineStyle:L.LineStyle.Solid,axisLabelVisible:false});
-  $('chart').dataset.spyVolumeDeltaPane='3';$('chart').dataset.spyVolumeStrengthPositive='#f6c85f';$('chart').dataset.spyVolumeStrengthNegative='#f3f6fb';
+  $('chart').dataset.spyVolumeDeltaPane='3';$('chart').dataset.spyVolumeDeltaScale='shared--1-1';$('chart').dataset.spyVolumeStrengthPositive='#f6c85f';$('chart').dataset.spyVolumeStrengthNegative='#f3f6fb';
   chart.panes()[0].setStretchFactor(.44);chart.panes()[1].setStretchFactor(.20);chart.panes()[2].setStretchFactor(.20);chart.panes()[3].setStretchFactor(.16);
   marks=L.createSeriesMarkers(price,[]);
   strengthMarks=L.createSeriesMarkers(series.strength,[]);
@@ -236,7 +235,7 @@ function flowData(data,key){const palette=flowColors[key];return data.map(x=>Num
 function relativeData(data){
   return data.map(x=>Number.isFinite(x.relative)?{time:x.t/1000,value:x.relative,color:relativeFlowColor(x)}:{time:x.t/1000});
 }
-function volumeDeltaBandData(data,volumeStrengthMap){return data.map(x=>({time:x.t/1000,value:x.value,color:volumeDeltaStrengthColor(x.value,volumeStrengthMap.get(x.t)?.adjusted)}));}
+function volumeDeltaBandData(data,volumeStrengthMap){return data.map(x=>({time:x.t/1000,value:volumeDeltaStrengthValue(x.value),color:volumeDeltaStrengthColor(x.value,volumeStrengthMap.get(x.t)?.adjusted)}));}
 function scheduleCvdSpectrum(){if(cvdFrame)return;cvdFrame=requestAnimationFrame(()=>{cvdFrame=requestAnimationFrame(()=>{cvdFrame=0;drawCvdSpectrum();});});}
 function scheduleDaySeparators(){if(dayFrame)return;dayFrame=requestAnimationFrame(()=>{dayFrame=requestAnimationFrame(()=>{dayFrame=0;drawDaySeparators();});});}
 function scheduleGeometryOverlay(){if(geometryFrame)return;geometryFrame=requestAnimationFrame(()=>{geometryFrame=requestAnimationFrame(()=>{geometryFrame=0;drawGeometryOverlay();});});}
