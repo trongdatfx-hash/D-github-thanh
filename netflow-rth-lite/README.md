@@ -92,16 +92,4 @@ Chart dùng TradingView Lightweight Charts 5.2.1. Hồ sơ Android/coarse-pointe
 
 ## WLR Composite × SPY Volume Strength
 
-Độ dày WLR dùng dấu adjusted Strength Composite và SPY Volume Strength: cùng dấu = 6 px, trái dấu = 1 px, thiếu/0 = 2 px. Khi cùng dương, đoạn dày màu xanh; khi cùng âm, đoạn dày màu đỏ. Đoạn trái dấu/trung tính giữ vàng. Khối **WLR Agreement Statistics** đo xem trạng thái này có thực sự đi kèm kết quả giá tốt hơn hay không, thay vì suy luận bằng hình ảnh.
-
-Ba nhóm trạng thái là **Dày**, **Mỏng** và **Mỏng→Dày**. Hướng kết quả luôn lấy theo dấu Composite tại nến tín hiệu. Các horizon 1/3/6 nến chỉ dùng nến đã đóng theo giờ server Binance, yêu cầu chuỗi giá liên tục trong cùng ngày New York. Trong từng nhóm/horizon, cửa sổ kết quả không chồng lấn; vì vậy số mẫu không bị phồng bởi nhiều entry dùng chung phần lớn đường giá.
-
-Mỗi nhóm hiển thị n, Win%, EV trung bình, Median return, Profit Factor, median MFE và median MAE. Một nhóm chỉ được coi là đủ mẫu trên giao diện khi n ≥ 20. Đây là thống kê mô tả directional-return, chưa trừ phí và không phải backtest giao dịch hoàn chỉnh.
-
-Độ đồng thuận liên tục dùng `Agreement = abs(Composite Strength) × abs(SPY Volume Strength)`. Phân vị của mỗi nến chỉ được tính từ tối đa 500 giá trị Agreement **đã xuất hiện trước nến đó**; 20 mẫu đầu chưa được xếp bin. Các bin P0–25, P25–50, P50–75, P75–90 và P90–100 vì thế là causal, không dùng phân vị toàn bộ tương lai. Giao diện so trực tiếp Dày vs Mỏng, Mỏng→Dày vs Mỏng và P90 vs P0–25 bằng chênh lệch Win và EV. Các chênh lệch này chưa phải kiểm định ý nghĩa thống kê hoặc xác suất thắng ngoài mẫu.
-
-## Chất lượng REV6-3 theo chế độ màu
-
-Mỗi dự báo REV6-3 mới lưu nhãn màu C×V ngay tại nến phát tín hiệu: **Đồng thuận tăng**, **Đồng thuận giảm** hoặc **Trung tính / trái dấu**. Nhãn **Xám → đồng thuận** là nhóm con khi nến trước trung tính và nến tín hiệu chuyển sang một trong hai trạng thái đồng thuận. Nhãn được đóng băng tại thời điểm dự báo; hệ thống không nhìn lại dữ liệu tương lai để phân loại.
-
-Sau đúng ba nến liên tục trong cùng ngày, bảng hiển thị số mẫu, tỷ lệ đúng hướng, Brier score và EV hướng. EV hướng lấy lợi nhuận ba nến theo phía xác suất REV6-3 lớn hơn 50%; số dương nghĩa là phía dự báo đi đúng chiều trung bình. Lịch sử REV6-3 cũ không có nhãn màu bị loại khỏi bảng thay vì suy đoán lại. Toggle hiển thị **Màu nến C×V** không ảnh hưởng việc thu thập các nhãn thống kê này.
+Độ dày WLR dùng dấu adjusted Strength Composite và SPY Volume Strength: cùng dấu = 6 px, trái dấu = 1 px, thiếu/0 = 2 px. Khi cùng dương, đoạn dày màu xanh; khi cùng âm, đoạn dày màu đỏ. Đoạn trái dấu/trung tính giữ vàng. Bảng **WLR Agreement Statistics** cùng module và test riêng đã được loại bỏ vì không còn được sử dụng; màu và độ dày WLR trên chart không thay đổi.
