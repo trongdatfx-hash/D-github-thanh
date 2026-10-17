@@ -428,14 +428,14 @@ function positionStrengthReadout(){
   const heights=panes.map(pane=>pane.getHeight()),chartHeight=$('chart').clientHeight,total=heights.reduce((sum,height)=>sum+height,0),gap=panes.length>1?Math.max(0,chartHeight-total)/(panes.length-1):0;
   const paneTop=heights[0]+gap,paneHeight=heights[1],topLimit=paneTop+4,bottomLimit=paneTop+paneHeight-4;
   const zeroCoordinate=series.strength.priceToCoordinate(0);if(!Number.isFinite(zeroCoordinate))return;
-  const points=['strength-spy','strength-qqq','strength-composite'].map(id=>{const node=$(id);return {node,height:node.offsetHeight||20};}),labelGap=4,stackHeight=points.reduce((sum,point)=>sum+point.height,0)+labelGap*(points.length-1),zeroY=paneTop+zeroCoordinate;
+  const points=['strength-composite'].map(id=>{const node=$(id);return {node,height:node.offsetHeight||20};}),labelGap=4,stackHeight=points.reduce((sum,point)=>sum+point.height,0)+labelGap*(points.length-1),zeroY=paneTop+zeroCoordinate;
   let top=Math.max(topLimit,Math.min(bottomLimit-stackHeight,zeroY-stackHeight/2));
   for(const point of points){point.node.style.top=`${Math.round(top)}px`;top+=point.height+labelGap;}
   host.dataset.paneTop=String(Math.round(paneTop));host.dataset.paneBottom=String(Math.round(paneTop+paneHeight));host.dataset.zeroY=String(Math.round(zeroY));
 }
 function updateStrengthLabels(){
   $('strength-readout').style.display=$('show-strength').checked?'block':'none';
-  for(const [key,id,label] of [['SPYUSDT','strength-spy','SPY'],['QQQUSDT','strength-qqq','QQQ'],['COMPOSITE','strength-composite','']]){const value=latestStrength(key),node=$(id);node.textContent=label?`${label} ${fmt(value)}`:fmt(value);node.className=Number.isFinite(value)?value>=0?'positive':'negative':'missing';}
+  const value=latestStrength('COMPOSITE'),node=$('strength-composite');node.textContent=fmt(value);node.className=Number.isFinite(value)?value>=0?'positive':'negative':'missing';
   requestAnimationFrame(positionStrengthReadout);
 }
 function paneBounds(index){
