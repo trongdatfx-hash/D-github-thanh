@@ -1,4 +1,4 @@
-import {STEPS,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,strengthPhaseLineWidth,directionalVolumeDelta,calculateVolumeStrength,analyze,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs?v=20261017-2';
+import {STEPS,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,strengthPhaseLineStyle,directionalVolumeDelta,calculateVolumeStrength,analyze,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs?v=20261017-3';
 import {load} from './data.mjs';
 import {loadPersistentHistory} from './history-store.mjs?v=20261015-1';
 import {strengthStatistics} from './strength-stats.mjs?v=20261015-1';
@@ -80,7 +80,7 @@ class VariableWidthLineRenderer{
         if(!Number.isFinite(a?.value)||!Number.isFinite(b?.value))continue;
         const xGap=current.x-previous.x;if(!Number.isFinite(xGap)||xGap<=0||xGap>Math.max(2,this.data.barSpacing*1.6))continue;
         const y1=priceToCoordinate(a.value),y2=priceToCoordinate(b.value);if(y1===null||y2===null)continue;
-        context.beginPath();context.lineWidth=Math.max(1,Math.round((b.width??1)*verticalPixelRatio));
+        context.beginPath();context.strokeStyle=b.color??this.options.color;context.lineWidth=Math.max(1,Math.round((b.width??1)*verticalPixelRatio));
         context.moveTo(previous.x*horizontalPixelRatio,y1*verticalPixelRatio);context.lineTo(current.x*horizontalPixelRatio,y2*verticalPixelRatio);context.stroke();
       }
       context.restore();
@@ -105,6 +105,7 @@ function setupChartActions(){
   const half=document.createElement('button');half.id='chart-fit-half';half.type='button';half.title='Hiển thị các nến trong 0,5 ngày gần nhất';half.textContent='Fit 0.5 ngày';live.insertAdjacentElement('afterend',half);
   const save=document.createElement('button');save.id='chart-save';save.type='button';save.title='Lưu toàn bộ lựa chọn và vùng thời gian đang xem trên trình duyệt này';save.textContent='Lưu setup';save.setAttribute('aria-live','polite');half.insertAdjacentElement('afterend',save);
   const alignmentLabel=$('alignment')?.closest('label');if(alignmentLabel){alignmentLabel.lastChild.textContent='SPY V Δ nến';alignmentLabel.title='Volume gốc SPY mang dấu theo thân nến rồi chia SMA20 volume: nến tăng xanh, nến giảm đỏ, doji bằng 0. Đây là đầu vào từng nến của Strength SPY V, không phải taker buy−sell delta.';}
+  const phaseLabel=$('phase-width')?.closest('label');if(phaseLabel)phaseLabel.title='WLR dày và xanh khi Composite × SPY V cùng dương; dày và đỏ khi cùng âm; trái dấu hoặc trung tính giữ vàng.';
   const hint=document.querySelector('.hint');if(hint)hint.textContent=hint.textContent.replace('Histogram C NF sát trục giá SPY cộng Composite Taker NetFlow từ pivot đầu đã xác nhận tới nến hiện tại; khi chưa có cặp pivot, dùng 96 nến gần nhất. Cập nhật khoảng 3 giây khi trang mở. Cột cuối viền vàng là nến chưa đóng và có thể thay đổi.','Histogram C NF sát trục giá SPY chỉ vẽ 5 nến M15 gần nhất. Số % dùng EWMA half-life 32 trên nhóm pivot hoặc 96 nến khi chưa có pivot, đồng thời vẫn cập nhật theo nến live. Cột cuối viền vàng là nến chưa đóng và có thể thay đổi.');
 }
 function restoreSavedSetup(){
@@ -229,7 +230,7 @@ function candlePalette(x){
 }
 function priceDirectionPalette(x){const up=x.c>=x.o,target=up?[8,190,145]:[235,76,101];return {body:mixColor([91,105,124],target,.78),wick:mixColor([112,126,145],target,.88),border:mixColor([74,89,108],target,.84)};}
 function lineData(data,key){return data.map(x=>Number.isFinite(x[key])?{time:x.t/1000,value:x[key]}:{time:x.t/1000});}
-function priceLineData(data,compositeStrength,volumeStrength){const variable=$('phase-width').checked;return data.map(x=>Number.isFinite(x.mid)?{time:x.t/1000,value:x.mid,width:variable?strengthPhaseLineWidth(compositeStrength.get(x.t),volumeStrength.get(x.t),{thick:6}):2}:{time:x.t/1000});}
+function priceLineData(data,compositeStrength,volumeStrength){const variable=$('phase-width').checked;return data.map(x=>{if(!Number.isFinite(x.mid))return {time:x.t/1000};const phase=variable?strengthPhaseLineStyle(compositeStrength.get(x.t),volumeStrength.get(x.t),{thick:6}):{width:2,color:'#f6c85f'};return {time:x.t/1000,value:x.mid,...phase};});}
 function flowData(data,key){const palette=flowColors[key];return data.map(x=>Number.isFinite(x.net)?{time:x.t/1000,value:x.net,color:x.net>=0?palette.up:palette.down}:{time:x.t/1000});}
 function relativeData(data){
   return data.map(x=>Number.isFinite(x.relative)?{time:x.t/1000,value:x.relative,color:relativeFlowColor(x)}:{time:x.t/1000});

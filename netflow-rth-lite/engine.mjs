@@ -77,11 +77,16 @@ export function strengthAgreementCandleSignal(compositeBar,volumeBar){
   const direction=Math.sign(compositeStrength),agreement=Math.min(1,Math.min(Math.abs(compositeStrength),Math.abs(volumeStrength)));
   return {...values,adjusted:direction*agreement,direction,agreement,colorRegime:direction>0?'ĐỒNG THUẬN TĂNG':'ĐỒNG THUẬN GIẢM',neutralReason:null};
 }
-export function strengthPhaseLineWidth(spyBar,qqqBar,{thin=1,neutral=2,thick=6}={}){
+export function strengthPhaseLineWidth(compositeBar,volumeBar,{thin=1,neutral=2,thick=6}={}){
   if(![thin,neutral,thick].every(Number.isFinite)||thin<=0||neutral<thin||thick<neutral)throw Error('Tham số độ dày theo pha không hợp lệ');
-  const spy=spyBar?.adjusted,qqq=qqqBar?.adjusted;
-  if(!Number.isFinite(spy)||!Number.isFinite(qqq)||spy===0||qqq===0)return neutral;
-  return Math.sign(spy)===Math.sign(qqq)?thick:thin;
+  const composite=compositeBar?.adjusted,volume=volumeBar?.adjusted;
+  if(!Number.isFinite(composite)||!Number.isFinite(volume)||composite===0||volume===0)return neutral;
+  return Math.sign(composite)===Math.sign(volume)?thick:thin;
+}
+export function strengthPhaseLineStyle(compositeBar,volumeBar,{thin=1,neutral=2,thick=6,positive='#1ae0a3',negative='#ff4d70',base='#f6c85f'}={}){
+  const width=strengthPhaseLineWidth(compositeBar,volumeBar,{thin,neutral,thick}),composite=compositeBar?.adjusted,volume=volumeBar?.adjusted;
+  const direction=width===thick&&Number.isFinite(composite)&&Number.isFinite(volume)&&Math.sign(composite)===Math.sign(volume)?Math.sign(composite):0;
+  return {width,direction,color:direction>0?positive:direction<0?negative:base};
 }
 export function normCDF(z){
   z=Math.max(-8,Math.min(8,z));

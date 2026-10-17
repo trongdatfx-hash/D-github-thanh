@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {STEPS,parseKlines,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,strengthPhaseLineWidth,calculateStrength,directionalVolumeDelta,calculateVolumeStrength,analyze,regression,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
+import {STEPS,parseKlines,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,strengthPhaseLineWidth,strengthPhaseLineStyle,calculateStrength,directionalVolumeDelta,calculateVolumeStrength,analyze,regression,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
 import {load} from '../data.mjs';
 import {isUsMarketHoliday,isUsMarketTradingDay} from '../market-calendar.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL(p,import.meta.url),'utf8').replace(/^\uFEFF/,''));
@@ -37,10 +37,16 @@ test('candle color follows Composite × SPY Volume Strength agreement',()=>{
   assert.equal(down.direction,-1);assert.equal(down.agreement,.4);assert.equal(down.colorRegime,'ĐỒNG THUẬN GIẢM');
   for(const neutral of [strengthAgreementCandleSignal({adjusted:.8},{adjusted:-.35}),strengthAgreementCandleSignal({adjusted:.8},{adjusted:0}),strengthAgreementCandleSignal({adjusted:.8},null)]){assert.equal(neutral.direction,0);assert.equal(neutral.agreement,0);assert.equal(neutral.colorRegime,'TRUNG TÍNH');}
 });
-test('WLR phase width follows the actual SPY/QQQ Strength signs',()=>{
+test('WLR phase width follows Composite and SPY Volume Strength signs',()=>{
   assert.equal(strengthPhaseLineWidth({adjusted:.4},{adjusted:.1}),6);assert.equal(strengthPhaseLineWidth({adjusted:-.4},{adjusted:-.1}),6);
   assert.equal(strengthPhaseLineWidth({adjusted:.4},{adjusted:-.1}),1);assert.equal(strengthPhaseLineWidth({adjusted:0},{adjusted:.1}),2);assert.equal(strengthPhaseLineWidth(null,{adjusted:.1}),2);
   assert.throws(()=>strengthPhaseLineWidth({adjusted:1},{adjusted:1},{thin:0}),/không hợp lệ/);
+});
+test('WLR thick phase uses the resonance direction color only',()=>{
+  assert.deepEqual(strengthPhaseLineStyle({adjusted:.4},{adjusted:.1}),{width:6,direction:1,color:'#1ae0a3'});
+  assert.deepEqual(strengthPhaseLineStyle({adjusted:-.4},{adjusted:-.1}),{width:6,direction:-1,color:'#ff4d70'});
+  assert.deepEqual(strengthPhaseLineStyle({adjusted:.4},{adjusted:-.1}),{width:1,direction:0,color:'#f6c85f'});
+  assert.deepEqual(strengthPhaseLineStyle(null,{adjusted:.1}),{width:2,direction:0,color:'#f6c85f'});
 });
 test('relative flow smoothing and volume confidence are prefix-causal',()=>{
   const s=Array.from({length:40},(_,i)=>({t:i,net:i%3?10:-8,nf:i%3?20:-16,q:50+i}));
