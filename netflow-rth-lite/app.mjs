@@ -6,7 +6,7 @@ import {pivotZones,pivotFlowRealtime} from './pivot-zones.mjs?v=20261017-2';
 import {pivotFlowLayout,pivotFlowZeroCoordinate} from './pivot-flow-layout.mjs?v=20261016-2';
 import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeometry} from './geometry.mjs?v=20261016-3';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261014-2';
-import {preRthWlrTrend,formatPreRthWlrTrend} from './pre-rth-wlr-trend.mjs?v=20261017-1';
+import {preRthWlrTrend,formatPreRthWlrTrend} from './pre-rth-wlr-trend.mjs?v=20261017-2';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
 let chart,price,series={},marks,strengthMarks,cache=null,rows={},volumeStrengthRows=[],modelRows={},modelVolumeStrengthRows=[],modelStamp=null,trendRows={},trendVolumeStrengthRows=[],trendStamp=null,trainingMeta=null,maps={},priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,pivotFlowFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},geometryStatePoints=[],geometryStatePointsKey='',breakoutState=null,geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
@@ -134,6 +134,19 @@ function saveChartSetup(){
 function updateRev63(){
   rev63State=preRthWlrTrend({priceRows:trendRows[$('symbol').value]??[],strengthRows:trendRows.COMPOSITE??[],volumeRows:trendVolumeStrengthRows,now:cache?.serverTime??Date.now()});
   updateGeometryReadout();
+  renderTrendCohorts();
+}
+function renderTrendCohorts(){
+  const body=$('trend-cohort-body'),status=$('trend-cohort-status');if(!body||!status)return;
+  const bucketName={base:'Nền <75',medium:'Vừa 75–84',high:'Cao ≥85'},scopeName={'direction-session-strength':'hướng + phiên + Strength','direction-session':'hướng + phiên','direction':'hướng','all':'toàn bộ'};
+  const groups=rev63State?.groups??[];body.replaceChildren(...groups.map(group=>{
+    const row=document.createElement('tr'),selected=group.key===rev63State?.cohortKey;row.className=selected?'selected':'';
+    const continuation=Number.isFinite(group.continuation)?`${Math.round(group.continuation*100)}%`:'—';
+    row.innerHTML=`<td><span class="trend-direction ${group.direction>0?'up':'down'}">${group.direction>0?'↑ UP':'↓ DOWN'}</span></td><td>${group.startSession}</td><td>${bucketName[group.strengthBucket]}</td><td>${group.n}</td><td>${group.censoredN}</td><td>${group.medianBars??'—'}</td><td>${group.atRiskN??'—'}</td><td>${continuation}</td>`;
+    if(selected)row.setAttribute('aria-current','true');return row;
+  }));
+  const age=rev63State?.currentBars>0?`tuổi ${rev63State.currentBars} nến`:'chưa có trend đang hoạt động',scope=scopeName[rev63State?.cohort]??'chưa chọn cohort';
+  status.textContent=`${age} · cohort dự báo: ${scope} · xác suất +3 chỉ hiện khi có tuổi trend hiện tại`;
 }
 const isCompactChart=()=>matchMedia('(max-width: 760px)').matches;
 const isTouchChart=()=>matchMedia('(pointer: coarse)').matches||navigator.maxTouchPoints>0;

@@ -40,6 +40,7 @@ function fixture(dayCount=32){
 test('PRE→RTH WLR finds the active strongest aligned M15 trend and formats only the compact label',()=>{
   const input=fixture(),state=preRthWlrTrend({...input,minCohort:3});
   assert.equal(state.active,true,JSON.stringify(state));assert.equal(state.direction,1);assert(state.currentBars>=2);assert(state.expectedBars>=state.currentBars);assert(Number.isFinite(state.remainingBars));assert(Number.isFinite(state.continuation));assert(state.censoredN>0);
+  assert.equal(state.groups.length,12);assert.equal(new Set(state.groups.map(group=>group.key)).size,12);assert(state.groups.some(group=>group.key===state.cohortKey));assert(state.groups.every(group=>Number.isInteger(group.n)&&Number.isInteger(group.censoredN)));assert(state.groups.filter(group=>group.n).some(group=>Number.isFinite(group.continuation)));
   assert.match(formatPreRthWlrTrend(state),/^(↑ UP|WAIT) · \d+\/\d+ NẾN · TUỔI P\d+ · CÒN ~\d+ NẾN · TREND CÒN \d+%$/);
 });
 
@@ -50,5 +51,5 @@ test('PRE→RTH WLR is prefix-causal and ignores open/future bars',()=>{
 
 test('PRE→RTH WLR returns WAIT outside the live PRE/RTH trading window',()=>{
   const input=fixture(),saturday=Date.UTC(2026,9,17,16),state=preRthWlrTrend({...input,now:saturday,minCohort:3});
-  assert.equal(state.label,'WAIT');assert.equal(state.active,false);assert.match(state.reason,/Không có trend/);
+  assert.equal(state.label,'WAIT');assert.equal(state.active,false);assert.match(state.reason,/Không có trend/);assert.equal(state.groups.length,12);assert(state.groups.every(group=>group.continuation===null));
 });
