@@ -140,6 +140,11 @@ export function volumeDeltaStrengthColor(deltaValue,strengthValue){
 export function volumeDeltaStrengthValue(deltaValue){
   return Number.isFinite(deltaValue)?Math.max(-1,Math.min(1,deltaValue/2)):0;
 }
+export function symmetricPriceRange(range,{floor=1}={}){
+  if(!Number.isFinite(range?.minValue)||!Number.isFinite(range?.maxValue)||!Number.isFinite(floor)||floor<=0)throw Error('Miền giá đối xứng không hợp lệ');
+  const bound=Math.max(floor,Math.abs(range.minValue),Math.abs(range.maxValue));
+  return {minValue:-bound,maxValue:bound};
+}
 export function calculateVolumeStrength(bars,step,{normLen=20,strLen=8,halfLife=2,lookback=500}={}){
   if(!Array.isArray(bars)||!Object.values(STEPS).includes(step)||![normLen,strLen,lookback].every(x=>Number.isInteger(x)&&x>0)||!Number.isFinite(halfLife)||halfLife<0)throw Error('Tham số Volume Strength không hợp lệ');
   const deltas=directionalVolumeDelta(bars,step,{normLen});let impulses=[],magnitudes=[],ew=null,previous=null;

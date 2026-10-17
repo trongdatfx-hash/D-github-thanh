@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {STEPS,parseKlines,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,strengthPhaseLineWidth,strengthPhaseLineStyle,calculateStrength,directionalVolumeDelta,volumeDeltaStrengthColor,volumeDeltaStrengthValue,calculateVolumeStrength,analyze,regression,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
+import {STEPS,parseKlines,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,strengthPhaseLineWidth,strengthPhaseLineStyle,calculateStrength,directionalVolumeDelta,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,regression,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
 import {load} from '../data.mjs';
 import {isUsMarketHoliday,isUsMarketTradingDay} from '../market-calendar.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL(p,import.meta.url),'utf8').replace(/^\uFEFF/,''));
@@ -50,6 +50,12 @@ test('SPY volume delta is centered at zero and balanced inside the Strength rang
   assert.equal(volumeDeltaStrengthValue(10),1);
   assert.equal(volumeDeltaStrengthValue(-10),-1);
   assert.equal(volumeDeltaStrengthValue(null),0);
+});
+test('overlay price ranges keep zero at the same center coordinate',()=>{
+  assert.deepEqual(symmetricPriceRange({minValue:-20,maxValue:35}),{minValue:-35,maxValue:35});
+  assert.deepEqual(symmetricPriceRange({minValue:.2,maxValue:.7}),{minValue:-1,maxValue:1});
+  assert.deepEqual(symmetricPriceRange({minValue:-2,maxValue:1},{floor:.5}),{minValue:-2,maxValue:2});
+  assert.throws(()=>symmetricPriceRange({minValue:0,maxValue:1},{floor:0}),/không hợp lệ/);
 });
 test('candle color follows Composite × SPY Volume Strength agreement',()=>{
   const up=strengthAgreementCandleSignal({adjusted:.8},{adjusted:.35}),down=strengthAgreementCandleSignal({adjusted:-.6},{adjusted:-.4});

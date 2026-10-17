@@ -59,6 +59,7 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   assert.equal(await page.locator('#days').inputValue(),'30');
   assert.equal((await page.locator('label:has(#alignment)').innerText()).trim(),'SPY V Δ nến');assert.equal(await page.locator('label:has(#alignment)').getAttribute('data-pane'),'strength-spy-v');assert.match(await page.locator('label:has(#alignment)').getAttribute('title'),/Bốn màu/);
   assert.deepEqual(await page.locator('#chart').evaluate(el=>({pane:el.dataset.spyVolumeDeltaPane,scale:el.dataset.spyVolumeDeltaScale,deltaTitle:el.dataset.spyVolumeDeltaTitle,units:el.dataset.spyVolumeStrengthUnits,positive:el.dataset.spyVolumeStrengthPositive,negative:el.dataset.spyVolumeStrengthNegative})),{pane:'3',scale:'shared--1-1',deltaTitle:'hidden',units:'signed-2dp',positive:'#f6c85f',negative:'#f3f6fb'});
+  assert.deepEqual(await page.locator('#chart').evaluate(el=>({overlay:el.dataset.compositeStrengthOverlay,label:el.dataset.compositeStrengthOverlayLabel})),{overlay:'pane-2-symmetric-zero',label:'C Taker NF'});
   for(const id of ['spy','qqq','relative'])assert.equal(await page.locator('#'+id).isChecked(),false);
   assert((await page.locator('label:has(#relative)').getAttribute('title')).includes('NetFlow cùng nến'));
   for(const id of ['composite','alignment','price-bands','pivot-zones','phase-width','candle-agreement-color','cvd-spectrum-toggle','show-strength','spy-volume-strength','bands','markers','geometry-toggle','geometry-pivots','double-tap-full'])assert.equal(await page.locator('#'+id).isChecked(),true);
