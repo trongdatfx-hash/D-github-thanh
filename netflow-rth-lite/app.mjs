@@ -281,8 +281,7 @@ function updateCandleCountdown(){
   node.textContent=`${String(minutes).padStart(2,'0')}:${String(rest).padStart(2,'0')}`;
   node.className=remaining>0?'':'missing';
   const y=price.priceToCoordinate(bar.c),paneHeight=chart?.panes?.()[0]?.getHeight?.();
-  const scaleWidth=chart?.priceScale?.('right',0)?.width?.();
-  node.style.right='0px';node.style.width=`${Math.round(Number.isFinite(scaleWidth)?scaleWidth:56)}px`;
+  node.style.right='2ch';node.style.width='auto';
   if(Number.isFinite(y)&&Number.isFinite(paneHeight))node.style.top=`${Math.max(2,Math.min(paneHeight-node.offsetHeight-2,y+11))}px`;
 }
 function drawCvdSpectrum(){
