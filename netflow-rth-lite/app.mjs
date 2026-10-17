@@ -80,7 +80,7 @@ class VariableWidthLineRenderer{
         if(!Number.isFinite(a?.value)||!Number.isFinite(b?.value))continue;
         const xGap=current.x-previous.x;if(!Number.isFinite(xGap)||xGap<=0||xGap>Math.max(2,this.data.barSpacing*1.6))continue;
         const y1=priceToCoordinate(a.value),y2=priceToCoordinate(b.value);if(y1===null||y2===null)continue;
-        context.beginPath();context.strokeStyle=b.color??this.options.color;context.lineWidth=Math.max(1,Math.round((b.width??1)*verticalPixelRatio));
+        context.beginPath();context.strokeStyle=b.phaseColor??this.options.color;context.lineWidth=Math.max(1,Math.round((b.width??1)*verticalPixelRatio));
         context.moveTo(previous.x*horizontalPixelRatio,y1*verticalPixelRatio);context.lineTo(current.x*horizontalPixelRatio,y2*verticalPixelRatio);context.stroke();
       }
       context.restore();
@@ -230,7 +230,7 @@ function candlePalette(x){
 }
 function priceDirectionPalette(x){const up=x.c>=x.o,target=up?[8,190,145]:[235,76,101];return {body:mixColor([91,105,124],target,.78),wick:mixColor([112,126,145],target,.88),border:mixColor([74,89,108],target,.84)};}
 function lineData(data,key){return data.map(x=>Number.isFinite(x[key])?{time:x.t/1000,value:x[key]}:{time:x.t/1000});}
-function priceLineData(data,compositeStrength,volumeStrength){const variable=$('phase-width').checked;return data.map(x=>{if(!Number.isFinite(x.mid))return {time:x.t/1000};const phase=variable?strengthPhaseLineStyle(compositeStrength.get(x.t),volumeStrength.get(x.t),{thick:6}):{width:2,color:'#f6c85f'};return {time:x.t/1000,value:x.mid,...phase};});}
+function priceLineData(data,compositeStrength,volumeStrength){const variable=$('phase-width').checked;return data.map(x=>{if(!Number.isFinite(x.mid))return {time:x.t/1000};const phase=variable?strengthPhaseLineStyle(compositeStrength.get(x.t),volumeStrength.get(x.t),{thick:6}):{width:2,color:'#f6c85f'};return {time:x.t/1000,value:x.mid,width:phase.width,phaseColor:phase.color};});}
 function flowData(data,key){const palette=flowColors[key];return data.map(x=>Number.isFinite(x.net)?{time:x.t/1000,value:x.net,color:x.net>=0?palette.up:palette.down}:{time:x.t/1000});}
 function relativeData(data){
   return data.map(x=>Number.isFinite(x.relative)?{time:x.t/1000,value:x.relative,color:relativeFlowColor(x)}:{time:x.t/1000});
