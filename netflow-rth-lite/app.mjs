@@ -6,10 +6,10 @@ import {pivotZones,pivotFlowRealtime} from './pivot-zones.mjs?v=20261017-2';
 import {pivotFlowLayout,pivotFlowZeroCoordinate} from './pivot-flow-layout.mjs?v=20261016-2';
 import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeometry} from './geometry.mjs?v=20261016-3';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261014-2';
-import {rev63Forecast,scoreForecastHistory,calibrationSummary,rev63GeometryQualitySummary,REV63_GEOMETRY_ROWS,REV63_HORIZON} from './rev6-3-v1.mjs?v=20261017-4';
+import {preRthWlrTrend,formatPreRthWlrTrend} from './pre-rth-wlr-trend.mjs?v=20261017-1';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
-let chart,price,series={},marks,strengthMarks,cache=null,rows={},volumeStrengthRows=[],modelRows={},modelVolumeStrengthRows=[],modelStamp=null,trainingMeta=null,maps={},priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,pivotFlowFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},geometryStatePoints=[],geometryStatePointsKey='',breakoutState=null,geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
+let chart,price,series={},marks,strengthMarks,cache=null,rows={},volumeStrengthRows=[],modelRows={},modelVolumeStrengthRows=[],modelStamp=null,trendRows={},trendVolumeStrengthRows=[],trendStamp=null,trainingMeta=null,maps={},priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,pivotFlowFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},geometryStatePoints=[],geometryStatePointsKey='',breakoutState=null,geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
 const colors={SPYUSDT:'#5ba8ff',QQQUSDT:'#c194ff',COMPOSITE:'#38dfba'};
 const flowTitles={SPYUSDT:'S Taker NF',QQQUSDT:'Q Taker NF',COMPOSITE:'C Taker NF'};
 const flowColors={
@@ -22,12 +22,11 @@ const CALENDAR_REFRESH_MS=5*60*1000;
 const FIT_WINDOW_MS=36*60*60*1000,FIT_HALF_WINDOW_MS=12*60*60*1000,DOUBLE_TAP_MS=360,DOUBLE_TAP_DISTANCE=28,TAP_MOVE_TOLERANCE=14;
 const SETUP_STORAGE_KEY='netflow-rth-lite:chart-setup:v1';
 const SETUP_CONTROL_IDS=['symbol','interval','days','signal','spy','qqq','composite','relative','alignment','price-bands','pivot-zones','phase-width','candle-agreement-color','cvd-spectrum-toggle','show-strength','spy-volume-strength','bands','markers','double-tap-full','geometry-toggle','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency'];
-let statsMap=new Map(),candleColorMap=new Map(),rev63State=null,rev63History=[],pivotZoneState={ready:false,reason:'history',support:null,resistance:null},pivotFlowState=null,pivotZoneKey='',inspectedTime=null;
+let statsMap=new Map(),candleColorMap=new Map(),rev63State=null,pivotZoneState={ready:false,reason:'history',support:null,resistance:null},pivotFlowState=null,pivotZoneKey='',inspectedTime=null;
 let calendarState={events:[],updatedAt:null,loading:false};
 let pendingSavedTimeRange=null,saveSetupTimer=null;
 const sourceName=key=>({SPYUSDT:'SPY',QQQUSDT:'QQQ',COMPOSITE:'Composite'}[key]);
 const signed=x=>Number.isFinite(x)?`${x>0?'+':''}${fmt(x)}`:'—';
-const returnText=x=>Number.isFinite(x)?`${x>0?'+':''}${x.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:4})}%`:'—';
 const signLabel=x=>x>0?'+':x<0?'−':'0';
 const symmetricAutoscale=original=>{const info=original();return info?.priceRange?{...info,priceRange:symmetricPriceRange(info.priceRange)}:info;};
 const tone=x=>x>0?'positive':x<0?'negative':'neutral';
@@ -132,35 +131,9 @@ function saveChartSetup(){
   }catch{button.textContent='Không lưu được';button.title='Trình duyệt đang chặn bộ nhớ cục bộ';}
   clearTimeout(saveSetupTimer);saveSetupTimer=setTimeout(()=>{button.textContent='Lưu setup';button.title='Lưu toàn bộ lựa chọn và vùng thời gian đang xem trên trình duyệt này';},1800);
 }
-function rev63StorageKey(){return 'rev63-trend-v2-pivot-strength|'+$('symbol').value+'|'+$('interval').value;}
-function loadRev63History(){try{return JSON.parse(localStorage.getItem(rev63StorageKey())||'[]');}catch{return [];}}
-function saveRev63History(data){try{localStorage.setItem(rev63StorageKey(),JSON.stringify(data.slice(-500)));}catch{}}
-function renderRev63(){
-  const box=$('rev63-panel');if(!box||!rev63State)return;
-  const p=Math.round(rev63State.pUp*100),down=100-p,label=$('rev63-label');
-  label.textContent=rev63State.label==='UP'?'↑ UP '+p+'%':rev63State.label==='DOWN'?'↓ DOWN '+down+'%':'WAIT · UP '+p+'% / DOWN '+down+'%';
-  label.className=rev63State.label==='UP'?'up':rev63State.label==='DOWN'?'down':'wait';
-  $('rev63-confidence').textContent='Confidence '+rev63State.confidence+'/100';
-  const c=rev63State.components;
-  $('rev63-components').textContent='Trend '+rev63State.trendScore+'/100 · Hợp lưu '+rev63State.confluence+'/4 · Line '+signed(c.line)+' · Pivot '+signed(c.pivot)+' · Nến '+signed(c.candle)+' · Qua line '+signed(c.regime);
-  const latestColor=candleColorMap.get((rows[$('symbol').value]??[]).filter(row=>(row.end??row.t)<(cache?.serverTime??Infinity)).at(-1)?.t),colorLabel=latestColor?.direction>0?'đồng thuận tăng':latestColor?.direction<0?'đồng thuận giảm':'trung tính / trái dấu';
-  const pivotState={aligned:'Composite + SPY V cùng hướng',opposed:'Composite + SPY V ngược hướng',split:'Composite/SPY V trái dấu',neutral:'Composite/SPY V trung tính',missing:'thiếu Composite hoặc SPY V'}[rev63State.pivotConfirmation.state];
-  $('rev63-state').textContent=(rev63State.activeLine?`Line ${rev63State.activeLine.kind==='support'?'hỗ trợ':'kháng cự'} ${rev63State.activeLine.score}/100`:'Chưa có line xác nhận')+(rev63State.geometryEvent?` · Pivot/phân kỳ ${rev63State.geometryEvent.score}/100 · ${pivotState}`:' · Chưa có phân kỳ gần')+` · Màu ${colorLabel}`+(breakoutState?` · GEO ${breakoutState.label} ${breakoutState.direction>0?'↑':'↓'}`:'');
-  const cal=calibrationSummary(rev63History),bins=cal.bins.map(x=>x.label+': n='+x.n+(x.n?' · hit '+fmt(x.accuracy)+'% · Brier '+fmt(x.brier):'')).join(' | ');
-  $('rev63-score').textContent=cal.n?'Đã chấm '+cal.n+' dự báo · đúng hướng '+fmt(cal.accuracy)+'% · Brier '+fmt(cal.brier):'Chưa có dự báo đủ 3 nến để tự chấm';
-  $('rev63-calibration').textContent=bins;
-  const geometryQuality=rev63GeometryQualitySummary(rev63History),geometryBody=$('rev63-geometry-body'),geometryFragment=document.createDocumentFragment();
-  for(const def of REV63_GEOMETRY_ROWS){const summary=geometryQuality.summaries[def.key],row=document.createElement('tr'),values=[def.label,summary.n,summary.n?fmt(summary.accuracy)+'%':'—',summary.n?fmt(summary.brier):'—',summary.n?returnText(summary.expectancy):'—'];row.dataset.key=def.key;for(const [i,value] of values.entries()){const cell=document.createElement(i?'td':'th');if(!i)cell.scope='row';cell.textContent=String(value);row.append(cell);}geometryFragment.append(row);}geometryBody.replaceChildren(geometryFragment);
-  $('rev63-geometry-note').textContent=geometryQuality.n?`Đã chấm ${geometryQuality.n} dự báo có trạng thái line causal. Phá thật cần hai close vượt line cùng hướng Strength Composite, SPY V và NetFlow; phá giả cần close quay lại phía cũ.`:'Bắt đầu tích lũy từ các dự báo mới có Giữ line / Phá thật / Phá giả; không gán hồi tố cho lịch sử cũ.';
-}
-function updateRev63(closedPrice,geometryInput){
-  const latest=closedPrice.at(-1);
-  rev63State=rev63Forecast({geometryLines:geometryState.lines,geometryEvents:geometryState.events,geometryRegime:breakoutState,priceRows:closedPrice,strengthRows:geometryInput.flow,volumeRows:geometryInput.volume});
-  rev63History=scoreForecastHistory(closedPrice,loadRev63History(),REV63_HORIZON).filter(x=>!x.void);
-  if(latest&&rev63State&&!rev63History.some(x=>x.entryTime===latest.t)){
-    rev63History.push({entryTime:latest.t,pUp:rev63State.pUp,step:STEPS[$('interval').value],label:rev63State.label,createdAt:Date.now(),geometryRegime:breakoutState?.key??null,geometryDirection:breakoutState?.direction??0,geometryLineScore:breakoutState?.lineScore??null});
-  }
-  saveRev63History(rev63History);renderRev63();updateGeometryReadout();
+function updateRev63(){
+  rev63State=preRthWlrTrend({priceRows:trendRows[$('symbol').value]??[],strengthRows:trendRows.COMPOSITE??[],volumeRows:trendVolumeStrengthRows,now:cache?.serverTime??Date.now()});
+  updateGeometryReadout();
 }
 const isCompactChart=()=>matchMedia('(max-width: 760px)').matches;
 const isTouchChart=()=>matchMedia('(pointer: coarse)').matches||navigator.maxTouchPoints>0;
@@ -327,11 +300,9 @@ function geometryLineText(line){
 }
 function updateGeometryReadout(){
   const node=$('geometry-readout');if(!node)return;node.style.display='block';
-  if(!rev63State){node.textContent='UP — · DOWN — · WAIT —';node.className='forecast wait';node.title='REV6-3 Trend V2 · Chờ đủ nến đã đóng để chấm trend.';requestAnimationFrame(positionForecastReadout);return;}
-  const up=Math.round(rev63State.pUp*100),down=100-up,conf=rev63State.confidence,wait=Math.max(0,100-conf);
-  node.textContent=`UP ${up}% · DOWN ${down}% · WAIT ${wait}%`;
+  node.textContent=formatPreRthWlrTrend(rev63State);
   node.className=`forecast ${rev63State.label.toLowerCase()}`;
-  node.title=`REV6-3 Trend V2 · ${rev63State.label} · Trend ${rev63State.trendScore}/100 · Hợp lưu ${rev63State.confluence}/4, xung đột ${rev63State.conflict}/4 · Pivot ×${rev63State.pivotConfirmation.factor}: ${rev63State.pivotConfirmation.state} · WAIT ${wait}% là chỉ số bất định = 100 − Confidence, không phải xác suất thứ ba độc lập. Pivot được tăng điểm khi Composite và SPY V tại nến đóng mới nhất cùng hướng, giảm khi ngược/trái dấu/thiếu; không thêm thành phiếu độc lập. Chỉ dùng line đã xác nhận, pivot/phân kỳ, hình học nến và trạng thái đi qua line từ nến đã đóng; line nét đứt chưa xác nhận không tính điểm. UP/DOWN là điểm quy tắc, chưa hiệu chỉnh thành xác suất thực nghiệm.`;
+  node.title=`PRE→RTH WLR M15 · ${rev63State.reason}. ${rev63State.active?`Điểm ${rev63State.trendScore}/100 · R² ${fmt(rev63State.r2)} · đồng pha ${Math.round((rev63State.phaseShare??0)*100)}% · mẫu ${rev63State.sampleN}, kiểm duyệt phải ${rev63State.censoredN??0}. `:''}P(tiếp diễn thêm 3 nến | trend đã tồn tại n nến) = S(n+3) / S(n), với S ước lượng Kaplan–Meier. Nến đang chạy không được tính; trend còn chạy lúc 16:00 được xem là kiểm duyệt phải, không bị gán là đã kết thúc.`;
   requestAnimationFrame(positionForecastReadout);
 }
 function drawGeometryOverlay(){
@@ -392,7 +363,7 @@ function render(fit=false){
   if(nextPivotKey!==pivotZoneKey){pivotZoneState=pivotZones({price:modelClosedPrice,composite:pivotComposite,volume:pivotVolume},STEPS[$('interval').value]);pivotZoneKey=nextPivotKey;}
   pivotFlowState=pivotFlowRealtime(pivotZoneState.flow,rows.SPYUSDT??[],rows.COMPOSITE??[],closedBefore,pivotFlowState?.volatility?.key);
   const priceBands=weightedPriceBands(p,STEPS[$('interval').value]);priceBandMap=new Map(priceBands.map(x=>[x.t,x]));
-  updateRev63(modelClosedPrice,geometryInput);
+  updateRev63();
   series.priceMid.setData(priceLineData(priceBands,maps.COMPOSITE??new Map(),volumeStrengthMap));series.priceUpper.setData(lineData(priceBands,'upper'));series.priceLower.setData(lineData(priceBands,'lower'));
   for(const key of Object.keys(colors))series[key].setData(flowData(rows[key]??[],key));
   series.relative.setData(relativeData(alignment));
@@ -500,7 +471,7 @@ function toggle(){
 async function refresh(clear=false){
   controller?.abort();controller=new AbortController();const gen=++generation;
   loading=true;$('refresh').disabled=true;
-  if(clear){cache=null;rows={};volumeStrengthRows=[];modelRows={};modelVolumeStrengthRows=[];modelStamp=null;trainingMeta=null;maps={};lastSuccess=null;inspectedTime=null;pivotZoneKey='';pivotZoneState={ready:false,reason:'history',support:null,resistance:null};pivotFlowState=null;render(true);}
+  if(clear){cache=null;rows={};volumeStrengthRows=[];modelRows={};modelVolumeStrengthRows=[];modelStamp=null;trendRows={};trendVolumeStrengthRows=[];trendStamp=null;trainingMeta=null;maps={};lastSuccess=null;inspectedTime=null;pivotZoneKey='';pivotZoneState={ready:false,reason:'history',support:null,resistance:null};pivotFlowState=null;render(true);}
   const interval=$('interval').value,days=+$('days').value;
   status(`Đang xác minh SPYUSDT/QQQUSDT và tải ${interval} · ${days} ngày…`);
   try{
@@ -508,16 +479,17 @@ async function refresh(clear=false){
     const step=STEPS[interval];
     rows={SPYUSDT:analyze(data.SPYUSDT,step),QQQUSDT:analyze(data.QQQUSDT,step),COMPOSITE:analyze(composite(data.SPYUSDT,data.QQQUSDT),step)};
     volumeStrengthRows=analyze(data.SPYUSDT,step,{strength:calculateVolumeStrength(data.SPYUSDT,step)});
-    if(interval==='15m'){
-      let history=null;try{history=await loadPersistentHistory({days:365,signal:controller.signal,live:data});}catch{}
-      const source=history??data,closedRaw={SPYUSDT:(source.SPYUSDT??[]).filter(x=>x.end<data.serverTime),QQQUSDT:(source.QQQUSDT??[]).filter(x=>x.end<data.serverTime)};
-      const stamp=Math.min(closedRaw.SPYUSDT.at(-1)?.t??0,closedRaw.QQQUSDT.at(-1)?.t??0);
-      if(stamp&&stamp!==modelStamp){
-        modelRows={SPYUSDT:analyze(closedRaw.SPYUSDT,step),QQQUSDT:analyze(closedRaw.QQQUSDT,step),COMPOSITE:analyze(composite(closedRaw.SPYUSDT,closedRaw.QQQUSDT),step)};
-        modelVolumeStrengthRows=analyze(closedRaw.SPYUSDT,step,{strength:calculateVolumeStrength(closedRaw.SPYUSDT,step)});modelStamp=stamp;
+    let history=null;try{history=await loadPersistentHistory({days:365,signal:controller.signal,live:interval==='15m'?data:null});}catch{}
+    const trendSource=history?.SPYUSDT?.length&&history?.QQQUSDT?.length?history:(interval==='15m'?data:null);
+    if(trendSource){
+      const trendStep=STEPS['15m'],closedTrendRaw={SPYUSDT:(trendSource.SPYUSDT??[]).filter(x=>x.end<data.serverTime),QQQUSDT:(trendSource.QQQUSDT??[]).filter(x=>x.end<data.serverTime)},nextTrendStamp=Math.min(closedTrendRaw.SPYUSDT.at(-1)?.t??0,closedTrendRaw.QQQUSDT.at(-1)?.t??0);
+      if(nextTrendStamp&&nextTrendStamp!==trendStamp){
+        trendRows={SPYUSDT:analyze(closedTrendRaw.SPYUSDT,trendStep),QQQUSDT:analyze(closedTrendRaw.QQQUSDT,trendStep),COMPOSITE:analyze(composite(closedTrendRaw.SPYUSDT,closedTrendRaw.QQQUSDT),trendStep)};
+        trendVolumeStrengthRows=analyze(closedTrendRaw.SPYUSDT,trendStep,{strength:calculateVolumeStrength(closedTrendRaw.SPYUSDT,trendStep)});trendStamp=nextTrendStamp;
       }
-      trainingMeta=history?.manifest??null;
-    }else{modelRows=rows;modelVolumeStrengthRows=volumeStrengthRows;modelStamp=null;trainingMeta=null;}
+    }
+    if(interval==='15m'&&Object.keys(trendRows).length){modelRows=trendRows;modelVolumeStrengthRows=trendVolumeStrengthRows;modelStamp=trendStamp;trainingMeta=history?.manifest??null;}
+    else{modelRows=rows;modelVolumeStrengthRows=volumeStrengthRows;modelStamp=null;trainingMeta=null;}
     maps=Object.fromEntries(Object.entries(rows).map(([k,v])=>[k,new Map(v.map(x=>[x.t,x]))]));
     cache=data;serverOffsetMs=data.serverTime-Date.now();lastSuccess=new Date();render(clear);setLive(true);
     const modelText=interval==='15m'?(trainingMeta?` · model ${trainingMeta.retentionDays??365}d: ${modelRows.SPYUSDT?.length??0}/${modelRows.QQQUSDT?.length??0} nến lưu GitHub`:` · model: đang dùng lịch sử live cho tới khi kho GitHub sẵn sàng`):'';
