@@ -7,8 +7,8 @@ const config={
   symbolsGroups:[{name:'Xem chỉ số',symbols:[
     {name:'CBOE:VIX1D',displayName:'VIX1D'},
     {name:'CBOE:VIX9D',displayName:'VIX9D'},
-    {name:'CBOE:VIX',displayName:'VIX'},
-    {name:'SP:SPX',displayName:'SP500'},
+    {name:'TVC:VIX',displayName:'VIX'},
+    {name:'FOREXCOM:SPXUSD',displayName:'SP500'},
     {name:'AMEX:SPY',displayName:'SPY'},
     {name:'BINANCE:SPYUSDT.P',displayName:'SPYUSDT'},
     {name:'TVC:USOIL',displayName:'USOIL'},
