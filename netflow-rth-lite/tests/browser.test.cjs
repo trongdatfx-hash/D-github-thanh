@@ -30,6 +30,7 @@ const read=p=>JSON.parse(fs.readFileSync(p,'utf8').replace(/^\uFEFF/,''));
   });
   await page.goto('http://netflow.test/');await page.waitForFunction(()=>document.querySelector('#status').textContent.includes('TRADING'),{},{timeout:120000});
   assert.equal(await page.locator('main > .chart-options').count(),1);assert.equal(await page.locator('.chart-card .toggles').count(),0);assert.equal(await page.locator('.chart-options + .chart-card').count(),1);
+  assert.equal(await page.locator('#market-watchlist').count(),1);assert.equal(await page.locator('#market-watchlist .watchlist-symbols a').count(),9);assert.equal(await page.locator('#market-watchlist').getAttribute('open'),null);assert.equal(await page.locator('#symbol').inputValue(),'SPYUSDT');
   assert.equal(await page.locator('.chart-head h2').count(),0);
   const priceAxisCanvases=page.locator('#chart table tr>td:last-child canvas');assert(await priceAxisCanvases.count()>=4);assert.equal(await priceAxisCanvases.evaluateAll(nodes=>nodes.every(node=>getComputedStyle(node).touchAction==='none')),true);
   assert.equal(await page.locator('#rev63-geometry-body tr').count(),4);assert.match(await page.locator('.rev63-geometry-panel').innerText(),/Giữ hỗ trợ/);assert.match(await page.locator('.rev63-geometry-panel').innerText(),/Phá thật/);assert.match(await page.locator('#rev63-state').innerText(),/GEO/);

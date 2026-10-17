@@ -89,6 +89,8 @@ Huy hiệu chi tiết REV6 Pivot Zones C×V được ẩn để pane giá gọn 
 
 Chart dùng TradingView Lightweight Charts 5.2.1. Hồ sơ Android/coarse-pointer bật pinch zoom, kinetic scroll, kéo trục giá, vùng chạm tối thiểu 44 px và thang giá phải tối thiểu 58 px. Ở trang thường, kéo dọc một ngón vẫn cuộn trang; trong Full chart, kéo dọc được giao cho chart. Khi xoay màn hình, visible range được khóa và các overlay được căn lại. `rightOffsetPixels` giữ khoảng trống cuối chart ổn định theo pixel, còn tick density tăng trên màn hình hẹp để nhãn giá không chồng nhau.
 
+Mục gập **Xem chỉ số** tải bảng báo giá TradingView riêng cho VIX1D, VIX9D, VIX, SP500, SPY, SPYUSDT, USOIL, BTCUSDT và XAUUSD. Widget chỉ được tải khi mở mục để tiết kiệm dữ liệu trên điện thoại. Nó không liên kết với select `Nến giá`, không thêm series và không đưa dữ liệu bên ngoài vào các phép tính NetFlow/REV6.
+
 
 ## WLR Composite × SPY Volume Strength
 
