@@ -97,11 +97,48 @@ export function pivotFlowBetween(price,composite,pivots=confirmedPricePivots(pri
   return {firstPivotTime:first.t,secondPivotTime:second.t,confirmedAt:second.confirmedAt,bins,totalNet,totalQuote,pct:100*totalNet/totalQuote,coverage:covered/interval.length};
 }
 
+function percentileRank(values,current){
+  const finite=values.filter(Number.isFinite);if(!finite.length||!Number.isFinite(current))return null;
+  let below=0,equal=0;for(const value of finite){if(value<current)below++;else if(Math.abs(value-current)<=1e-12*Math.max(1,Math.abs(value),Math.abs(current)))equal++;}
+  return 100*(below+.5*equal)/finite.length;
+}
+function volatilityWindow(price,source,end,step){
+  if(end<5)return null;const bars=price.slice(end-5,end+1);if(bars.length!==6)return null;
+  for(let i=1;i<bars.length;i++)if(bars[i].t-bars[i-1].t!==step)return null;
+  let range=0,rv2=0,quote=0,net=0;
+  for(let i=1;i<bars.length;i++){
+    const previous=bars[i-1],bar=bars[i],flow=source.get(bar.t);
+    if(!(previous.c>0)||![bar.h,bar.l,bar.c,flow?.q,flow?.net].every(Number.isFinite)||flow.q<=0)return null;
+    range+=Math.max(bar.h-bar.l,Math.abs(bar.h-previous.c),Math.abs(bar.l-previous.c))/previous.c;
+    const change=Math.log(bar.c/previous.c);rv2+=change*change;quote+=flow.q;net+=flow.net;
+  }
+  return {range:range/5,rv:Math.sqrt(rv2),activity:quote,imbalance:quote?Math.abs(net)/quote:0,session:bars.at(-1).session??'ALL'};
+}
+export function volatilityRegime(score,previous=null){
+  if(!Number.isFinite(score))return {key:'missing',label:'—'};
+  if(previous==='high'&&score>=65)return {key:'high',label:'CAO'};
+  if(previous==='low'&&score<=35)return {key:'low',label:'THẤP'};
+  if(score>=72)return {key:'high',label:'CAO'};
+  if(score<=28)return {key:'low',label:'THẤP'};
+  return {key:'medium',label:'TRUNG BÌNH'};
+}
+export function fiveBarVolatility(price,composite,previousRegime=null){
+  if(!Array.isArray(price)||!Array.isArray(composite)||price.length<36)return null;
+  const step=Number.isFinite(price.at(-1)?.end)?price.at(-1).end-price.at(-1).t+1:price.at(-1).t-price.at(-2).t;
+  if(!(step>0))return null;const source=new Map(composite.map(row=>[row.t,row])),current=volatilityWindow(price,source,price.length-1,step);if(!current)return null;
+  const candidates=[];for(let end=5;end<price.length-5;end++){const value=volatilityWindow(price,source,end,step);if(value)candidates.push(value);}
+  const sameSession=candidates.filter(value=>value.session===current.session),baseline=(sameSession.length>=30?sameSession:candidates).slice(-500);if(baseline.length<30)return null;
+  const percentiles={range:percentileRank(baseline.map(x=>x.range),current.range),rv:percentileRank(baseline.map(x=>x.rv),current.rv),activity:percentileRank(baseline.map(x=>x.activity),current.activity),imbalance:percentileRank(baseline.map(x=>x.imbalance),current.imbalance)};
+  if(!Object.values(percentiles).every(Number.isFinite))return null;
+  const score=Math.round(.55*percentiles.range+.25*percentiles.rv+.12*percentiles.activity+.08*percentiles.imbalance),regime=volatilityRegime(score,previousRegime);
+  return {...regime,score,rangePct:100*current.range,realizedPct:100*current.rv,activityPercentile:percentiles.activity,imbalancePercentile:percentiles.imbalance,rangePercentile:percentiles.range,realizedPercentile:percentiles.rv,baselineN:baseline.length,baselineSession:sameSession.length>=30?current.session:'ALL',bars:5};
+}
+
 // The pivot anchors stay confirmed, while the display-only flow continues
 // through the latest shared SPY/QQQ candle (including an unfinished candle).
 // Without a usable pivot pair, keep the display alive on recent candles;
 // this fallback does not create or alter any support/resistance zone.
-export function pivotFlowRealtime(anchor,price,composite,serverTime){
+export function pivotFlowRealtime(anchor,price,composite,serverTime,previousVolatilityRegime=null){
   if(!Array.isArray(price)||!Array.isArray(composite)||!Number.isFinite(serverTime))return null;
   const source=new Map(composite.map(row=>[row.t,row]));
   const latestShared=price.findLast(bar=>bar.t<=serverTime&&source.has(bar.t));
@@ -125,7 +162,8 @@ export function pivotFlowRealtime(anchor,price,composite,serverTime){
   }
   if(covered/interval.length<.8||!totalQuote)return null;
   const realtimeBins=interval.slice(-5).map(bar=>{const row=source.get(bar.t),net=Number.isFinite(row?.net)?row.net:0,quote=Number.isFinite(row?.q)&&row.q>0?row.q:0;return {t:bar.t,net,quote,pct:quote?100*net/quote:null};});
-  return {...(anchored?anchor:{}),mode:anchored?'pivot':'rolling',bins:realtimeBins,totalNet,totalQuote,pct:weightedQuote?100*weightedNet/weightedQuote:null,pctHalfLife:32,coverage:covered/interval.length,latestTime:latest.t,live,liveBinIndex:live?realtimeBins.length-1:null};
+  const volatility=fiveBarVolatility(available,composite,previousVolatilityRegime);
+  return {...(anchored?anchor:{}),mode:anchored?'pivot':'rolling',bins:realtimeBins,totalNet,totalQuote,pct:weightedQuote?100*weightedNet/weightedQuote:null,pctHalfLife:32,coverage:covered/interval.length,latestTime:latest.t,live,liveBinIndex:live?realtimeBins.length-1:null,volatility};
 }
 
 export function pivotZones({price=[],composite=[],volume=[]},step,{horizon=4,neighbors=60,maxAge=96,draws=64}={}){

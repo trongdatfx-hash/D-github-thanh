@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {pivotZones,pivotFlowBetween,pivotFlowRealtime,randomWalkBridge,wlrPivotPhase,PIVOT_ZONE_VERSION} from '../pivot-zones.mjs';
+import {pivotZones,pivotFlowBetween,pivotFlowRealtime,fiveBarVolatility,volatilityRegime,randomWalkBridge,wlrPivotPhase,PIVOT_ZONE_VERSION} from '../pivot-zones.mjs';
 import {STEPS,parseKlines,composite as combine,analyze,calculateVolumeStrength} from '../engine.mjs';
 
 const STEP=900_000,BASE=1_700_000_000_000;
@@ -85,12 +85,21 @@ test('C NF dùng 96 nến gần nhất khi chưa có cặp pivot và phần tră
   assert.equal(changedFlow.pctHalfLife,32);
   assert.equal(pivotFlowRealtime(null,input.price,input.composite,serverTime-STEP*2).latestTime,input.price.at(-3).t);
 });
+test('phân loại biến động 5 nến dùng phân vị causal và có vùng trễ',()=>{
+  const input=sample(140);for(const bar of input.price)bar.end=bar.t+STEP-1;
+  const normal=fiveBarVolatility(input.price,input.composite);assert(normal);assert(normal.score>=0&&normal.score<=100);assert(normal.baselineN>=30);assert.equal(normal.bars,5);
+  const high=structuredClone(input);for(const bar of high.price.slice(-5)){bar.h+=8;bar.l-=8;}const highState=fiveBarVolatility(high.price,high.composite);assert.equal(highState.key,'high');assert(highState.score>=72);
+  const low=structuredClone(input);const prior=low.price.at(-6).c;for(const bar of low.price.slice(-5)){bar.o=prior;bar.h=prior+.001;bar.l=prior-.001;bar.c=prior;}for(const row of low.composite.slice(-5)){row.q=1;row.net=0;}const lowState=fiveBarVolatility(low.price,low.composite);assert.equal(lowState.key,'low');assert(lowState.score<=28);
+  assert.equal(volatilityRegime(68,'high').key,'high');assert.equal(volatilityRegime(64,'high').key,'medium');assert.equal(volatilityRegime(32,'low').key,'low');assert.equal(volatilityRegime(36,'low').key,'medium');
+  const at=input.price.at(-12).t+STEP/2,before=pivotFlowRealtime(null,input.price,input.composite,at),future=structuredClone(input);for(const bar of future.price.slice(-8)){bar.h+=20;bar.l-=20;}assert.deepEqual(pivotFlowRealtime(null,future.price,future.composite,at).volatility,before.volatility);
+});
 test('fixture Binance M15 tạo đủ hai vùng và nhịp NF để hiển thị',()=>{
   const read=path=>JSON.parse(fs.readFileSync(new URL(path,import.meta.url),'utf8').replace(/^\uFEFF/,''));
   const now=read('../../netflow-ml/tests/fixtures/time.json').serverTime,step=STEPS['15m'];
   const spy=parseKlines(read('../../netflow-ml/tests/fixtures/SPYUSDT.json'),now,step),qqq=parseKlines(read('../../netflow-ml/tests/fixtures/QQQUSDT.json'),now,step);
-  const result=pivotZones({price:analyze(spy,step),composite:analyze(combine(spy,qqq),step),volume:analyze(spy,step,{strength:calculateVolumeStrength(spy,step)})},step);
+  const composite=combine(spy,qqq),result=pivotZones({price:analyze(spy,step),composite:analyze(composite,step),volume:analyze(spy,step,{strength:calculateVolumeStrength(spy,step)})},step),volatility=fiveBarVolatility(spy,composite);
   assert(result.support&&result.resistance&&result.flow);
   assert(result.resistance.low>result.support.high);
   assert(result.flow.coverage>=.8);
+  assert(volatility&&['low','medium','high'].includes(volatility.key));assert(volatility.baselineN>=30);
 });
