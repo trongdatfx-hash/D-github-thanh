@@ -63,7 +63,12 @@ test('SPY V dead-band holds an active leg through small zero-line noise',()=>{
   assert(trend);assert.equal(trend.startTime,rows[16].t);assert.equal(trend.exitReason,null);assert.equal(trend.bars,rows.length-16);assert.equal(trend.flowDeadband,.12);
 });
 
-test('SPY V closes a confirmed leg only after crossing the opposite dead-band',()=>{
+test('one short opposite SPY V pulse stays inside the active leg',()=>{
+  const rows=breakoutRows(),pulseIndex=29,volumeRows=rows.map((row,index)=>({t:row.t,adjusted:index===pulseIndex?.45:-.7})),trend=causalTrendChannels(rows,{volumeRows,flowDeadband:.12,maxHistory:5}).trends[0];
+  assert(trend);assert.equal(trend.exitTime,null);assert.equal(trend.bars,rows.length-16);assert.equal(trend.flowFlipBars,2);
+});
+
+test('SPY V closes a confirmed leg after two consecutive opposite dead-band candles',()=>{
   const rows=breakoutRows(),flipIndex=29,volumeRows=rows.map((row,index)=>({t:row.t,adjusted:index<flipIndex?-.7:index===flipIndex?.05:.45})),trend=causalTrendChannels(rows,{volumeRows,flowDeadband:.12,maxHistory:5}).trends[0];
-  assert(trend);assert.equal(trend.exitTime,rows[flipIndex+1].t);assert.equal(trend.exitReason,'flow-flip');assert.equal(trend.insideEndTime,rows[flipIndex].t);assert.equal(trend.bars,flipIndex-16+1);
+  assert(trend);assert.equal(trend.exitTime,rows[flipIndex+2].t);assert.equal(trend.exitReason,'flow-flip');assert.equal(trend.insideEndTime,rows[flipIndex+1].t);assert.equal(trend.bars,flipIndex-16+2);
 });
