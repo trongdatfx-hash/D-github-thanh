@@ -27,24 +27,46 @@ function schmittFlowSigns(rows,volumeMap,threshold){
   return signs;
 }
 
+function normalizedNetDeltas(rows,window=20){
+  const result=new Map(),history=[];
+  for(const row of rows){
+    const delta=Number.isFinite(row.net)?row.net:null;
+    if(delta===null){result.set(row.t,null);continue;}
+    history.push(Math.abs(delta));if(history.length>window)history.shift();
+    const scale=mean(history);result.set(row.t,scale>0?delta/scale:0);
+  }
+  return result;
+}
+
+function dynamicLegWidth(total,reference,{floor=2,ceiling=5,saturation=2}={}){
+  if(!(reference>0)||!Number.isFinite(total))return floor;
+  return Math.max(floor,Math.min(ceiling,Math.round(floor+(ceiling-floor)*Math.min(1,Math.abs(total)/(reference*saturation)))));
+}
+
+function flowLegOrigin(rows,signs,index,direction,lookback){
+  let origin=index;
+  while(origin>0&&index-origin<lookback&&rows[origin-1].day===rows[index].day&&signs.get(rows[origin-1].t)===direction)origin--;
+  return origin;
+}
+
 // SPY V only opens/confirms a leg. A Schmitt latch keeps its sign through the
 // dead-band, so small oscillations around zero cannot fragment an active trend.
 // Once confirmed, price owns membership: every close is accepted until the
 // first close outside ±channelSigma or a confirmed SPY V sign reversal.
-export function causalTrendChannels(rows,{volumeRows=[],priorWindow=20,fastWindow=8,minPriorR2:_legacyMinPriorR2=.35,breakAtr=.15,channelAtr=.45,channelSigma=2,flowDeadband=.12,volumeSlopeWindow=4,maxBars=Infinity,maxHistory=5}={}){
-  if(!Number.isInteger(priorWindow)||priorWindow<12||!Number.isInteger(fastWindow)||fastWindow<4||!(channelSigma>0)||flowDeadband<0||flowDeadband>=1||!Number.isInteger(volumeSlopeWindow)||volumeSlopeWindow<2)throw Error('Tham số Kênh trend causal không hợp lệ');
+export function causalTrendChannels(rows,{volumeRows=[],priorWindow=20,fastWindow=8,minPriorR2:_legacyMinPriorR2=.35,breakAtr=.15,channelAtr=.45,channelSigma=2,flowDeadband=.15,volumeSlopeWindow=4,originLookback=4,minLegBars=8,minDisplayR2=.20,maxBars=Infinity,maxHistory=12}={}){
+  if(!Number.isInteger(priorWindow)||priorWindow<12||!Number.isInteger(fastWindow)||fastWindow<4||!(channelSigma>0)||flowDeadband<0||flowDeadband>=1||!Number.isInteger(volumeSlopeWindow)||volumeSlopeWindow<2||!Number.isInteger(originLookback)||originLookback<0||!Number.isInteger(minLegBars)||minLegBars<3||minDisplayR2<0||minDisplayR2>1)throw Error('Tham số Kênh trend causal không hợp lệ');
   void _legacyMinPriorR2; // Kept for saved callers; R² now controls visibility, never admission.
-  const clean=rows.filter(row=>['PRE','RTH'].includes(row.session)&&[row.t,row.o,row.h,row.l,row.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t),volumeMap=new Map(volumeRows.map(row=>[row.t,row.adjusted])),flowSigns=schmittFlowSigns(clean,volumeMap,flowDeadband),trends=[];
+  const clean=rows.filter(row=>['PRE','RTH'].includes(row.session)&&[row.t,row.o,row.h,row.l,row.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t),volumeMap=new Map(volumeRows.map(row=>[row.t,row.adjusted])),flowSigns=schmittFlowSigns(clean,volumeMap,flowDeadband),netDeltas=normalizedNetDeltas(clean),trends=[];let legWidthReference=null;
   for(let i=priorWindow;i<clean.length-1;i++){
     const candidate=clean[i];
     const prior=clean.slice(i-priorWindow,i);if(prior.some(row=>row.day!==candidate.day))continue;
     const priorFit=linearFit(prior),atr=atrAt(clean,i);if(!(atr>1e-12))continue;
     const width=Math.max(priorFit.sigma*1.65,atr*.35),center0=priorFit.valueAt(priorWindow),upperBreak=center0+width+atr*breakAtr,lowerBreak=center0-width-atr*breakAtr,direction=candidate.c>upperBreak?1:candidate.c<lowerBreak?-1:0;
     if(!direction)continue;
-    let startIndex=flowSigns.get(candidate.t)===direction?i:-1,confirmationIndex=-1,confirmFast=null,confirmVolumeSlope=0;for(let j=i+1;j<Math.min(clean.length,i+4);j++){const row=clean[j];if(row.day!==candidate.day)break;const projected=priorFit.valueAt(priorWindow+j-i)+direction*width,rolling=linearFit(clean.slice(j-fastWindow+1,j+1));if(!outside(row.c,projected,direction)||Math.sign(rolling.slope)!==direction)continue;if(startIndex<0&&flowSigns.get(row.t)===direction)startIndex=j;const volumeValues=clean.slice(Math.max(0,j-volumeSlopeWindow+1),j+1).filter(item=>item.day===row.day).map(item=>volumeMap.get(item.t)).filter(Number.isFinite),volumeSlope=volumeValues.length>=2?valueSlope(volumeValues):0,volumeSignAligned=flowSigns.get(row.t)===direction,volumeSlopeAligned=Math.sign(volumeSlope)===direction||Math.sign(volumeSlope)===0;if(startIndex>=0&&volumeSignAligned&&volumeSlopeAligned){confirmationIndex=j;confirmFast=rolling;confirmVolumeSlope=volumeSlope;break;}}
+    let startIndex=flowSigns.get(candidate.t)===direction?flowLegOrigin(clean,flowSigns,i,direction,originLookback):-1,confirmationIndex=-1,confirmFast=null,confirmVolumeSlope=0;for(let j=i+1;j<Math.min(clean.length,i+4);j++){const row=clean[j];if(row.day!==candidate.day)break;const projected=priorFit.valueAt(priorWindow+j-i)+direction*width,rolling=linearFit(clean.slice(j-fastWindow+1,j+1));if(!outside(row.c,projected,direction)||Math.sign(rolling.slope)!==direction)continue;if(startIndex<0&&flowSigns.get(row.t)===direction)startIndex=flowLegOrigin(clean,flowSigns,j,direction,originLookback);const volumeValues=clean.slice(Math.max(0,j-volumeSlopeWindow+1),j+1).filter(item=>item.day===row.day).map(item=>volumeMap.get(item.t)).filter(Number.isFinite),volumeSlope=volumeValues.length>=2?valueSlope(volumeValues):0,volumeSignAligned=flowSigns.get(row.t)===direction,volumeSlopeAligned=Math.sign(volumeSlope)===direction||Math.sign(volumeSlope)===0;if(startIndex>=0&&volumeSignAligned&&volumeSlopeAligned){confirmationIndex=j;confirmFast=rolling;confirmVolumeSlope=volumeSlope;break;}}
     if(startIndex<0||confirmationIndex<0)continue;
-    const start=clean[startIndex],confirmation=clean[confirmationIndex],seedSlope=confirmFast.slope,seedWidth=Math.max(channelAtr*atr,confirmFast.sigma*channelSigma),anchor=start.c,points=[];let insideEndIndex=confirmationIndex,exitIndex=-1,exitReason=null,latestFit=confirmFast;
-    for(let j=startIndex;j<=confirmationIndex;j++){const center=anchor+seedSlope*(j-startIndex);points.push({time:clean[j].t,center,upper:center+seedWidth,lower:center-seedWidth,r2:confirmFast.r2,sigma:confirmFast.sigma,inside:true});}
+    const start=clean[startIndex],confirmation=clean[confirmationIndex],seedRows=clean.slice(startIndex,confirmationIndex+1),hasOriginFit=seedRows.length>=4,seedFit=hasOriginFit?linearFit(seedRows):confirmFast,seedSlope=seedFit.slope,seedWidth=Math.max(channelAtr*atr,seedFit.sigma*channelSigma),anchor=hasOriginFit?seedFit.intercept:start.c,points=[];let insideEndIndex=confirmationIndex,exitIndex=-1,exitReason=null,latestFit=seedFit;
+    for(let j=startIndex;j<=confirmationIndex;j++){const center=anchor+seedSlope*(j-startIndex);points.push({time:clean[j].t,center,upper:center+seedWidth,lower:center-seedWidth,r2:seedFit.r2,sigma:seedFit.sigma,inside:true,preBreak:j<i});}
     for(let j=confirmationIndex+1;j<clean.length&&j-confirmationIndex<maxBars;j++){
       const row=clean[j];if(row.day!==candidate.day||!['PRE','RTH'].includes(row.session))break;
       const accepted=clean.slice(startIndex,insideEndIndex+1),fit=accepted.length>=4?linearFit(accepted):confirmFast,center=accepted.length>=4?fit.valueAt(accepted.length):anchor+seedSlope*(j-startIndex),width=Math.max(channelAtr*atrAt(clean,j-1),fit.sigma*channelSigma),flowFlipped=flowSigns.get(row.t)===-direction,priceExited=row.c>center+width||row.c<center-width;
@@ -53,7 +75,9 @@ export function causalTrendChannels(rows,{volumeRows=[],priorWindow=20,fastWindo
     }
     const drawEndIndex=exitIndex>=0?exitIndex:insideEndIndex,end=clean[drawEndIndex],insideBars=insideEndIndex-startIndex+1,firstPoint=points[0],lastPoint=points.at(-1);
     const slopeAtr=latestFit.slope/atrAt(clean,insideEndIndex),absorbing=Math.sign(latestFit.slope)!==direction;
-    trends.push({direction,breakoutTime:candidate.t,startTime:start.t,confirmationTime:confirmation.t,insideEndTime:clean[insideEndIndex].t,exitTime:exitIndex>=0?clean[exitIndex].t:null,exitReason,endTime:end.t,bars:insideBars,priorR2:priorFit.r2,adaptiveR2:latestFit.r2,qualityOpacity:.28+.72*Math.max(0,Math.min(1,latestFit.r2)),breakDistanceAtr:Math.abs(candidate.c-(center0+direction*width))/atr,slopeAtr,startVolumeStrength:volumeMap.get(start.t),confirmationVolumeStrength:volumeMap.get(confirmation.t),volumeSlope:confirmVolumeSlope,flowDeadband,volumeQualified:true,confirmed:true,absorbing,provisional:exitIndex<0,points,upperStart:firstPoint.upper,lowerStart:firstPoint.lower,upperEnd:lastPoint.upper,lowerEnd:lastPoint.lower});
+    const provisional=exitIndex<0,displayQualified=insideBars>=minLegBars&&(provisional||latestFit.r2>=minDisplayR2),legDeltas=clean.slice(startIndex,insideEndIndex+1).map(row=>netDeltas.get(row.t)).filter(Number.isFinite),netDeltaTotal=legDeltas.length?legDeltas.reduce((sum,value)=>sum+value,0):null,netDeltaMetric=Number.isFinite(netDeltaTotal)?Math.abs(netDeltaTotal):null,lineWidth=dynamicLegWidth(netDeltaMetric,legWidthReference);
+    if(displayQualified)trends.push({direction,breakoutTime:candidate.t,startTime:start.t,originBars:i-startIndex,confirmationTime:confirmation.t,insideEndTime:clean[insideEndIndex].t,exitTime:exitIndex>=0?clean[exitIndex].t:null,exitReason,endTime:end.t,bars:insideBars,priorR2:priorFit.r2,adaptiveR2:latestFit.r2,qualityOpacity:.28+.72*Math.max(0,Math.min(1,latestFit.r2)),breakDistanceAtr:Math.abs(candidate.c-(center0+direction*width))/atr,slopeAtr,startVolumeStrength:volumeMap.get(start.t),confirmationVolumeStrength:volumeMap.get(confirmation.t),volumeSlope:confirmVolumeSlope,flowDeadband,originLookback,minLegBars,minDisplayR2,netDeltaTotal,netDeltaMetric,netDeltaReference:legWidthReference,lineWidth,volumeQualified:true,confirmed:true,absorbing,provisional,points,upperStart:firstPoint.upper,lowerStart:firstPoint.lower,upperEnd:lastPoint.upper,lowerEnd:lastPoint.lower});
+    if(!provisional&&Number.isFinite(netDeltaMetric))legWidthReference=legWidthReference===null?netDeltaMetric:legWidthReference+.20*(netDeltaMetric-legWidthReference);
     i=Math.max(i+1,drawEndIndex);
   }
   return {trends:Number.isFinite(maxHistory)?trends.slice(-maxHistory):trends,total:trends.length};
