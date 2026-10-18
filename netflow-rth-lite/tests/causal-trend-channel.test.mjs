@@ -37,3 +37,8 @@ test('Kênh trend causal stops on the first M15 close outside two sigma',()=>{
   const rows=breakoutRows(),last=rows.at(-1),t=last.t+900000,meta=sessionAt(t),exit={t,end:t+899999,o:last.c,h:last.c+20,l:last.c-1,c:last.c+18,...meta},extended=[...rows,exit],volumeRows=extended.map(row=>({t:row.t,adjusted:-.7})),trend=causalTrendChannels(extended,{volumeRows,minPriorR2:.2,maxHistory:5}).trends[0];
   assert(trend);assert.equal(trend.exitTime,exit.t);assert.equal(trend.endTime,exit.t);assert.equal(trend.insideEndTime,last.t);assert.equal(trend.bars,rows.length-20);
 });
+
+test('R² and two-sigma distribution refit causally as accepted M15 candles arrive',()=>{
+  const rows=breakoutRows(),volumeRows=rows.map(row=>({t:row.t,adjusted:-.7})),full=causalTrendChannels(rows,{volumeRows,minPriorR2:.2,maxHistory:5}).trends[0],prefixRows=rows.slice(0,30),prefix=causalTrendChannels(prefixRows,{volumeRows:volumeRows.slice(0,30),minPriorR2:.2,maxHistory:5}).trends[0];
+  assert(full&&prefix);assert.equal(full.points.length,full.bars);assert(new Set(full.points.map(point=>point.r2.toFixed(6))).size>3);assert(Number.isFinite(full.adaptiveR2));assert.deepEqual(full.points.filter(point=>point.time<=prefixRows.at(-1).t),prefix.points);
+});
