@@ -96,11 +96,11 @@ function daySignals(rows,strengthMap,volumeMap,channelMap,requireChannel,slopeHi
     let path=0;for(let k=1;k<sample.length;k++)path+=Math.abs(sample[k].c-sample[k-1].c);
     const efficiency=path>1e-12?clamp01(Math.abs(sample.at(-1).c-sample[0].c)/path):0;
     const persistentBars=sample.reduce((count,bar)=>count+(Math.sign(bar.c-bar.o)===direction),0),persistence=persistentBars/window,slopePercentile=slopeHistory.length>=20?percentileRank(slopeHistory,normalizedSlope):clamp01(normalizedSlope/2);
-    const composite=strengthMap.get(rows[i].t)?.adjusted,volume=volumeMap.get(rows[i].t)?.adjusted,compositeSide=Math.sign(composite)*direction,compositeScore=compositeSide>0?1:compositeSide<0?0:.5,volumeAligned=Number.isFinite(volume)&&Math.sign(volume)===direction,channelAligned=!requireChannel||channelMap.get(rows[i].t)===direction;
+    const composite=strengthMap.get(rows[i].t)?.adjusted,volume=volumeMap.get(rows[i].t)?.adjusted,compositeSide=Math.sign(composite)*direction,compositeScore=compositeSide>0?1:compositeSide<0?0:.5,volumeAligned=Number.isFinite(volume)&&Math.sign(volume)===direction,channelAligned=!requireChannel||channelMap.get(rows[i].t)===direction,countAligned=requireChannel?channelAligned:volumeAligned;
     const score=100*(.38*slopePercentile+.28*fit.r2+.18*efficiency+.11*persistence+.05*compositeScore),threshold=scoreHistory.length>=30?quantile(scoreHistory,.70):60;
-    const qualifies=direction!==0&&volumeAligned&&channelAligned&&persistentBars>=Math.ceil(window*.75)&&score>=threshold;
+    const qualifies=direction!==0&&countAligned&&persistentBars>=Math.ceil(window*.75)&&score>=threshold;
     const strengthRegression=regressionSnapshot(regressionState,composite,volume),strengthContext=classifyStrengthRegression(direction,strengthRegression);
-    signals.push({...rows[i],localIndex:i,direction,score,r2:fit.r2,efficiency,persistence,persistentBars,compositeScore,volumeAligned,channelAligned,strengthContext,strengthRegression,normalizedSlope,threshold,qualifies});
+    signals.push({...rows[i],localIndex:i,direction,score,r2:fit.r2,efficiency,persistence,persistentBars,compositeScore,volumeAligned,channelAligned,countAligned,strengthContext,strengthRegression,normalizedSlope,threshold,qualifies});
     slopeHistory.push(normalizedSlope);scoreHistory.push(score);if(slopeHistory.length>4000)slopeHistory.shift();if(scoreHistory.length>4000)scoreHistory.shift();
   }
   return signals;
@@ -111,12 +111,12 @@ function detectEpisodes(signals,day,{leaveActive=false}={}){
   for(const bar of signals){
     if(active){
       if(bar.direction!==active.direction){const episode=finishEpisode(active,previous,day,false);if(episode)completed.push(episode);active=null;candidate=bar.qualifies?bar:null;}
-      else if(bar.qualifies){active.elapsedBars++;active.trendBars++;active.volumeBars++;active.channelBars++;active.endTime=bar.t;active.peakScore=Math.max(active.peakScore,bar.score);active.latest=bar;active.weakBars=0;candidate=null;}
-      else if(active.weakBars===0){active.elapsedBars++;if(bar.volumeAligned)active.volumeBars++;if(bar.channelAligned)active.channelBars++;if(bar.volumeAligned&&bar.channelAligned)active.trendBars++;active.endTime=bar.t;active.latest=bar;active.weakBars=1;candidate=null;}
+      else if(bar.qualifies){active.elapsedBars++;active.trendBars++;if(bar.volumeAligned)active.volumeBars++;if(bar.channelAligned)active.channelBars++;active.endTime=bar.t;active.peakScore=Math.max(active.peakScore,bar.score);active.latest=bar;active.weakBars=0;candidate=null;}
+      else if(active.weakBars===0){active.elapsedBars++;if(bar.volumeAligned)active.volumeBars++;if(bar.channelAligned)active.channelBars++;if(bar.countAligned)active.trendBars++;active.endTime=bar.t;active.latest=bar;active.weakBars=1;candidate=null;}
       else{const episode=finishEpisode(active,previous,day,false);if(episode)completed.push(episode);active=null;candidate=null;}
     }else if(bar.qualifies){
       if(candidate&&candidate.direction===bar.direction&&candidate.localIndex+1===bar.localIndex){
-        active={direction:bar.direction,startIndex:candidate.localIndex,startTime:candidate.t,startSession:candidate.session,strengthContext:bar.strengthContext,strengthRegression:bar.strengthRegression,peakScore:Math.max(candidate.score,bar.score),latest:bar,trendBars:2,volumeBars:2,channelBars:2,elapsedBars:2,weakBars:0};candidate=null;
+        active={direction:bar.direction,startIndex:candidate.localIndex,startTime:candidate.t,startSession:candidate.session,strengthContext:bar.strengthContext,strengthRegression:bar.strengthRegression,peakScore:Math.max(candidate.score,bar.score),latest:bar,trendBars:2,volumeBars:Number(candidate.volumeAligned)+Number(bar.volumeAligned),channelBars:Number(candidate.channelAligned)+Number(bar.channelAligned),elapsedBars:2,weakBars:0};candidate=null;
       }else candidate=bar;
     }else candidate=null;
     previous=bar;
@@ -155,7 +155,7 @@ function cohortGroups(episodes,currentBars=null,horizon=PRE_RTH_WLR_HORIZON,minC
 export function preRthWlrTrend({priceRows=[],strengthRows=[],volumeRows=[],channelTrends=[],requireChannel=false,now=Date.now(),window=PRE_RTH_WLR_WINDOW,horizon=PRE_RTH_WLR_HORIZON,minCohort=12}={}){
   if(!Number.isInteger(window)||window<4||!Number.isInteger(horizon)||horizon<1||!Number.isInteger(minCohort)||minCohort<1)throw Error('Tham số PRE→RTH WLR không hợp lệ');
   const strengthMap=new Map(strengthRows.map(row=>[row.t,row])),volumeMap=new Map(volumeRows.map(row=>[row.t,row])),channelMap=new Map(),days=new Map();
-  if(requireChannel)for(const trend of channelTrends){const from=trend.confirmationTime,to=trend.insideEndTime??trend.endTime;if(!Number.isFinite(from)||!Number.isFinite(to))continue;for(const row of priceRows)if(row.t>=from&&row.t<=to)channelMap.set(row.t,trend.direction);}
+  if(requireChannel)for(const trend of channelTrends){if(trend.volumeQualified===false)continue;const from=trend.confirmationTime,to=trend.insideEndTime??trend.endTime;if(!Number.isFinite(from)||!Number.isFinite(to))continue;for(const row of priceRows)if(row.t>=from&&row.t<=to)channelMap.set(row.t,trend.direction);}
   for(const row of priceRows){if((Number.isFinite(row.end)?row.end:row.t)>=now||!eligibleMarketBar(row)||!['PRE','RTH'].includes(row.session)||![row.t,row.o,row.h,row.l,row.c].every(Number.isFinite))continue;if(!days.has(row.day))days.set(row.day,[]);days.get(row.day).push(row);}
   const ordered=[...days.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([day,rows])=>[day,rows.sort((a,b)=>a.t-b.t)]),nowState=sessionAt(now),slopeHistory=[],scoreHistory=[],regressionStates={PRE:createRegressionState(),RTH:createRegressionState()},historical=[];let current=null,currentCompleted=[];
   for(const [day,rows] of ordered){
