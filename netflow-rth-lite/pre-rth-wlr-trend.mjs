@@ -146,9 +146,9 @@ function cohortSummary(episodes,currentBars,horizon,minSamples,minAtRisk){
 }
 function cohortGroups(episodes,currentBars=null,horizon=PRE_RTH_WLR_HORIZON,minCohort=12){
   return DIRECTIONS.flatMap(direction=>START_SESSIONS.map(startSession=>{
-    const matches=episodes.filter(item=>item.direction===direction&&item.startSession===startSession),summary=cohortSummary(matches,currentBars,horizon,minCohort,5),contexts={},metricMedian=key=>quantile(matches.map(item=>item.strengthRegression?.[key]).filter(Number.isFinite),.5),ridge={r2:metricMedian('r2'),partialComposite:metricMedian('partialComposite'),partialVolume:metricMedian('partialVolume')};
+    const matches=episodes.filter(item=>item.direction===direction&&item.startSession===startSession),summary=cohortSummary(matches,currentBars,horizon,minCohort,5),rawCurve=kaplanMeier(matches.map(item=>({...item,duration:item.elapsedDuration??item.duration}))),rawMedianBars=survivalQuantile(rawCurve,.5),contexts={},metricMedian=key=>quantile(matches.map(item=>item.strengthRegression?.[key]).filter(Number.isFinite),.5),ridge={r2:metricMedian('r2'),partialComposite:metricMedian('partialComposite'),partialVolume:metricMedian('partialVolume')};
     for(const context of STRENGTH_CONTEXTS){const contextEpisodes=matches.filter(item=>item.strengthContext===context);contexts[context]={...cohortSummary(contextEpisodes,currentBars,horizon,30,10),share:matches.length?contextEpisodes.length/matches.length:0};}
-    return {key:`${direction}|${startSession}`,direction,startSession,...summary,contexts,ridge};
+    return {key:`${direction}|${startSession}`,direction,startSession,...summary,rawMedianBars,contexts,ridge};
   }));
 }
 

@@ -17,25 +17,26 @@ const outside=(value,boundary,direction,margin=0)=>direction>0?value>boundary+ma
 
 // Confirmation uses only the next closed candle. Later candles may extend or
 // terminate a channel, but can never move its breakout start backwards.
-export function causalTrendChannels(rows,{priorWindow=20,fastWindow=8,minPriorR2=.35,breakAtr=.15,channelAtr=.45,maxBars=48,maxHistory=5}={}){
+export function causalTrendChannels(rows,{volumeRows=[],priorWindow=20,fastWindow=8,minPriorR2=.35,breakAtr=.15,channelAtr=.45,maxBars=48,maxHistory=5}={}){
   if(!Number.isInteger(priorWindow)||priorWindow<12||!Number.isInteger(fastWindow)||fastWindow<4)throw Error('Tham số Kênh trend causal không hợp lệ');
-  const clean=rows.filter(row=>['PRE','RTH'].includes(row.session)&&[row.t,row.o,row.h,row.l,row.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t),trends=[];
+  const clean=rows.filter(row=>['PRE','RTH'].includes(row.session)&&[row.t,row.o,row.h,row.l,row.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t),volumeMap=new Map(volumeRows.map(row=>[row.t,row.adjusted])),trends=[];
   for(let i=priorWindow;i<clean.length-1;i++){
-    const candidate=clean[i],confirmation=clean[i+1];if(candidate.day!==confirmation.day)continue;
+    const candidate=clean[i];
     const prior=clean.slice(i-priorWindow,i);if(prior.some(row=>row.day!==candidate.day))continue;
     const priorFit=linearFit(prior),atr=atrAt(clean,i);if(!(atr>1e-12)||priorFit.r2<minPriorR2)continue;
-    const width=Math.max(priorFit.sigma*1.65,atr*.35),center0=priorFit.valueAt(priorWindow),center1=priorFit.valueAt(priorWindow+1),fast=linearFit(clean.slice(i-fastWindow+1,i+1)),direction=Math.sign(fast.slope);
-    if(!direction||!outside(candidate.c,center0+direction*width,direction,atr*breakAtr)||!outside(confirmation.c,center1+direction*width,direction))continue;
-    const confirmFast=linearFit(clean.slice(i-fastWindow+2,i+2)),slope=confirmFast.slope;if(Math.sign(slope)!==direction)continue;
-    const frozenWidth=Math.max(channelAtr*atr,confirmFast.sigma*1.25),anchor=candidate.c;let endIndex=i+1,oppositeCloses=0,oppositeSlopes=0;
-    for(let j=i+2;j<clean.length&&j-i<maxBars;j++){
+    const width=Math.max(priorFit.sigma*1.65,atr*.35),center0=priorFit.valueAt(priorWindow),fast=linearFit(clean.slice(i-fastWindow+1,i+1)),direction=Math.sign(fast.slope);
+    if(!direction||!outside(candidate.c,center0+direction*width,direction,atr*breakAtr))continue;
+    let confirmationIndex=-1,confirmFast=null;for(let j=i+1;j<Math.min(clean.length,i+4);j++){const row=clean[j];if(row.day!==candidate.day)break;const projected=priorFit.valueAt(priorWindow+j-i)+direction*width,rolling=linearFit(clean.slice(j-fastWindow+1,j+1));if(outside(row.c,projected,direction)&&Math.sign(rolling.slope)===direction&&Math.sign(volumeMap.get(row.t))===direction){confirmationIndex=j;confirmFast=rolling;break;}}
+    if(confirmationIndex<0)continue;
+    const confirmation=clean[confirmationIndex],slope=confirmFast.slope,frozenWidth=Math.max(channelAtr*atr,confirmFast.sigma*1.25),anchor=confirmation.c;let endIndex=confirmationIndex,oppositeCloses=0,oppositeSlopes=0;
+    for(let j=confirmationIndex+1;j<clean.length&&j-confirmationIndex<maxBars;j++){
       const row=clean[j];if(row.day!==candidate.day||!['PRE','RTH'].includes(row.session))break;
-      const center=anchor+slope*(j-i);oppositeCloses=Math.sign(row.c-center)===-direction?oppositeCloses+1:0;
+      const center=anchor+slope*(j-confirmationIndex);oppositeCloses=Math.sign(row.c-center)===-direction?oppositeCloses+1:0;
       const rolling=j>=fastWindow-1?linearFit(clean.slice(j-fastWindow+1,j+1)):null;oppositeSlopes=rolling&&Math.sign(rolling.slope)===-direction?oppositeSlopes+1:0;
       if(oppositeCloses>=2||oppositeSlopes>=2)break;endIndex=j;
     }
-    const end=clean[endIndex],distance=endIndex-i,centerEnd=anchor+slope*distance;
-    trends.push({direction,startTime:candidate.t,confirmationTime:confirmation.t,endTime:end.t,bars:distance+1,priorR2:priorFit.r2,breakDistanceAtr:Math.abs(candidate.c-(center0+direction*width))/atr,slopeAtr:slope/atr,confirmed:true,provisional:distance+1<6,upperStart:anchor+frozenWidth,lowerStart:anchor-frozenWidth,upperEnd:centerEnd+frozenWidth,lowerEnd:centerEnd-frozenWidth});
+    const end=clean[endIndex],distance=endIndex-confirmationIndex,centerEnd=anchor+slope*distance;
+    trends.push({direction,breakoutTime:candidate.t,startTime:confirmation.t,confirmationTime:confirmation.t,endTime:end.t,bars:distance+1,priorR2:priorFit.r2,breakDistanceAtr:Math.abs(candidate.c-(center0+direction*width))/atr,slopeAtr:slope/atr,startVolumeStrength:volumeMap.get(confirmation.t),confirmed:true,provisional:distance+1<6,upperStart:anchor+frozenWidth,lowerStart:anchor-frozenWidth,upperEnd:centerEnd+frozenWidth,lowerEnd:centerEnd-frozenWidth});
     i=Math.max(i+1,endIndex);
   }
   return {trends:trends.slice(-maxHistory),total:trends.length};
