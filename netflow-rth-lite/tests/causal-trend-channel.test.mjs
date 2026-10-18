@@ -27,3 +27,8 @@ test('Kênh trend causal waits until SPY V sign agrees with breakout direction',
   const rows=breakoutRows(),volumeRows=rows.map((row,index)=>({t:row.t,adjusted:index===22?-.7:.7})),state=causalTrendChannels(rows,{volumeRows,minPriorR2:.2,maxHistory:5}),trend=state.trends[0];
   assert(trend,JSON.stringify(state));assert.equal(trend.breakoutTime,rows[20].t);assert.equal(trend.startTime,rows[22].t);assert.equal(trend.confirmationTime,rows[22].t);assert.equal(trend.startVolumeStrength,-.7);
 });
+
+test('Kênh trend causal defaults to a wider two-sigma envelope',()=>{
+  const rows=breakoutRows(),volumeRows=rows.map(row=>({t:row.t,adjusted:-.7})),wide=causalTrendChannels(rows,{volumeRows,minPriorR2:.2,maxHistory:5}).trends[0],oldWidth=causalTrendChannels(rows,{volumeRows,minPriorR2:.2,channelSigma:1.25,maxHistory:5}).trends[0];
+  assert(wide&&oldWidth);assert((wide.upperStart-wide.lowerStart)>(oldWidth.upperStart-oldWidth.lowerStart));
+});

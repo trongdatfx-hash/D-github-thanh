@@ -17,8 +17,8 @@ const outside=(value,boundary,direction,margin=0)=>direction>0?value>boundary+ma
 
 // The start is the first breakout-side candle whose SPY V sign agrees. A later
 // closed candle confirms the channel; historical rendering keeps both times.
-export function causalTrendChannels(rows,{volumeRows=[],priorWindow=20,fastWindow=8,minPriorR2=.35,breakAtr=.15,channelAtr=.45,maxBars=48,maxHistory=5}={}){
-  if(!Number.isInteger(priorWindow)||priorWindow<12||!Number.isInteger(fastWindow)||fastWindow<4)throw Error('Tham số Kênh trend causal không hợp lệ');
+export function causalTrendChannels(rows,{volumeRows=[],priorWindow=20,fastWindow=8,minPriorR2=.35,breakAtr=.15,channelAtr=.45,channelSigma=2,maxBars=48,maxHistory=5}={}){
+  if(!Number.isInteger(priorWindow)||priorWindow<12||!Number.isInteger(fastWindow)||fastWindow<4||!(channelSigma>0))throw Error('Tham số Kênh trend causal không hợp lệ');
   const clean=rows.filter(row=>['PRE','RTH'].includes(row.session)&&[row.t,row.o,row.h,row.l,row.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t),volumeMap=new Map(volumeRows.map(row=>[row.t,row.adjusted])),trends=[];
   for(let i=priorWindow;i<clean.length-1;i++){
     const candidate=clean[i];
@@ -28,7 +28,7 @@ export function causalTrendChannels(rows,{volumeRows=[],priorWindow=20,fastWindo
     if(!direction)continue;
     let startIndex=Math.sign(volumeMap.get(candidate.t))===direction?i:-1,confirmationIndex=-1,confirmFast=null;for(let j=i+1;j<Math.min(clean.length,i+4);j++){const row=clean[j];if(row.day!==candidate.day)break;const projected=priorFit.valueAt(priorWindow+j-i)+direction*width,rolling=linearFit(clean.slice(j-fastWindow+1,j+1));if(!outside(row.c,projected,direction)||Math.sign(rolling.slope)!==direction)continue;if(startIndex<0&&Math.sign(volumeMap.get(row.t))===direction)startIndex=j;if(startIndex>=0){confirmationIndex=j;confirmFast=rolling;break;}}
     if(startIndex<0||confirmationIndex<0)continue;
-    const start=clean[startIndex],confirmation=clean[confirmationIndex],slope=confirmFast.slope,frozenWidth=Math.max(channelAtr*atr,confirmFast.sigma*1.25),anchor=start.c;let endIndex=confirmationIndex,oppositeCloses=0,oppositeSlopes=0;
+    const start=clean[startIndex],confirmation=clean[confirmationIndex],slope=confirmFast.slope,frozenWidth=Math.max(channelAtr*atr,confirmFast.sigma*channelSigma),anchor=start.c;let endIndex=confirmationIndex,oppositeCloses=0,oppositeSlopes=0;
     for(let j=confirmationIndex+1;j<clean.length&&j-confirmationIndex<maxBars;j++){
       const row=clean[j];if(row.day!==candidate.day||!['PRE','RTH'].includes(row.session))break;
       const center=anchor+slope*(j-startIndex);oppositeCloses=Math.sign(row.c-center)===-direction?oppositeCloses+1:0;
