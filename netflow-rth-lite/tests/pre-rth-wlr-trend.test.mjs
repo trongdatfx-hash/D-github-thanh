@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {sessionAt} from '../engine.mjs';
-import {formatPreRthWlrTrend,kaplanMeier,preRthWlrTrend,survivalAt} from '../pre-rth-wlr-trend.mjs';
+import {classifyStrengthRegression,formatPreRthWlrTrend,kaplanMeier,preRthWlrTrend,survivalAt} from '../pre-rth-wlr-trend.mjs';
 
 test('Kaplan–Meier keeps session-end trends as right-censored observations',()=>{
   const curve=kaplanMeier([
@@ -46,7 +46,17 @@ test('PRE→RTH WLR finds the active strongest price trend and formats only the 
 
 test('Strength is a soft context and cannot remove an otherwise identical price trend',()=>{
   const input=fixture(),support=preRthWlrTrend({...input,minCohort:3}),opposed=preRthWlrTrend({...input,strengthRows:input.strengthRows.map(row=>({...row,adjusted:-1})),volumeRows:input.volumeRows.map(row=>({...row,adjusted:-1})),minCohort:3});
-  assert.equal(opposed.active,true);assert.equal(opposed.currentBars,support.currentBars);assert.equal(opposed.trendScore,support.trendScore);assert.equal(opposed.strengthContext,'opposed');
+  assert.equal(opposed.active,true);assert.equal(opposed.currentBars,support.currentBars);assert.equal(opposed.trendScore,support.trendScore);assert.equal(opposed.strengthContext,'mixed');
+});
+
+test('signed Ridge impacts need positive OOS and both partial R² before voting',()=>{
+  const quality={r2:.12,partialComposite:.08,partialVolume:.06};
+  assert.equal(classifyStrengthRegression(1,{...quality,impactComposite:.2,impactVolume:.1}),'support');
+  assert.equal(classifyStrengthRegression(1,{...quality,impactComposite:-.2,impactVolume:-.1}),'opposed');
+  assert.equal(classifyStrengthRegression(-1,{...quality,impactComposite:-.2,impactVolume:-.1}),'support');
+  assert.equal(classifyStrengthRegression(1,{...quality,impactComposite:.2,impactVolume:-.1}),'mixed');
+  assert.equal(classifyStrengthRegression(1,{...quality,partialVolume:.03,impactComposite:.2,impactVolume:.1}),'mixed');
+  assert.equal(classifyStrengthRegression(1,{...quality,r2:-.01,impactComposite:.2,impactVolume:.1}),'mixed');
 });
 
 test('PRE→RTH WLR is prefix-causal and ignores open/future bars',()=>{
