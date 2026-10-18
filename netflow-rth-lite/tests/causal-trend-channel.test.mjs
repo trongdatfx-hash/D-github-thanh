@@ -38,9 +38,14 @@ test('Kênh trend causal defaults to a wider two-sigma envelope',()=>{
   assert(wide&&oldWidth);assert((wide.upperStart-wide.lowerStart)>(oldWidth.upperStart-oldWidth.lowerStart));
 });
 
-test('Kênh trend causal stops on the first M15 close outside two sigma',()=>{
-  const rows=breakoutRows(),last=rows.at(-1),t=last.t+900000,meta=sessionAt(t),exit={t,end:t+899999,o:last.c,h:last.c+20,l:last.c-1,c:last.c+18,...meta},extended=[...rows,exit],volumeRows=extended.map(row=>({t:row.t,adjusted:-.7})),trend=causalTrendChannels(extended,{volumeRows,minPriorR2:.2,maxHistory:5}).trends[0];
-  assert(trend);assert.equal(trend.exitTime,exit.t);assert.equal(trend.exitReason,'adverse-price-exit');assert.equal(trend.endTime,exit.t);assert.equal(trend.insideEndTime,last.t);assert.equal(trend.bars,rows.length-16);
+test('one adverse two-sigma close is absorbed and refitted into the active leg',()=>{
+  const rows=breakoutRows(),last=rows.at(-1),t=last.t+900000,meta=sessionAt(t),shock={t,end:t+899999,o:last.c,h:last.c+20,l:last.c-1,c:last.c+18,...meta},extended=[...rows,shock],volumeRows=extended.map(row=>({t:row.t,adjusted:-.7})),trend=causalTrendChannels(extended,{volumeRows,minPriorR2:.2,maxHistory:5}).trends[0];
+  assert(trend);assert.equal(trend.exitTime,null);assert.equal(trend.insideEndTime,shock.t);assert.equal(trend.bars,extended.length-16);assert.equal(trend.adverseExitBars,2);
+});
+
+test('two consecutive adverse closes end a causal trend channel',()=>{
+  const rows=breakoutRows(),last=rows.at(-1),t1=last.t+900000,meta1=sessionAt(t1),first={t:t1,end:t1+899999,o:last.c,h:last.c+20,l:last.c-1,c:last.c+18,...meta1},t2=t1+900000,meta2=sessionAt(t2),second={t:t2,end:t2+899999,o:first.c,h:first.c+30,l:first.c-1,c:first.c+28,...meta2},extended=[...rows,first,second],volumeRows=extended.map(row=>({t:row.t,adjusted:-.7})),trend=causalTrendChannels(extended,{volumeRows,minPriorR2:.2,minDisplayR2:0,maxHistory:5}).trends[0];
+  assert(trend);assert.equal(trend.exitTime,second.t);assert.equal(trend.exitReason,'adverse-price-exit');assert.equal(trend.insideEndTime,first.t);assert.equal(trend.bars,rows.length-16+1);
 });
 
 test('a downtrend accepts a close below minus two sigma and refits the leg',()=>{
