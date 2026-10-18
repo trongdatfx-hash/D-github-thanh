@@ -40,7 +40,17 @@ test('Kênh trend causal defaults to a wider two-sigma envelope',()=>{
 
 test('Kênh trend causal stops on the first M15 close outside two sigma',()=>{
   const rows=breakoutRows(),last=rows.at(-1),t=last.t+900000,meta=sessionAt(t),exit={t,end:t+899999,o:last.c,h:last.c+20,l:last.c-1,c:last.c+18,...meta},extended=[...rows,exit],volumeRows=extended.map(row=>({t:row.t,adjusted:-.7})),trend=causalTrendChannels(extended,{volumeRows,minPriorR2:.2,maxHistory:5}).trends[0];
-  assert(trend);assert.equal(trend.exitTime,exit.t);assert.equal(trend.endTime,exit.t);assert.equal(trend.insideEndTime,last.t);assert.equal(trend.bars,rows.length-16);
+  assert(trend);assert.equal(trend.exitTime,exit.t);assert.equal(trend.exitReason,'adverse-price-exit');assert.equal(trend.endTime,exit.t);assert.equal(trend.insideEndTime,last.t);assert.equal(trend.bars,rows.length-16);
+});
+
+test('a downtrend accepts a close below minus two sigma and refits the leg',()=>{
+  const rows=breakoutRows(),last=rows.at(-1),t=last.t+900000,meta=sessionAt(t),expansion={t,end:t+899999,o:last.c,h:last.c+.2,l:last.c-20,c:last.c-18,net:-5000,...meta},extended=[...rows,expansion],volumeRows=extended.map(row=>({t:row.t,adjusted:-.7})),trend=causalTrendChannels(extended,{volumeRows,maxHistory:12}).trends[0];
+  assert(trend);assert.equal(trend.exitTime,null);assert.equal(trend.insideEndTime,expansion.t);assert.equal(trend.bars,extended.length-16);assert(trend.points.at(-1).favorableExpansion);assert.equal(trend.renderPoints.length,trend.bars);
+});
+
+test('display rails are one straight final OLS channel',()=>{
+  const rows=breakoutRows(),volumeRows=rows.map(row=>({t:row.t,adjusted:-.7})),trend=causalTrendChannels(rows,{volumeRows}).trends[0],slopes=trend.renderPoints.slice(1).map((point,index)=>point.center-trend.renderPoints[index].center);
+  assert(trend);assert(slopes.every(value=>Math.abs(value-slopes[0])<1e-10));assert(trend.renderPoints.every(point=>Math.abs((point.upper-point.center)-(point.center-point.lower))<1e-10));
 });
 
 test('R² and two-sigma distribution refit causally as accepted M15 candles arrive',()=>{

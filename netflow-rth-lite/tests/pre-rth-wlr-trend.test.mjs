@@ -40,6 +40,7 @@ function fixture(dayCount=32){
 test('PRE→RTH WLR finds the active strongest price trend and formats only the compact label',()=>{
   const input=fixture(),state=preRthWlrTrend({...input,minCohort:3});
   assert.equal(state.active,true,JSON.stringify(state));assert.equal(state.direction,1);assert(state.currentBars>=2);assert(Number.isFinite(state.expectedBars));assert(state.reliable?Number.isFinite(state.remainingBars)&&Number.isFinite(state.continuation):state.remainingBars===null&&state.continuation===null);assert(Number.isInteger(state.censoredN));
+  assert(['new','developing','durable','extended'].includes(state.ageGroup.key));assert.match(state.ageGroup.label,/MỚI|PHÁT TRIỂN|BỀN|KÉO DÀI/);assert.match(state.reason,/Nhóm/);
   assert.equal(state.groups.length,4);assert.equal(new Set(state.groups.map(group=>group.key)).size,4);assert(state.groups.some(group=>group.key===state.cohortKey));assert(state.groups.every(group=>Number.isInteger(group.n)&&Number.isInteger(group.censoredN)&&(group.n===0||Number.isInteger(group.rawMedianBars))&&['support','mixed','opposed'].every(key=>Number.isInteger(group.contexts[key].n))));
   assert.match(formatPreRthWlrTrend(state),/^(↑ UP|WAIT) · \d+\/(\d+|—) NẾN · TUỔI P(\d+|—) · CÒN ~(\d+|—) NẾN · TREND CÒN (\d+|—)%$/);
 });
