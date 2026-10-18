@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {sessionAt} from '../engine.mjs';
+import {isUsMarketTradingDay} from '../market-calendar.mjs';
 import {classifyStrengthRegression,formatPreRthWlrTrend,kaplanMeier,preRthWlrTrend,survivalAt} from '../pre-rth-wlr-trend.mjs';
 
 test('Kaplan–Meier keeps session-end trends as right-censored observations',()=>{
@@ -60,9 +61,9 @@ test('one SPY V sign mismatch stays inside the episode but is not counted in tre
   assert.equal(filtered.active,true);assert.equal(filtered.elapsedBars,baseline.elapsedBars);assert.equal(filtered.currentBars,baseline.currentBars-1);assert(filtered.volumeAlignment<1);
 });
 
-test('only closes inside a confirmed causal channel count toward trend age',()=>{
+test('the complete causal channel lifecycle supplies trend age and elapsed bars',()=>{
   const input=fixture(),baseline=preRthWlrTrend({...input,minCohort:3}),currentDay=input.priceRows.at(-1).day,currentRows=input.priceRows.filter(row=>row.day===currentDay),channelTrends=[{direction:1,confirmationTime:currentRows[0].t,insideEndTime:currentRows.at(-2).t,endTime:currentRows.at(-1).t}],filtered=preRthWlrTrend({...input,channelTrends,requireChannel:true,minCohort:3});
-  assert.equal(filtered.active,true);assert.equal(filtered.elapsedBars,baseline.elapsedBars);assert.equal(filtered.currentBars,currentRows.length-1);assert(filtered.currentBars>filtered.elapsedBars);assert(filtered.channelAlignment<1);assert.equal(filtered.volumeAlignment,1);
+  assert.equal(filtered.active,true);assert(filtered.elapsedBars>baseline.elapsedBars);assert.equal(filtered.currentBars,currentRows.length-1);assert(filtered.elapsedBars>=filtered.currentBars);assert(filtered.channelAlignment<1);assert.equal(filtered.volumeAlignment,1);
 });
 
 test('per-candle SPY V sign noise does not remove candles from a qualified channel trend',()=>{
@@ -75,14 +76,21 @@ test('trend grouping uses the full drawn Flow-Leg candle count after confirmatio
   assert.equal(state.active,true);assert.equal(state.currentBars,15);assert.equal(state.ageGroup.key,'extended');assert.equal(state.ageGroup.label,'KÉO DÀI ≥13');
 });
 
-test('signed Ridge impacts need positive OOS and both partial R² before voting',()=>{
+test('historical cohort N counts causal Flow-Legs without reapplying the WLR score gate',()=>{
+  const input=fixture(),byDay=new Map();for(const row of input.priceRows){if(!byDay.has(row.day))byDay.set(row.day,[]);byDay.get(row.day).push(row);}
+  const days=[...byDay.values()],channelTrends=days.map((rows,index)=>({direction:1,startTime:rows[0].t,confirmationTime:rows[5].t,insideEndTime:rows[15].t,endTime:rows[15].t,bars:16,provisional:index===days.length-1,volumeQualified:true})),state=preRthWlrTrend({...input,channelTrends,requireChannel:true,minCohort:3}),group=state.groups.find(item=>item.direction===1&&item.startSession==='PRE');
+  assert.equal(group.n,days.filter(rows=>isUsMarketTradingDay(rows[0].day)).length-1);assert.equal(['support','mixed','opposed'].reduce((sum,key)=>sum+group.contexts[key].n,0),group.n);assert(group.contexts.support.n>0);assert(Number.isFinite(group.ridge.r2));
+});
+
+test('signed Ridge impacts classify context while OOS and partial R² stay diagnostic',()=>{
   const quality={r2:.12,partialComposite:.08,partialVolume:.06};
   assert.equal(classifyStrengthRegression(1,{...quality,impactComposite:.2,impactVolume:.1}),'support');
   assert.equal(classifyStrengthRegression(1,{...quality,impactComposite:-.2,impactVolume:-.1}),'opposed');
   assert.equal(classifyStrengthRegression(-1,{...quality,impactComposite:-.2,impactVolume:-.1}),'support');
   assert.equal(classifyStrengthRegression(1,{...quality,impactComposite:.2,impactVolume:-.1}),'mixed');
-  assert.equal(classifyStrengthRegression(1,{...quality,partialVolume:.03,impactComposite:.2,impactVolume:.1}),'mixed');
-  assert.equal(classifyStrengthRegression(1,{...quality,r2:-.01,impactComposite:.2,impactVolume:.1}),'mixed');
+  assert.equal(classifyStrengthRegression(1,{...quality,partialVolume:.03,impactComposite:.2,impactVolume:.1}),'support');
+  assert.equal(classifyStrengthRegression(1,{...quality,r2:-.01,impactComposite:.2,impactVolume:.1}),'support');
+  assert.equal(classifyStrengthRegression(1,{...quality,impactComposite:null,impactVolume:.1}),'mixed');
 });
 
 test('PRE→RTH WLR is prefix-causal and ignores open/future bars',()=>{

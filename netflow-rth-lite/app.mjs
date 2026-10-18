@@ -6,7 +6,7 @@ import {pivotZones,pivotFlowRealtime} from './pivot-zones.mjs?v=20261017-2';
 import {pivotFlowLayout,pivotFlowZeroCoordinate} from './pivot-flow-layout.mjs?v=20261016-2';
 import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeometry} from './geometry.mjs?v=20261018-4';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261014-2';
-import {preRthWlrTrend,formatPreRthWlrTrend} from './pre-rth-wlr-trend.mjs?v=20261018-7';
+import {preRthWlrTrend,formatPreRthWlrTrend} from './pre-rth-wlr-trend.mjs?v=20261018-8';
 import {causalTrendChannels} from './causal-trend-channel.mjs?v=20261018-12';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
@@ -160,7 +160,7 @@ function updateTrendMethodCopy(){
   const paragraph=[...document.querySelectorAll('details p')].find(node=>node.textContent.startsWith('PRE→RTH WLR dùng cửa sổ 8 nến M15'));
   if(paragraph)paragraph.textContent='PRE→RTH WLR dùng cửa sổ 8 nến M15 với trọng số tăng dần. Điểm causal gồm 38% phân vị độ dốc/ATR, 28% R² giá, 18% hiệu suất đường giá, 11% độ bền hướng thân nến và chỉ 5% dấu Strength Composite. SPY Volume Strength mở leg bằng dấu và slope; sau đó nến trung tính hoặc một nến trái dấu vẫn nằm trong leg. Giá hoặc SPY V phải bất lợi hai nến liên tiếp mới đóng leg. Nến giá phá biên đầu tiên vẫn được nhận để tái khớp OLS và ±2σ; nếu nến sau trở lại kênh thì bộ đếm được xóa. Số nến đã nhận được phân loại thành MỚI 2–4, PHÁT TRIỂN 5–8, BỀN 9–12 hoặc KÉO DÀI ≥13. S(n) vẫn dùng Kaplan–Meier điều kiện theo tuổi hiện tại, không phân nhóm bằng độ dài cuối tương lai. Nến đang chạy không tham gia.';
   const medianHeader=[...document.querySelectorAll('.trend-cohort-card th')].find(node=>['TRUNG VỊ NẾN','TRUNG VỊ LỌC / THÔ'].includes(node.textContent.trim().toUpperCase()));if(medianHeader)medianHeader.textContent='TRUNG VỊ LEG / THÔ';
-  const note=document.querySelector('.trend-cohort-note');if(note)note.textContent='Trung vị LEG lấy trực tiếp số nến của Kênh Flow-Leg đã setup và vẽ; THÔ giữ tuổi episode WLR cũ để đối chiếu. Chỉ ánh xạ leg từ nến xác nhận trở đi, nhưng tuổi leg gồm cả tối đa 4 nến gốc đã vẽ. Phá biên cùng hướng, nến SPY V trung tính và một nến trái dấu vẫn hợp lệ. Giá phá biên bất lợi hoặc SPY V vượt dead-band đối nghịch phải kéo dài hai nến liên tiếp mới đóng leg; nến phá giá đầu tiên được dùng để tái khớp kênh. Nhóm tuổi: MỚI 2–4, PHÁT TRIỂN 5–8, BỀN 9–12, KÉO DÀI ≥13. Cuối phiên là kiểm duyệt phải.';
+  const note=document.querySelector('.trend-cohort-note');if(note)note.textContent='Mỗi mẫu là một Kênh Flow-Leg đã setup và vẽ, tính từ cả các nến gốc trước xác nhận; không tái lọc bằng điều kiện WLR 6/8 hay điểm P70. R² OOS và partial C/V chỉ chẩn đoán chất lượng Ridge, không loại mẫu và không ép Strength thành Hỗn hợp. Ủng hộ/Hỗn hợp/Chống lấy dấu tác động βC×Composite và βV×SPY V, khóa tại nến xác nhận causal của leg để không dùng tương lai. Kaplan–Meier theo Strength dùng từ 12 mẫu và 5 mẫu còn rủi ro. Leg đang sống hoặc hết phiên chưa phá được kiểm duyệt phải; leg đã có điểm kết thúc là sự kiện. Nhóm tuổi: MỚI 2–4, PHÁT TRIỂN 5–8, BỀN 9–12, KÉO DÀI ≥13.';
 }
 const isCompactChart=()=>matchMedia('(max-width: 760px)').matches;
 const isTouchChart=()=>matchMedia('(pointer: coarse)').matches||navigator.maxTouchPoints>0;
