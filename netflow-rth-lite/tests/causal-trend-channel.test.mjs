@@ -12,6 +12,15 @@ function breakoutRows(){
   return rows;
 }
 
+function warmStartRows(){
+  const start=Date.UTC(2026,7,11,8),rows=[];
+  for(let i=0;i<22;i++){
+    const t=start+i*900000,base=105-i*.32+(i%3===0?.04:0),meta=sessionAt(t);
+    rows.push({t,end:t+899999,o:base+.10,h:base+.18,l:base-.16,c:base,net:-900-i*20,...meta});
+  }
+  return rows;
+}
+
 test('Kênh trend causal starts on an SPY V-aligned breakout and confirms on the next candle',()=>{
   const rows=breakoutRows(),volumeRows=rows.map(row=>({t:row.t,adjusted:-.7})),state=causalTrendChannels(rows,{volumeRows,maxHistory:5}),trend=state.trends[0];
   assert(trend,JSON.stringify(state));assert.equal(trend.direction,-1);assert.equal(trend.breakoutTime,rows[20].t);assert.equal(trend.startTime,rows[16].t);assert.equal(trend.originBars,4);assert.equal(trend.confirmationTime,rows[21].t);assert(trend.startVolumeStrength<0);assert(trend.endTime>=trend.confirmationTime);assert(trend.upperStart>trend.lowerStart);assert(trend.upperEnd>trend.lowerEnd);
@@ -23,9 +32,19 @@ test('Kênh trend causal does not emit an unconfirmed last-candle breakout',()=>
   const rows=breakoutRows().slice(0,21),volumeRows=rows.map(row=>({t:row.t,adjusted:-.7})),state=causalTrendChannels(rows,{volumeRows,maxHistory:5});assert.equal(state.trends.length,0);
 });
 
-test('Kênh trend causal waits until SPY V sign agrees with breakout direction',()=>{
-  const rows=breakoutRows(),volumeRows=rows.map((row,index)=>({t:row.t,adjusted:index>=22?-.7:.7})),state=causalTrendChannels(rows,{volumeRows,maxHistory:5}),trend=state.trends[0];
-  assert(trend,JSON.stringify(state));assert.equal(trend.breakoutTime,rows[20].t);assert.equal(trend.startTime,rows[22].t);assert.equal(trend.confirmationTime,rows[22].t);assert.equal(trend.startVolumeStrength,-.7);
+test('the next causal down leg starts only after SPY V sign agrees',()=>{
+  const rows=breakoutRows(),volumeRows=rows.map((row,index)=>({t:row.t,adjusted:index>=22?-.7:.7})),state=causalTrendChannels(rows,{volumeRows,maxHistory:5}),trend=state.trends.find(item=>item.direction<0);
+  assert(trend,JSON.stringify(state));assert.equal(trend.breakoutTime,rows[22].t);assert.equal(trend.startTime,rows[22].t);assert.equal(trend.confirmationTime,rows[23].t);assert.equal(trend.startVolumeStrength,-.7);
+});
+
+test('PRE warm-start captures an ongoing flow leg before the 20-bar breakout baseline exists',()=>{
+  const rows=warmStartRows(),volumeRows=rows.map((row,index)=>({t:row.t,adjusted:index<8?.45:-.55})),state=causalTrendChannels(rows,{volumeRows,maxHistory:5}),trend=state.trends[0];
+  assert(trend,JSON.stringify(state));assert.equal(trend.entryMode,'warm-start');assert.equal(trend.direction,-1);assert.equal(trend.breakoutTime,rows[8].t);assert.equal(trend.startTime,rows[8].t);assert.equal(trend.confirmationTime,rows[9].t);assert(trend.breakDistanceAtr>=trend.warmStartSlopeAtr);assert(trend.bars>=8);
+});
+
+test('PRE warm-start uses SPY V sign with price slope and does not require SPY V slope',()=>{
+  const rows=warmStartRows(),volumeRows=rows.map((row,index)=>({t:row.t,adjusted:-.90+index*.025})),state=causalTrendChannels(rows,{volumeRows,maxHistory:5}),trend=state.trends[0];
+  assert(trend,JSON.stringify(state));assert.equal(trend.entryMode,'warm-start');assert.equal(trend.direction,-1);assert(trend.volumeSlope>0);assert(trend.bars>=8);
 });
 
 test('Flow-Leg defaults require eight candles and expose the reference setup',()=>{
