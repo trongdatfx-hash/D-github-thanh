@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {STEPS,parseKlines,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,priceVolumeCandleSignal,strengthPhaseLineWidth,strengthPhaseLineStyle,calculateStrength,directionalVolumeDelta,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,regression,weightedPriceBands,wlrTrendThickness,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
+import {STEPS,parseKlines,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,priceVolumeCandleSignal,strengthPhaseLineWidth,strengthPhaseLineStyle,calculateStrength,directionalVolumeDelta,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,regression,weightedPriceBands,wlrTrendThickness,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
 import {load} from '../data.mjs';
 import {isUsMarketHoliday,isUsMarketTradingDay} from '../market-calendar.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL(p,import.meta.url),'utf8').replace(/^\uFEFF/,''));
@@ -117,6 +117,13 @@ test('WLR trend thickness is bounded, stronger straight slopes are thicker and r
   assert.deepEqual(wlrTrendThickness(bars.slice(0,50),step,{minHistory:5}),full.slice(0,50));
   const future=bars.map((x,i)=>i>=50?{...x,c:9999,h:10000,l:9998}:x);assert.deepEqual(wlrTrendThickness(future,step,{minHistory:5}).slice(0,50),full.slice(0,50));
   const flat=bars.map((x,i)=>({...x,o:100,c:100,h:101+(i%2),l:99-(i%2)}));assert(wlrTrendThickness(flat,step,{minHistory:5}).at(-1).width<full.at(-1).width);
+});
+test('causal candle clusters keep nearby candles in one color regime and require two opposite confirmations',()=>{
+  const step=STEPS['15m'],bars=Array.from({length:36},(_,i)=>({t:i*step,o:100+i,c:101+i,h:102+i,l:99+i})),volume=bars.map(x=>({t:x.t,adjusted:.7}));
+  const full=candleRegimeClusters(bars,volume,step);assert(full.at(-1).group===1);assert(full.at(-1).level==='strong');
+  const counter=bars.map((x,i)=>i===34?{...x,o:x.c+1,c:x.c}:x),one=candleRegimeClusters(counter,volume,step);assert.equal(one[34].group,1);assert.equal(one[34].counter,true);
+  const reversedBars=bars.map((x,i)=>i>=32?{...x,o:150-i,c:140-i,h:151-i,l:139-i}:x),reversedVolume=volume.map((x,i)=>i>=32?{...x,adjusted:-1}:x),reversed=candleRegimeClusters(reversedBars,reversedVolume,step);assert.equal(reversed[33].group,1);assert.equal(reversed[33].transition,true);assert.equal(reversed[34].group,-1);
+  assert.deepEqual(candleRegimeClusters(bars.slice(0,30),volume.slice(0,30),step),full.slice(0,30));assert.throws(()=>candleRegimeClusters(bars,volume,step,{enter:0}),/không hợp lệ/);
 });
 test('continuous CVD spectrum accumulates quote delta by mirrored price bins',()=>{
   const bars=[{c:100.1,net:10},{c:100.2,net:5},{c:100.6,net:-20},{c:101.1,net:30}];

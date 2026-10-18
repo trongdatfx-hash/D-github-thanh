@@ -226,6 +226,21 @@ export function wlrTrendThickness(bars,step,{window=8,atrWindow=14,percentileWin
     return {t:bar.t,slope,r2,normalizedSlope,slopePercentile,quality,width};
   });
 }
+export function candleRegimeClusters(bars,volumeRows,step,{enter=.22,oppositeBars=2}={}){
+  if(!Array.isArray(bars)||!Array.isArray(volumeRows)||!Object.values(STEPS).includes(step)||!Number.isFinite(enter)||enter<=0||enter>=1||!Number.isInteger(oppositeBars)||oppositeBars<1)throw Error('Tham số cụm màu nến không hợp lệ');
+  const trend=wlrTrendThickness(bars,step),volumeMap=new Map(volumeRows.map(row=>[row.t,row.adjusted]));let rawHistory=[],ranges=[],group=0,pending=0,previousTime=null,previousClose=null;
+  return bars.map((bar,index)=>{
+    if(previousTime!==null&&bar.t-previousTime!==step){rawHistory=[];ranges=[];group=0;pending=0;previousClose=null;}previousTime=bar.t;
+    const fit=trend[index],trendComponent=Number.isFinite(fit.normalizedSlope)?Math.sign(fit.slope)*Math.tanh(fit.normalizedSlope):0,volumeValue=volumeMap.get(bar.t),volumeComponent=Number.isFinite(volumeValue)?Math.max(-1,Math.min(1,volumeValue)):0;
+    const atr=ranges.length?ranges.reduce((sum,value)=>sum+value,0)/ranges.length:null,bodyComponent=atr>1e-12?Math.tanh(((bar.c-bar.o)/atr)/.35):0;
+    const raw=.45*trendComponent+.35*volumeComponent+.20*bodyComponent;rawHistory.push(raw);if(rawHistory.length>3)rawHistory.shift();
+    const weights=rawHistory.length===1?[1]:rawHistory.length===2?[.375,.625]:[.20,.30,.50],smooth=rawHistory.reduce((sum,value,i)=>sum+value*weights[i],0),candidate=smooth>enter?1:smooth< -enter?-1:0;
+    let transition=false;if(group===0){if(candidate)group=candidate;pending=0;}else if(candidate===-group){pending++;transition=true;if(pending>=oppositeBars){group=candidate;pending=0;transition=false;}}else pending=0;
+    const magnitude=Math.abs(smooth),level=magnitude>=.65?'strong':magnitude>=.35?'medium':'weak',priceDirection=Math.sign(bar.c-bar.o),counter=group!==0&&priceDirection!==0&&priceDirection!==group;
+    const trueRange=Math.max(bar.h-bar.l,Number.isFinite(previousClose)?Math.abs(bar.h-previousClose):0,Number.isFinite(previousClose)?Math.abs(bar.l-previousClose):0);if(Number.isFinite(trueRange)){ranges.push(trueRange);if(ranges.length>14)ranges.shift();}previousClose=bar.c;
+    return {t:bar.t,group,raw,smooth,level,priceDirection,counter,transition,trendComponent,volumeComponent,bodyComponent};
+  });
+}
 // Continuous taker CVD grouped by close-price bins. It never resets inside the loaded history.
 // The vertical EMA follows the Pine reference exactly: low-price bins toward high-price bins.
 export function continuousCvdSpectrum(bars,{binStep=.5,range=12,smooth=2}={}){
