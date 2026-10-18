@@ -66,7 +66,7 @@ function updateStrengthRegression(state,previous,row,atr,strengthMap,volumeMap){
 }
 function finishEpisode(active,endBar,day,censored=false){
   if(!active||!endBar)return null;
-  return {...active,day,endTime:endBar.t,duration:endBar.localIndex-active.startIndex+1,censored};
+  return {...active,day,endTime:endBar.t,duration:active.trendBars,elapsedDuration:active.elapsedBars,censored};
 }
 
 export function kaplanMeier(episodes){
@@ -96,10 +96,11 @@ function daySignals(rows,strengthMap,volumeMap,slopeHistory,scoreHistory,regress
     let path=0;for(let k=1;k<sample.length;k++)path+=Math.abs(sample[k].c-sample[k-1].c);
     const efficiency=path>1e-12?clamp01(Math.abs(sample.at(-1).c-sample[0].c)/path):0;
     const persistentBars=sample.reduce((count,bar)=>count+(Math.sign(bar.c-bar.o)===direction),0),persistence=persistentBars/window,slopePercentile=slopeHistory.length>=20?percentileRank(slopeHistory,normalizedSlope):clamp01(normalizedSlope/2);
-    const score=100*(.40*slopePercentile+.30*fit.r2+.20*efficiency+.10*persistence),threshold=scoreHistory.length>=30?quantile(scoreHistory,.70):62;
-    const qualifies=direction!==0&&persistentBars>=Math.ceil(window*.75)&&score>=threshold;
-    const composite=strengthMap.get(rows[i].t)?.adjusted,volume=volumeMap.get(rows[i].t)?.adjusted,strengthRegression=regressionSnapshot(regressionState,composite,volume),strengthContext=classifyStrengthRegression(direction,strengthRegression);
-    signals.push({...rows[i],localIndex:i,direction,score,r2:fit.r2,efficiency,persistence,persistentBars,strengthContext,strengthRegression,normalizedSlope,threshold,qualifies});
+    const composite=strengthMap.get(rows[i].t)?.adjusted,volume=volumeMap.get(rows[i].t)?.adjusted,compositeSide=Math.sign(composite)*direction,compositeScore=compositeSide>0?1:compositeSide<0?0:.5,volumeAligned=Number.isFinite(volume)&&Math.sign(volume)===direction;
+    const score=100*(.38*slopePercentile+.28*fit.r2+.18*efficiency+.11*persistence+.05*compositeScore),threshold=scoreHistory.length>=30?quantile(scoreHistory,.70):60;
+    const qualifies=direction!==0&&volumeAligned&&persistentBars>=Math.ceil(window*.75)&&score>=threshold;
+    const strengthRegression=regressionSnapshot(regressionState,composite,volume),strengthContext=classifyStrengthRegression(direction,strengthRegression);
+    signals.push({...rows[i],localIndex:i,direction,score,r2:fit.r2,efficiency,persistence,persistentBars,compositeScore,volumeAligned,strengthContext,strengthRegression,normalizedSlope,threshold,qualifies});
     slopeHistory.push(normalizedSlope);scoreHistory.push(score);if(slopeHistory.length>4000)slopeHistory.shift();if(scoreHistory.length>4000)scoreHistory.shift();
   }
   return signals;
@@ -110,12 +111,12 @@ function detectEpisodes(signals,day,{leaveActive=false}={}){
   for(const bar of signals){
     if(active){
       if(bar.direction!==active.direction){const episode=finishEpisode(active,previous,day,false);if(episode)completed.push(episode);active=null;candidate=bar.qualifies?bar:null;}
-      else if(bar.qualifies){active.endTime=bar.t;active.peakScore=Math.max(active.peakScore,bar.score);active.latest=bar;active.weakBars=0;candidate=null;}
-      else if(active.weakBars===0){active.endTime=bar.t;active.latest=bar;active.weakBars=1;candidate=null;}
+      else if(bar.qualifies){active.elapsedBars++;active.trendBars++;active.endTime=bar.t;active.peakScore=Math.max(active.peakScore,bar.score);active.latest=bar;active.weakBars=0;candidate=null;}
+      else if(active.weakBars===0){active.elapsedBars++;if(bar.volumeAligned)active.trendBars++;active.endTime=bar.t;active.latest=bar;active.weakBars=1;candidate=null;}
       else{const episode=finishEpisode(active,previous,day,false);if(episode)completed.push(episode);active=null;candidate=null;}
     }else if(bar.qualifies){
       if(candidate&&candidate.direction===bar.direction&&candidate.localIndex+1===bar.localIndex){
-        active={direction:bar.direction,startIndex:candidate.localIndex,startTime:candidate.t,startSession:candidate.session,strengthContext:bar.strengthContext,strengthRegression:bar.strengthRegression,peakScore:Math.max(candidate.score,bar.score),latest:bar,weakBars:0};candidate=null;
+        active={direction:bar.direction,startIndex:candidate.localIndex,startTime:candidate.t,startSession:candidate.session,strengthContext:bar.strengthContext,strengthRegression:bar.strengthRegression,peakScore:Math.max(candidate.score,bar.score),latest:bar,trendBars:2,elapsedBars:2,weakBars:0};candidate=null;
       }else candidate=bar;
     }else candidate=null;
     previous=bar;
@@ -163,10 +164,10 @@ export function preRthWlrTrend({priceRows=[],strengthRows=[],volumeRows=[],now=D
   }
   if(!current)return {label:'WAIT',direction:0,active:false,currentBars:0,expectedBars:null,agePercentile:null,continuation:null,horizon,sampleN:historical.length,atRiskN:0,cohort:'none',cohortKey:null,strengthContext:null,groups:cohortGroups(historical,null,horizon,minCohort),reason:'Không có trend WLR giá đang hoạt động trong PRE→RTH'};
   const strongestCompleted=currentCompleted.reduce((best,item)=>Math.max(best,item.peakScore),-Infinity);
-  if(current.peakScore<strongestCompleted){const currentBars=current.latest.localIndex-current.startIndex+1;return {label:'WAIT',direction:current.direction,active:false,currentBars,expectedBars:null,agePercentile:null,continuation:null,horizon,sampleN:historical.length,atRiskN:0,cohort:'none',cohortKey:`${current.direction}|${current.startSession}`,strengthContext:current.strengthContext,strengthRegression:current.strengthRegression,groups:cohortGroups(historical,currentBars,horizon,minCohort),reason:'Trend đang chạy không phải trend WLR giá mạnh nhất trong ngày'};}
-  const currentBars=current.latest.localIndex-current.startIndex+1,cohort=chooseCohort(historical,current,currentBars,minCohort),curve=kaplanMeier(cohort.episodes),expectedBars=survivalQuantile(curve,.5),remainingBars=conditionalMedianRemaining(curve,currentBars),survivalNow=survivalAt(curve,currentBars),survivalForward=survivalAt(curve,currentBars+horizon),agePercentile=curve.length?Math.round(100*(1-survivalNow)):null,atRisk=cohort.episodes.reduce((count,item)=>count+(item.duration>=currentBars),0),continuation=survivalNow>0?survivalForward/survivalNow:null;
+  if(current.peakScore<strongestCompleted){const currentBars=current.trendBars;return {label:'WAIT',direction:current.direction,active:false,currentBars,elapsedBars:current.elapsedBars,volumeAlignment:current.elapsedBars?current.trendBars/current.elapsedBars:null,expectedBars:null,agePercentile:null,continuation:null,horizon,sampleN:historical.length,atRiskN:0,cohort:'none',cohortKey:`${current.direction}|${current.startSession}`,strengthContext:current.strengthContext,strengthRegression:current.strengthRegression,groups:cohortGroups(historical,currentBars,horizon,minCohort),reason:'Trend đang chạy không phải trend WLR giá mạnh nhất trong ngày'};}
+  const currentBars=current.trendBars,cohort=chooseCohort(historical,current,currentBars,minCohort),curve=kaplanMeier(cohort.episodes),expectedBars=survivalQuantile(curve,.5),remainingBars=conditionalMedianRemaining(curve,currentBars),survivalNow=survivalAt(curve,currentBars),survivalForward=survivalAt(curve,currentBars+horizon),agePercentile=curve.length?Math.round(100*(1-survivalNow)):null,atRisk=cohort.episodes.reduce((count,item)=>count+(item.duration>=currentBars),0),continuation=survivalNow>0?survivalForward/survivalNow:null;
   const reliable=cohort.episodes.length>=minCohort&&atRisk>=5&&Number.isFinite(continuation),label=reliable&&continuation>=.55?(current.direction>0?'UP':'DOWN'):'WAIT';
-  return {label,direction:current.direction,active:true,currentBars,expectedBars,remainingBars,agePercentile,continuation,horizon,sampleN:cohort.episodes.length,atRiskN:atRisk,censoredN:cohort.episodes.filter(item=>item.censored).length,cohort:cohort.key,cohortKey:`${current.direction}|${current.startSession}`,strengthContext:current.strengthContext,strengthRegression:current.strengthRegression,groups:cohortGroups(historical,currentBars,horizon,minCohort),trendScore:Math.round(current.latest.score),r2:current.latest.r2,persistence:current.latest.persistence,peakScore:current.peakScore,reliable,reason:reliable?`Kaplan–Meier từ ${cohort.episodes.length} trend lịch sử; ${atRisk} trend còn trong tập rủi ro ở tuổi hiện tại`:`Chưa đủ mẫu sống ở tuổi hiện tại (${atRisk}/${cohort.episodes.length})`};
+  return {label,direction:current.direction,active:true,currentBars,elapsedBars:current.elapsedBars,volumeAlignment:current.elapsedBars?current.trendBars/current.elapsedBars:null,expectedBars,remainingBars,agePercentile,continuation,horizon,sampleN:cohort.episodes.length,atRiskN:atRisk,censoredN:cohort.episodes.filter(item=>item.censored).length,cohort:cohort.key,cohortKey:`${current.direction}|${current.startSession}`,strengthContext:current.strengthContext,strengthRegression:current.strengthRegression,groups:cohortGroups(historical,currentBars,horizon,minCohort),trendScore:Math.round(current.latest.score),r2:current.latest.r2,persistence:current.latest.persistence,compositeScore:current.latest.compositeScore,peakScore:current.peakScore,reliable,reason:reliable?`Kaplan–Meier từ ${cohort.episodes.length} trend lịch sử; ${atRisk} trend còn trong tập rủi ro ở tuổi hiện tại`:`Chưa đủ mẫu sống ở tuổi hiện tại (${atRisk}/${cohort.episodes.length})`};
 }
 
 export function formatPreRthWlrTrend(state){

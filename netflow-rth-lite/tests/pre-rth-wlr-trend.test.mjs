@@ -39,14 +39,24 @@ function fixture(dayCount=32){
 
 test('PRE→RTH WLR finds the active strongest price trend and formats only the compact label',()=>{
   const input=fixture(),state=preRthWlrTrend({...input,minCohort:3});
-  assert.equal(state.active,true,JSON.stringify(state));assert.equal(state.direction,1);assert(state.currentBars>=2);assert(Number.isFinite(state.expectedBars));assert(Number.isFinite(state.remainingBars));assert(Number.isFinite(state.continuation));assert(Number.isInteger(state.censoredN));
+  assert.equal(state.active,true,JSON.stringify(state));assert.equal(state.direction,1);assert(state.currentBars>=2);assert(Number.isFinite(state.expectedBars));assert(state.reliable?Number.isFinite(state.remainingBars)&&Number.isFinite(state.continuation):state.remainingBars===null&&state.continuation===null);assert(Number.isInteger(state.censoredN));
   assert.equal(state.groups.length,4);assert.equal(new Set(state.groups.map(group=>group.key)).size,4);assert(state.groups.some(group=>group.key===state.cohortKey));assert(state.groups.every(group=>Number.isInteger(group.n)&&Number.isInteger(group.censoredN)&&['support','mixed','opposed'].every(key=>Number.isInteger(group.contexts[key].n))));
-  assert.match(formatPreRthWlrTrend(state),/^(↑ UP|WAIT) · \d+\/\d+ NẾN · TUỔI P\d+ · CÒN ~\d+ NẾN · TREND CÒN \d+%$/);
+  assert.match(formatPreRthWlrTrend(state),/^(↑ UP|WAIT) · \d+\/(\d+|—) NẾN · TUỔI P(\d+|—) · CÒN ~(\d+|—) NẾN · TREND CÒN (\d+|—)%$/);
 });
 
-test('Strength is a soft context and cannot remove an otherwise identical price trend',()=>{
-  const input=fixture(),support=preRthWlrTrend({...input,minCohort:3}),opposed=preRthWlrTrend({...input,strengthRows:input.strengthRows.map(row=>({...row,adjusted:-1})),volumeRows:input.volumeRows.map(row=>({...row,adjusted:-1})),minCohort:3});
-  assert.equal(opposed.active,true);assert.equal(opposed.currentBars,support.currentBars);assert.equal(opposed.trendScore,support.trendScore);assert.equal(opposed.strengthContext,'mixed');
+test('Composite only changes a small score component and cannot filter an otherwise identical trend',()=>{
+  const input=fixture(),support=preRthWlrTrend({...input,minCohort:3}),opposed=preRthWlrTrend({...input,strengthRows:input.strengthRows.map(row=>({...row,adjusted:-1})),minCohort:3});
+  assert.equal(opposed.active,true);assert.equal(opposed.currentBars,support.currentBars);assert(Math.abs(opposed.trendScore-support.trendScore)<=5);assert.equal(opposed.compositeScore,0);
+});
+
+test('SPY Volume Strength sign is a hard WLR-slope filter for trend candles',()=>{
+  const input=fixture(),support=preRthWlrTrend({...input,minCohort:3}),opposed=preRthWlrTrend({...input,volumeRows:input.volumeRows.map(row=>({...row,adjusted:-1})),minCohort:3});
+  assert.equal(support.active,true);assert.equal(support.currentBars,support.elapsedBars);assert.equal(support.volumeAlignment,1);assert.equal(opposed.active,false);assert.equal(opposed.currentBars,0);
+});
+
+test('one SPY V sign mismatch stays inside the episode but is not counted in trend age',()=>{
+  const input=fixture(),baseline=preRthWlrTrend({...input,minCohort:3}),volumeRows=input.volumeRows.map((row,index)=>index===input.volumeRows.length-1?{...row,adjusted:-1}:row),filtered=preRthWlrTrend({...input,volumeRows,minCohort:3});
+  assert.equal(filtered.active,true);assert.equal(filtered.elapsedBars,baseline.elapsedBars);assert.equal(filtered.currentBars,baseline.currentBars-1);assert(filtered.volumeAlignment<1);
 });
 
 test('signed Ridge impacts need positive OOS and both partial R² before voting',()=>{
