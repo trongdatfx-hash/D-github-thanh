@@ -6,7 +6,7 @@ import {pivotZones,pivotFlowRealtime} from './pivot-zones.mjs?v=20261017-2';
 import {pivotFlowLayout,pivotFlowZeroCoordinate} from './pivot-flow-layout.mjs?v=20261016-2';
 import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeometry} from './geometry.mjs?v=20261016-3';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261014-2';
-import {preRthWlrTrend,formatPreRthWlrTrend} from './pre-rth-wlr-trend.mjs?v=20261017-2';
+import {preRthWlrTrend,formatPreRthWlrTrend} from './pre-rth-wlr-trend.mjs?v=20261018-1';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
 let chart,price,series={},marks,strengthMarks,cache=null,rows={},volumeStrengthRows=[],modelRows={},modelVolumeStrengthRows=[],modelStamp=null,trendRows={},trendVolumeStrengthRows=[],trendStamp=null,trainingMeta=null,maps={},priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,pivotFlowFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},geometryStatePoints=[],geometryStatePointsKey='',breakoutState=null,geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
@@ -138,15 +138,21 @@ function updateRev63(){
 }
 function renderTrendCohorts(){
   const body=$('trend-cohort-body'),status=$('trend-cohort-status');if(!body||!status)return;
-  const bucketName={base:'Nền <75',medium:'Vừa 75–84',high:'Cao ≥85'},scopeName={'direction-session-strength':'hướng + phiên + Strength','direction-session':'hướng + phiên','direction':'hướng','all':'toàn bộ'};
+  const contextName={support:'Ủng hộ',mixed:'Hỗn hợp',opposed:'Chống'},scopeName={'direction-session-strength':'hướng + phiên + xác nhận Strength','direction-session':'hướng + phiên','direction':'hướng','all':'toàn bộ'};
   const groups=rev63State?.groups??[];body.replaceChildren(...groups.map(group=>{
     const row=document.createElement('tr'),selected=group.key===rev63State?.cohortKey;row.className=selected?'selected':'';
     const continuation=Number.isFinite(group.continuation)?`${Math.round(group.continuation*100)}%`:'—';
-    row.innerHTML=`<td><span class="trend-direction ${group.direction>0?'up':'down'}">${group.direction>0?'↑ UP':'↓ DOWN'}</span></td><td>${group.startSession}</td><td>${bucketName[group.strengthBucket]}</td><td>${group.n}</td><td>${group.censoredN}</td><td>${group.medianBars??'—'}</td><td>${group.atRiskN??'—'}</td><td>${continuation}</td>`;
+    const strengthMix=['support','mixed','opposed'].map(key=>`${contextName[key]} ${Math.round((group.contexts?.[key]?.share??0)*100)}%`).join(' · '),context=rev63State?.strengthContext,contextStats=context?group.contexts?.[context]:null,strengthContinuation=Number.isFinite(contextStats?.continuation)?`${Math.round(contextStats.continuation*100)}% ${contextName[context]}`:context?`— (n=${contextStats?.n??0})`:'—';
+    row.innerHTML=`<td><span class="trend-direction ${group.direction>0?'up':'down'}">${group.direction>0?'↑ UP':'↓ DOWN'}</span></td><td>${group.startSession}</td><td>${group.n}</td><td class="strength-mix">${strengthMix}</td><td>${group.censoredN}</td><td>${group.medianBars??'—'}</td><td>${group.atRiskN??'—'}</td><td>${continuation}</td><td>${strengthContinuation}</td>`;
     if(selected)row.setAttribute('aria-current','true');return row;
   }));
-  const age=rev63State?.currentBars>0?`tuổi ${rev63State.currentBars} nến`:'chưa có trend đang hoạt động',scope=scopeName[rev63State?.cohort]??'chưa chọn cohort';
-  status.textContent=`${age} · cohort dự báo: ${scope} · xác suất +3 chỉ hiện khi có tuổi trend hiện tại`;
+  const age=rev63State?.currentBars>0?`tuổi ${rev63State.currentBars} nến`:'chưa có trend đang hoạt động',scope=scopeName[rev63State?.cohort]??'chưa chọn cohort',context=rev63State?.strengthContext?contextName[rev63State.strengthContext]:'—';
+  status.textContent=`${age} · Strength: ${context} · cohort dự báo: ${scope}`;
+}
+function updateTrendMethodCopy(){
+  const hint=document.querySelector('.hint');if(hint)hint.textContent=hint.textContent.replace('WLR 8 nến chỉ khởi tạo khi đồng pha với Strength Composite và SPY V','WLR giá 8 nến khởi tạo theo độ dốc/ATR, R², hiệu suất và ít nhất 6/8 thân nến cùng hướng; Strength chỉ là xác nhận mềm');
+  const paragraph=[...document.querySelectorAll('details p')].find(node=>node.textContent.startsWith('PRE→RTH WLR dùng cửa sổ 8 nến M15'));
+  if(paragraph)paragraph.textContent='PRE→RTH WLR dùng cửa sổ 8 nến M15 với trọng số tăng dần và chấm điểm causal độc lập với Strength: 40% phân vị độ dốc/ATR, 30% R², 20% hiệu suất đường giá, 10% độ bền hướng thân nến. Trend cần hai nến liên tiếp vượt phân vị 70 và ít nhất 6/8 thân nến cùng hướng; cho phép một nến yếu, kết thúc khi có hai nến yếu hoặc đảo hướng. Composite và SPY V chỉ được khóa thành xác nhận ủng hộ, hỗn hợp hoặc chống, không loại trend. Cohort chính là UP/DOWN × PRE/RTH; xác nhận Strength riêng chỉ được dùng khi có ≥30 mẫu và ≥10 mẫu còn rủi ro. S(n) được ước lượng Kaplan–Meier; khả năng sống thêm 3 nến là S(n+3)/S(n), còn “CÒN ~” là trung vị phần đời còn lại có điều kiện. Nến đang chạy không tham gia.';
 }
 const isCompactChart=()=>matchMedia('(max-width: 760px)').matches;
 const isTouchChart=()=>matchMedia('(pointer: coarse)').matches||navigator.maxTouchPoints>0;
@@ -315,7 +321,7 @@ function updateGeometryReadout(){
   const node=$('geometry-readout');if(!node)return;node.style.display='block';
   node.textContent=formatPreRthWlrTrend(rev63State);
   node.className=`forecast ${rev63State.label.toLowerCase()}`;
-  node.title=`PRE→RTH WLR M15 · ${rev63State.reason}. ${rev63State.active?`Điểm ${rev63State.trendScore}/100 · R² ${fmt(rev63State.r2)} · đồng pha ${Math.round((rev63State.phaseShare??0)*100)}% · mẫu ${rev63State.sampleN}, kiểm duyệt phải ${rev63State.censoredN??0}. `:''}P(tiếp diễn thêm 3 nến | trend đã tồn tại n nến) = S(n+3) / S(n), với S ước lượng Kaplan–Meier. Nến đang chạy không được tính; trend còn chạy lúc 16:00 được xem là kiểm duyệt phải, không bị gán là đã kết thúc.`;
+  node.title=`PRE→RTH WLR M15 · ${rev63State.reason}. ${rev63State.active?`Điểm ${rev63State.trendScore}/100 · R² ${fmt(rev63State.r2)} · độ bền hướng giá ${Math.round((rev63State.persistence??0)*100)}% · Strength ${rev63State.strengthContext??'—'} · mẫu ${rev63State.sampleN}, kiểm duyệt phải ${rev63State.censoredN??0}. `:''}P(tiếp diễn thêm 3 nến | trend đã tồn tại n nến) = S(n+3) / S(n), với S ước lượng Kaplan–Meier. Strength là lớp xác nhận mềm, không còn là điều kiện loại trend. Nến đang chạy không được tính; trend còn chạy lúc 16:00 được xem là kiểm duyệt phải, không bị gán là đã kết thúc.`;
   requestAnimationFrame(positionForecastReadout);
 }
 function drawGeometryOverlay(){
@@ -552,6 +558,7 @@ function bindChartGestures(){
   host.addEventListener('pointerup',finish,{capture:true});host.addEventListener('pointercancel',event=>{if(event.pointerType==='touch'){activeTouches.delete(event.pointerId);start=null;lastTap=null;if(!activeTouches.size)multiTouch=false;}},{capture:true});
 }
 if(init()){
+  updateTrendMethodCopy();
   setupChartActions();
   restoreSavedSetup();
   $('refresh').onclick=()=>refresh();for(const id of ['interval','days'])$(id).onchange=()=>refresh(true);

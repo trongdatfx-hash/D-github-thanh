@@ -28,8 +28,13 @@ function trueRange(rows,index){
   return previous?Math.max(row.h-row.l,Math.abs(row.h-previous.c),Math.abs(row.l-previous.c)):row.h-row.l;
 }
 
-function strengthBucket(score){return score>=85?'high':score>=75?'medium':'base';}
-const DIRECTIONS=[1,-1],START_SESSIONS=['PRE','RTH'],STRENGTH_BUCKETS=['base','medium','high'];
+const DIRECTIONS=[1,-1],START_SESSIONS=['PRE','RTH'],STRENGTH_CONTEXTS=['support','mixed','opposed'];
+function strengthContext(direction,sample,strengthMap,volumeMap){
+  const recent=sample.slice(-4),composite=recent.map(bar=>strengthMap.get(bar.t)?.adjusted).filter(Number.isFinite),volume=recent.map(bar=>volumeMap.get(bar.t)?.adjusted).filter(Number.isFinite),compositeMean=composite.length?mean(composite):0,volumeMean=volume.length?mean(volume):0,compositeSign=Math.sign(compositeMean),volumeSign=Math.sign(volumeMean);
+  if(compositeSign===direction&&volumeSign===direction)return 'support';
+  if(compositeSign===-direction&&volumeSign===-direction)return 'opposed';
+  return 'mixed';
+}
 function finishEpisode(active,endBar,day,censored=false){
   if(!active||!endBar)return null;
   return {...active,day,endTime:endBar.t,duration:endBar.localIndex-active.startIndex+1,censored};
@@ -61,12 +66,10 @@ function daySignals(rows,strengthMap,volumeMap,slopeHistory,scoreHistory,window)
     const atr=mean(ranges),normalizedSlope=atr>1e-12?Math.abs(fit.slope)*window/atr:0;
     let path=0;for(let k=1;k<sample.length;k++)path+=Math.abs(sample[k].c-sample[k-1].c);
     const efficiency=path>1e-12?clamp01(Math.abs(sample.at(-1).c-sample[0].c)/path):0;
-    let aligned=0;
-    for(const bar of sample){const composite=strengthMap.get(bar.t)?.adjusted,volume=volumeMap.get(bar.t)?.adjusted;if(direction&&Number.isFinite(composite)&&Number.isFinite(volume)&&Math.sign(composite)===direction&&Math.sign(volume)===direction)aligned++;}
-    const phaseShare=aligned/window,slopePercentile=slopeHistory.length>=20?percentileRank(slopeHistory,normalizedSlope):clamp01(normalizedSlope/2);
-    const score=100*(.35*slopePercentile+.25*fit.r2+.20*efficiency+.20*phaseShare),threshold=scoreHistory.length>=30?quantile(scoreHistory,.70):62;
-    const qualifies=direction!==0&&aligned>=Math.ceil(window*.625)&&score>=threshold;
-    signals.push({...rows[i],localIndex:i,direction,score,r2:fit.r2,efficiency,phaseShare,aligned,normalizedSlope,threshold,qualifies});
+    const persistentBars=sample.reduce((count,bar)=>count+(Math.sign(bar.c-bar.o)===direction),0),persistence=persistentBars/window,slopePercentile=slopeHistory.length>=20?percentileRank(slopeHistory,normalizedSlope):clamp01(normalizedSlope/2);
+    const score=100*(.40*slopePercentile+.30*fit.r2+.20*efficiency+.10*persistence),threshold=scoreHistory.length>=30?quantile(scoreHistory,.70):62;
+    const qualifies=direction!==0&&persistentBars>=Math.ceil(window*.75)&&score>=threshold;
+    signals.push({...rows[i],localIndex:i,direction,score,r2:fit.r2,efficiency,persistence,persistentBars,strengthContext:strengthContext(direction,sample,strengthMap,volumeMap),normalizedSlope,threshold,qualifies});
     slopeHistory.push(normalizedSlope);scoreHistory.push(score);if(slopeHistory.length>4000)slopeHistory.shift();if(scoreHistory.length>4000)scoreHistory.shift();
   }
   return signals;
@@ -82,7 +85,7 @@ function detectEpisodes(signals,day,{leaveActive=false}={}){
       else{const episode=finishEpisode(active,previous,day,false);if(episode)completed.push(episode);active=null;candidate=null;}
     }else if(bar.qualifies){
       if(candidate&&candidate.direction===bar.direction&&candidate.localIndex+1===bar.localIndex){
-        active={direction:bar.direction,startIndex:candidate.localIndex,startTime:candidate.t,startSession:candidate.session,peakScore:Math.max(candidate.score,bar.score),latest:bar,weakBars:0};candidate=null;
+        active={direction:bar.direction,startIndex:candidate.localIndex,startTime:candidate.t,startSession:candidate.session,strengthContext:bar.strengthContext,peakScore:Math.max(candidate.score,bar.score),latest:bar,weakBars:0};candidate=null;
       }else candidate=bar;
     }else candidate=null;
     previous=bar;
@@ -92,25 +95,30 @@ function detectEpisodes(signals,day,{leaveActive=false}={}){
   return {completed,active};
 }
 
-function chooseCohort(episodes,active,minCohort){
-  const bucket=strengthBucket(active.peakScore),filters=[
-    {key:'direction-session-strength',test:item=>item.direction===active.direction&&item.startSession===active.startSession&&strengthBucket(item.peakScore)===bucket},
+function chooseCohort(episodes,active,currentBars,minCohort,minStrengthCohort=30){
+  const filters=[
+    {key:'direction-session-strength',minimum:minStrengthCohort,minAtRisk:10,test:item=>item.direction===active.direction&&item.startSession===active.startSession&&item.strengthContext===active.strengthContext},
     {key:'direction-session',test:item=>item.direction===active.direction&&item.startSession===active.startSession},
     {key:'direction',test:item=>item.direction===active.direction},
     {key:'all',test:()=>true}
   ];
-  for(const filter of filters){const matches=episodes.filter(filter.test);if(matches.length>=minCohort)return {key:filter.key,episodes:matches};}
+  for(const filter of filters){const matches=episodes.filter(filter.test),atRisk=matches.reduce((count,item)=>count+(item.duration>=currentBars),0);if(matches.length>=(filter.minimum??minCohort)&&atRisk>=(filter.minAtRisk??0))return {key:filter.key,episodes:matches};}
   const fallback=filters.map(filter=>({key:filter.key,episodes:episodes.filter(filter.test)})).sort((a,b)=>b.episodes.length-a.episodes.length)[0];
   return fallback??{key:'none',episodes:[]};
 }
 
-function cohortGroups(episodes,currentBars=null,horizon=PRE_RTH_WLR_HORIZON){
-  return DIRECTIONS.flatMap(direction=>START_SESSIONS.flatMap(startSession=>STRENGTH_BUCKETS.map(bucket=>{
-    const matches=episodes.filter(item=>item.direction===direction&&item.startSession===startSession&&strengthBucket(item.peakScore)===bucket),curve=kaplanMeier(matches),medianBars=survivalQuantile(curve,.5),censoredN=matches.filter(item=>item.censored).length;
-    if(!(currentBars>0))return {key:`${direction}|${startSession}|${bucket}`,direction,startSession,strengthBucket:bucket,n:matches.length,censoredN,medianBars,atRiskN:null,continuation:null};
-    const survivalNow=survivalAt(curve,currentBars),atRiskN=matches.reduce((count,item)=>count+(item.duration>=currentBars),0),continuation=matches.length&&survivalNow>0?survivalAt(curve,currentBars+horizon)/survivalNow:null;
-    return {key:`${direction}|${startSession}|${bucket}`,direction,startSession,strengthBucket:bucket,n:matches.length,censoredN,medianBars,atRiskN,continuation};
-  })));
+function cohortSummary(episodes,currentBars,horizon,minSamples,minAtRisk){
+  const curve=kaplanMeier(episodes),medianBars=survivalQuantile(curve,.5),censoredN=episodes.filter(item=>item.censored).length;
+  if(!(currentBars>0))return {n:episodes.length,censoredN,medianBars,atRiskN:null,continuation:null,ready:false};
+  const survivalNow=survivalAt(curve,currentBars),atRiskN=episodes.reduce((count,item)=>count+(item.duration>=currentBars),0),rawContinuation=episodes.length&&survivalNow>0?survivalAt(curve,currentBars+horizon)/survivalNow:null,ready=episodes.length>=minSamples&&atRiskN>=minAtRisk&&Number.isFinite(rawContinuation);
+  return {n:episodes.length,censoredN,medianBars,atRiskN,continuation:ready?rawContinuation:null,ready};
+}
+function cohortGroups(episodes,currentBars=null,horizon=PRE_RTH_WLR_HORIZON,minCohort=12){
+  return DIRECTIONS.flatMap(direction=>START_SESSIONS.map(startSession=>{
+    const matches=episodes.filter(item=>item.direction===direction&&item.startSession===startSession),summary=cohortSummary(matches,currentBars,horizon,minCohort,5),contexts={};
+    for(const context of STRENGTH_CONTEXTS){const contextEpisodes=matches.filter(item=>item.strengthContext===context);contexts[context]={...cohortSummary(contextEpisodes,currentBars,horizon,30,10),share:matches.length?contextEpisodes.length/matches.length:0};}
+    return {key:`${direction}|${startSession}`,direction,startSession,...summary,contexts};
+  }));
 }
 
 export function preRthWlrTrend({priceRows=[],strengthRows=[],volumeRows=[],now=Date.now(),window=PRE_RTH_WLR_WINDOW,horizon=PRE_RTH_WLR_HORIZON,minCohort=12}={}){
@@ -123,12 +131,12 @@ export function preRthWlrTrend({priceRows=[],strengthRows=[],volumeRows=[],now=D
     if(isCurrent){current=detected.active;currentCompleted=detected.completed;}
     else historical.push(...detected.completed);
   }
-  if(!current)return {label:'WAIT',direction:0,active:false,currentBars:0,expectedBars:null,agePercentile:null,continuation:null,horizon,sampleN:historical.length,atRiskN:0,cohort:'none',cohortKey:null,groups:cohortGroups(historical,null,horizon),reason:'Không có trend WLR đồng pha đang hoạt động trong PRE→RTH'};
+  if(!current)return {label:'WAIT',direction:0,active:false,currentBars:0,expectedBars:null,agePercentile:null,continuation:null,horizon,sampleN:historical.length,atRiskN:0,cohort:'none',cohortKey:null,strengthContext:null,groups:cohortGroups(historical,null,horizon,minCohort),reason:'Không có trend WLR giá đang hoạt động trong PRE→RTH'};
   const strongestCompleted=currentCompleted.reduce((best,item)=>Math.max(best,item.peakScore),-Infinity);
-  if(current.peakScore<strongestCompleted){const currentBars=current.latest.localIndex-current.startIndex+1;return {label:'WAIT',direction:current.direction,active:false,currentBars,expectedBars:null,agePercentile:null,continuation:null,horizon,sampleN:historical.length,atRiskN:0,cohort:'none',cohortKey:`${current.direction}|${current.startSession}|${strengthBucket(current.peakScore)}`,groups:cohortGroups(historical,currentBars,horizon),reason:'Trend đang chạy không phải trend đồng pha mạnh nhất trong ngày'};}
-  const currentBars=current.latest.localIndex-current.startIndex+1,cohort=chooseCohort(historical,current,minCohort),curve=kaplanMeier(cohort.episodes),expectedBars=survivalQuantile(curve,.5),remainingBars=conditionalMedianRemaining(curve,currentBars),survivalNow=survivalAt(curve,currentBars),survivalForward=survivalAt(curve,currentBars+horizon),agePercentile=curve.length?Math.round(100*(1-survivalNow)):null,atRisk=cohort.episodes.reduce((count,item)=>count+(item.duration>=currentBars),0),continuation=survivalNow>0?survivalForward/survivalNow:null;
+  if(current.peakScore<strongestCompleted){const currentBars=current.latest.localIndex-current.startIndex+1;return {label:'WAIT',direction:current.direction,active:false,currentBars,expectedBars:null,agePercentile:null,continuation:null,horizon,sampleN:historical.length,atRiskN:0,cohort:'none',cohortKey:`${current.direction}|${current.startSession}`,strengthContext:current.strengthContext,groups:cohortGroups(historical,currentBars,horizon,minCohort),reason:'Trend đang chạy không phải trend WLR giá mạnh nhất trong ngày'};}
+  const currentBars=current.latest.localIndex-current.startIndex+1,cohort=chooseCohort(historical,current,currentBars,minCohort),curve=kaplanMeier(cohort.episodes),expectedBars=survivalQuantile(curve,.5),remainingBars=conditionalMedianRemaining(curve,currentBars),survivalNow=survivalAt(curve,currentBars),survivalForward=survivalAt(curve,currentBars+horizon),agePercentile=curve.length?Math.round(100*(1-survivalNow)):null,atRisk=cohort.episodes.reduce((count,item)=>count+(item.duration>=currentBars),0),continuation=survivalNow>0?survivalForward/survivalNow:null;
   const reliable=cohort.episodes.length>=minCohort&&atRisk>=5&&Number.isFinite(continuation),label=reliable&&continuation>=.55?(current.direction>0?'UP':'DOWN'):'WAIT';
-  return {label,direction:current.direction,active:true,currentBars,expectedBars,remainingBars,agePercentile,continuation,horizon,sampleN:cohort.episodes.length,atRiskN:atRisk,censoredN:cohort.episodes.filter(item=>item.censored).length,cohort:cohort.key,cohortKey:`${current.direction}|${current.startSession}|${strengthBucket(current.peakScore)}`,groups:cohortGroups(historical,currentBars,horizon),trendScore:Math.round(current.latest.score),r2:current.latest.r2,phaseShare:current.latest.phaseShare,peakScore:current.peakScore,reliable,reason:reliable?`Kaplan–Meier từ ${cohort.episodes.length} trend lịch sử; ${atRisk} trend còn trong tập rủi ro ở tuổi hiện tại`:`Chưa đủ mẫu sống ở tuổi hiện tại (${atRisk}/${cohort.episodes.length})`};
+  return {label,direction:current.direction,active:true,currentBars,expectedBars,remainingBars,agePercentile,continuation,horizon,sampleN:cohort.episodes.length,atRiskN:atRisk,censoredN:cohort.episodes.filter(item=>item.censored).length,cohort:cohort.key,cohortKey:`${current.direction}|${current.startSession}`,strengthContext:current.strengthContext,groups:cohortGroups(historical,currentBars,horizon,minCohort),trendScore:Math.round(current.latest.score),r2:current.latest.r2,persistence:current.latest.persistence,peakScore:current.peakScore,reliable,reason:reliable?`Kaplan–Meier từ ${cohort.episodes.length} trend lịch sử; ${atRisk} trend còn trong tập rủi ro ở tuổi hiện tại`:`Chưa đủ mẫu sống ở tuổi hiện tại (${atRisk}/${cohort.episodes.length})`};
 }
 
 export function formatPreRthWlrTrend(state){
