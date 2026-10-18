@@ -59,6 +59,11 @@ test('one SPY V sign mismatch stays inside the episode but is not counted in tre
   assert.equal(filtered.active,true);assert.equal(filtered.elapsedBars,baseline.elapsedBars);assert.equal(filtered.currentBars,baseline.currentBars-1);assert(filtered.volumeAlignment<1);
 });
 
+test('only closes inside a confirmed causal channel count toward trend age',()=>{
+  const input=fixture(),baseline=preRthWlrTrend({...input,minCohort:3}),currentDay=input.priceRows.at(-1).day,currentRows=input.priceRows.filter(row=>row.day===currentDay),channelTrends=[{direction:1,confirmationTime:currentRows[0].t,insideEndTime:currentRows.at(-2).t,endTime:currentRows.at(-1).t}],filtered=preRthWlrTrend({...input,channelTrends,requireChannel:true,minCohort:3});
+  assert.equal(filtered.active,true);assert.equal(filtered.elapsedBars,baseline.elapsedBars);assert.equal(filtered.currentBars,baseline.currentBars-1);assert(filtered.channelAlignment<1);assert.equal(filtered.volumeAlignment,1);
+});
+
 test('signed Ridge impacts need positive OOS and both partial R² before voting',()=>{
   const quality={r2:.12,partialComposite:.08,partialVolume:.06};
   assert.equal(classifyStrengthRegression(1,{...quality,impactComposite:.2,impactVolume:.1}),'support');
