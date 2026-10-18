@@ -1,0 +1,42 @@
+const mean=values=>values.reduce((sum,value)=>sum+value,0)/values.length;
+
+function linearFit(rows){
+  const n=rows.length,xMean=(n-1)/2,yMean=mean(rows.map(row=>row.c));let covariance=0,variance=0,residual=0,total=0;
+  for(let i=0;i<n;i++){covariance+=(i-xMean)*(rows[i].c-yMean);variance+=(i-xMean)**2;}
+  const slope=variance>1e-12?covariance/variance:0,intercept=yMean-slope*xMean;
+  for(let i=0;i<n;i++){residual+=(rows[i].c-intercept-slope*i)**2;total+=(rows[i].c-yMean)**2;}
+  return {slope,intercept,r2:total>1e-12?Math.max(0,Math.min(1,1-residual/total)):0,sigma:n>2?Math.sqrt(residual/(n-2)):0,valueAt:index=>intercept+slope*index};
+}
+
+function trueRange(rows,index){
+  const row=rows[index],previous=rows[index-1];
+  return previous?Math.max(row.h-row.l,Math.abs(row.h-previous.c),Math.abs(row.l-previous.c)):row.h-row.l;
+}
+function atrAt(rows,index,period=14){const values=[];for(let i=Math.max(0,index-period+1);i<=index;i++)values.push(trueRange(rows,i));return values.length?mean(values):0;}
+const outside=(value,boundary,direction,margin=0)=>direction>0?value>boundary+margin:value<boundary-margin;
+
+// Confirmation uses only the next closed candle. Later candles may extend or
+// terminate a channel, but can never move its breakout start backwards.
+export function causalTrendChannels(rows,{priorWindow=20,fastWindow=8,minPriorR2=.35,breakAtr=.15,channelAtr=.45,maxBars=48,maxHistory=5}={}){
+  if(!Number.isInteger(priorWindow)||priorWindow<12||!Number.isInteger(fastWindow)||fastWindow<4)throw Error('Tham số Kênh trend causal không hợp lệ');
+  const clean=rows.filter(row=>['PRE','RTH'].includes(row.session)&&[row.t,row.o,row.h,row.l,row.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t),trends=[];
+  for(let i=priorWindow;i<clean.length-1;i++){
+    const candidate=clean[i],confirmation=clean[i+1];if(candidate.day!==confirmation.day)continue;
+    const prior=clean.slice(i-priorWindow,i);if(prior.some(row=>row.day!==candidate.day))continue;
+    const priorFit=linearFit(prior),atr=atrAt(clean,i);if(!(atr>1e-12)||priorFit.r2<minPriorR2)continue;
+    const width=Math.max(priorFit.sigma*1.65,atr*.35),center0=priorFit.valueAt(priorWindow),center1=priorFit.valueAt(priorWindow+1),fast=linearFit(clean.slice(i-fastWindow+1,i+1)),direction=Math.sign(fast.slope);
+    if(!direction||!outside(candidate.c,center0+direction*width,direction,atr*breakAtr)||!outside(confirmation.c,center1+direction*width,direction))continue;
+    const confirmFast=linearFit(clean.slice(i-fastWindow+2,i+2)),slope=confirmFast.slope;if(Math.sign(slope)!==direction)continue;
+    const frozenWidth=Math.max(channelAtr*atr,confirmFast.sigma*1.25),anchor=candidate.c;let endIndex=i+1,oppositeCloses=0,oppositeSlopes=0;
+    for(let j=i+2;j<clean.length&&j-i<maxBars;j++){
+      const row=clean[j];if(row.day!==candidate.day||!['PRE','RTH'].includes(row.session))break;
+      const center=anchor+slope*(j-i);oppositeCloses=Math.sign(row.c-center)===-direction?oppositeCloses+1:0;
+      const rolling=j>=fastWindow-1?linearFit(clean.slice(j-fastWindow+1,j+1)):null;oppositeSlopes=rolling&&Math.sign(rolling.slope)===-direction?oppositeSlopes+1:0;
+      if(oppositeCloses>=2||oppositeSlopes>=2)break;endIndex=j;
+    }
+    const end=clean[endIndex],distance=endIndex-i,centerEnd=anchor+slope*distance;
+    trends.push({direction,startTime:candidate.t,confirmationTime:confirmation.t,endTime:end.t,bars:distance+1,priorR2:priorFit.r2,breakDistanceAtr:Math.abs(candidate.c-(center0+direction*width))/atr,slopeAtr:slope/atr,confirmed:true,provisional:distance+1<6,upperStart:anchor+frozenWidth,lowerStart:anchor-frozenWidth,upperEnd:centerEnd+frozenWidth,lowerEnd:centerEnd-frozenWidth});
+    i=Math.max(i+1,endIndex);
+  }
+  return {trends:trends.slice(-maxHistory),total:trends.length};
+}
