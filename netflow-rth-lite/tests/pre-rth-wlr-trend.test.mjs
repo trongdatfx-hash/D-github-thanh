@@ -100,5 +100,5 @@ test('PRE→RTH WLR is prefix-causal and ignores open/future bars',()=>{
 
 test('PRE→RTH WLR returns WAIT outside the live PRE/RTH trading window',()=>{
   const input=fixture(),saturday=Date.UTC(2026,9,17,16),state=preRthWlrTrend({...input,now:saturday,minCohort:3});
-  assert.equal(state.label,'WAIT');assert.equal(state.active,false);assert.match(state.reason,/Không có trend/);assert.equal(state.groups.length,4);assert(state.groups.every(group=>group.continuation===null));
+  assert.equal(state.label,'WAIT');assert.equal(state.active,false);assert.match(state.reason,/Không có trend/);assert.equal(state.groups.length,4);assert(state.groups.some(group=>Number.isFinite(group.continuation)&&group.baseline&&group.evaluationBars===1));
 });

@@ -151,9 +151,8 @@ function chooseCohort(episodes,active,currentBars,minCohort,minStrengthCohort=Ma
 
 function cohortSummary(episodes,currentBars,horizon,minSamples,minAtRisk){
   const curve=kaplanMeier(episodes),medianBars=survivalQuantile(curve,.5),censoredN=episodes.filter(item=>item.censored).length;
-  if(!(currentBars>0))return {n:episodes.length,censoredN,medianBars,atRiskN:null,continuation:null,ready:false};
-  const survivalNow=survivalAt(curve,currentBars),atRiskN=episodes.reduce((count,item)=>count+(item.duration>=currentBars),0),rawContinuation=episodes.length&&survivalNow>0?survivalAt(curve,currentBars+horizon)/survivalNow:null,ready=episodes.length>=minSamples&&atRiskN>=minAtRisk&&Number.isFinite(rawContinuation);
-  return {n:episodes.length,censoredN,medianBars,atRiskN,continuation:ready?rawContinuation:null,ready};
+  const evaluationBars=currentBars>0?currentBars:1,survivalNow=survivalAt(curve,evaluationBars),atRiskN=episodes.reduce((count,item)=>count+(item.duration>=evaluationBars),0),rawContinuation=episodes.length&&survivalNow>0?survivalAt(curve,evaluationBars+horizon)/survivalNow:null,ready=episodes.length>=minSamples&&atRiskN>=minAtRisk&&Number.isFinite(rawContinuation);
+  return {n:episodes.length,censoredN,medianBars,atRiskN,continuation:ready?rawContinuation:null,ready,baseline:!(currentBars>0),evaluationBars};
 }
 function cohortGroups(episodes,currentBars=null,horizon=PRE_RTH_WLR_HORIZON,minCohort=12){
   return DIRECTIONS.flatMap(direction=>START_SESSIONS.map(startSession=>{

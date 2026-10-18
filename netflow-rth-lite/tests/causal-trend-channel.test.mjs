@@ -33,6 +33,11 @@ test('Flow-Leg defaults require eight candles and expose the reference setup',()
   assert.equal(short.trends.length,0);assert(trend);assert.equal(trend.flowDeadband,.15);assert.equal(trend.minLegBars,8);assert.equal(trend.minDisplayR2,.2);assert(trend.lineWidth>=2&&trend.lineWidth<=5);assert(Number.isFinite(trend.netDeltaTotal));
 });
 
+test('confirmed short Flow-Legs stay in survival episodes even when hidden from the chart',()=>{
+  const rows=breakoutRows().slice(0,23),volumeRows=rows.map(row=>({t:row.t,adjusted:-.7})),state=causalTrendChannels(rows,{volumeRows,maxHistory:5});
+  assert.equal(state.trends.length,0);assert.equal(state.episodes.length,1);assert(state.episodes[0].bars<8);assert.equal(state.episodes[0].displayQualified,false);assert.equal(state.totalEpisodes,1);
+});
+
 test('Kênh trend causal defaults to a wider two-sigma envelope',()=>{
   const rows=breakoutRows(),volumeRows=rows.map(row=>({t:row.t,adjusted:-.7})),wide=causalTrendChannels(rows,{volumeRows,minPriorR2:.2,maxHistory:5}).trends[0],oldWidth=causalTrendChannels(rows,{volumeRows,minPriorR2:.2,channelSigma:1.25,maxHistory:5}).trends[0];
   assert(wide&&oldWidth);assert((wide.upperStart-wide.lowerStart)>(oldWidth.upperStart-oldWidth.lowerStart));
