@@ -77,6 +77,14 @@ export function strengthAgreementCandleSignal(compositeBar,volumeBar){
   const direction=Math.sign(compositeStrength),agreement=Math.min(1,Math.min(Math.abs(compositeStrength),Math.abs(volumeStrength)));
   return {...values,adjusted:direction*agreement,direction,agreement,colorRegime:direction>0?'ĐỒNG THUẬN TĂNG':'ĐỒNG THUẬN GIẢM',neutralReason:null};
 }
+export function priceVolumeCandleSignal(priceBar,volumeBar,{deadband=.15}={}){
+  if(!Number.isFinite(deadband)||deadband<0||deadband>=1)throw Error('Dead-band màu nến không hợp lệ');
+  const priceDirection=Number.isFinite(priceBar?.o)&&Number.isFinite(priceBar?.c)?Math.sign(priceBar.c-priceBar.o):0;
+  const volumeStrength=volumeBar?.adjusted,volumeDirection=Number.isFinite(volumeStrength)&&Math.abs(volumeStrength)>deadband?Math.sign(volumeStrength):0;
+  if(!priceDirection||!volumeDirection)return {priceDirection,volumeDirection,volumeStrength:Number.isFinite(volumeStrength)?volumeStrength:null,agreement:0,colorRegime:'TRUNG TÍNH'};
+  const agreement=priceDirection===volumeDirection?1:-1;
+  return {priceDirection,volumeDirection,volumeStrength,agreement,colorRegime:agreement>0?(priceDirection>0?'GIÁ TĂNG · SPY V ỦNG HỘ':'GIÁ GIẢM · SPY V ỦNG HỘ'):(priceDirection>0?'GIÁ TĂNG · SPY V CHỐNG':'GIÁ GIẢM · SPY V CHỐNG')};
+}
 export function strengthPhaseLineWidth(compositeBar,volumeBar,{thin=1,neutral=2,thick=6}={}){
   if(![thin,neutral,thick].every(Number.isFinite)||thin<=0||neutral<thin||thick<neutral)throw Error('Tham số độ dày theo pha không hợp lệ');
   const composite=compositeBar?.adjusted,volume=volumeBar?.adjusted;
@@ -189,6 +197,33 @@ export function weightedPriceBands(bars,step,{window=50,mult=2}={}){
     }
     history.push({t:b.t,c:b.c});if(history.length>window)history.shift();
     return {t:b.t,mid,upper,lower,sigma};
+  });
+}
+// Causal WLR-8 trend quality for price-line thickness. The current candle is
+// excluded from both the fit and ATR, while the slope percentile uses only
+// previously observed normalized slopes.
+export function wlrTrendThickness(bars,step,{window=8,atrWindow=14,percentileWindow=500,minHistory=20,minWidth=1,maxWidth=6}={}){
+  if(!Array.isArray(bars)||!Object.values(STEPS).includes(step)||![window,atrWindow,percentileWindow,minHistory].every(x=>Number.isInteger(x)&&x>1)||![minWidth,maxWidth].every(Number.isFinite)||minWidth<=0||maxWidth<minWidth)throw Error('Tham số độ dày WLR trend không hợp lệ');
+  let history=[],ranges=[],strengthHistory=[],previous=null;
+  return bars.map(bar=>{
+    if(previous!==null&&bar.t-previous!==step){history=[];ranges=[];strengthHistory=[];}previous=bar.t;
+    let slope=null,r2=null,normalizedSlope=null,slopePercentile=null,quality=null,width=null;
+    if(history.length>=window&&ranges.length>=atrWindow){
+      const sample=history.slice(-window),weights=sample.map((_,i)=>i+1),sw=window*(window+1)/2;
+      let sx=0,sy=0,sxx=0,sxy=0;for(let i=0;i<window;i++){const w=weights[i],y=sample[i].c;sx+=w*i;sy+=w*y;sxx+=w*i*i;sxy+=w*i*y;}
+      const den=sw*sxx-sx*sx;slope=(sw*sxy-sx*sy)/den;const intercept=(sy-slope*sx)/sw,mean=sy/sw;
+      let sse=0,sst=0;for(let i=0;i<window;i++){const w=weights[i],y=sample[i].c,e=y-intercept-slope*i;sse+=w*e*e;sst+=w*(y-mean)**2;}
+      r2=sst>0?Math.max(0,Math.min(1,1-sse/sst)):Math.abs(slope)<1e-12?1:0;
+      const atr=ranges.slice(-atrWindow).reduce((sum,x)=>sum+x,0)/atrWindow;
+      normalizedSlope=atr>0?Math.abs(slope)*window/atr:0;
+      slopePercentile=normalizedSlope<=1e-12?0:strengthHistory.length>=minHistory?strengthHistory.reduce((n,x)=>n+(x<=normalizedSlope),0)/strengthHistory.length:Math.max(0,Math.min(1,normalizedSlope/2));
+      quality=slopePercentile*(.35+.65*r2);width=minWidth+(maxWidth-minWidth)*quality**.7;
+      strengthHistory.push(normalizedSlope);if(strengthHistory.length>percentileWindow)strengthHistory.shift();
+    }
+    const prevClose=history.at(-1)?.c,trueRange=[bar.h-bar.l,Number.isFinite(prevClose)?Math.abs(bar.h-prevClose):0,Number.isFinite(prevClose)?Math.abs(bar.l-prevClose):0].filter(Number.isFinite);
+    if(Number.isFinite(bar.c)){history.push({c:bar.c});if(history.length>Math.max(window,2))history.shift();}
+    if(trueRange.length){ranges.push(Math.max(...trueRange));if(ranges.length>atrWindow)ranges.shift();}
+    return {t:bar.t,slope,r2,normalizedSlope,slopePercentile,quality,width};
   });
 }
 // Continuous taker CVD grouped by close-price bins. It never resets inside the loaded history.

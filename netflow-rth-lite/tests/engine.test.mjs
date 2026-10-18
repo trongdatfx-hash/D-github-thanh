@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {STEPS,parseKlines,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,strengthPhaseLineWidth,strengthPhaseLineStyle,calculateStrength,directionalVolumeDelta,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,regression,weightedPriceBands,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
+import {STEPS,parseKlines,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,priceVolumeCandleSignal,strengthPhaseLineWidth,strengthPhaseLineStyle,calculateStrength,directionalVolumeDelta,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,regression,weightedPriceBands,wlrTrendThickness,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
 import {load} from '../data.mjs';
 import {isUsMarketHoliday,isUsMarketTradingDay} from '../market-calendar.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL(p,import.meta.url),'utf8').replace(/^\uFEFF/,''));
@@ -63,6 +63,14 @@ test('candle color follows Composite × SPY Volume Strength agreement',()=>{
   assert.equal(down.direction,-1);assert.equal(down.agreement,.4);assert.equal(down.colorRegime,'ĐỒNG THUẬN GIẢM');
   for(const neutral of [strengthAgreementCandleSignal({adjusted:.8},{adjusted:-.35}),strengthAgreementCandleSignal({adjusted:.8},{adjusted:0}),strengthAgreementCandleSignal({adjusted:.8},null)]){assert.equal(neutral.direction,0);assert.equal(neutral.agreement,0);assert.equal(neutral.colorRegime,'TRUNG TÍNH');}
 });
+test('price × SPY V candle regime distinguishes confirmation, opposition and dead-band',()=>{
+  assert.equal(priceVolumeCandleSignal({o:100,c:101},{adjusted:.4}).colorRegime,'GIÁ TĂNG · SPY V ỦNG HỘ');
+  assert.equal(priceVolumeCandleSignal({o:101,c:100},{adjusted:-.4}).colorRegime,'GIÁ GIẢM · SPY V ỦNG HỘ');
+  assert.equal(priceVolumeCandleSignal({o:100,c:101},{adjusted:-.4}).colorRegime,'GIÁ TĂNG · SPY V CHỐNG');
+  assert.equal(priceVolumeCandleSignal({o:101,c:100},{adjusted:.4}).colorRegime,'GIÁ GIẢM · SPY V CHỐNG');
+  for(const x of [priceVolumeCandleSignal({o:100,c:100},{adjusted:.4}),priceVolumeCandleSignal({o:100,c:101},{adjusted:.1}),priceVolumeCandleSignal({o:100,c:101},null)])assert.equal(x.colorRegime,'TRUNG TÍNH');
+  assert.throws(()=>priceVolumeCandleSignal({o:1,c:2},{adjusted:1},{deadband:-1}),/không hợp lệ/);
+});
 test('WLR phase width follows Composite and SPY Volume Strength signs',()=>{
   assert.equal(strengthPhaseLineWidth({adjusted:.4},{adjusted:.1}),6);assert.equal(strengthPhaseLineWidth({adjusted:-.4},{adjusted:-.1}),6);
   assert.equal(strengthPhaseLineWidth({adjusted:.4},{adjusted:-.1}),1);assert.equal(strengthPhaseLineWidth({adjusted:0},{adjusted:.1}),2);assert.equal(strengthPhaseLineWidth(null,{adjusted:.1}),2);
@@ -102,6 +110,13 @@ test('price WLR uses linear weights, prior bars only and resets on gaps',()=>{
   assert.deepEqual(weightedPriceBands(bars.slice(0,60),STEPS['15m']),full.slice(0,60));
   const future=bars.map((x,i)=>i>=60?{...x,c:9999}:x);assert.deepEqual(weightedPriceBands(future,STEPS['15m']).slice(0,60),full.slice(0,60));
   const gap=[...bars.slice(0,55),{t:bars[55].t+STEPS['15m'],c:bars[55].c}];assert.equal(weightedPriceBands(gap,STEPS['15m']).at(-1).mid,null);
+});
+test('WLR trend thickness is bounded, stronger straight slopes are thicker and remains prefix-causal',()=>{
+  const step=STEPS['15m'],bars=Array.from({length:80},(_,i)=>({t:i*step,o:100+i,h:101+i,l:99+i,c:100+i}));
+  const full=wlrTrendThickness(bars,step,{minHistory:5});assert.equal(full[13].width,null);assert(full.slice(14).every(x=>x.width>=1&&x.width<=6));assert(full.at(-1).r2>.999);assert(full.at(-1).width>4);
+  assert.deepEqual(wlrTrendThickness(bars.slice(0,50),step,{minHistory:5}),full.slice(0,50));
+  const future=bars.map((x,i)=>i>=50?{...x,c:9999,h:10000,l:9998}:x);assert.deepEqual(wlrTrendThickness(future,step,{minHistory:5}).slice(0,50),full.slice(0,50));
+  const flat=bars.map((x,i)=>({...x,o:100,c:100,h:101+(i%2),l:99-(i%2)}));assert(wlrTrendThickness(flat,step,{minHistory:5}).at(-1).width<full.at(-1).width);
 });
 test('continuous CVD spectrum accumulates quote delta by mirrored price bins',()=>{
   const bars=[{c:100.1,net:10},{c:100.2,net:5},{c:100.6,net:-20},{c:101.1,net:30}];
