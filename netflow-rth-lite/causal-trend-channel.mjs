@@ -54,9 +54,8 @@ function flowLegOrigin(rows,signs,index,direction,lookback){
 // Once confirmed, price owns membership. Neutral SPY V candles and one short
 // opposite pulse stay in the leg; only flowFlipBars consecutive values beyond
 // the opposite dead-band confirm a flow reversal.
-export function causalTrendChannels(rows,{volumeRows=[],priorWindow=20,fastWindow=8,minPriorR2:_legacyMinPriorR2=.35,breakAtr=.15,channelAtr=.45,channelSigma=2,flowDeadband=.15,flowFlipBars=2,adverseExitBars=2,volumeSlopeWindow=4,originLookback=4,minLegBars=8,minDisplayR2=.20,maxBars=Infinity,maxHistory=12}={}){
+export function causalTrendChannels(rows,{volumeRows=[],priorWindow=20,fastWindow=8,breakAtr=.15,channelAtr=.45,channelSigma=2,flowDeadband=.15,flowFlipBars=2,adverseExitBars=2,volumeSlopeWindow=4,originLookback=4,minLegBars=8,minDisplayR2=.20,maxBars=Infinity,maxHistory=12}={}){
   if(!Number.isInteger(priorWindow)||priorWindow<12||!Number.isInteger(fastWindow)||fastWindow<4||!(channelSigma>0)||flowDeadband<0||flowDeadband>=1||!Number.isInteger(flowFlipBars)||flowFlipBars<1||!Number.isInteger(adverseExitBars)||adverseExitBars<1||!Number.isInteger(volumeSlopeWindow)||volumeSlopeWindow<2||!Number.isInteger(originLookback)||originLookback<0||!Number.isInteger(minLegBars)||minLegBars<3||minDisplayR2<0||minDisplayR2>1)throw Error('Tham số Kênh trend causal không hợp lệ');
-  void _legacyMinPriorR2; // Kept for saved callers; R² now controls visibility, never admission.
   const clean=rows.filter(row=>['PRE','RTH'].includes(row.session)&&[row.t,row.o,row.h,row.l,row.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t),volumeMap=new Map(volumeRows.map(row=>[row.t,row.adjusted])),flowSigns=schmittFlowSigns(clean,volumeMap,flowDeadband),netDeltas=normalizedNetDeltas(clean),trends=[],episodes=[];let legWidthReference=null;
   for(let i=priorWindow;i<clean.length-1;i++){
     const candidate=clean[i];

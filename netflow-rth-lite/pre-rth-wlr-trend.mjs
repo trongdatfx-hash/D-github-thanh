@@ -48,8 +48,7 @@ function regressionMetrics(state){
   let full=0,noComposite=0,noVolume=0,baseline=0;for(const row of sample){full+=(row.y-row.full)**2;noComposite+=(row.y-row.noComposite)**2;noVolume+=(row.y-row.noVolume)**2;baseline+=(row.y-row.baseline)**2;}
   return {r2:baseline>1e-12?1-full/baseline:null,partialComposite:noComposite>1e-12?clamp01(1-full/noComposite):null,partialVolume:noVolume>1e-12?clamp01(1-full/noVolume):null,oosN:sample.length};
 }
-export function classifyStrengthRegression(direction,{r2,partialComposite,partialVolume,impactComposite,impactVolume}={}){
-  void r2;void partialComposite;void partialVolume; // OOS metrics diagnose the model; they no longer discard a leg's signed context.
+export function classifyStrengthRegression(direction,{impactComposite,impactVolume}={}){
   if(![impactComposite,impactVolume].every(Number.isFinite)||!direction)return 'mixed';
   const compositeSide=Math.sign(impactComposite)*direction,volumeSide=Math.sign(impactVolume)*direction;
   if(compositeSide>0&&volumeSide>0)return 'support';if(compositeSide<0&&volumeSide<0)return 'opposed';return 'mixed';
@@ -92,6 +91,35 @@ function trendAgeGroup(bars){
   if(bars<=8)return {key:'developing',label:'PHÁT TRIỂN 5–8',min:5,max:8};
   if(bars<=12)return {key:'durable',label:'BỀN 9–12',min:9,max:12};
   return {key:'extended',label:'KÉO DÀI ≥13',min:13,max:null};
+}
+
+function lowerBoundTime(rows,target){
+  let low=0,high=rows.length;
+  while(low<high){
+    const middle=(low+high)>>1;
+    if(rows[middle].t<target)low=middle+1;
+    else high=middle;
+  }
+  return low;
+}
+
+function causalChannelMap(rows,trends){
+  const result=new Map();
+  for(const trend of trends){
+    if(trend.volumeQualified===false)continue;
+    const start=Number.isFinite(trend.startTime)?trend.startTime:trend.confirmationTime;
+    const end=trend.insideEndTime??trend.endTime;
+    if(!Number.isFinite(start)||!Number.isFinite(end)||end<start)continue;
+
+    const first=lowerBoundTime(rows,start);
+    const totalBars=Number.isInteger(trend.bars)?trend.bars:Math.max(0,lowerBoundTime(rows,end+1)-first);
+    const key=`${start}|${trend.direction}`;
+    const confirmationTime=Number.isFinite(trend.confirmationTime)?trend.confirmationTime:start;
+    for(let index=first;index<rows.length&&rows[index].t<=end;index++){
+      result.set(rows[index].t,{direction:trend.direction,age:index-first+1,totalBars,key,confirmationTime,censored:trend.provisional===true});
+    }
+  }
+  return result;
 }
 
 function daySignals(rows,strengthMap,volumeMap,channelMap,requireChannel,slopeHistory,scoreHistory,regressionStates,window){
@@ -164,13 +192,14 @@ function cohortGroups(episodes,currentBars=null,horizon=PRE_RTH_WLR_HORIZON,minC
 
 export function preRthWlrTrend({priceRows=[],strengthRows=[],volumeRows=[],channelTrends=[],requireChannel=false,now=Date.now(),window=PRE_RTH_WLR_WINDOW,horizon=PRE_RTH_WLR_HORIZON,minCohort=12}={}){
   if(!Number.isInteger(window)||window<4||!Number.isInteger(horizon)||horizon<1||!Number.isInteger(minCohort)||minCohort<1)throw Error('Tham số PRE→RTH WLR không hợp lệ');
-  const strengthMap=new Map(strengthRows.map(row=>[row.t,row])),volumeMap=new Map(volumeRows.map(row=>[row.t,row])),channelMap=new Map(),days=new Map();
-  if(requireChannel)for(const trend of channelTrends){
-    if(trend.volumeQualified===false)continue;const from=Number.isFinite(trend.startTime)?trend.startTime:trend.confirmationTime,to=trend.insideEndTime??trend.endTime,start=from;if(!Number.isFinite(from)||!Number.isFinite(to))continue;
-    const legRows=priceRows.filter(row=>row.t>=start&&row.t<=to&&['PRE','RTH'].includes(row.session)).sort((a,b)=>a.t-b.t),ageByTime=new Map(legRows.map((row,index)=>[row.t,index+1])),totalBars=Number.isInteger(trend.bars)?trend.bars:legRows.length,key=`${start}|${trend.direction}`;
-    const confirmationTime=Number.isFinite(trend.confirmationTime)?trend.confirmationTime:start;for(const row of legRows)channelMap.set(row.t,{direction:trend.direction,age:ageByTime.get(row.t),totalBars,key,confirmationTime,censored:trend.provisional===true});
-  }
-  for(const row of priceRows){if((Number.isFinite(row.end)?row.end:row.t)>=now||!eligibleMarketBar(row)||!['PRE','RTH'].includes(row.session)||![row.t,row.o,row.h,row.l,row.c].every(Number.isFinite))continue;if(!days.has(row.day))days.set(row.day,[]);days.get(row.day).push(row);}
+  const strengthMap=new Map(strengthRows.map(row=>[row.t,row]));
+  const volumeMap=new Map(volumeRows.map(row=>[row.t,row]));
+  const marketRows=priceRows
+    .filter(row=>(Number.isFinite(row.end)?row.end:row.t)<now&&eligibleMarketBar(row)&&['PRE','RTH'].includes(row.session)&&[row.t,row.o,row.h,row.l,row.c].every(Number.isFinite))
+    .sort((a,b)=>a.t-b.t);
+  const channelMap=requireChannel?causalChannelMap(marketRows,channelTrends):new Map();
+  const days=new Map();
+  for(const row of marketRows){if(!days.has(row.day))days.set(row.day,[]);days.get(row.day).push(row);}
   const ordered=[...days.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([day,rows])=>[day,rows.sort((a,b)=>a.t-b.t)]),nowState=sessionAt(now),slopeHistory=[],scoreHistory=[],regressionStates={PRE:createRegressionState(),RTH:createRegressionState()},historical=[];let current=null,currentCompleted=[];
   for(const [day,rows] of ordered){
     const signals=daySignals(rows,strengthMap,volumeMap,channelMap,requireChannel,slopeHistory,scoreHistory,regressionStates,window),isCurrent=day===nowState.day&&['PRE','RTH'].includes(nowState.session)&&isUsMarketTradingDay(day),detected=detectEpisodes(signals,day,{leaveActive:isCurrent});
