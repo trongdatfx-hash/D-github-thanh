@@ -36,6 +36,12 @@ test('provisional line uses a closed candidate before right-side pivot confirmat
   assert.equal(provisionalTrendlines(bars.slice(0,200),[first],{left:2,right:2,minAnchorGap:6,maxAnchorGap:160,minProminenceAtr:.03,atr:atr.slice(0,200)}).some(line=>line.candidateIndex===200),false);
 });
 
+test('provisional dotted trendline remains visible through the eight-bar early window',()=>{
+  const data=synthetic(205),bars=data.price.map(row=>({...row})),first={type:'low',index:170,t:bars[170].t,value:bars[170].l};bars[200].l-=3;
+  const support=provisionalTrendlines(bars,[first],{left:2,right:2,provisionalLookback:8,minAnchorGap:6,maxAnchorGap:160,minProminenceAtr:.03,atr:causalAtr(bars)}).find(line=>line.kind==='support');
+  assert(support?.provisional);assert.equal(support.candidateIndex,200);assert.equal(support.endIndex,204);assert.equal(support.lookbackBars,5);assert(Number.isFinite(support.slopeAtr));
+});
+
 test('divergences are emitted only at confirmation time and remain unchanged by future bars',()=>{
   const data=synthetic(),options={left:2,right:2,minProminenceAtr:.03,minScore:0,maxLines:6},full=analyzeGeometry(data,options);
   assert(full.events.some(event=>event.direction==='bullish'));assert(full.events.some(event=>Number.isFinite(event.volumeDelta)));assert(full.lines.length>0);

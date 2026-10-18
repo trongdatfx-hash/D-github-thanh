@@ -3,7 +3,7 @@ const finite=Number.isFinite;
 export const GEOMETRY_DEFAULTS=Object.freeze({
   left:3,right:2,atrPeriod:14,minProminenceAtr:.12,minAnchorGap:6,maxAnchorGap:160,
   touchToleranceAtr:.28,breakToleranceAtr:.5,maxPivotsPerSide:18,minScore:64,maxLines:4,
-  minPriceSwingAtr:.15,minStrengthSwing:.06,minFlowSwing:3
+  minPriceSwingAtr:.15,minStrengthSwing:.06,minFlowSwing:3,provisionalLookback:8
 });
 
 function clamp(value,min=0,max=1){return Math.max(min,Math.min(max,value));}
@@ -129,10 +129,10 @@ export function buildTrendlines(bars,pivots,context,options={}){
 
 export function provisionalTrendlines(bars,pivots,options={}){
   const config={...GEOMETRY_DEFAULTS,...options},atr=options.atr??causalAtr(bars,{period:config.atrPeriod}),last=bars.length-1,lines=[];
-  if(last<config.left+config.right+config.minAnchorGap)return lines;
+  if(last<config.left+config.right+config.minAnchorGap||!Number.isInteger(config.provisionalLookback)||config.provisionalLookback<config.right)return lines;
   for(const type of ['low','high']){
     let candidate=null;
-    for(let index=Math.max(config.left,last-config.right+1);index<=last;index++){
+    for(let index=Math.max(config.left,last-config.provisionalLookback+1);index<=last;index++){
       const bar=bars[index],left=bars.slice(index-config.left,index),scale=atr[index];
       if(!finite(scale)||scale<=0||!left.every(row=>finite(row?.h)&&finite(row?.l)))continue;
       const value=type==='low'?bar.l:bar.h,previous=type==='low'?Math.min(...left.map(row=>row.l)):Math.max(...left.map(row=>row.h));
@@ -143,8 +143,8 @@ export function provisionalTrendlines(bars,pivots,options={}){
     if(!candidate)continue;
     const first=[...pivots].reverse().find(pivot=>pivot.type===type&&candidate.index-pivot.index>=config.minAnchorGap&&candidate.index-pivot.index<=config.maxAnchorGap);
     if(!first)continue;
-    const slope=(candidate.value-first.value)/(candidate.index-first.index),endValue=candidate.value+slope*(last-candidate.index);
-    lines.push({kind:type==='low'?'support':'resistance',provisional:true,startIndex:first.index,startTime:first.t,startValue:first.value,endIndex:last,endTime:bars[last].t,endValue,slope,knownAt:bars[last].t,candidateIndex:candidate.index});
+    const slope=(candidate.value-first.value)/(candidate.index-first.index),endValue=candidate.value+slope*(last-candidate.index),scale=atr[candidate.index]||first.atr||1;
+    lines.push({kind:type==='low'?'support':'resistance',provisional:true,startIndex:first.index,startTime:first.t,startValue:first.value,endIndex:last,endTime:bars[last].t,endValue,slope,slopeAtr:slope/scale,knownAt:bars[last].t,candidateIndex:candidate.index,candidateTime:candidate.t,lookbackBars:last-candidate.index+1});
   }
   return lines;
 }
