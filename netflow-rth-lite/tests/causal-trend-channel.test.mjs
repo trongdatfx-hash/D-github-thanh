@@ -42,3 +42,13 @@ test('R² and two-sigma distribution refit causally as accepted M15 candles arri
   const rows=breakoutRows(),volumeRows=rows.map(row=>({t:row.t,adjusted:-.7})),full=causalTrendChannels(rows,{volumeRows,minPriorR2:.2,maxHistory:5}).trends[0],prefixRows=rows.slice(0,30),prefix=causalTrendChannels(prefixRows,{volumeRows:volumeRows.slice(0,30),minPriorR2:.2,maxHistory:5}).trends[0];
   assert(full&&prefix);assert.equal(full.points.length,full.bars);assert(new Set(full.points.map(point=>point.r2.toFixed(6))).size>3);assert(Number.isFinite(full.adaptiveR2));assert.deepEqual(full.points.filter(point=>point.time<=prefixRows.at(-1).t),prefix.points);
 });
+
+test('SPY V dead-band holds an active leg through small zero-line noise',()=>{
+  const rows=breakoutRows(),volumeRows=rows.map((row,index)=>({t:row.t,adjusted:index<22?-.7:index<30?(index%2?.06:-.08):-.45})),trend=causalTrendChannels(rows,{volumeRows,minPriorR2:.99,flowDeadband:.12,maxHistory:5}).trends[0];
+  assert(trend);assert.equal(trend.startTime,rows[20].t);assert.equal(trend.exitReason,null);assert.equal(trend.bars,rows.length-20);assert.equal(trend.flowDeadband,.12);
+});
+
+test('SPY V closes a confirmed leg only after crossing the opposite dead-band',()=>{
+  const rows=breakoutRows(),flipIndex=29,volumeRows=rows.map((row,index)=>({t:row.t,adjusted:index<flipIndex?-.7:index===flipIndex?.05:.45})),trend=causalTrendChannels(rows,{volumeRows,flowDeadband:.12,maxHistory:5}).trends[0];
+  assert(trend);assert.equal(trend.exitTime,rows[flipIndex+1].t);assert.equal(trend.exitReason,'flow-flip');assert.equal(trend.insideEndTime,rows[flipIndex].t);assert.equal(trend.bars,flipIndex-20+1);
+});
