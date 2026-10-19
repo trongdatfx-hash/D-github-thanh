@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-10-19T01:41:48.257Z",
+  "updatedAt": "2026-10-19T06:52:55.618Z",
   "events": [
     {
       "title": "IMF Meetings",
@@ -59,7 +59,7 @@
       "date": "2026-10-19T01:30:00.000Z",
       "timestamp": 1792373400000,
       "impact": "Low",
-      "actual": "",
+      "actual": "-0.14%",
       "forecast": "",
       "previous": "-0.17%"
     },
@@ -69,7 +69,7 @@
       "date": "2026-10-19T02:00:00.000Z",
       "timestamp": 1792375200000,
       "impact": "Low",
-      "actual": "",
+      "actual": "-7.2%",
       "forecast": "-7.3%",
       "previous": "-7.2%"
     },
@@ -79,7 +79,7 @@
       "date": "2026-10-19T02:00:00.000Z",
       "timestamp": 1792375200000,
       "impact": "Low",
-      "actual": "",
+      "actual": "4.5%",
       "forecast": "4.4%",
       "previous": "4.3%"
     },
@@ -89,7 +89,7 @@
       "date": "2026-10-19T02:00:00.000Z",
       "timestamp": 1792375200000,
       "impact": "Low",
-      "actual": "",
+      "actual": "5.5%",
       "forecast": "5.4%",
       "previous": "5.2%"
     },
@@ -109,7 +109,7 @@
       "date": "2026-10-19T02:00:00.000Z",
       "timestamp": 1792375200000,
       "impact": "Low",
-      "actual": "",
+      "actual": "1.1%",
       "forecast": "0.5%",
       "previous": "0.4%"
     },
@@ -119,7 +119,7 @@
       "date": "2026-10-19T02:00:00.000Z",
       "timestamp": 1792375200000,
       "impact": "Low",
-      "actual": "",
+      "actual": "5.2%",
       "forecast": "5.3%",
       "previous": "5.3%"
     },
@@ -129,15 +129,15 @@
       "date": "2026-10-19T04:30:00.000Z",
       "timestamp": 1792384200000,
       "impact": "Low",
-      "actual": "",
+      "actual": "-0.1%",
       "forecast": "-0.3%",
-      "previous": "0.4%"
+      "previous": "0.2%"
     },
     {
       "title": "Foreign Direct Investment ytd/y",
       "country": "CNY",
-      "date": "2026-10-19T06:02:00.000Z",
-      "timestamp": 1792389720000,
+      "date": "2026-10-19T09:10:00.000Z",
+      "timestamp": 1792401000000,
       "impact": "Low",
       "actual": "",
       "forecast": "",
