@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-10-19T06:52:55.618Z",
+  "updatedAt": "2026-10-19T14:09:50.855Z",
   "events": [
     {
       "title": "IMF Meetings",
@@ -134,22 +134,12 @@
       "previous": "0.2%"
     },
     {
-      "title": "Foreign Direct Investment ytd/y",
-      "country": "CNY",
-      "date": "2026-10-19T09:10:00.000Z",
-      "timestamp": 1792401000000,
-      "impact": "Low",
-      "actual": "",
-      "forecast": "",
-      "previous": "-5.3%"
-    },
-    {
       "title": "Common CPI y/y",
       "country": "CAD",
       "date": "2026-10-19T12:30:00.000Z",
       "timestamp": 1792413000000,
       "impact": "Medium",
-      "actual": "",
+      "actual": "2.4%",
       "forecast": "2.6%",
       "previous": "2.6%"
     },
@@ -159,7 +149,7 @@
       "date": "2026-10-19T12:30:00.000Z",
       "timestamp": 1792413000000,
       "impact": "Low",
-      "actual": "",
+      "actual": "0.0%",
       "forecast": "",
       "previous": "0.1%"
     },
@@ -169,7 +159,7 @@
       "date": "2026-10-19T12:30:00.000Z",
       "timestamp": 1792413000000,
       "impact": "High",
-      "actual": "",
+      "actual": "0.1%",
       "forecast": "0.2%",
       "previous": "-0.1%"
     },
@@ -179,7 +169,7 @@
       "date": "2026-10-19T12:30:00.000Z",
       "timestamp": 1792413000000,
       "impact": "High",
-      "actual": "",
+      "actual": "1.9%",
       "forecast": "2.0%",
       "previous": "2.0%"
     },
@@ -189,7 +179,7 @@
       "date": "2026-10-19T12:30:00.000Z",
       "timestamp": 1792413000000,
       "impact": "High",
-      "actual": "",
+      "actual": "1.8%",
       "forecast": "1.9%",
       "previous": "1.9%"
     },
@@ -302,6 +292,16 @@
       "actual": "",
       "forecast": "23.6",
       "previous": "25.8"
+    },
+    {
+      "title": "Foreign Direct Investment ytd/y",
+      "country": "CNY",
+      "date": "2026-10-20T09:10:00.000Z",
+      "timestamp": 1792487400000,
+      "impact": "Low",
+      "actual": "",
+      "forecast": "",
+      "previous": "-5.3%"
     },
     {
       "title": "10-y Bond Auction",
