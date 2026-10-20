@@ -3,7 +3,7 @@ import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeo
 import {pivotZones} from './pivot-zones.mjs';
 import {causalTrendChannels} from './causal-trend-channel.mjs';
 import {preRthWlrTrend} from './pre-rth-wlr-trend.mjs?v=20261020-aeon1';
-import {featureRows} from './analogs-features.mjs';
+import {chartFeatureRows} from './analogs-features.mjs?v=20261020-ensemble1';
 
 export function analyzeTrendSource(raw,now){
   const closed=Object.fromEntries(['SPYUSDT','QQQUSDT'].map(s=>[s,(raw[s]??[]).filter(r=>r.end<now)])),step=STEPS['15m'];
@@ -22,6 +22,6 @@ export function computeStudies({rows,volumeRows,symbol,interval,options,now,tren
   const rev63=preRthWlrTrend({priceRows:tRows,strengthRows:trend?.rows.COMPOSITE??[],volumeRows:trendVolume,channelTrends:channelState.episodes??channelState.trends,requireChannel:true,now});
   const historicalChannels=channelState.episodes.filter(c=>new Date(c.startTime).toLocaleDateString('en-CA',{timeZone:'America/New_York'})!==new Date(now).toLocaleDateString('en-CA',{timeZone:'America/New_York'}));
   rev63.dataInfo={currentSession:sessionAt(now).session,firstTime:closedTrend[0]?.t??null,lastTime:closedTrend.at(-1)?.t??null,bars:closedTrend.length,days:new Set(closedTrend.filter(r=>['PRE','RTH'].includes(r.session)).map(r=>r.day)).size,channels:historicalChannels.length,displayQualified:historicalChannels.filter(c=>c.displayQualified).length};
-  const features=interval==='15m'?featureRows(model.rows[symbol]??[],model.rows.COMPOSITE??[],model.volume,{now}):[];
+  const features=interval==='15m'?chartFeatureRows(model.rows[symbol]??[],model.rows.COMPOSITE??[],model.volume,{now}):[];
   return {geometry,channels,breakout,points,backtest,pivot,rev63,features};
 }

@@ -20,7 +20,7 @@ function draw(){
 function render(result,label){
   activeResult=result;selected=0;source=label;
   const r=result,n=r.n,age=r.queryTime?Date.now()-(r.queryTime+900000):Infinity;
-  $('analogs-status').textContent=`${label} · ${r.rows} nến · Mốc ${r.queryTime?date(r.queryTime)+' New York':'—'}${age>1800000?' · DỮ LIỆU CŨ':''}`;
+  $('analogs-status').textContent=`${label} · ${r.technique==='price-volume'?'WLR Trend giá + Cụm Giá×SPY V':'Giá + Flow gốc'} · ${r.rows} nến · Mốc ${r.queryTime?date(r.queryTime)+' New York':'—'}${age>1800000?' · DỮ LIỆU CŨ':''}`;
   $('analogs-state').textContent=r.status==='WAIT'?'WAIT · Mẫu mỏng':'THỐNG KÊ THĂM DÒ';
   $('analogs-up').textContent=pct(r.pUp===null?null:100*r.pUp);
   $('analogs-down').textContent=pct(n?100*r.down/n:null);
@@ -37,11 +37,11 @@ function render(result,label){
 }
 function search(force=false){
   if(!latest)return;
-  const m=+$('analogs-window').value,h=+$('analogs-horizon').value,symbol=latest.symbol;
-  const next=`${symbol}:${latest.rows.at(-1)?.t}:${latest.rows.length}:${m}:${h}`;if(!force&&key===next)return;key=next;
+  const m=+$('analogs-window').value,h=+$('analogs-horizon').value,symbol=latest.symbol,technique=$('analogs-technique')?.value??'flow';
+  const next=`${symbol}:${latest.rows.at(-1)?.t}:${latest.rows.length}:${m}:${h}:${technique}`;if(!force&&key===next)return;key=next;
   $('analogs-status').textContent='Đang tìm cấu trúc giá–dòng tiền trong lịch sử…';
-  if(!worker){worker=new Worker(new URL('./analogs-worker.mjs',import.meta.url),{type:'module'});worker.onmessage=({data})=>{if(data.id!==request)return;if(data.error){$('analogs-status').textContent=`Không tính được: ${data.error}`;return;}render(data.result,'So khớp trực tiếp · khoảng cách tương đương STUMPY MASS');};worker.onerror=()=>{$('analogs-status').textContent='Không khởi chạy được bộ so khớp. Hãy tải lại trang.';key='';worker?.terminate();worker=null;};}
-  worker.postMessage({id:++request,rows:latest.rows,options:{m,h}});
+  if(!worker){worker=new Worker(new URL('./analogs-worker.mjs?v=20261020-ensemble1',import.meta.url),{type:'module'});worker.onmessage=({data})=>{if(data.id!==request)return;if(data.error){$('analogs-status').textContent=`Không tính được: ${data.error}`;return;}render(data.result,'So khớp trực tiếp · khoảng cách tương đương STUMPY MASS');};worker.onerror=()=>{$('analogs-status').textContent='Không khởi chạy được bộ so khớp. Hãy tải lại trang.';key='';worker?.terminate();worker=null;};}
+  worker.postMessage({id:++request,rows:latest.rows,options:{m,h,technique}});
 }
 export function updateAnalogs({rows,symbol,interval}){
   if(interval!=='15m'){$('analogs-status').textContent='Historical Analogs chỉ nghiên cứu M15. Chuyển khung M15 để cập nhật.';latest=null;++request;key='';$('analogs-state').textContent='TẠM DỪNG · KHÁC M15';return;}
@@ -56,14 +56,14 @@ export function clearAnalogs(){
   $('analogs-count').textContent='0';$('analogs-table').replaceChildren();$('analogs-summary').textContent='';$('analogs-selection').textContent='';
   const canvas=$('analogs-chart');canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
 }
-for(const id of ['analogs-window','analogs-horizon'])$(id).onchange=()=>{if(latest)search(true);else loadSnapshot();};
+for(const id of ['analogs-window','analogs-horizon','analogs-technique'])$(id).onchange=()=>{if(latest)search(true);else loadSnapshot();};
 $('analogs-refresh').onclick=()=>latest?search(true):loadSnapshot();
 $('analogs-json').onclick=()=>{if(!activeResult)return;const url=URL.createObjectURL(new Blob([JSON.stringify({...activeResult,source},null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='netflow-historical-analogs.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 let snapshot=null;
 async function loadSnapshot(){
   try{if(!snapshot){const response=await fetch(new URL('./data/analogs/snapshot.json',import.meta.url),{cache:'no-store'});if(!response.ok)throw Error('chưa có snapshot');snapshot=await response.json();}
-    if(latest||$('interval')?.value!=='15m')return;const id=`SPYUSDT:${$('analogs-window').value}:${$('analogs-horizon').value}`,r=snapshot.results[id];
-    if(r)render(r,`STUMPY Python · ${snapshot.provenance} · tham chiếu SPY`);
+    if(latest||$('interval')?.value!=='15m')return;const symbol=$('symbol')?.value??'SPYUSDT',technique=$('analogs-technique')?.value??'flow',id=`${symbol}:${$('analogs-window').value}:${$('analogs-horizon').value}${technique==='price-volume'?':price-volume':''}`,r=snapshot.results[id];
+    if(r)render(r,`STUMPY Python · ${snapshot.provenance} · tham chiếu ${symbol}`);else{$('analogs-status').textContent='WAIT · Chưa có snapshot cho bộ đặc trưng đã chọn.';$('analogs-state').textContent='WAIT';}
   }catch{if(!latest)$('analogs-status').textContent='Chờ dữ liệu live hoặc snapshot STUMPY. Không tạo mẫu giả.';}
 }
 window.addEventListener('resize',draw);loadSnapshot();

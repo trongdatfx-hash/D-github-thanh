@@ -11,7 +11,7 @@ if(args.includes('--finalize')){
   const input=JSON.parse(fs.readFileSync(get('--input',path.join(root,'data/analogs/features.json'))));
   const profiles=JSON.parse(fs.readFileSync(get('--profiles',path.join(root,'data/analogs/profiles.json'))));
   const results={};for(const [key,ranked]of Object.entries(profiles.ranked)){
-    const [symbol,m,h]=key.split(':');results[key]={...summarize(input.rows[symbol],+m,+h,ranked),engine:'STUMPY MASS',libraryVersion:profiles.libraryVersion};
+    const [symbol,m,h,technique='flow']=key.split(':');results[key]={...summarize(input.rows[symbol],+m,+h,ranked,20,{technique}),engine:'STUMPY MASS',libraryVersion:profiles.libraryVersion};
   }
   save(get('--output',path.join(root,'data/analogs/snapshot.json')),{version:1,generatedAt:Date.now(),provenance:input.provenance,sourceAsOf:input.asOf,results});
   console.log(JSON.stringify({results:Object.keys(results).length,samples:Object.fromEntries(Object.entries(results).map(([k,v])=>[k,v.n]))}));
@@ -30,7 +30,7 @@ if(args.includes('--finalize')){
     asOf=Math.min(asOf,...Object.values(raw).map(a=>a.at(-1).end+1));
   }
   const rows=prepareRaw(raw,{now:asOf}),tasks={};
-  for(const [symbol,data]of Object.entries(rows))for(const m of [8,16,32])for(const h of [3,6,12])tasks[`${symbol}:${m}:${h}`]=candidateIndices(data,m,h);
+  for(const [symbol,data]of Object.entries(rows))for(const m of [8,16,32])for(const h of [3,6,12]){tasks[`${symbol}:${m}:${h}`]=candidateIndices(data,m,h);tasks[`${symbol}:${m}:${h}:price-volume`]=candidateIndices(data,m,h,{technique:'price-volume'});}
   save(get('--output',path.join(root,'data/analogs/features.json')),{version:1,asOf,provenance,rows,tasks});
   console.log(JSON.stringify({asOf,rows:Object.fromEntries(Object.entries(rows).map(([k,v])=>[k,v.length]))}));
 }

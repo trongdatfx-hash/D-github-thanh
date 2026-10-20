@@ -1,4 +1,4 @@
-import {analyzeTrendSource,computeStudies} from './studies-core.mjs?v=20261020-aeon2';
+import {analyzeTrendSource,computeStudies} from './studies-core.mjs?v=20261020-ensemble1';
 import {loadPersistentHistory} from './history-store.mjs?v=20261020-perf1';
 let serial=0,trend=null,trendKey='',historyPending=null;
 self.onmessage=async({data})=>{

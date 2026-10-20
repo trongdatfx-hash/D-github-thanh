@@ -22,6 +22,18 @@ test('constant distance convention matches STUMPY',()=>{
 test('real STUMPY MASS vs browser distance across all admitted historical candidates',(t)=>{
  if(!process.env.ANALOG_FEATURES||!process.env.ANALOG_PROFILES){t.skip('Run with actual STUMPY profiles');return;}
  const data=JSON.parse(fs.readFileSync(process.env.ANALOG_FEATURES)),profiles=JSON.parse(fs.readFileSync(process.env.ANALOG_PROFILES));let n=0;
- for(const [key,ranked]of Object.entries(profiles.ranked)){const [symbol,window]=key.split(':'),m=+window,a=data.rows[symbol],q=a.slice(-m);for(const r of ranked){assert.ok(Math.abs(shapeDistance(q,a.slice(r.index,r.index+m))-r.distance)<1e-5,`${key}:${r.index}`);n++;}}
+ for(const [key,ranked]of Object.entries(profiles.ranked)){const [symbol,window,,technique='flow']=key.split(':'),m=+window,a=data.rows[symbol],q=a.slice(-m);for(const r of ranked){assert.ok(Math.abs(shapeDistance(q,a.slice(r.index,r.index+m),{technique})-r.distance)<1e-5,`${key}:${r.index}`);n++;}}
  if(!n)t.skip('No admissible query in this session');else console.log(`Compared ${n} real STUMPY distances`);
+});
+
+test('chart-state distance preserves constant candle direction and width',()=>{
+ const a=Array.from({length:8},(_,i)=>({pv:[i,.2,.5,.8,1,.6,0,0]})),b=a.map(r=>({pv:[...r.pv]}));assert.equal(shapeDistance(a,b,{technique:'price-volume'}),0);
+ for(const r of b)r.pv[4]=-1;assert.ok(shapeDistance(a,b,{technique:'price-volume'})>.3);
+ const c=a.map(r=>({pv:[...r.pv]}));for(const r of c)r.pv[1]=.9;assert.ok(shapeDistance(a,c,{technique:'price-volume'})>0);
+});
+test('chart-technique candidates remain causal and missing state returns WAIT',()=>{
+ const a=rows.map((r,i)=>({...r,pv:[r.x[0],.2,.5,.8,i%2?1:-1,r.x[1]/2,0,0]})),r=searchAnalogs(a,{m:16,h:3,technique:'price-volume'});
+ assert.ok(r.n>0);assert.equal(r.technique,'price-volume');
+ for(const match of r.matches)assert.ok(match.index+16+3-1<a.length-16);
+ a.at(-1).pv[1]=null;assert.equal(searchAnalogs(a,{technique:'price-volume'}).n,0);
 });

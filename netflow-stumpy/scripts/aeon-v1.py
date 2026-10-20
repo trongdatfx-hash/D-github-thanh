@@ -15,6 +15,8 @@ import stumpy
 
 M, H, STEP = 16, 3, 900000
 WEIGHTS = np.array([.4, .25, .25, .1])
+PV_WEIGHTS = np.array([.30,.15,.15,.05,.15,.10,.05,.05])
+PV_SCALES = np.array([1,1,.5,1,.5,.5,1,1])
 
 def normalize(x):
     sd = x.std(axis=-1, keepdims=True)
@@ -73,15 +75,18 @@ def fit_models(train, calibration):
         ts[name] = min([.75, 1., 1.5, 2., 3.], key=lambda t: log_loss(cy, temper(p, t), labels=[0, 1, 2]))
     return model, price, ts, (np.bincount(y, minlength=3)+1)/(len(y)+3)
 
-def analog(query, known, values):
+def analog(query, known, values, chart_values=None, technique='flow'):
     candidates = [s for s in known if s['labelTime'] < query['startTime'] and s['session'] == query['session']]
     if not candidates:
         return np.ones(3)/3, 0
     # Actual STUMPY MASS, not similarity inferred from classifier confidence.
     m = query['x'].shape[-1]
-    profile = np.zeros(len(values)-m+1)
-    for k, weight in enumerate(WEIGHTS):
-        d = stumpy.mass(values[query['start']:query['end']+1, k], values[:, k])
+    data = chart_values if technique=='price-volume' else values
+    weights = PV_WEIGHTS if technique=='price-volume' else WEIGHTS
+    profile = np.zeros(len(data)-m+1)
+    for k, weight in enumerate(weights):
+        scale = PV_SCALES[k] if technique=='price-volume' else 1
+        d = stumpy.mass(data[query['start']:query['end']+1, k]*scale, data[:, k]*scale, normalize=technique!='price-volume' or k==0)
         profile += weight*np.asarray(d)**2/m
     ranked = sorted(candidates, key=lambda s: profile[s['start']])
     picked = []; days = set()
@@ -120,23 +125,24 @@ def metrics(records, name):
     brier = np.sum((p-np.eye(3)[y])**2, axis=1)
     return dict(accuracy=float(accuracy_score(y, p.argmax(axis=1))), brier=float(brier.mean()), logLoss=float(log_loss(y, p, labels=[0,1,2])))
 
-def improvement(records, reference):
+def improvement(records, reference, candidate='aeon'):
     days = sorted(set(r['day'] for r in records)); daily=[]
     for day in days:
         rr=[r for r in records if r['day']==day]
         def loss(name):
             return np.mean([np.sum((np.array(r[name])-np.eye(3)[r['y']])**2) for r in rr])
-        daily.append(loss(reference)-loss('aeon'))
+        daily.append(loss(reference)-loss(candidate))
     rng=np.random.default_rng(20261020)
     # Moving blocks of 5 trading days preserve short-range day dependence.
     means=[]; a=np.array(daily); block=min(5,len(a))
     for _ in range(1000):
         indices=np.concatenate([(rng.integers(0,len(a))+np.arange(block))%len(a) for _ in range((len(a)+block-1)//block)])[:len(a)]
         means.append(a[indices].mean())
-    return dict(mean=float(a.mean()), low=float(np.quantile(means,.025)), high=float(np.quantile(means,.975)), method='paired 5-day moving-block bootstrap; positive favors aeon')
+    return dict(mean=float(a.mean()), low=float(np.quantile(means,.025)), high=float(np.quantile(means,.975)), method='paired 5-day moving-block bootstrap; positive favors '+candidate)
 
 def run(rows, window=16, variant='original'):
     all_samples, values=samples(rows, window, variant); known=[s for s in all_samples if s['y'] is not None]
+    chart_values=np.array([[np.nan if v is None else v for v in row['pv']] for row in rows],float)
     days=sorted(set(s['day'] for s in known))
     if len(days)<60:
         return dict(status='WAIT', reason='Fewer than 60 eligible trading days', days=len(days))
@@ -146,29 +152,49 @@ def run(rows, window=16, variant='original'):
         test=thin([s for s in known if days[a]<=s['day']<=days[b-1]])
         train,cal=split_before(known,test[0]['startTime'])
         model,price,temps,base=fit_models(train,cal)
+        if variant=='price-volume':
+            cp=np.array([analog(s,known,values,chart_values,'price-volume')[0] for s in cal])
+            cy=np.array([s['y'] for s in cal])
+            temps['stumpy']=min([.75,1.,1.5,2.,3.],key=lambda t:log_loss(cy,temper(cp,t),labels=[0,1,2]))
         tx=np.stack([s['x'] for s in test])
         pa=temper(proba(model,tx),temps['aeon']); pp=temper(proba(price,tx,True),temps['price'])
         for j,s in enumerate(test):
-            ps,n=analog(s,known,values)
-            records.append(dict(t=s['t'],day=s['day'],y=s['y'],aeon=pa[j].tolist(),price=pp[j].tolist(),baseline=base.tolist(),stumpy=ps.tolist(),analogN=n))
+            flow_ps,n=analog(s,known,values)
+            ps=flow_ps
+            if variant=='price-volume':
+                raw_ps,n=analog(s,known,values,chart_values,'price-volume')
+                ps=temper(raw_ps[None,:],temps['stumpy'])[0]
+            record=dict(t=s['t'],day=s['day'],y=s['y'],aeon=pa[j].tolist(),price=pp[j].tolist(),baseline=base.tolist(),stumpy=ps.tolist(),analogN=n)
+            if variant=='price-volume':
+                record.update(stumpyFlow=flow_ps.tolist(),combined=((pa[j]+ps)/2).tolist(),ensembleReady=n>=12)
+            records.append(record)
         folds.append(dict(first=test[0]['day'],last=test[-1]['day'],trainN=len(train),calibrationN=len(cal),testN=len(test),temperatures=temps))
-    scores={name:metrics(records,name) for name in ['aeon','price','baseline','stumpy']}
+    scores={name:metrics(records,name) for name in (['aeon','price','baseline','stumpy','stumpyFlow','combined'] if variant=='price-volume' else ['aeon','price','baseline','stumpy'])}
     gains={name:improvement(records,name) for name in ['price','baseline','stumpy']}
+    combined_gains={name:improvement(records,name,'combined') for name in ['aeon','stumpy','price','baseline','stumpyFlow']} if variant=='price-volume' else {}
+    combined_evidence=variant=='price-volume' and len(set(r['day'] for r in records))>=30 and all(r['analogN']>=12 for r in records) and all(combined_gains[k]['low']>0 for k in ['aeon','stumpy','price','baseline'])
     # Current inference only if latest closed candle itself has a valid query.
     latest=all_samples[-1] if all_samples and all_samples[-1]['end']==len(rows)-1 else None
     current=None
     if latest:
         train,cal=split_before(known,latest['startTime'])
         model,price,temps,base=fit_models(train,cal)
-        x=latest['x'][None,:,:]; ps,n=analog(latest,known,values)
-        current=dict(queryTime=latest['t'],session=latest['session'],aeon=temper(proba(model,x),temps['aeon'])[0].tolist(),price=temper(proba(price,x,True),temps['price'])[0].tolist(),stumpy=ps.tolist(),analogN=n,thresholdPct=100*np.expm1(latest['threshold']),trainN=len(train),calibrationN=len(cal))
+        x=latest['x'][None,:,:]; flow_ps,n=analog(latest,known,values)
+        pa=temper(proba(model,x),temps['aeon'])[0];ps=flow_ps
+        if variant=='price-volume':
+            cp=np.array([analog(s,known,values,chart_values,'price-volume')[0] for s in cal]);cy=np.array([s['y'] for s in cal])
+            temp=min([.75,1.,1.5,2.,3.],key=lambda t:log_loss(cy,temper(cp,t),labels=[0,1,2]))
+            raw_ps,n=analog(latest,known,values,chart_values,'price-volume');ps=temper(raw_ps[None,:],temp)[0]
+        current=dict(queryTime=latest['t'],session=latest['session'],aeon=pa.tolist(),price=temper(proba(price,x,True),temps['price'])[0].tolist(),stumpy=ps.tolist(),analogN=n,thresholdPct=100*np.expm1(latest['threshold']),trainN=len(train),calibrationN=len(cal))
+        if variant=='price-volume':
+            current.update(stumpyFlow=flow_ps.tolist(),combined=((pa+ps)/2).tolist() if n>=12 else None,combinedReady=n>=12)
     evidence=len(set(r['day'] for r in records))>=30 and all(gains[k]['low']>0 for k in ['price','baseline'])
-    return dict(variant=variant, windowM15=window, status='EXPERIMENTAL', evidence='PROMISING_REQUIRES_FORWARD_TEST' if evidence else 'NOT_ESTABLISHED', bars=len(rows),firstTime=rows[0]['t'],lastTime=rows[-1]['t'],eligibleDays=len(days),labeledN=len(known),testN=len(records),testDays=len(set(r['day'] for r in records)),folds=folds,metrics=scores,improvement=gains,current=current,predictions=records)
+    return dict(combinedImprovement=combined_gains,combinedEvidence='PROMISING_REQUIRES_FORWARD_TEST' if combined_evidence else 'NOT_ESTABLISHED',combinedCoverage=sum(r.get('ensembleReady',False) for r in records)/len(records),variant=variant, windowM15=window, status='EXPERIMENTAL', evidence='PROMISING_REQUIRES_FORWARD_TEST' if evidence else 'NOT_ESTABLISHED', bars=len(rows),firstTime=rows[0]['t'],lastTime=rows[-1]['t'],eligibleDays=len(days),labeledN=len(known),testN=len(records),testDays=len(set(r['day'] for r in records)),folds=folds,metrics=scores,improvement=gains,current=current,predictions=records)
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(); parser.add_argument('--input',required=True);parser.add_argument('--output',required=True);args=parser.parse_args()
     data=json.loads(Path(args.input).read_text(encoding='utf-8'))
-    report=dict(version=3,generatedAt=int(datetime.now(timezone.utc).timestamp()*1000),sourceAsOf=data['asOf'],libraryVersion=aeon.__version__,spec=dict(windows=[8,16],horizon=H,classes=['DOWN','NEUTRAL','UP'],channels=['log price','Composite Strength','SPY Volume Strength','Composite NF%'],priceVolumeChannels=['log price z','WLR width 1-6 mapped 0-1','signed tanh slope8/ATR14','WLR R-squared','candle group -1/0/1','candle smooth score','counter-candle flag','transition flag'],shapelets=256,seed=20261020,threshold='0.35 × trailing 15-return std × sqrt(3), fixed for all variants',folds=3,calibration='chronological temperature scaling',testStrideBars=M+H,purgeContextBars=M,warning='Exploratory variants added after prior results. Not untouched final validation. No transaction-cost backtest.'),results={},windows={},windowComparison={},priceVolume=dict(windows={},windowComparison={},improvementVsOriginal={}))
+    report=dict(version=4,generatedAt=int(datetime.now(timezone.utc).timestamp()*1000),sourceAsOf=data['asOf'],libraryVersion=aeon.__version__,spec=dict(windows=[8,16],horizon=H,classes=['DOWN','NEUTRAL','UP'],channels=['log price','Composite Strength','SPY Volume Strength','Composite NF%'],ensemble='fixed 0.5 aeon + 0.5 separately temperature-calibrated chart-STUMPY, same timestamp; no test-weight tuning',stumpyChartWeights=PV_WEIGHTS.tolist(),stumpyChartScales=PV_SCALES.tolist(),priceVolumeChannels=['log price z','WLR width 1-6 mapped 0-1','signed tanh slope8/ATR14','WLR R-squared','candle group -1/0/1','candle smooth score','counter-candle flag','transition flag'],shapelets=256,seed=20261020,threshold='0.35 × trailing 15-return std × sqrt(3), fixed for all variants',folds=3,calibration='chronological temperature scaling',testStrideBars=M+H,purgeContextBars=M,warning='Exploratory variants added after prior results. Not untouched final validation. No transaction-cost backtest.'),results={},windows={},windowComparison={},priceVolume=dict(windows={},windowComparison={},improvementVsOriginal={}))
     for variant in ['original','price-volume']:
         destination=report if variant=='original' else report['priceVolume']
         for window in [8,16]:

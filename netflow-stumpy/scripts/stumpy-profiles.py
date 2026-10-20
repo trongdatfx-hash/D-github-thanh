@@ -8,6 +8,8 @@ import numpy as np
 import stumpy
 
 WEIGHTS = [.4, .25, .25, .1]
+PV_WEIGHTS = [.30,.15,.15,.05,.15,.10,.05,.05]
+PV_SCALES = [1,1,.5,1,.5,.5,1,1]
 
 def profiles(payload):
     result = {}
@@ -15,14 +17,17 @@ def profiles(payload):
         if not indices:
             result[key] = []
             continue
-        symbol, m, _ = key.split(':')
+        parts = key.split(':')
+        symbol, m = parts[:2]
+        pv = len(parts)>3 and parts[3]=='price-volume'
         m = int(m)
-        values = np.array([[np.nan if x is None else x for x in r['x']] for r in payload['rows'][symbol]], dtype=np.float64)
+        values = np.array([[np.nan if x is None else x for x in r['pv' if pv else 'x']] for r in payload['rows'][symbol]], dtype=np.float64)
         total = np.zeros(len(values) - m + 1)
-        for channel, weight in enumerate(WEIGHTS):
+        for channel, weight in enumerate(PV_WEIGHTS if pv else WEIGHTS):
             series = np.ascontiguousarray(values[:, channel])
             query = np.ascontiguousarray(series[-m:])
-            distance = stumpy.mass(query, series)
+            scale = PV_SCALES[channel] if pv else 1
+            distance = stumpy.mass(query*scale, series*scale, normalize=not pv or channel==0)
             total += weight * distance**2 / m
         ranked = [{'index': int(i), 'distance': float(math.sqrt(max(0, total[i])))} for i in indices if np.isfinite(total[i])]
         result[key] = sorted(ranked, key=lambda row: (row['distance'], row['index']))
