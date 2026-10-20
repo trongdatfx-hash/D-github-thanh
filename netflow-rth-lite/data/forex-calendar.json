@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-10-19T19:54:30.044Z",
+  "updatedAt": "2026-10-20T02:00:43.559Z",
   "events": [
     {
       "title": "IMF Meetings",
@@ -209,7 +209,7 @@
       "date": "2026-10-20T01:00:00.000Z",
       "timestamp": 1792458000000,
       "impact": "Low",
-      "actual": "",
+      "actual": "3.00%",
       "forecast": "3.00%",
       "previous": "3.00%"
     },
@@ -219,7 +219,7 @@
       "date": "2026-10-20T01:00:00.000Z",
       "timestamp": 1792458000000,
       "impact": "Low",
-      "actual": "",
+      "actual": "3.50%",
       "forecast": "3.50%",
       "previous": "3.50%"
     },
