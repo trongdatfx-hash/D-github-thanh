@@ -5,6 +5,12 @@ Root index uses `<base href="./netflow-stumpy/">`; the complete standalone copy 
 Previous root page is preserved at `legacy-taker-20261020/`, with its original root app.js unchanged.
 Original `netflow-rth-lite/` files are not modified.
 
+## Chart performance update
+
+The live chart draws before loading the long research archive. Geometry, historical line-state scans, Pivot Zones, and trend-survival calculations run in a dedicated module worker, once per closed-candle/configuration key. A separate worker computes tooltip statistics. Running-candle refreshes update the last series item when causal history and display mode are unchanged. Historical month shards use versioned browser caching. Chart history and all indicator formulas are retained; research still uses the full available archive. Geometric overlays are clipped to the price pane so projected lines cannot spill into indicator panes.
+
+Controlled desktop browser measurement with identical 30-day candles and the same full archive: chart ready approximately 11.75 seconds before / 0.99 seconds after; maximum observed main-thread long task approximately 10.60 seconds before / 0.38 seconds after. These are local test measurements, not a network-speed guarantee.
+
 ## Actual STUMPY backend
 
 ```

@@ -4,6 +4,7 @@ const ROOT='./data/binance/m15/';
 const MONTH_RE=/^\d{4}-\d{2}$/;
 const CACHE_TTL=5*60*1000;
 let cache=null,cacheAt=0;
+const shardCache=new Map();
 
 function compactToBar(r){
   if(!Array.isArray(r)||r.length<9)throw Error('Shard lịch sử M15 không hợp lệ');
@@ -27,8 +28,10 @@ export async function loadPersistentHistory({days=365,signal,live=null}={}){
       const [y,m]=key.split('-').map(Number),end=Date.UTC(y,m,1)-1;return end>=cutoff;
     });
     const docs=await Promise.all(months.map(async key=>{
-      const r=await fetch(ROOT+key+'.json?ts='+(manifest.updatedAt??''),{signal,cache:'no-store'});
-      if(!r.ok)throw Error('Thiếu shard '+key);return r.json();
+      const version=key===months.at(-1)?String(manifest.lastTime??manifest.updatedAt??''):'closed';
+      const cached=shardCache.get(key);if(cached?.version===version)return cached.doc;
+      const r=await fetch(ROOT+key+'.json?v='+version,{signal,cache:'force-cache'});
+      if(!r.ok)throw Error('Thiếu shard '+key);const doc=await r.json();shardCache.set(key,{version,doc});return doc;
     }));
     const archived={manifest,SPYUSDT:[],QQQUSDT:[]};
     for(const symbol of ['SPYUSDT','QQQUSDT'])archived[symbol]=docs.flatMap(doc=>(doc[symbol]??[]).map(compactToBar)).filter(x=>x.t>=cutoff);
@@ -36,3 +39,4 @@ export async function loadPersistentHistory({days=365,signal,live=null}={}){
   }
   return {manifest:cache.manifest,SPYUSDT:mergeBars(cache.SPYUSDT,live?.SPYUSDT??[]),QQQUSDT:mergeBars(cache.QQQUSDT,live?.QQQUSDT??[])};
 }
+
