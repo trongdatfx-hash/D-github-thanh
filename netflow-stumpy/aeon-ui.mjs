@@ -10,7 +10,7 @@ function render(){
   panel.querySelector('#aeon-current').replaceChildren();panel.querySelector('#aeon-scores').replaceChildren();
   if(!r||r.status==='WAIT'){status.textContent='WAIT · '+(r?.reason??'Chưa có báo cáo cho mã này');return;}
   const age=Date.now()-report.generatedAt,sourceAge=Date.now()-report.sourceAsOf;
-  status.textContent=`${symbol} · THỬ NGHIỆM · ${r.evidence==='PROMISING_REQUIRES_FORWARD_TEST'?'Có tín hiệu cải thiện; cần kiểm tra trực tiếp về sau':'CHƯA XÁC LẬP cải thiện ngoài mẫu'} · báo cáo ${date(report.generatedAt)}${age>36*3600000?' · BÁO CÁO CŨ':''}${sourceAge>36*3600000?' · DỮ LIỆU CŨ':''}`;
+  status.textContent=`${symbol} · THỬ NGHIỆM · ${r.evidence==='PROMISING_REQUIRES_FORWARD_TEST'?'Có tín hiệu cải thiện; cần kiểm tra trực tiếp về sau':'CHƯA XÁC LẬP cải thiện ngoài mẫu'} · báo cáo ${date(report.generatedAt)}${age>36*3600000?' · BÁO CÁO CŨ':''}${sourceAge>45*60000?' · SNAPSHOT QUÁ 45 PHÚT — KHÔNG PHẢI DỰ BÁO HIỆN TẠI':''}`;
   panel.querySelector('#aeon-data').textContent=`Nguồn Binance M15 · ${date(r.firstTime)} → ${date(r.lastTime)} (giờ VN) · ${r.bars} nến / ${r.eligibleDays} ngày đủ điều kiện · ${r.labeledN} cửa sổ có nhãn (có chồng lấn) · kiểm tra ${r.testN} mẫu / ${r.testDays} ngày · aeon ${report.libraryVersion}. Huấn luyện mỗi ngày; đây là snapshot, không cập nhật từng nến.`;
   if(r.current){
     const c=r.current,p=document.createElement('p');p.textContent=`Snapshot tại nến ${date(c.queryTime)} · ${c.session} · ngưỡng trung tính ±${c.thresholdPct.toFixed(3)}% · STUMPY ${c.analogN} mẫu${c.analogN<12?' (chưa đủ mẫu)':''}.`;panel.querySelector('#aeon-current').append(p);
