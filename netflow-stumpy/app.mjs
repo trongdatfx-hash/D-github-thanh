@@ -5,7 +5,7 @@ import {load} from './data.mjs';
 import {pivotFlowRealtime} from './pivot-zones.mjs?v=20261017-2';
 import {pivotFlowLayout,pivotFlowZeroCoordinate} from './pivot-flow-layout.mjs?v=20261016-2';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261014-2';
-import {preRthWlrTrend,formatPreRthWlrTrend} from './pre-rth-wlr-trend.mjs?v=20261018-10';
+import {preRthWlrTrend,formatPreRthWlrTrend} from './pre-rth-wlr-trend.mjs?v=20261020-aeon1';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
 let chart,price,series={},marks,strengthMarks,cache=null,rows={},volumeStrengthRows=[],modelRows={},modelVolumeStrengthRows=[],modelStamp=null,trendRows={},trendVolumeStrengthRows=[],trendStamp=null,trainingMeta=null,maps={},priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,pivotFlowFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},causalChannelState={trends:[],total:0},geometryStatePoints=[],geometryStatePointsKey='',breakoutState=null,geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
@@ -160,7 +160,7 @@ function requestStudies(){
   const key=`${symbol}|${interval}|${$('days').value}|${closed[0]?.t}|${closed.at(-1)?.t}|${closed.length}|${options.minScore}|${options.maxLines}`;
   if(key===studyKey)return;studyKey=key;
   if(!studiesWorker){
-    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261020-perf1',import.meta.url),{type:'module'});
+    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261020-aeon1',import.meta.url),{type:'module'});
     studiesWorker.onmessage=({data})=>{
       if(data.key!==studyKey)return;
       if(data.error){$('chart').dataset.studyStatus='error';$('chart').dataset.studyError=data.error;studyKey='';return;}
@@ -191,11 +191,15 @@ function renderTrendCohorts(){
     const row=document.createElement('tr'),selected=group.key===rev63State?.cohortKey;row.className=selected?'selected':'';
     const continuation=Number.isFinite(group.continuation)?`${Math.round(group.continuation*100)}%`:'—';
     const strengthMix=['support','mixed','opposed'].map(key=>`${contextName[key]} ${Math.round((group.contexts?.[key]?.share??0)*100)}%`).join(' · '),context=rev63State?.strengthContext,contextStats=context?group.contexts?.[context]:null,strengthContinuation=Number.isFinite(contextStats?.continuation)?`${Math.round(contextStats.continuation*100)}% ${contextName[context]}`:context?`— (n=${contextStats?.n??0})`:'—',r2=value=>Number.isFinite(value)?value.toFixed(2):'—',ridge=`${r2(group.ridge?.r2)} · ${r2(group.ridge?.partialComposite)} · ${r2(group.ridge?.partialVolume)}`;
-    row.innerHTML=`<td><span class="trend-direction ${group.direction>0?'up':'down'}">${group.direction>0?'↑ UP':'↓ DOWN'}</span></td><td>${group.startSession}</td><td title="Dưới 12: chưa đủ; 12–29: thăm dò; 30–49: tạm ổn; từ 50: tốt">${group.n} · ${sampleLevel(group.n)}</td><td class="strength-mix">${strengthMix}</td><td>${ridge}</td><td>${group.censoredN}</td><td>${group.medianBars??'—'} / ${group.rawMedianBars??'—'}</td><td>${group.atRiskN??'—'}</td><td>${continuation}</td><td>${strengthContinuation}</td>`;
+    row.innerHTML=`<td><span class="trend-direction ${group.direction>0?'up':'down'}">${group.direction>0?'↑ UP':'↓ DOWN'}</span></td><td>${group.startSession}</td><td title="Số nhịp / số ngày; không đồng nghĩa số mẫu độc lập">${group.n} nhịp / ${group.uniqueDays??0} ngày</td><td class="strength-mix">${strengthMix}</td><td>${ridge}</td><td>${group.censoredN}</td><td>${group.medianBars??'—'} / ${group.rawMedianBars??'—'}</td><td>${group.atRiskN??'—'}</td><td>${continuation}</td><td>${strengthContinuation}</td>`;
     if(selected)row.setAttribute('aria-current','true');return row;
   }));
   const age=rev63State?.currentBars>0?`tuổi ${rev63State.currentBars} nến · nhóm ${rev63State.ageGroup?.label??'—'}`:'chưa có trend đang hoạt động',scope=scopeName[rev63State?.cohort]??'chưa chọn cohort',context=rev63State?.strengthContext?contextName[rev63State.strengthContext]:'—';
   const ridge=rev63State?.strengthRegression,r2=value=>Number.isFinite(value)?value.toFixed(2):'—',totalN=groups.reduce((sum,group)=>sum+group.n,0);status.textContent=`${age} · ${totalN} leg lịch sử · Strength: ${context} · R² OOS ${r2(ridge?.r2)} · C ${r2(ridge?.partialComposite)} · V ${r2(ridge?.partialVolume)} · cohort: ${scope}${rev63State?.currentBars>0?'':' · Còn +3 nhóm dùng nền từ tuổi 1'}`;
+  let info=document.getElementById('trend-data-info');if(!info){info=document.createElement('p');info.id='trend-data-info';info.className='trend-cohort-note';status.after(info);}
+  const meta=rev63State?.dataInfo,date=t=>Number.isFinite(t)?new Date(t).toLocaleString('vi-VN',{timeZone:'America/New_York'}):'—';
+  info.textContent=meta?`Nguồn: Binance M15 lưu trên GitHub + nến live đã đóng · ${date(meta.firstTime)} → ${date(meta.lastTime)} (New York) · ${meta.bars} nến / ${meta.days} ngày có PRE–RTH. Nhận diện ${meta.channels} nhịp lịch sử, ${meta.displayQualified} nhịp đạt tiêu chí vẽ (trước giới hạn 12 kênh trên chart). N của bảng đếm episode theo hướng + phiên bắt đầu; gồm nhịp ngắn/R² thấp. Số ngày không phải số mẫu độc lập. Chart dùng khoảng lịch sử riêng; trend đang chạy chưa vào N.`:'Đang nạp thông tin kho lịch sử…';
+
 }
 function updateTrendMethodCopy(){
   const hint=document.querySelector('.hint');if(hint)hint.textContent=hint.textContent.replace('WLR 8 nến chỉ khởi tạo khi đồng pha với Strength Composite và SPY V','WLR giá 8 nến chỉ tính tuổi khi dấu SPY V cùng chiều slope; một nến lệch dấu không cộng tuổi, hai nến liên tiếp kết thúc trend; Composite chỉ góp 5% điểm');
@@ -641,4 +645,5 @@ if(init()){
   setInterval(()=>{if(!document.hidden)refreshCalendar();},CALENDAR_REFRESH_MS);
   setInterval(updateCandleCountdown,250);
 }
+
 
