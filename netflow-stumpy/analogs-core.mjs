@@ -1,5 +1,5 @@
 // Weighted, per-channel z-normalized Euclidean distance; parity-tested against STUMPY MASS.
-export const WEIGHTS=[.4,.25,.25,.1], PV_WEIGHTS=[.30,.15,.15,.05,.15,.10,.05,.05], PV_SCALES=[1,1,.5,1,.5,.5,1,1], STEP=900000;
+export const WEIGHTS=[.4,.25,.25,.1], PV_WEIGHTS=[.20,.10,.10,.05,.10,.10,.025,.025,.15,.15], PV_SCALES=[1,1,.5,1,.5,.5,1,1,.5,.5], STEP=900000;
 export function normalized(values){
   const mean=values.reduce((s,x)=>s+x,0)/values.length;
   const sd=Math.sqrt(values.reduce((s,x)=>s+(x-mean)**2,0)/values.length);
@@ -27,7 +27,8 @@ export function shapeDistance(a,b,{technique='flow'}={}){
 export function validWindow(rows,start,end,{technique='flow'}={}){
   if(start<0||end>=rows.length)return false;
   for(let i=start;i<=end;i++){
-    if(!(technique==='price-volume'?rows[i]?.pv:rows[i]?.x)?.every(Number.isFinite)||!Number.isFinite(rows[i].c)||rows[i].c<=0)return false;
+    const values=technique==='price-volume'?rows[i]?.pv:rows[i]?.x;
+    if(!Array.isArray(values)||values.length!==(technique==='price-volume'?PV_WEIGHTS.length:WEIGHTS.length)||!values.every(Number.isFinite)||!Number.isFinite(rows[i].c)||rows[i].c<=0)return false;
     if(i>start&&rows[i].t-rows[i-1].t!==STEP)return false;
   }
   return true;
@@ -64,7 +65,7 @@ export function summarize(rows,m,h,ranked,limit=20,{technique='flow'}={}){
   });
   const values=outcomes.map(x=>x.returnPct),n=values.length,up=values.filter(x=>x>0).length,down=values.filter(x=>x<0).length;
   // Show descriptive frequencies, never treat pattern distance as a probability.
-  return {version:2,technique,method:technique==='price-volume'?'price-z-and-chart-state-distance':'weighted-z-distance',m,h,queryTime:anchor?.t??null,queryStart:query[0]?.t??null,session:anchor?.session??null,rows:rows.length,candidates:ranked.length,n,up,down,flat:n-up-down,pUp:n?up/n:null,interval:wilson(up,n),q25:percentile(values,.25),median:percentile(values,.5),q75:percentile(values,.75),status:n>=12?'EXPLORATORY':'WAIT',matches:outcomes,queryPath:query.map(r=>100*(r.c/anchor.c-1))};
+  return {version:3,technique,featureSchema:technique==='price-volume'?'spyv-composite-v2':'flow-v1',method:technique==='price-volume'?'price-z-and-chart-state-distance':'weighted-z-distance',m,h,queryTime:anchor?.t??null,queryStart:query[0]?.t??null,session:anchor?.session??null,rows:rows.length,candidates:ranked.length,n,up,down,flat:n-up-down,pUp:n?up/n:null,interval:wilson(up,n),q25:percentile(values,.25),median:percentile(values,.5),q75:percentile(values,.75),status:n>=12?'EXPLORATORY':'WAIT',matches:outcomes,queryPath:query.map(r=>100*(r.c/anchor.c-1))};
 }
 export function searchAnalogs(rows,{m=16,h=3,technique='flow'}={}){
   if(![8,16,32].includes(m)||![3,6,12].includes(h))throw Error('Unsupported window/horizon');

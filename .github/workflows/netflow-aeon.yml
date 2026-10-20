@@ -33,6 +33,12 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install -r netflow-stumpy/requirements-aeon.txt
+      - name: Verify price and explicit Strength sources before training
+        run: |
+          node --check netflow-stumpy/aeon-ui.mjs
+          node --check netflow-stumpy/analogs-ui.mjs
+          node --check netflow-stumpy/app.mjs
+          node --test netflow-stumpy/tests/strength-sources.test.mjs
       - name: Build closed causal features from existing shared archive
         run: node netflow-stumpy/scripts/analogs-dataset.mjs
       - name: Train, calibrate and run purged chronological evaluation

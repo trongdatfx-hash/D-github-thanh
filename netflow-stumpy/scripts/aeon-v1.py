@@ -15,8 +15,8 @@ import stumpy
 
 M, H, STEP = 16, 3, 900000
 WEIGHTS = np.array([.4, .25, .25, .1])
-PV_WEIGHTS = np.array([.30,.15,.15,.05,.15,.10,.05,.05])
-PV_SCALES = np.array([1,1,.5,1,.5,.5,1,1])
+PV_WEIGHTS = np.array([.20,.10,.10,.05,.10,.10,.025,.025,.15,.15])
+PV_SCALES = np.array([1,1,.5,1,.5,.5,1,1,.5,.5])
 
 def normalize(x):
     sd = x.std(axis=-1, keepdims=True)
@@ -25,7 +25,7 @@ def normalize(x):
 def samples(rows, window=16, variant='original'):
     """Labels use 0.35 * trailing return volatility * sqrt(3), known at query."""
     values = np.array([[np.nan if v is None else v for v in r['x']] for r in rows], float)
-    chart_values = np.array([[np.nan if v is None else v for v in r.get('pv', [None]*8)] for r in rows], float)
+    chart_values = np.array([[np.nan if v is None else v for v in r.get('pv', [None]*10)] for r in rows], float)
     times = np.array([r['t'] for r in rows])
     closes = np.array([r['c'] for r in rows])
     out = []
@@ -194,7 +194,7 @@ def run(rows, window=16, variant='original'):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(); parser.add_argument('--input',required=True);parser.add_argument('--output',required=True);args=parser.parse_args()
     data=json.loads(Path(args.input).read_text(encoding='utf-8'))
-    report=dict(version=4,generatedAt=int(datetime.now(timezone.utc).timestamp()*1000),sourceAsOf=data['asOf'],libraryVersion=aeon.__version__,spec=dict(windows=[8,16],horizon=H,classes=['DOWN','NEUTRAL','UP'],channels=['log price','Composite Strength','SPY Volume Strength','Composite NF%'],ensemble='fixed 0.5 aeon + 0.5 separately temperature-calibrated chart-STUMPY, same timestamp; no test-weight tuning',stumpyChartWeights=PV_WEIGHTS.tolist(),stumpyChartScales=PV_SCALES.tolist(),priceVolumeChannels=['log price z','WLR width 1-6 mapped 0-1','signed tanh slope8/ATR14','WLR R-squared','candle group -1/0/1','candle smooth score','counter-candle flag','transition flag'],shapelets=256,seed=20261020,threshold='0.35 × trailing 15-return std × sqrt(3), fixed for all variants',folds=3,calibration='chronological temperature scaling',testStrideBars=M+H,purgeContextBars=M,warning='Exploratory variants added after prior results. Not untouched final validation. No transaction-cost backtest.'),results={},windows={},windowComparison={},priceVolume=dict(windows={},windowComparison={},improvementVsOriginal={}))
+    report=dict(version=5,generatedAt=int(datetime.now(timezone.utc).timestamp()*1000),sourceAsOf=data['asOf'],libraryVersion=aeon.__version__,spec=dict(windows=[8,16],horizon=H,classes=['DOWN','NEUTRAL','UP'],channels=['log price','Composite Strength','SPY Volume Strength','Composite NF%'],ensemble='fixed 0.5 aeon + 0.5 separately temperature-calibrated chart-STUMPY, same timestamp; no test-weight tuning',stumpyChartWeights=PV_WEIGHTS.tolist(),stumpyChartScales=PV_SCALES.tolist(),primaryPriceSymbol='SPYUSDT',sourceContract={'price':'SPYUSDT OHLC when SPY chart selected; QQQ is separate reference only','spyVolumeStrength':'SPYUSDT original base volume signed by SPY candle body','compositeStrength':'Composite taker quote NetFlow of SPYUSDT+QQQUSDT, not QQQ price'},priceVolumeChannels=['log price z','WLR width 1-6 mapped 0-1','signed tanh slope8/ATR14','WLR R-squared','candle group -1/0/1','candle smooth score','counter-candle flag','transition flag','SPY V strength adjusted (explicit)','Composite strength adjusted (explicit)'],shapelets=256,seed=20261020,threshold='0.35 × trailing 15-return std × sqrt(3), fixed for all variants',folds=3,calibration='chronological temperature scaling',testStrideBars=M+H,purgeContextBars=M,warning='Exploratory variants added after prior results. Not untouched final validation. No transaction-cost backtest.'),results={},windows={},windowComparison={},priceVolume=dict(windows={},windowComparison={},improvementVsOriginal={}))
     for variant in ['original','price-volume']:
         destination=report if variant=='original' else report['priceVolume']
         for window in [8,16]:
@@ -202,6 +202,7 @@ if __name__=='__main__':
             for symbol,rows in data['rows'].items():
                 print('Training',symbol,'window',window,variant,flush=True)
                 destination['windows'][str(window)][symbol]=run(rows,window,variant)
+                destination['windows'][str(window)][symbol]['priceSymbol']=symbol
         for symbol in data['rows']:
             eight=destination['windows']['8'][symbol];sixteen=destination['windows']['16'][symbol]
             if eight['status']=='WAIT' or sixteen['status']=='WAIT':

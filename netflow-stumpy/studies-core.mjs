@@ -3,7 +3,7 @@ import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeo
 import {pivotZones} from './pivot-zones.mjs';
 import {causalTrendChannels} from './causal-trend-channel.mjs';
 import {preRthWlrTrend} from './pre-rth-wlr-trend.mjs?v=20261020-aeon1';
-import {chartFeatureRows} from './analogs-features.mjs?v=20261020-ensemble1';
+import {chartFeatureRows} from './analogs-features.mjs?v=20261020-strength2';
 
 export function analyzeTrendSource(raw,now){
   const closed=Object.fromEntries(['SPYUSDT','QQQUSDT'].map(s=>[s,(raw[s]??[]).filter(r=>r.end<now)])),step=STEPS['15m'];

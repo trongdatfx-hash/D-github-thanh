@@ -27,13 +27,19 @@ test('real STUMPY MASS vs browser distance across all admitted historical candid
 });
 
 test('chart-state distance preserves constant candle direction and width',()=>{
- const a=Array.from({length:8},(_,i)=>({pv:[i,.2,.5,.8,1,.6,0,0]})),b=a.map(r=>({pv:[...r.pv]}));assert.equal(shapeDistance(a,b,{technique:'price-volume'}),0);
+ const a=Array.from({length:8},(_,i)=>({pv:[i,.2,.5,.8,1,.6,0,0,.25,-.75]})),b=a.map(r=>({pv:[...r.pv]}));assert.equal(shapeDistance(a,b,{technique:'price-volume'}),0);
  for(const r of b)r.pv[4]=-1;assert.ok(shapeDistance(a,b,{technique:'price-volume'})>.3);
  const c=a.map(r=>({pv:[...r.pv]}));for(const r of c)r.pv[1]=.9;assert.ok(shapeDistance(a,c,{technique:'price-volume'})>0);
 });
 test('chart-technique candidates remain causal and missing state returns WAIT',()=>{
- const a=rows.map((r,i)=>({...r,pv:[r.x[0],.2,.5,.8,i%2?1:-1,r.x[1]/2,0,0]})),r=searchAnalogs(a,{m:16,h:3,technique:'price-volume'});
+ const a=rows.map((r,i)=>({...r,pv:[r.x[0],.2,.5,.8,i%2?1:-1,r.x[1]/2,0,0,r.x[2],r.x[1]]})),r=searchAnalogs(a,{m:16,h:3,technique:'price-volume'});
  assert.ok(r.n>0);assert.equal(r.technique,'price-volume');
  for(const match of r.matches)assert.ok(match.index+16+3-1<a.length-16);
  a.at(-1).pv[1]=null;assert.equal(searchAnalogs(a,{technique:'price-volume'}).n,0);
+});
+
+test('explicit SPY V and Composite independently affect matching; legacy 8-state vectors are rejected',()=>{
+ const a=Array.from({length:8},(_,i)=>({pv:[i,.2,.5,.8,1,.6,0,0,.5,.5]}));
+ for(const channel of [8,9]){const b=structuredClone(a);for(const r of b)r.pv[channel]=-.5;assert.ok(shapeDistance(a,b,{technique:'price-volume'})>0);}
+ const legacy=rows.map(r=>({...r,pv:[r.x[0],.2,.5,.8,1,.6,0,0]}));assert.equal(searchAnalogs(legacy,{technique:'price-volume'}).n,0);
 });

@@ -10,7 +10,7 @@ export function featureRows(priceRows,compositeRows,volumeRows,{now=Date.now()}=
 export function chartFeatureRows(priceRows,compositeRows,volumeRows,{now=Date.now()}={}){
   const step=STEPS['15m'],closed=priceRows.filter(r=>r.end<now),trend=wlrTrendThickness(closed,step),clusters=candleRegimeClusters(closed,volumeRows,step);
   return featureRows(closed,compositeRows,volumeRows,{now}).map((row,i)=>{
-    const w=trend[i],c=clusters[i],pv=[Math.log(row.c),Number.isFinite(w.width)?(w.width-1)/5:null,Number.isFinite(w.normalizedSlope)?Math.sign(w.slope)*Math.tanh(w.normalizedSlope):null,w.r2,c.group,c.smooth,Number(c.counter),Number(c.transition)];
+    const w=trend[i],c=clusters[i],pv=[Math.log(row.c),Number.isFinite(w.width)?(w.width-1)/5:null,Number.isFinite(w.normalizedSlope)?Math.sign(w.slope)*Math.tanh(w.normalizedSlope):null,w.r2,c.group,c.smooth,Number(c.counter),Number(c.transition),row.x[2],row.x[1]];
     return {...row,pv:pv.map(v=>Number.isFinite(v)?v:null)};
   });
 }

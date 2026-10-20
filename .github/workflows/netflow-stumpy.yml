@@ -46,7 +46,7 @@ jobs:
         env:
           ANALOG_FEATURES: netflow-stumpy/data/analogs/features.json
           ANALOG_PROFILES: netflow-stumpy/data/analogs/profiles.json
-        run: node --test netflow-stumpy/tests/analogs.test.mjs
+        run: node --test netflow-stumpy/tests/analogs.test.mjs netflow-stumpy/tests/strength-sources.test.mjs
       - name: Publish compact snapshot
         run: node netflow-stumpy/scripts/analogs-dataset.mjs --finalize
       - name: Commit closed history and report

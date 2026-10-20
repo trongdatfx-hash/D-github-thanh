@@ -8,8 +8,8 @@ import numpy as np
 import stumpy
 
 WEIGHTS = [.4, .25, .25, .1]
-PV_WEIGHTS = [.30,.15,.15,.05,.15,.10,.05,.05]
-PV_SCALES = [1,1,.5,1,.5,.5,1,1]
+PV_WEIGHTS = [.20,.10,.10,.05,.10,.10,.025,.025,.15,.15]
+PV_SCALES = [1,1,.5,1,.5,.5,1,1,.5,.5]
 
 def profiles(payload):
     result = {}
