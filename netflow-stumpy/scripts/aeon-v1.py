@@ -20,26 +20,27 @@ def normalize(x):
     sd = x.std(axis=-1, keepdims=True)
     return (x-x.mean(axis=-1, keepdims=True))/np.where(sd < 1e-8, 1, sd)
 
-def samples(rows):
+def samples(rows, window=16):
     """Labels use 0.35 * trailing return volatility * sqrt(3), known at query."""
     values = np.array([[np.nan if v is None else v for v in r['x']] for r in rows], float)
     times = np.array([r['t'] for r in rows])
     closes = np.array([r['c'] for r in rows])
     out = []
     for end in range(M-1, len(rows)):
-        start = end-M+1
+        context_start = end-M+1
+        start = end-window+1
         x = values[start:end+1].T
-        if not np.isfinite(x).all() or np.any(np.diff(times[start:end+1]) != STEP):
+        if not np.isfinite(values[context_start:end+1]).all() or np.any(np.diff(times[context_start:end+1]) != STEP):
             continue
         if not rows[end]['eligible'] or rows[end]['session'] not in ('PRE', 'RTH'):
             continue
-        sigma = float(np.std(np.diff(np.log(closes[start:end+1])), ddof=1))
+        sigma = float(np.std(np.diff(np.log(closes[context_start:end+1])), ddof=1))
         threshold = max(1e-8, .35*sigma*np.sqrt(H))
         y = None
         if end+H < len(rows) and np.all(np.diff(times[end:end+H+1]) == STEP) and rows[end+H]['day'] == rows[end]['day'] and rows[end+H]['session'] == rows[end]['session']:
             ret = np.log(closes[end+H]/closes[end])
             y = 2 if ret > threshold else 0 if ret < -threshold else 1
-        out.append(dict(end=end, start=start, t=int(times[end]), startTime=int(times[start]), labelTime=int(times[end]+H*STEP), day=rows[end]['day'], session=rows[end]['session'], x=normalize(x), y=y, threshold=threshold))
+        out.append(dict(end=end, start=start, t=int(times[end]), startTime=int(times[context_start]), inputStartTime=int(times[start]), labelTime=int(times[end]+H*STEP), day=rows[end]['day'], session=rows[end]['session'], x=normalize(x), y=y, threshold=threshold))
     return out, values
 
 def proba(model, x, price=False):
@@ -76,10 +77,11 @@ def analog(query, known, values):
     if not candidates:
         return np.ones(3)/3, 0
     # Actual STUMPY MASS, not similarity inferred from classifier confidence.
-    profile = np.zeros(len(values)-M+1)
+    m = query['x'].shape[-1]
+    profile = np.zeros(len(values)-m+1)
     for k, weight in enumerate(WEIGHTS):
         d = stumpy.mass(values[query['start']:query['end']+1, k], values[:, k])
-        profile += weight*np.asarray(d)**2/M
+        profile += weight*np.asarray(d)**2/m
     ranked = sorted(candidates, key=lambda s: profile[s['start']])
     picked = []; days = set()
     for s in ranked:
@@ -132,8 +134,8 @@ def improvement(records, reference):
         means.append(a[indices].mean())
     return dict(mean=float(a.mean()), low=float(np.quantile(means,.025)), high=float(np.quantile(means,.975)), method='paired 5-day moving-block bootstrap; positive favors aeon')
 
-def run(rows):
-    all_samples, values=samples(rows); known=[s for s in all_samples if s['y'] is not None]
+def run(rows, window=16):
+    all_samples, values=samples(rows, window); known=[s for s in all_samples if s['y'] is not None]
     days=sorted(set(s['day'] for s in known))
     if len(days)<60:
         return dict(status='WAIT', reason='Fewer than 60 eligible trading days', days=len(days))
@@ -160,14 +162,26 @@ def run(rows):
         x=latest['x'][None,:,:]; ps,n=analog(latest,known,values)
         current=dict(queryTime=latest['t'],session=latest['session'],aeon=temper(proba(model,x),temps['aeon'])[0].tolist(),price=temper(proba(price,x,True),temps['price'])[0].tolist(),stumpy=ps.tolist(),analogN=n,thresholdPct=100*np.expm1(latest['threshold']),trainN=len(train),calibrationN=len(cal))
     evidence=len(set(r['day'] for r in records))>=30 and all(gains[k]['low']>0 for k in ['price','baseline'])
-    return dict(status='EXPERIMENTAL', evidence='PROMISING_REQUIRES_FORWARD_TEST' if evidence else 'NOT_ESTABLISHED', bars=len(rows),firstTime=rows[0]['t'],lastTime=rows[-1]['t'],eligibleDays=len(days),labeledN=len(known),testN=len(records),testDays=len(set(r['day'] for r in records)),folds=folds,metrics=scores,improvement=gains,current=current,predictions=records)
+    return dict(windowM15=window, status='EXPERIMENTAL', evidence='PROMISING_REQUIRES_FORWARD_TEST' if evidence else 'NOT_ESTABLISHED', bars=len(rows),firstTime=rows[0]['t'],lastTime=rows[-1]['t'],eligibleDays=len(days),labeledN=len(known),testN=len(records),testDays=len(set(r['day'] for r in records)),folds=folds,metrics=scores,improvement=gains,current=current,predictions=records)
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(); parser.add_argument('--input',required=True);parser.add_argument('--output',required=True);args=parser.parse_args()
     data=json.loads(Path(args.input).read_text(encoding='utf-8'))
-    report=dict(version=1,generatedAt=int(datetime.now(timezone.utc).timestamp()*1000),sourceAsOf=data['asOf'],libraryVersion=aeon.__version__,spec=dict(window=M,horizon=H,classes=['DOWN','NEUTRAL','UP'],channels=['log price','Composite Strength','SPY Volume Strength','Composite NF%'],shapelets=256,seed=20261020,threshold='0.35 × trailing 15-return std × sqrt(3)',folds=3,calibration='chronological temperature scaling',testStrideBars=M+H,warning='Exploratory retrospective OOS; not a forward trading track record. No transaction-cost backtest.'),results={})
-    for symbol,rows in data['rows'].items():
-        print('Training',symbol,flush=True);report['results'][symbol]=run(rows)
+    report=dict(version=2,generatedAt=int(datetime.now(timezone.utc).timestamp()*1000),sourceAsOf=data['asOf'],libraryVersion=aeon.__version__,spec=dict(windows=[8,16],horizon=H,classes=['DOWN','NEUTRAL','UP'],channels=['log price','Composite Strength','SPY Volume Strength','Composite NF%'],shapelets=256,seed=20261020,threshold='0.35 × trailing 15-return std × sqrt(3), fixed for both windows',folds=3,calibration='chronological temperature scaling',testStrideBars=M+H,purgeContextBars=M,warning='Window 8 added after inspecting window 16. Exploratory retrospective OOS comparison, not untouched final validation. No transaction-cost backtest.'),results={},windows={},windowComparison={})
+    for window in [8,16]:
+        report['windows'][str(window)]={}
+        for symbol,rows in data['rows'].items():
+            print('Training',symbol,'window',window,flush=True)
+            report['windows'][str(window)][symbol]=run(rows,window)
+    report['results']=report['windows']['16']  # compatibility with first V1 readers
+    for symbol in data['rows']:
+        eight=report['windows']['8'][symbol];sixteen=report['windows']['16'][symbol]
+        if eight['status']=='WAIT' or sixteen['status']=='WAIT':
+            continue
+        p8=eight['predictions'];p16=sixteen['predictions']
+        assert [(r['t'],r['y']) for r in p8]==[(r['t'],r['y']) for r in p16], 'Window comparison must use identical cases and labels'
+        paired=[dict(day=a['day'],y=a['y'],aeon=a['aeon'],reference=b['aeon']) for a,b in zip(p8,p16)]
+        report['windowComparison'][symbol]=dict(testN=len(paired),testDays=len(set(r['day'] for r in paired)),brierGain8vs16=improvement(paired,'reference'),interpretation='positive favors window 8; exploratory comparison chosen after initial V1 results')
     target=Path(args.output);target.parent.mkdir(parents=True,exist_ok=True)
     target.write_text(json.dumps(report,allow_nan=False,separators=(',',':')),encoding='utf-8')
-    print(json.dumps({s:{k:v for k,v in r.items() if k in ['status','testN','testDays','metrics','improvement']} for s,r in report['results'].items()}))
+    print(json.dumps({w:{s:{k:v for k,v in r.items() if k in ['status','testN','testDays','metrics','improvement']} for s,r in rr.items()} for w,rr in report['windows'].items()}))
