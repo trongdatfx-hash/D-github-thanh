@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-10-20T12:53:26.911Z",
+  "updatedAt": "2026-10-20T17:50:44.331Z",
   "events": [
     {
       "title": "IMF Meetings",
@@ -339,17 +339,17 @@
       "date": "2026-10-20T14:00:00.000Z",
       "timestamp": 1792504800000,
       "impact": "Low",
-      "actual": "",
+      "actual": "-7.3%",
       "forecast": "-0.6%",
       "previous": "0.3%"
     },
     {
       "title": "GDT Price Index",
       "country": "NZD",
-      "date": "2026-10-20T14:50:00.000Z",
-      "timestamp": 1792507800000,
+      "date": "2026-10-20T15:19:00.000Z",
+      "timestamp": 1792509540000,
       "impact": "Low",
-      "actual": "",
+      "actual": "2.5%",
       "forecast": "",
       "previous": "1.2%"
     },
