@@ -8,6 +8,7 @@ on:
       - 'netflow-stumpy/analogs-core.mjs'
       - 'netflow-stumpy/analogs-features.mjs'
       - 'netflow-stumpy/requirements-analogs.txt'
+      - 'netflow-stumpy/tests/**'
   schedule:
     - cron: '17,47 * * * *'
   workflow_dispatch:
