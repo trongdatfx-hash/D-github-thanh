@@ -9,6 +9,7 @@ import {chartFeatureRows} from './analogs-features.mjs?v=20261020-strength2';
 export function analyzeTrendSource(raw,now){
   const closed=Object.fromEntries(['SPYUSDT','QQQUSDT'].map(s=>[s,(raw[s]??[]).filter(r=>r.end<now)])),step=STEPS['15m'];
   const rows={SPYUSDT:analyze(closed.SPYUSDT,step),QQQUSDT:analyze(closed.QQQUSDT,step),COMPOSITE:analyze(composite(closed.SPYUSDT,closed.QQQUSDT),step)};
+  if(raw.SPY)rows.SPY=analyze(raw.SPY.filter(r=>r.end<now),step);
   return {rows,volume:analyze(closed.SPYUSDT,step,{strength:calculateVolumeStrength(closed.SPYUSDT,step)})};
 }
 export function computeStudies({rows,volumeRows,symbol,interval,options,now,trend=null}){
@@ -24,9 +25,10 @@ export function computeStudies({rows,volumeRows,symbol,interval,options,now,tren
   const historicalChannels=channelState.episodes.filter(c=>!['PRE','RTH'].includes(sessionAt(now).session)||new Date(c.startTime).toLocaleDateString('en-CA',{timeZone:'America/New_York'})!==new Date(now).toLocaleDateString('en-CA',{timeZone:'America/New_York'}));
   rev63.dataInfo={currentSession:sessionAt(now).session,firstTime:closedTrend[0]?.t??null,lastTime:closedTrend.at(-1)?.t??null,bars:closedTrend.length,days:new Set(closedTrend.filter(r=>['PRE','RTH'].includes(r.session)).map(r=>r.day)).size,channels:historicalChannels.length,displayQualified:historicalChannels.filter(c=>c.displayQualified).length};
   const features=interval==='15m'?chartFeatureRows(model.rows[symbol]??[],model.rows.COMPOSITE??[],model.volume,{now}):[];
-  const abaRows=interval==='15m'&&symbol==='SPYUSDT'?chartWlrRows(modelPrice,features):[];
+  const abaRows=interval==='15m'&&['SPYUSDT','SPY'].includes(symbol)?chartWlrRows(modelPrice,features):[];
   return {geometry,channels,breakout,points,backtest,pivot,rev63,abaRows};
 }
+
 
 
 

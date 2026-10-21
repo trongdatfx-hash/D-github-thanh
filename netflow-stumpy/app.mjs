@@ -1,14 +1,17 @@
-import {createWlrAba} from './wlr-aba-ui.mjs?v=20261021-v2';
+import {createWlrAba} from './wlr-aba-ui.mjs?v=20261021-spy1';
 import {createSeriesWriter} from './chart-data-cache.mjs';
 import {STEPS,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,strengthPhaseLineStyle,directionalVolumeDelta,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,weightedPriceBands,wlrTrendThickness,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs?v=20261018-9';
 import {load} from './data.mjs';
+import {loadSpy,hybridSpy} from './spy-data.mjs?v=20261021-spy1';
+const isSpyPrice=()=>['SPYUSDT','SPY'].includes(document.getElementById('symbol')?.value);
+const selectedPrice=()=>rows[document.getElementById('symbol')?.value]??[];
 import {pivotFlowRealtime} from './pivot-zones.mjs?v=20261017-2';
 import {pivotFlowLayout,pivotFlowZeroCoordinate} from './pivot-flow-layout.mjs?v=20261016-2';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261014-2';
 import {preRthWlrTrend,formatPreRthWlrTrend,trendReadoutState} from './pre-rth-wlr-trend.mjs?v=20261021-age-audit1';
-const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
+const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'�',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'�';
 const L=window.LightweightCharts;
-let chart,price,series={},marks,strengthMarks,cache=null,rows={},volumeStrengthRows=[],modelRows={},modelVolumeStrengthRows=[],modelStamp=null,trendRows={},trendVolumeStrengthRows=[],trendStamp=null,trainingMeta=null,maps={},priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,pivotFlowFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},causalChannelState={trends:[],total:0},geometryStatePoints=[],geometryStatePointsKey='',breakoutState=null,geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
+let chart,price,series={},marks,strengthMarks,cache=null,rows={},volumeStrengthRows=[],modelRows={},modelVolumeStrengthRows=[],modelStamp=null,trendRows={},trendVolumeStrengthRows=[],trendStamp=null,trainingMeta=null,maps={},priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C?S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,pivotFlowFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},causalChannelState={trends:[],total:0},geometryStatePoints=[],geometryStatePointsKey='',breakoutState=null,geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
 const colors={SPYUSDT:'#5ba8ff',QQQUSDT:'#c194ff',COMPOSITE:'#38dfba'};
 const flowTitles={SPYUSDT:'S Taker NF',QQQUSDT:'Q Taker NF',COMPOSITE:'C Taker NF'};
 const flowColors={
@@ -27,13 +30,13 @@ let statsMap=new Map(),candleColorMap=new Map(),candleClusterMap=new Map(),rev63
 let calendarState={events:[],updatedAt:null,loading:false};
 let pendingSavedTimeRange=null,saveSetupTimer=null,forecastLayer=null;
 const sourceName=key=>({SPYUSDT:'SPY',QQQUSDT:'QQQ',COMPOSITE:'Composite'}[key]);
-const signed=x=>Number.isFinite(x)?`${x>0?'+':''}${fmt(x)}`:'—';
-const signLabel=x=>x>0?'+':x<0?'−':'0';
+const signed=x=>Number.isFinite(x)?`${x>0?'+':''}${fmt(x)}`:'�';
+const signLabel=x=>x>0?'+':x<0?'?':'0';
 const symmetricAutoscale=original=>{const info=original();return info?.priceRange?{...info,priceRange:symmetricPriceRange(info.priceRange)}:info;};
 const tone=x=>x>0?'positive':x<0?'negative':'neutral';
 const calendarDay=new Intl.DateTimeFormat('vi-VN',{timeZone:CALENDAR_TIME_ZONE,weekday:'short',day:'2-digit',month:'2-digit'});
 const calendarTime=new Intl.DateTimeFormat('vi-VN',{timeZone:CALENDAR_TIME_ZONE,hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
-const calendarImpactLabel={High:'High',Medium:'Medium',Low:'Low',Holiday:'Nghỉ','Non-Economic':'Khác'};
+const calendarImpactLabel={High:'High',Medium:'Medium',Low:'Low',Holiday:'Ngh?','Non-Economic':'Kh�c'};
 
 function renderCalendar(){
   const list=$('calendar-list'),statusNode=$('calendar-status');if(!list||!statusNode)return;
@@ -42,29 +45,29 @@ function renderCalendar(){
   for(const event of events){
     const key=`${event.timestamp}|${event.country}|${event.title}`,state=calendarEventState(event),comparison=actualVsForecast(event);let row=oldRows.get(key);
     if(!row){row=document.createElement('div');row.dataset.key=key;row.innerHTML='<span class="calendar-time"><b></b><small></small></span><span class="calendar-currency"></span><span class="calendar-impact"></span><span class="calendar-title"></span><span class="calendar-value calendar-actual"></span><span class="calendar-value calendar-forecast"></span><span class="calendar-value calendar-previous"></span>';}
-    row.className=`calendar-row ${state.key}${event.actual?' released':''}`;row.title=`${event.title} · ${state.label}${event.actual?` · ${comparison.label}`:''}`;
+    row.className=`calendar-row ${state.key}${event.actual?' released':''}`;row.title=`${event.title} � ${state.label}${event.actual?` � ${comparison.label}`:''}`;
     row.querySelector('.calendar-time b').textContent=calendarTime.format(event.timestamp);row.querySelector('.calendar-time small').textContent=calendarDay.format(event.timestamp);
     row.querySelector('.calendar-currency').textContent=event.country;
     const impact=row.querySelector('.calendar-impact');impact.className=`calendar-impact ${event.impact.toLowerCase().replace(/[^a-z]+/g,'-')}`;impact.textContent=calendarImpactLabel[event.impact]??event.impact;
     row.querySelector('.calendar-title').textContent=event.title;
-    const actual=row.querySelector('.calendar-actual');actual.className=`calendar-value calendar-actual ${comparison.key}`;actual.textContent=event.actual||'—';actual.title=`Thực tế · ${comparison.label}`;
-    const forecast=row.querySelector('.calendar-forecast');forecast.textContent=event.forecast||'—';forecast.title='Dự báo';
-    const previous=row.querySelector('.calendar-previous');previous.textContent=event.previous||'—';previous.title='Kỳ trước';
+    const actual=row.querySelector('.calendar-actual');actual.className=`calendar-value calendar-actual ${comparison.key}`;actual.textContent=event.actual||'�';actual.title=`Th?c t? � ${comparison.label}`;
+    const forecast=row.querySelector('.calendar-forecast');forecast.textContent=event.forecast||'�';forecast.title='D? b�o';
+    const previous=row.querySelector('.calendar-previous');previous.textContent=event.previous||'�';previous.title='K? tr�?c';
     fragment.append(row);
   }
-  if(!events.length){const empty=document.createElement('div');empty.className='calendar-empty';empty.textContent=calendarState.events.length?'Không có tin phù hợp trong khoảng gần đây. Thử chọn “Tất cả”.':'Chưa có dữ liệu lịch.';fragment.append(empty);}
+  if(!events.length){const empty=document.createElement('div');empty.className='calendar-empty';empty.textContent=calendarState.events.length?'Kh�ng c� tin ph� h?p trong kho?ng g?n ��y. Th? ch?n �T?t c?�.':'Ch�a c� d? li?u l?ch.';fragment.append(empty);}
   list.replaceChildren(fragment);
   if(positioned)list.scrollTop=scrollTop;else requestAnimationFrame(()=>{const next=[...list.children].find(row=>row.classList.contains('future')||row.classList.contains('now'));if(next)list.scrollTop=Math.max(0,next.offsetTop-list.offsetTop-Math.round(list.clientHeight*.45));list.dataset.positioned='true';});
   if(calendarState.updatedAt){
-    const age=Date.now()-calendarState.updatedAt,stale=age>26*60*60000,released=events.filter(event=>event.actual).length;statusNode.className=`calendar-status${stale?' stale':''}`;statusNode.textContent=`${events.length} tin · ${released} đã có thực tế · cập nhật ${calendarTime.format(calendarState.updatedAt)} ${calendarDay.format(calendarState.updatedAt)}${stale?' · snapshot cũ':''}`;
+    const age=Date.now()-calendarState.updatedAt,stale=age>26*60*60000,released=events.filter(event=>event.actual).length;statusNode.className=`calendar-status${stale?' stale':''}`;statusNode.textContent=`${events.length} tin � ${released} �? c� th?c t? � c?p nh?t ${calendarTime.format(calendarState.updatedAt)} ${calendarDay.format(calendarState.updatedAt)}${stale?' � snapshot c?':''}`;
   }
 }
 
 async function refreshCalendar(){
   if(calendarState.loading)return;calendarState.loading=true;$('calendar-refresh').disabled=true;$('calendar-refresh').classList.add('loading');
-  const statusNode=$('calendar-status');statusNode.className='calendar-status';statusNode.textContent='Đang nạp lịch Forex Factory…';
+  const statusNode=$('calendar-status');statusNode.className='calendar-status';statusNode.textContent='�ang n?p l?ch Forex Factory�';
   try{const data=await loadForexCalendar();calendarState={...data,loading:false};renderCalendar();}
-  catch(error){calendarState.loading=false;statusNode.className='calendar-status error';statusNode.textContent=`${error.message}. ${calendarState.events.length?'Đang giữ bản gần nhất.':'Mở Forex Factory bằng liên kết bên dưới.'}`;}
+  catch(error){calendarState.loading=false;statusNode.className='calendar-status error';statusNode.textContent=`${error.message}. ${calendarState.events.length?'�ang gi? b?n g?n nh?t.':'M? Forex Factory b?ng li�n k?t b�n d�?i.'}`;}
   finally{$('calendar-refresh').disabled=false;$('calendar-refresh').classList.remove('loading');}
 }
 class VariableWidthLineRenderer{
@@ -97,27 +100,27 @@ class VariableWidthLineSeries{
   destroy(){}
 }
 function status(text,error=false){$('status').textContent=text;$('status').classList.toggle('error',error);}
-function setLive(live){const node=$('live-indicator');node.textContent=live?'● LIVE':'● KHÔNG LIVE';node.className=live?'live':'offline';forecastLayer?.update();}
+function setLive(live){const node=$('live-indicator');node.textContent=live?'? LIVE':'? KH�NG LIVE';node.className=live?'live':'offline';forecastLayer?.update();}
 function setupChartActions(){
   const actions=document.querySelector('.chart-actions'),fit=$('chart-fit'),live=$('live-indicator');
   if(!actions||!fit||!live)return;
-  if(!$('causal-trend-channel')){const input=document.createElement('input');input.id='causal-trend-channel';input.type='checkbox';input.checked=true;const label=document.createElement('label');label.title='Flow-Leg: SPY V khóa hướng khi mở · giá hoặc SPY V phải bất lợi 2 nến liên tiếp mới đóng · nến phá đầu được dùng để tái khớp OLS ±2σ · tối thiểu 8 nến · kênh đã đóng: UP vàng, DOWN trắng · kênh đang sống nét chấm: UP cyan, DOWN trắng';label.append(input,'Kênh trend causal');$('geometry-toggle').closest('label').insertAdjacentElement('afterend',label);}
-  if(!$('geometry-provisional')){const input=document.createElement('input');input.id='geometry-provisional';input.type='checkbox';input.checked=true;const label=document.createElement('label');label.title='Hiện/ẩn riêng các Trendline causal sớm HT SỚM và KC SỚM; chỉ có tác dụng khi Trendline causal đang bật';label.append(input,'Trendline causal nét chấm');$('geometry-toggle').closest('label').insertAdjacentElement('afterend',label);}
-  if(!$('causal-trend-channel-provisional')){const input=document.createElement('input');input.id='causal-trend-channel-provisional';input.type='checkbox';input.checked=true;const label=document.createElement('label');label.title='Hiện/ẩn riêng Kênh Flow-Leg đang sống; chỉ có tác dụng khi Kênh trend causal đang bật';label.append(input,'Kênh trend causal nét chấm');$('causal-trend-channel').closest('label').insertAdjacentElement('afterend',label);}
-  $('geometry-overlay').setAttribute('aria-label','Trendline đã xác nhận, trendline sớm nét chấm, pivot, phân kỳ, Kênh trend causal và bốn thông báo cắt line gần nhất');
+  if(!$('causal-trend-channel')){const input=document.createElement('input');input.id='causal-trend-channel';input.type='checkbox';input.checked=true;const label=document.createElement('label');label.title='Flow-Leg: SPY V kh�a h�?ng khi m? � gi� ho?c SPY V ph?i b?t l?i 2 n?n li�n ti?p m?i ��ng � n?n ph� �?u ��?c d�ng �? t�i kh?p OLS �2? � t?i thi?u 8 n?n � k�nh �? ��ng: UP v�ng, DOWN tr?ng � k�nh �ang s?ng n�t ch?m: UP cyan, DOWN tr?ng';label.append(input,'K�nh trend causal');$('geometry-toggle').closest('label').insertAdjacentElement('afterend',label);}
+  if(!$('geometry-provisional')){const input=document.createElement('input');input.id='geometry-provisional';input.type='checkbox';input.checked=true;const label=document.createElement('label');label.title='Hi?n/?n ri�ng c�c Trendline causal s?m HT S?M v� KC S?M; ch? c� t�c d?ng khi Trendline causal �ang b?t';label.append(input,'Trendline causal n�t ch?m');$('geometry-toggle').closest('label').insertAdjacentElement('afterend',label);}
+  if(!$('causal-trend-channel-provisional')){const input=document.createElement('input');input.id='causal-trend-channel-provisional';input.type='checkbox';input.checked=true;const label=document.createElement('label');label.title='Hi?n/?n ri�ng K�nh Flow-Leg �ang s?ng; ch? c� t�c d?ng khi K�nh trend causal �ang b?t';label.append(input,'K�nh trend causal n�t ch?m');$('causal-trend-channel').closest('label').insertAdjacentElement('afterend',label);}
+  $('geometry-overlay').setAttribute('aria-label','Trendline �? x�c nh?n, trendline s?m n�t ch?m, pivot, ph�n k?, K�nh trend causal v� b?n th�ng b�o c?t line g?n nh?t');
   fit.insertAdjacentElement('afterend',live);
-  const half=document.createElement('button');half.id='chart-fit-half';half.type='button';half.title='Hiển thị các nến trong 0,5 ngày gần nhất';half.textContent='Fit 0.5 ngày';live.insertAdjacentElement('afterend',half);
-  const save=document.createElement('button');save.id='chart-save';save.type='button';save.title='Lưu toàn bộ lựa chọn và vùng thời gian đang xem trên trình duyệt này';save.textContent='Lưu setup';save.setAttribute('aria-live','polite');half.insertAdjacentElement('afterend',save);
-  const alignmentLabel=$('alignment')?.closest('label');if(alignmentLabel){alignmentLabel.lastChild.textContent='SPY V Δ nến';alignmentLabel.dataset.pane='strength-spy-v';alignmentLabel.title='Histogram chung thang −1…+1 với Strength SPY V. Biên độ tuyến tính Δ/2: volume bằng SMA20 đạt nửa biên, từ 2× SMA20 đạt toàn biên. Bốn màu: Δ+/V+ xanh lá, Δ−/V+ xanh dương, Δ+/V− hồng nhạt, Δ−/V− đỏ.';}
-  const compositeLabel=$('composite')?.closest('label');if(compositeLabel)compositeLabel.title='C Taker NF chỉ hiển thị trong pane Strength SPY/QQQ/Composite, dùng scale overlay đối xứng quanh 0 và nhãn cố định.';
+  const half=document.createElement('button');half.id='chart-fit-half';half.type='button';half.title='Hi?n th? c�c n?n trong 0,5 ng�y g?n nh?t';half.textContent='Fit 0.5 ng�y';live.insertAdjacentElement('afterend',half);
+  const save=document.createElement('button');save.id='chart-save';save.type='button';save.title='L�u to�n b? l?a ch?n v� v�ng th?i gian �ang xem tr�n tr?nh duy?t n�y';save.textContent='L�u setup';save.setAttribute('aria-live','polite');half.insertAdjacentElement('afterend',save);
+  const alignmentLabel=$('alignment')?.closest('label');if(alignmentLabel){alignmentLabel.lastChild.textContent='SPY V ? n?n';alignmentLabel.dataset.pane='strength-spy-v';alignmentLabel.title='Histogram chung thang ?1�+1 v?i Strength SPY V. Bi�n �? tuy?n t�nh ?/2: volume b?ng SMA20 �?t n?a bi�n, t? 2� SMA20 �?t to�n bi�n. B?n m�u: ?+/V+ xanh l�, ??/V+ xanh d��ng, ?+/V? h?ng nh?t, ??/V? �?.';}
+  const compositeLabel=$('composite')?.closest('label');if(compositeLabel)compositeLabel.title='C Taker NF ch? hi?n th? trong pane Strength SPY/QQQ/Composite, d�ng scale overlay �?i x?ng quanh 0 v� nh?n c? �?nh.';
   const phaseLabel=$('phase-width')?.closest('label');if(phaseLabel){phaseLabel.hidden=true;const button=document.createElement('button');button.id='wlr-width-mode';button.type='button';button.className='display-mode-button';phaseLabel.insertAdjacentElement('afterend',button);}
   const candleLabel=$('candle-agreement-color')?.closest('label');if(candleLabel){candleLabel.hidden=true;const button=document.createElement('button');button.id='candle-color-mode';button.type='button';button.className='display-mode-button';candleLabel.insertAdjacentElement('afterend',button);}
-  const hint=document.querySelector('.hint');if(hint){hint.textContent=hint.textContent.replace('Histogram C NF sát trục giá SPY cộng Composite Taker NetFlow từ pivot đầu đã xác nhận tới nến hiện tại; khi chưa có cặp pivot, dùng 96 nến gần nhất. Cập nhật khoảng 3 giây khi trang mở. Cột cuối viền vàng là nến chưa đóng và có thể thay đổi.','Histogram C NF sát trục giá SPY chỉ vẽ 5 nến M15 gần nhất. Tiêu đề VOL phân loại biến động 5 nến thành thấp, trung bình hoặc cao theo phân vị causal của biên độ giá, realized volatility, quote volume và taker imbalance. Số % phía dưới vẫn là C NF dùng EWMA half-life 32 trên nhóm pivot hoặc 96 nến khi chưa có pivot; cả hai cập nhật theo nến live. Cột cuối viền vàng là nến chưa đóng và có thể thay đổi.');hint.textContent+=' Kênh trend causal dùng setup Flow-Leg: nguồn SPY V phân vị, dead-band ±0,15, tối thiểu 8 nến, R² hiển thị 0,20 và giữ 12 leg. Khi có break, đường lùi tối đa 4 nến M15 liền trước cùng ngày và cùng dấu SPY V làm gốc. Phá ±2σ theo hướng trend vẫn hợp lệ; nến SPY V trung tính hoặc một nến trái dấu vẫn được giữ. Giá phá biên bất lợi hoặc SPY V vượt dead-band đối nghịch phải kéo dài hai nến liên tiếp mới đóng leg; nến phá giá đầu được nhận để tái khớp OLS và ±2σ. Hai rail dùng một OLS cuối nên luôn thẳng. Trendline causal chưa đủ pivot xác nhận được giữ hiện bằng nét chấm trong cửa sổ sớm 8 nến, có nhãn HT SỚM hoặc KC SỚM; chúng chưa tham gia thống kê nhóm trend.';}
+  const hint=document.querySelector('.hint');if(hint){hint.textContent=hint.textContent.replace('Histogram C NF s�t tr?c gi� SPY c?ng Composite Taker NetFlow t? pivot �?u �? x�c nh?n t?i n?n hi?n t?i; khi ch�a c� c?p pivot, d�ng 96 n?n g?n nh?t. C?p nh?t kho?ng 3 gi�y khi trang m?. C?t cu?i vi?n v�ng l� n?n ch�a ��ng v� c� th? thay �?i.','Histogram C NF s�t tr?c gi� SPY ch? v? 5 n?n M15 g?n nh?t. Ti�u �? VOL ph�n lo?i bi?n �?ng 5 n?n th�nh th?p, trung b?nh ho?c cao theo ph�n v? causal c?a bi�n �? gi�, realized volatility, quote volume v� taker imbalance. S? % ph�a d�?i v?n l� C NF d�ng EWMA half-life 32 tr�n nh�m pivot ho?c 96 n?n khi ch�a c� pivot; c? hai c?p nh?t theo n?n live. C?t cu?i vi?n v�ng l� n?n ch�a ��ng v� c� th? thay �?i.');hint.textContent+=' K�nh trend causal d�ng setup Flow-Leg: ngu?n SPY V ph�n v?, dead-band �0,15, t?i thi?u 8 n?n, R� hi?n th? 0,20 v� gi? 12 leg. Khi c� break, ��?ng l�i t?i �a 4 n?n M15 li?n tr�?c c�ng ng�y v� c�ng d?u SPY V l�m g?c. Ph� �2? theo h�?ng trend v?n h?p l?; n?n SPY V trung t�nh ho?c m?t n?n tr�i d?u v?n ��?c gi?. Gi� ph� bi�n b?t l?i ho?c SPY V v�?t dead-band �?i ngh?ch ph?i k�o d�i hai n?n li�n ti?p m?i ��ng leg; n?n ph� gi� �?u ��?c nh?n �? t�i kh?p OLS v� �2?. Hai rail d�ng m?t OLS cu?i n�n lu�n th?ng. Trendline causal ch�a �? pivot x�c nh?n ��?c gi? hi?n b?ng n�t ch?m trong c?a s? s?m 8 n?n, c� nh?n HT S?M ho?c KC S?M; ch�ng ch�a tham gia th?ng k� nh�m trend.';}
 }
 function syncDisplayModeButtons(){
   const width=$('wlr-width-mode'),candle=$('candle-color-mode'),trendWidth=$('phase-width').checked,priceVolume=$('candle-agreement-color').checked;
-  if(width){width.textContent=`Độ dày WLR: ${trendWidth?'Trend giá':'C×V'}`;width.title=trendWidth?'Độ dày 1–6 theo phân vị |slope WLR8|×8/ATR14 và R²; màu vẫn theo C×V':'Độ dày theo đồng thuận Composite × SPY V; màu cũng theo C×V';width.setAttribute('aria-pressed',String(trendWidth));}
-  if(candle){candle.textContent=`Màu nến: ${priceVolume?'Cụm Giá×SPY V':'C×V'}`;candle.title=priceVolume?'Cụm causal từ WLR8, SPY V và thân giá/ATR; hai nến đối nghịch mới đổi cụm, nến ngược nhỏ chỉ giảm sáng':'Màu nến theo đồng thuận Strength Composite × SPY V';candle.setAttribute('aria-pressed',String(priceVolume));}
+  if(width){width.textContent=`�? d�y WLR: ${trendWidth?'Trend gi�':'C�V'}`;width.title=trendWidth?'�? d�y 1�6 theo ph�n v? |slope WLR8|�8/ATR14 v� R�; m�u v?n theo C�V':'�? d�y theo �?ng thu?n Composite � SPY V; m�u c?ng theo C�V';width.setAttribute('aria-pressed',String(trendWidth));}
+  if(candle){candle.textContent=`M�u n?n: ${priceVolume?'C?m Gi��SPY V':'C�V'}`;candle.title=priceVolume?'C?m causal t? WLR8, SPY V v� th�n gi�/ATR; hai n?n �?i ngh?ch m?i �?i c?m, n?n ng�?c nh? ch? gi?m s�ng':'M�u n?n theo �?ng thu?n Strength Composite � SPY V';candle.setAttribute('aria-pressed',String(priceVolume));}
 }
 function restoreSavedSetup(){
   try{
@@ -138,9 +141,9 @@ function saveChartSetup(){
     const controls={};for(const id of SETUP_CONTROL_IDS){const node=$(id);if(node)controls[id]=node.type==='checkbox'?node.checked:node.value;}
     const visible=chart.timeScale().getVisibleRange(),timeRange=visible&&Number.isFinite(Number(visible.from))&&Number.isFinite(Number(visible.to))?{from:Number(visible.from),to:Number(visible.to)}:null;
     localStorage.setItem(SETUP_STORAGE_KEY,JSON.stringify({version:1,savedAt:Date.now(),controls,timeRange}));
-    button.textContent='✓ Đã lưu';button.title='Setup đã được lưu trên trình duyệt này';
-  }catch{button.textContent='Không lưu được';button.title='Trình duyệt đang chặn bộ nhớ cục bộ';}
-  clearTimeout(saveSetupTimer);saveSetupTimer=setTimeout(()=>{button.textContent='Lưu setup';button.title='Lưu toàn bộ lựa chọn và vùng thời gian đang xem trên trình duyệt này';},1800);
+    button.textContent='? �? l�u';button.title='Setup �? ��?c l�u tr�n tr?nh duy?t n�y';
+  }catch{button.textContent='Kh�ng l�u ��?c';button.title='Tr?nh duy?t �ang ch?n b? nh? c?c b?';}
+  clearTimeout(saveSetupTimer);saveSetupTimer=setTimeout(()=>{button.textContent='L�u setup';button.title='L�u to�n b? l?a ch?n v� v�ng th?i gian �ang xem tr�n tr?nh duy?t n�y';},1800);
 }
 function updateRev63(){
   if(!rev63State)rev63State=preRthWlrTrend({priceRows:[],strengthRows:[],volumeRows:[],channelTrends:[],requireChannel:true,now:Date.now()});
@@ -160,14 +163,14 @@ function requestStudies(){
   const key=`${symbol}|${interval}|${$('days').value}|${closed[0]?.t}|${closed.at(-1)?.t}|${closed.length}|${options.minScore}|${options.maxLines}`;
   if(key===studyKey)return;studyKey=key;
   if(!studiesWorker){
-    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261021-age-audit1',import.meta.url),{type:'module'});
+    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261021-spy1',import.meta.url),{type:'module'});
     studiesWorker.onmessage=({data})=>{
       if(data.key!==studyKey)return;
       if(data.error){$('chart').dataset.studyStatus='error';$('chart').dataset.studyError=data.error;studyKey='';return;}
       const r=data.result;geometryState=r.geometry;causalChannelState=r.channels;breakoutState=r.breakout;geometryStatePoints=r.points;geometryBacktest=r.backtest;pivotZoneState=r.pivot;rev63State=r.rev63;
       researchFeatures=r.abaRows;studyResultKey=data.key;studyTimingMs=data.computeMs;trainingMeta=data.archive;
       $('chart').dataset.studyStatus='ready';$('chart').dataset.studyComputeMs=String(Math.round(studyTimingMs));
-      const now=cache?.serverTime??Date.now();pivotFlowState=pivotFlowRealtime(pivotZoneState.flow,rows.SPYUSDT??[],rows.COMPOSITE??[],now,pivotFlowState?.volatility?.key);
+      const now=cache?.serverTime??Date.now();pivotFlowState=pivotFlowRealtime(pivotZoneState.flow,selectedPrice(),rows.COMPOSITE??[],now,pivotFlowState?.volatility?.key);
       updateRev63();updatePivotZones();scheduleGeometryOverlay();schedulePivotFlowOverlay();forecastLayer?.update();
     };
     studiesWorker.onerror=()=>{$('chart').dataset.studyStatus='error';studyKey='';studiesWorker?.terminate();studiesWorker=null;};
@@ -186,27 +189,27 @@ function requestStats(){
 }
 function renderTrendCohorts(){
   const body=$('trend-cohort-body'),status=$('trend-cohort-status');if(!body||!status)return;
-  const contextName={support:'Ủng hộ',mixed:'Hỗn hợp',opposed:'Chống'},scopeName={'direction-session-strength':'hướng + phiên + xác nhận Strength','direction-session':'hướng + phiên','direction':'hướng','all':'toàn bộ'},sampleLevel=n=>n>=50?'TỐT':n>=30?'TẠM ỔN':n>=12?'THĂM DÒ':'CHƯA ĐỦ';
+  const contextName={support:'?ng h?',mixed:'H?n h?p',opposed:'Ch?ng'},scopeName={'direction-session-strength':'h�?ng + phi�n + x�c nh?n Strength','direction-session':'h�?ng + phi�n','direction':'h�?ng','all':'to�n b?'},sampleLevel=n=>n>=50?'T?T':n>=30?'T?M ?N':n>=12?'TH�M D?':'CH�A �?';
   const groups=rev63State?.groups??[];body.replaceChildren(...groups.map(group=>{
     const row=document.createElement('tr'),selected=group.key===rev63State?.cohortKey;row.className=selected?'selected':'';
-    const continuation=Number.isFinite(group.continuation)?`${Math.round(group.continuation*100)}%`:'—';
-    const strengthMix=['support','mixed','opposed'].map(key=>`${contextName[key]} ${Math.round((group.contexts?.[key]?.share??0)*100)}%`).join(' · '),context=rev63State?.strengthContext,contextStats=context?group.contexts?.[context]:null,strengthContinuation=Number.isFinite(contextStats?.continuation)?`${Math.round(contextStats.continuation*100)}% ${contextName[context]}`:context?`— (n=${contextStats?.n??0})`:'—',r2=value=>Number.isFinite(value)?value.toFixed(2):'—',ridge=`${r2(group.ridge?.r2)} · ${r2(group.ridge?.partialComposite)} · ${r2(group.ridge?.partialVolume)}`;
-    row.innerHTML=`<td><span class="trend-direction ${group.direction>0?'up':'down'}">${group.direction>0?'↑ UP':'↓ DOWN'}</span></td><td>${group.startSession}</td><td title="Số nhịp / số ngày; không đồng nghĩa số mẫu độc lập">${group.n} nhịp / ${group.uniqueDays??0} ngày</td><td class="strength-mix">${strengthMix}</td><td>${ridge}</td><td>${group.censoredN}</td><td>${group.medianBars??'—'} / ${group.rawMedianBars??'—'}</td><td>${group.atRiskN??'—'}</td><td>${continuation}</td><td>${strengthContinuation}</td>`;
+    const continuation=Number.isFinite(group.continuation)?`${Math.round(group.continuation*100)}%`:'�';
+    const strengthMix=['support','mixed','opposed'].map(key=>`${contextName[key]} ${Math.round((group.contexts?.[key]?.share??0)*100)}%`).join(' � '),context=rev63State?.strengthContext,contextStats=context?group.contexts?.[context]:null,strengthContinuation=Number.isFinite(contextStats?.continuation)?`${Math.round(contextStats.continuation*100)}% ${contextName[context]}`:context?`� (n=${contextStats?.n??0})`:'�',r2=value=>Number.isFinite(value)?value.toFixed(2):'�',ridge=`${r2(group.ridge?.r2)} � ${r2(group.ridge?.partialComposite)} � ${r2(group.ridge?.partialVolume)}`;
+    row.innerHTML=`<td><span class="trend-direction ${group.direction>0?'up':'down'}">${group.direction>0?'? UP':'? DOWN'}</span></td><td>${group.startSession}</td><td title="S? nh?p / s? ng�y; kh�ng �?ng ngh?a s? m?u �?c l?p">${group.n} nh?p / ${group.uniqueDays??0} ng�y</td><td class="strength-mix">${strengthMix}</td><td>${ridge}</td><td>${group.censoredN}</td><td>${group.medianBars??'�'} / ${group.rawMedianBars??'�'}</td><td>${group.atRiskN??'�'}</td><td>${continuation}</td><td>${strengthContinuation}</td>`;
     if(selected)row.setAttribute('aria-current','true');return row;
   }));
-  const age=rev63State?.currentBars>0?`tuổi ${rev63State.currentBars} nến · nhóm ${rev63State.ageGroup?.label??'—'}`:'chưa có trend đang hoạt động',scope=scopeName[rev63State?.cohort]??'chưa chọn cohort',context=rev63State?.strengthContext?contextName[rev63State.strengthContext]:'—';
-  const ridge=rev63State?.strengthRegression,r2=value=>Number.isFinite(value)?value.toFixed(2):'—',totalN=groups.reduce((sum,group)=>sum+group.n,0);status.textContent=`${age} · ${totalN} leg lịch sử · Strength: ${context} · R² OOS ${r2(ridge?.r2)} · C ${r2(ridge?.partialComposite)} · V ${r2(ridge?.partialVolume)} · cohort: ${scope}${rev63State?.currentBars>0?'':' · Còn +3 nhóm dùng nền từ tuổi 1'}`;
+  const age=rev63State?.currentBars>0?`tu?i ${rev63State.currentBars} n?n � nh�m ${rev63State.ageGroup?.label??'�'}`:'ch�a c� trend �ang ho?t �?ng',scope=scopeName[rev63State?.cohort]??'ch�a ch?n cohort',context=rev63State?.strengthContext?contextName[rev63State.strengthContext]:'�';
+  const ridge=rev63State?.strengthRegression,r2=value=>Number.isFinite(value)?value.toFixed(2):'�',totalN=groups.reduce((sum,group)=>sum+group.n,0);status.textContent=`${age} � ${totalN} leg l?ch s? � Strength: ${context} � R� OOS ${r2(ridge?.r2)} � C ${r2(ridge?.partialComposite)} � V ${r2(ridge?.partialVolume)} � cohort: ${scope}${rev63State?.currentBars>0?'':' � C?n +3 nh�m d�ng n?n t? tu?i 1'}`;
   let info=document.getElementById('trend-data-info');if(!info){info=document.createElement('p');info.id='trend-data-info';info.className='trend-cohort-note';status.after(info);}
-  const meta=rev63State?.dataInfo,date=t=>Number.isFinite(t)?new Date(t).toLocaleString('vi-VN',{timeZone:'America/New_York'}):'—';
-  info.textContent=meta?`Phiên hiện tại: ${meta.currentSession??'—'}; cột Bắt đầu là phiên mở trend. Nguồn: Binance M15 lưu trên GitHub + nến live đã đóng · ${date(meta.firstTime)} → ${date(meta.lastTime)} (New York) · ${meta.bars} nến / ${meta.days} ngày có PRE–RTH. N bảng = ${totalN} episode lịch sử. Bộ kênh gốc có ${meta.channels} Flow-Leg, ${meta.displayQualified} kênh đạt tiêu chí vẽ (trước giới hạn 12 kênh trên chart). Mỗi Flow-Leg đã xác nhận chỉ được tính một episode; dừng ngay khi kênh báo kết thúc, không thêm một lượt dung sai ở lớp nhãn. N đếm episode theo hướng + phiên bắt đầu; gồm nhịp ngắn/R² thấp. Số ngày không phải số mẫu độc lập. Chart dùng khoảng lịch sử riêng; trend đang chạy chưa vào N.`:'Đang nạp thông tin kho lịch sử…';
+  const meta=rev63State?.dataInfo,date=t=>Number.isFinite(t)?new Date(t).toLocaleString('vi-VN',{timeZone:'America/New_York'}):'�';
+  info.textContent=meta?`Phi�n hi?n t?i: ${meta.currentSession??'�'}; c?t B?t �?u l� phi�n m? trend. Ngu?n: Binance M15 l�u tr�n GitHub + n?n live �? ��ng � ${date(meta.firstTime)} ? ${date(meta.lastTime)} (New York) � ${meta.bars} n?n / ${meta.days} ng�y c� PRE�RTH. N b?ng = ${totalN} episode l?ch s?. B? k�nh g?c c� ${meta.channels} Flow-Leg, ${meta.displayQualified} k�nh �?t ti�u ch� v? (tr�?c gi?i h?n 12 k�nh tr�n chart). M?i Flow-Leg �? x�c nh?n ch? ��?c t�nh m?t episode; d?ng ngay khi k�nh b�o k?t th�c, kh�ng th�m m?t l�?t dung sai ? l?p nh?n. N �?m episode theo h�?ng + phi�n b?t �?u; g?m nh?p ng?n/R� th?p. S? ng�y kh�ng ph?i s? m?u �?c l?p. Chart d�ng kho?ng l?ch s? ri�ng; trend �ang ch?y ch�a v�o N.`:'�ang n?p th�ng tin kho l?ch s?�';
 
 }
 function updateTrendMethodCopy(){
-  const hint=document.querySelector('.hint');if(hint)hint.textContent=hint.textContent.replace('WLR 8 nến chỉ khởi tạo khi đồng pha với Strength Composite và SPY V','WLR giá 8 nến chỉ tính tuổi khi dấu SPY V cùng chiều slope; một nến lệch dấu không cộng tuổi, hai nến liên tiếp kết thúc trend; Composite chỉ góp 5% điểm');
-  const paragraph=[...document.querySelectorAll('details p')].find(node=>node.textContent.startsWith('PRE→RTH WLR dùng cửa sổ 8 nến M15'));
-  if(paragraph)paragraph.textContent='PRE→RTH WLR dùng cửa sổ 8 nến M15 với trọng số tăng dần. Điểm causal gồm 38% phân vị độ dốc/ATR, 28% R² giá, 18% hiệu suất đường giá, 11% độ bền hướng thân nến và chỉ 5% dấu Strength Composite. SPY Volume Strength mở leg bằng dấu và slope; sau đó nến trung tính hoặc một nến trái dấu vẫn nằm trong leg. Giá hoặc SPY V phải bất lợi hai nến liên tiếp mới đóng leg. Nến giá phá biên đầu tiên vẫn được nhận để tái khớp OLS và ±2σ; nếu nến sau trở lại kênh thì bộ đếm được xóa. Số nến đã nhận được phân loại thành MỚI 1–4, PHÁT TRIỂN 5–8, BỀN 9–12 hoặc KÉO DÀI ≥13. Kaplan–Meier tính theo số nến đã nhận: sống thêm h nến là P(T≥n+h | T≥n), không phân nhóm bằng độ dài cuối tương lai. Nến đang chạy không tham gia.';
-  const medianHeader=[...document.querySelectorAll('.trend-cohort-card th')].find(node=>['TRUNG VỊ NẾN','TRUNG VỊ LỌC / THÔ'].includes(node.textContent.trim().toUpperCase()));if(medianHeader)medianHeader.textContent='TRUNG VỊ LEG / THÔ';
-  const note=document.querySelector('.trend-cohort-note');if(note)note.textContent='Mỗi mẫu là một Flow-Leg đã xác nhận, kể cả leg ngắn dưới 8 nến hoặc R² dưới 0,20 không được vẽ; cách này giữ các thất bại sớm và tránh thiên lệch sống sót. Không tái lọc bằng WLR 6/8 hay điểm P70. R² OOS và partial C/V chỉ chẩn đoán Ridge, không loại mẫu. Ủng hộ/Hỗn hợp/Chống lấy dấu βC×Composite và βV×SPY V tại nến xác nhận causal. Kaplan–Meier theo Strength dùng từ 12 mẫu, 5 mẫu đạt tuổi hiện tại và 5 kết quả theo dõi thêm 3 nến đã biết; thiếu thời gian theo dõi thì WAIT. Khi chưa có trend hoạt động, Còn +3 nhóm là xác suất nền từ tuổi 1; dự báo có điều kiện theo tuổi chỉ xuất hiện khi có leg đang sống. Leg hết phiên chưa phá được kiểm duyệt phải; leg có điểm kết thúc là sự kiện.';
+  const hint=document.querySelector('.hint');if(hint)hint.textContent=hint.textContent.replace('WLR 8 n?n ch? kh?i t?o khi �?ng pha v?i Strength Composite v� SPY V','WLR gi� 8 n?n ch? t�nh tu?i khi d?u SPY V c�ng chi?u slope; m?t n?n l?ch d?u kh�ng c?ng tu?i, hai n?n li�n ti?p k?t th�c trend; Composite ch? g�p 5% �i?m');
+  const paragraph=[...document.querySelectorAll('details p')].find(node=>node.textContent.startsWith('PRE?RTH WLR d�ng c?a s? 8 n?n M15'));
+  if(paragraph)paragraph.textContent='PRE?RTH WLR d�ng c?a s? 8 n?n M15 v?i tr?ng s? t�ng d?n. �i?m causal g?m 38% ph�n v? �? d?c/ATR, 28% R� gi�, 18% hi?u su?t ��?ng gi�, 11% �? b?n h�?ng th�n n?n v� ch? 5% d?u Strength Composite. SPY Volume Strength m? leg b?ng d?u v� slope; sau �� n?n trung t�nh ho?c m?t n?n tr�i d?u v?n n?m trong leg. Gi� ho?c SPY V ph?i b?t l?i hai n?n li�n ti?p m?i ��ng leg. N?n gi� ph� bi�n �?u ti�n v?n ��?c nh?n �? t�i kh?p OLS v� �2?; n?u n?n sau tr? l?i k�nh th? b? �?m ��?c x�a. S? n?n �? nh?n ��?c ph�n lo?i th�nh M?I 1�4, PH�T TRI?N 5�8, B?N 9�12 ho?c K�O D�I ?13. Kaplan�Meier t�nh theo s? n?n �? nh?n: s?ng th�m h n?n l� P(T?n+h | T?n), kh�ng ph�n nh�m b?ng �? d�i cu?i t��ng lai. N?n �ang ch?y kh�ng tham gia.';
+  const medianHeader=[...document.querySelectorAll('.trend-cohort-card th')].find(node=>['TRUNG V? N?N','TRUNG V? L?C / TH�'].includes(node.textContent.trim().toUpperCase()));if(medianHeader)medianHeader.textContent='TRUNG V? LEG / TH�';
+  const note=document.querySelector('.trend-cohort-note');if(note)note.textContent='M?i m?u l� m?t Flow-Leg �? x�c nh?n, k? c? leg ng?n d�?i 8 n?n ho?c R� d�?i 0,20 kh�ng ��?c v?; c�ch n�y gi? c�c th?t b?i s?m v� tr�nh thi�n l?ch s?ng s�t. Kh�ng t�i l?c b?ng WLR 6/8 hay �i?m P70. R� OOS v� partial C/V ch? ch?n �o�n Ridge, kh�ng lo?i m?u. ?ng h?/H?n h?p/Ch?ng l?y d?u ?C�Composite v� ?V�SPY V t?i n?n x�c nh?n causal. Kaplan�Meier theo Strength d�ng t? 12 m?u, 5 m?u �?t tu?i hi?n t?i v� 5 k?t qu? theo d?i th�m 3 n?n �? bi?t; thi?u th?i gian theo d?i th? WAIT. Khi ch�a c� trend ho?t �?ng, C?n +3 nh�m l� x�c su?t n?n t? tu?i 1; d? b�o c� �i?u ki?n theo tu?i ch? xu?t hi?n khi c� leg �ang s?ng. Leg h?t phi�n ch�a ph� ��?c ki?m duy?t ph?i; leg c� �i?m k?t th�c l� s? ki?n.';
 }
 const isCompactChart=()=>matchMedia('(max-width: 760px)').matches;
 const isTouchChart=()=>matchMedia('(pointer: coarse)').matches||navigator.maxTouchPoints>0;
@@ -224,10 +227,10 @@ function applyResponsiveChartOptions(){
   const host=$('chart');host.dataset.lwcVersion=L.version();host.dataset.touchProfile=touch?'touch':'pointer';host.dataset.compactProfile=String(compact);host.dataset.verticalTouchDrag=String(touch&&full);host.dataset.priceAxisMinWidth=String(compact?58:64);
 }
 function init(){
-  if(!L){status('Không tải được thư viện chart cục bộ. Kiểm tra network hoặc tải lại trang.',true);return false;}
+  if(!L){status('Kh�ng t?i ��?c th� vi?n chart c?c b?. Ki?m tra network ho?c t?i l?i trang.',true);return false;}
   const controls=document.querySelector('.toggles'),card=document.querySelector('.chart-card');
-  if(controls&&card){controls.classList.add('chart-options');controls.setAttribute('aria-label','Tùy chọn biểu đồ');card.before(controls);}
-  $('relative').closest('label').title='Màu theo NetFlow cùng nến: SPY và QQQ cùng mua xanh, cùng bán đỏ, trái dấu cam, thiếu hoặc cân bằng xám. Chiều cao vẫn là Relative NetFlow mượt.';
+  if(controls&&card){controls.classList.add('chart-options');controls.setAttribute('aria-label','T�y ch?n bi?u �?');card.before(controls);}
+  $('relative').closest('label').title='M�u theo NetFlow c�ng n?n: SPY v� QQQ c�ng mua xanh, c�ng b�n �?, tr�i d?u cam, thi?u ho?c c�n b?ng x�m. Chi?u cao v?n l� Relative NetFlow m�?t.';
   chart=L.createChart($('chart'),{autoSize:true,layout:{background:{type:'solid',color:'#0e1726'},textColor:'#91a5bd',fontSize:12,attributionLogo:true},grid:{vertLines:{color:'#1a283a'},horzLines:{color:'#1a283a'}},crosshair:{mode:L.CrosshairMode.Normal,doNotSnapToHiddenSeriesIndices:true,vertLine:{visible:true,labelVisible:true},horzLine:{visible:true,labelVisible:true}},timeScale:{timeVisible:true,secondsVisible:false,rightOffsetPixels:96,barSpacing:6,minBarSpacing:.5,lockVisibleTimeRangeOnResize:true},rightPriceScale:{autoScale:true,minimumWidth:64,tickMarkDensity:2.5},handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},handleScale:{mouseWheel:true,pinch:true,axisPressedMouseMove:{time:true,price:true},axisDoubleClickReset:{time:true,price:true}},kineticScroll:{touch:true,mouse:false},localization:{locale:'vi-VN',timeFormatter:t=>new Date(t*1000).toLocaleString('en-US',{timeZone:'America/New_York',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'})}});
   applyResponsiveChartOptions();
   price=chart.addSeries(L.CandlestickSeries,{title:'',priceFormat:{type:'price',precision:1,minMove:.1},priceLineVisible:true,priceLineColor:'#36ddbd',priceLineWidth:1,priceLineStyle:L.LineStyle.Dashed,lastValueVisible:true,borderVisible:false},0);
@@ -253,7 +256,7 @@ function init(){
   series.volumeStrength=chart.addSeries(L.BaselineSeries,{baseValue:{type:'price',price:0},topLineColor:'#f6c85f',topFillColor1:'rgba(246,200,95,.12)',topFillColor2:'rgba(246,200,95,0)',bottomLineColor:'#f3f6fb',bottomFillColor1:'rgba(243,246,251,0)',bottomFillColor2:'rgba(243,246,251,.09)',lineWidth:3,title:'',priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:4,autoscaleInfoProvider:()=>({priceRange:{minValue:-1,maxValue:1}})},1);
   series.volumeStrength.createPriceLine({price:0,color:'#6f8299',lineWidth:1,lineStyle:L.LineStyle.Solid,axisLabelVisible:true,title:'0'});
   series.volumeStrength.priceScale().applyOptions({scaleMargins:{top:.08,bottom:.08}});
-  for(const [id,label] of [['composite-flow-fixed','C Taker NF'],['spy-volume-fixed','SPY V']]){const node=document.createElement('div');node.id=id;node.className='pane-fixed-readout missing';node.textContent=`${label} —`;$('chart').append(node);}
+  for(const [id,label] of [['composite-flow-fixed','C Taker NF'],['spy-volume-fixed','SPY V']]){const node=document.createElement('div');node.id=id;node.className='pane-fixed-readout missing';node.textContent=`${label} �`;$('chart').append(node);}
   $('chart').dataset.compositeNetflowPane='removed';$('chart').dataset.netflowPane='removed';$('chart').dataset.takerFlowOverlay='spy-qqq-composite-relative';$('chart').dataset.compositeStrengthOverlay='pane-2-only-symmetric-zero';$('chart').dataset.compositeStrengthOverlayLabel='C Taker NF';$('chart').dataset.fixedReadoutSide='right-price-scale';$('chart').dataset.strengthLineWidth='1';$('chart').dataset.spyVolumeDeltaPane='1';$('chart').dataset.spyVolumeDeltaScale='symmetric-overlay';$('chart').dataset.spyVolumeDeltaTitle='hidden';$('chart').dataset.spyVolumeStrengthLabel='fixed-right';$('chart').dataset.spyVolumeStrengthUnits='signed-2dp';$('chart').dataset.spyVolumeStrengthPositive='#f6c85f';$('chart').dataset.spyVolumeStrengthNegative='#f3f6fb';
   chart.panes()[0].setStretchFactor(.55);chart.panes()[1].setStretchFactor(.18);chart.panes()[2].setStretchFactor(.27);
   marks=L.createSeriesMarkers(price,[]);
@@ -294,9 +297,9 @@ function schedulePivotFlowOverlay(){if(pivotFlowFrame)return;pivotFlowFrame=requ
 function drawPivotFlowOverlay(){
   const canvas=$('pivot-flow-overlay'),host=$('chart'),width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1;
   const bitmapWidth=Math.round(width*dpr),bitmapHeight=Math.round(height*dpr);if(canvas.width!==bitmapWidth||canvas.height!==bitmapHeight){canvas.width=bitmapWidth;canvas.height=bitmapHeight;}
-  const context=canvas.getContext('2d');context.setTransform(dpr,0,0,dpr,0,0);context.clearRect(0,0,width,height);canvas.dataset.status='hidden';canvas.dataset.bins='0';canvas.dataset.live='false';delete canvas.dataset.barWidth;delete canvas.dataset.barSpacing;delete canvas.dataset.placement;delete canvas.dataset.mode;delete canvas.dataset.volatilityKey;delete canvas.dataset.volatilityScore;canvas.setAttribute('aria-label','Histogram Composite NF và mức biến động 5 nến: chưa hiển thị vì thiếu dữ liệu SPY/QQQ hoặc chart không phải SPY.');
+  const context=canvas.getContext('2d');context.setTransform(dpr,0,0,dpr,0,0);context.clearRect(0,0,width,height);canvas.dataset.status='hidden';canvas.dataset.bins='0';canvas.dataset.live='false';delete canvas.dataset.barWidth;delete canvas.dataset.barSpacing;delete canvas.dataset.placement;delete canvas.dataset.mode;delete canvas.dataset.volatilityKey;delete canvas.dataset.volatilityScore;canvas.setAttribute('aria-label','Histogram Composite NF v� m?c bi?n �?ng 5 n?n: ch�a hi?n th? v? thi?u d? li?u SPY/QQQ ho?c chart kh�ng ph?i SPY.');
   const {support,resistance}=pivotZoneState,flow=pivotFlowState,live=!!flow?.live&&$('live-indicator').className==='live'&&!!lastSuccess&&Date.now()-lastSuccess<15000;
-  if(!$('pivot-zones').checked||$('symbol').value!=='SPYUSDT'||!flow)return;
+  if(!$('pivot-zones').checked||!isSpyPrice()||!flow)return;
   const paneHeight=chart.panes()[0]?.getHeight?.()??height*.5,position=pivotFlowZeroCoordinate(paneHeight,resistance?price.priceToCoordinate(resistance.low):null,support?price.priceToCoordinate(support.high):null);
   if(!position)return;
   const scaleWidth=chart.priceScale('right',0)?.width?.()??56,right=width-scaleWidth-7,layout=pivotFlowLayout(chart.timeScale().options().barSpacing,flow.bins.length,right-12);
@@ -311,13 +314,13 @@ function drawPivotFlowOverlay(){
     context.fillStyle=value>0?'rgba(26,224,163,.88)':value<0?'rgba(255,77,112,.88)':'rgba(120,138,158,.7)';context.fillRect(x,value>=0?zero-size:zero,barWidth,size);
     if(live&&i===bars.length-1){context.strokeStyle='#f8bc62';context.lineWidth=1.5;context.strokeRect(x-.5,(value>=0?zero-size:zero)-.5,barWidth+1,size+1);}
   }
-  const volatility=flow.volatility,volScore=volatility?.score,volShort=volatility?.key==='medium'?'TB':volatility?.label??'—',wideHeader=panelWidth>=125,volText=Number.isFinite(volScore)?wideHeader?`VOL ${volatility.label} · ${volScore}%`:`V${volScore} ${volShort}`:'VOL —';
+  const volatility=flow.volatility,volScore=volatility?.score,volShort=volatility?.key==='medium'?'TB':volatility?.label??'�',wideHeader=panelWidth>=125,volText=Number.isFinite(volScore)?wideHeader?`VOL ${volatility.label} � ${volScore}%`:`V${volScore} ${volShort}`:'VOL �';
   context.font=`700 ${width<650?9:10}px Inter,system-ui,sans-serif`;context.textBaseline='middle';context.textAlign='left';context.fillStyle=volatility?.key==='high'?'#ffb454':volatility?.key==='low'?'#6ebcff':volatility?.key==='medium'?'#f6c85f':'#9aadc2';context.fillText(volText,left+5,zero-halfHeight-7,panelWidth-(live?(wideHeader?36:18):8));
-  const headerRight=live?(wideHeader?'LIVE':'●'):shownCount<flow.bins.length&&panelWidth>=72?`${shownCount}/${flow.bins.length}`:'';
+  const headerRight=live?(wideHeader?'LIVE':'?'):shownCount<flow.bins.length&&panelWidth>=72?`${shownCount}/${flow.bins.length}`:'';
   if(headerRight){context.textAlign='right';context.fillStyle=live?'#f8bc62':'#b4c4d6';context.fillText(headerRight,right-5,zero-halfHeight-7);}
   context.fillStyle='rgba(3,10,19,.96)';context.fillRect(left+1,zero+halfHeight-1,panelWidth-2,14);
   context.font=`800 ${width<650?11:12}px Inter,system-ui,sans-serif`;context.textAlign='right';context.fillStyle=flow.pct>0?'#39f0b9':flow.pct<0?'#ff718d':'#e1ebf7';context.fillText(`${flow.pct>0?'+':''}${fmt(flow.pct)}%`,right-5,zero+halfHeight+6,panelWidth-10);
-  context.textAlign='right';context.fillStyle='#9aadc2';context.fillText('0',right-5,zero+9);context.restore();canvas.dataset.status='visible';canvas.dataset.live=String(live);canvas.dataset.mode=flow.mode??'pivot';canvas.dataset.placement=position.placement;canvas.dataset.bins=String(bars.length);canvas.dataset.barWidth=String(barWidth);canvas.dataset.barSpacing=String(layout.barSpacing);canvas.dataset.volatilityKey=volatility?.key??'missing';canvas.dataset.volatilityScore=Number.isFinite(volScore)?String(volScore):'';canvas.setAttribute('aria-label',`Biến động 5 nến: ${volatility?`${volatility.label} ${volatility.score}%, biên độ trung bình ${fmt(volatility.rangePct)}%, realized volatility ${fmt(volatility.realizedPct)}%, chuẩn so sánh ${volatility.baselineN} cửa sổ ${volatility.baselineSession}`:'chưa đủ lịch sử'}. Histogram 5 nến Composite NF gần nhất. Phần trăm dùng EWMA half-life ${flow.pctHalfLife??32} nến, ${flow.mode==='rolling'?'trên nhóm 96 nến gần nhất':'từ cặp pivot xác nhận tới nến hiện tại'}: ${flow.pct>0?'mua':flow.pct<0?'bán':'cân bằng'} ${fmt(Math.abs(flow.pct))}%; mỗi cột rộng gấp đôi bước nến giá. ${position.placement==='pane-center'?'Mốc 0 đặt giữa pane vì chưa thấy đủ hai vùng hỗ trợ/kháng cự.':'Mốc 0 đặt giữa hỗ trợ và kháng cự.'} ${live?'Cột cuối có viền vàng; histogram, biến động và số phần trăm đều cập nhật theo nến live.':'Chưa có dữ liệu nến đang chạy mới từ cả SPY và QQQ.'} Buy trên mốc 0, sell dưới. Không phải tín hiệu OFI độc lập.`);
+  context.textAlign='right';context.fillStyle='#9aadc2';context.fillText('0',right-5,zero+9);context.restore();canvas.dataset.status='visible';canvas.dataset.live=String(live);canvas.dataset.mode=flow.mode??'pivot';canvas.dataset.placement=position.placement;canvas.dataset.bins=String(bars.length);canvas.dataset.barWidth=String(barWidth);canvas.dataset.barSpacing=String(layout.barSpacing);canvas.dataset.volatilityKey=volatility?.key??'missing';canvas.dataset.volatilityScore=Number.isFinite(volScore)?String(volScore):'';canvas.setAttribute('aria-label',`Bi?n �?ng 5 n?n: ${volatility?`${volatility.label} ${volatility.score}%, bi�n �? trung b?nh ${fmt(volatility.rangePct)}%, realized volatility ${fmt(volatility.realizedPct)}%, chu?n so s�nh ${volatility.baselineN} c?a s? ${volatility.baselineSession}`:'ch�a �? l?ch s?'}. Histogram 5 n?n Composite NF g?n nh?t. Ph?n tr�m d�ng EWMA half-life ${flow.pctHalfLife??32} n?n, ${flow.mode==='rolling'?'tr�n nh�m 96 n?n g?n nh?t':'t? c?p pivot x�c nh?n t?i n?n hi?n t?i'}: ${flow.pct>0?'mua':flow.pct<0?'b�n':'c�n b?ng'} ${fmt(Math.abs(flow.pct))}%; m?i c?t r?ng g?p ��i b�?c n?n gi�. ${position.placement==='pane-center'?'M?c 0 �?t gi?a pane v? ch�a th?y �? hai v�ng h? tr?/kh�ng c?.':'M?c 0 �?t gi?a h? tr? v� kh�ng c?.'} ${live?'C?t cu?i c� vi?n v�ng; histogram, bi?n �?ng v� s? ph?n tr�m �?u c?p nh?t theo n?n live.':'Ch�a c� d? li?u n?n �ang ch?y m?i t? c? SPY v� QQQ.'} Buy tr�n m?c 0, sell d�?i. Kh�ng ph?i t�n hi?u OFI �?c l?p.`);
 }
 function positionForecastReadout(){
   const node=$('geometry-readout'),paneHeight=chart?.panes?.()[0]?.getHeight?.();
@@ -325,7 +328,7 @@ function positionForecastReadout(){
   node.style.top=`${Math.max(8,paneHeight-node.offsetHeight-10)}px`;
 }
 function updateCandleCountdown(){
-  const node=$('candle-countdown'),bar=(rows.SPYUSDT??[]).at(-1),show=$('interval').value==='15m'&&$('symbol').value==='SPYUSDT';
+  const node=$('candle-countdown'),bar=selectedPrice().at(-1),show=$('interval').value==='15m'&&isSpyPrice();
   if(!node||!show||!bar){if(node)node.style.display='none';return;}
   node.style.display='block';
   const serverNow=Date.now()+serverOffsetMs,remaining=Math.max(0,bar.end+1-serverNow),seconds=Math.ceil(remaining/1000);
@@ -359,8 +362,8 @@ function drawCvdSpectrum(){
     context.strokeStyle=bin.value>=0?`rgba(42,120,214,${.4+.5*ratio})`:`rgba(235,104,52,${.4+.5*ratio})`;context.lineWidth=(width<650?2.5:3.5)+(width<650?1:1.5)*ratio;context.beginPath();context.moveTo(xBase,bin.y);context.lineTo(x,bin.y);context.stroke();
     if(bin.value>0&&(!buy||bin.value>buy.value))buy={...bin,x};if(bin.value<0&&(!sell||bin.value<sell.value))sell={...bin,x};
   }
-  context.font=`600 ${width<650?9:10}px Inter,system-ui,sans-serif`;context.textBaseline='bottom';context.textAlign='center';context.fillStyle='rgba(196,210,226,.9)';context.fillText(`CVD∞ ${cvdSourceLabel} · bin ${cvdProfile.binStep}`,xBase,Math.max(12,visible[0].y-5));
-  if(width>=650){context.textBaseline='middle';if(buy){context.textAlign='left';context.fillStyle='#70aef4';context.fillText(`▲ ${fmt(buy.price)}`,Math.min(usableRight-42,buy.x+5),buy.y);}if(sell){context.textAlign='right';context.fillStyle='#f28a61';context.fillText(`▼ ${fmt(sell.price)}`,Math.max(42,sell.x-5),sell.y);}}
+  context.font=`600 ${width<650?9:10}px Inter,system-ui,sans-serif`;context.textBaseline='bottom';context.textAlign='center';context.fillStyle='rgba(196,210,226,.9)';context.fillText(`CVD? ${cvdSourceLabel} � bin ${cvdProfile.binStep}`,xBase,Math.max(12,visible[0].y-5));
+  if(width>=650){context.textBaseline='middle';if(buy){context.textAlign='left';context.fillStyle='#70aef4';context.fillText(`? ${fmt(buy.price)}`,Math.min(usableRight-42,buy.x+5),buy.y);}if(sell){context.textAlign='right';context.fillStyle='#f28a61';context.fillText(`? ${fmt(sell.price)}`,Math.max(42,sell.x-5),sell.y);}}
   context.restore();
 }
 function drawDaySeparators(){
@@ -378,15 +381,15 @@ function drawDaySeparators(){
   context.restore();
 }
 function geometryLineText(line){
-  const name=line.kind==='support'?'Hỗ trợ':'Kháng cự',slope=`${line.slopeAtr>=0?'+':''}${fmt(line.slopeAtr)} ATR/nến`;
-  return `${name} ${line.score}/100 · ${line.touches} chạm · tuổi ${line.ageBars} · dốc ${slope} · lệch ${fmt(line.rmseAtr)} ATR · hợp lưu ${Math.round(line.confluence*100)}%`;
+  const name=line.kind==='support'?'H? tr?':'Kh�ng c?',slope=`${line.slopeAtr>=0?'+':''}${fmt(line.slopeAtr)} ATR/n?n`;
+  return `${name} ${line.score}/100 � ${line.touches} ch?m � tu?i ${line.ageBars} � d?c ${slope} � l?ch ${fmt(line.rmseAtr)} ATR � h?p l�u ${Math.round(line.confluence*100)}%`;
 }
 function updateGeometryReadout(){
   const state=trendReadoutState(rev63State,{now:Date.now()+serverOffsetMs,live:Boolean(lastSuccess&&Date.now()-lastSuccess<15000)});
   const node=$('geometry-readout');if(!node)return;node.style.display='block';
   node.textContent=formatPreRthWlrTrend(state);
   node.className=`forecast ${(state?.label??'WAIT').toLowerCase()}`;
-  const ridge=state?.strengthRegression;node.title=`PRE→RTH WLR M15 · ${state?.reason??'Chờ dữ liệu M15 đã đóng'}. Tuổi hiện tại / trung vị tổng độ dài leg. TUỔI P là phân vị tuổi, không phải phân vị giá WLR. CÒN ~ là trung vị số nến còn lại có điều kiện, không phải trung vị tổng trừ tuổi hiện tại. TREND CÒN là khả năng sống thêm ${state?.horizon??3} nến đã nhận, không phải xác suất giá tăng hoặc tỷ lệ đúng A–B–A. Kaplan–Meier dùng vị trí nến thất bại sau nến đã nhận cuối, có kiểm duyệt phải và kiểm tra đủ thời gian theo dõi. ${state?.active?`Nhóm tuổi ${state.ageGroup?.label??'—'} · điểm ${state.trendScore}/100 · R² giá ${fmt(state.r2)} · độ bền hướng giá ${Math.round((state.persistence??0)*100)}% · SPY V cùng dấu từng nến ${Math.round((state.volumeAlignment??0)*100)}% (chỉ tham khảo) · nến đã nhận vào Flow-Leg ±2σ ${Math.round((state.channelAlignment??0)*100)}% (${state.currentBars}/${state.elapsedBars??state.currentBars} nến được tính) · Composite góp ${Math.round((state.compositeScore??.5)*5)}/5 điểm · Strength ${state.strengthContext??'—'} · Ridge OOS R² ${fmt(ridge?.r2)}, partial C ${fmt(ridge?.partialComposite)}, V ${fmt(ridge?.partialVolume)}, n OOS ${ridge?.oosN??0} · mẫu ${state.sampleN} leg / ${state.uniqueDays??'—'} ngày, còn rủi ro ${state.atRiskN}, kết quả thêm ${state.horizon} nến đã biết ${state.resolvedHorizonN??'—'}, kiểm duyệt phải ${state.censoredN??0}. `:''}SPY V xác nhận dấu+slope ở cấp trend. Phá ±2σ cùng hướng, nến trung tính, một nến SPY V trái dấu hoặc một nến giá ngoài biên bất lợi vẫn thuộc leg và được tái khớp. Chỉ hai nến bất lợi liên tiếp mới kết thúc. Composite chỉ góp 5% điểm trend; Ridge OOS vẫn là lớp mô tả riêng. Nến đang chạy không được tính; trend còn chạy lúc 16:00 được xem là kiểm duyệt phải.`;
+  const ridge=state?.strengthRegression;node.title=`PRE?RTH WLR M15 � ${state?.reason??'Ch? d? li?u M15 �? ��ng'}. Tu?i hi?n t?i / trung v? t?ng �? d�i leg. TU?I P l� ph�n v? tu?i, kh�ng ph?i ph�n v? gi� WLR. C?N ~ l� trung v? s? n?n c?n l?i c� �i?u ki?n, kh�ng ph?i trung v? t?ng tr? tu?i hi?n t?i. TREND C?N l� kh? n�ng s?ng th�m ${state?.horizon??3} n?n �? nh?n, kh�ng ph?i x�c su?t gi� t�ng ho?c t? l? ��ng A�B�A. Kaplan�Meier d�ng v? tr� n?n th?t b?i sau n?n �? nh?n cu?i, c� ki?m duy?t ph?i v� ki?m tra �? th?i gian theo d?i. ${state?.active?`Nh�m tu?i ${state.ageGroup?.label??'�'} � �i?m ${state.trendScore}/100 � R� gi� ${fmt(state.r2)} � �? b?n h�?ng gi� ${Math.round((state.persistence??0)*100)}% � SPY V c�ng d?u t?ng n?n ${Math.round((state.volumeAlignment??0)*100)}% (ch? tham kh?o) � n?n �? nh?n v�o Flow-Leg �2? ${Math.round((state.channelAlignment??0)*100)}% (${state.currentBars}/${state.elapsedBars??state.currentBars} n?n ��?c t�nh) � Composite g�p ${Math.round((state.compositeScore??.5)*5)}/5 �i?m � Strength ${state.strengthContext??'�'} � Ridge OOS R� ${fmt(ridge?.r2)}, partial C ${fmt(ridge?.partialComposite)}, V ${fmt(ridge?.partialVolume)}, n OOS ${ridge?.oosN??0} � m?u ${state.sampleN} leg / ${state.uniqueDays??'�'} ng�y, c?n r?i ro ${state.atRiskN}, k?t qu? th�m ${state.horizon} n?n �? bi?t ${state.resolvedHorizonN??'�'}, ki?m duy?t ph?i ${state.censoredN??0}. `:''}SPY V x�c nh?n d?u+slope ? c?p trend. Ph� �2? c�ng h�?ng, n?n trung t�nh, m?t n?n SPY V tr�i d?u ho?c m?t n?n gi� ngo�i bi�n b?t l?i v?n thu?c leg v� ��?c t�i kh?p. Ch? hai n?n b?t l?i li�n ti?p m?i k?t th�c. Composite ch? g�p 5% �i?m trend; Ridge OOS v?n l� l?p m� t? ri�ng. N?n �ang ch?y kh�ng ��?c t�nh; trend c?n ch?y l�c 16:00 ��?c xem l� ki?m duy?t ph?i.`;
   requestAnimationFrame(positionForecastReadout);
 }
 function drawGeometryOverlay(){
@@ -405,7 +408,7 @@ function drawGeometryOverlay(){
       const strokeRail=(key,stroke,width)=>{context.strokeStyle=stroke;context.lineWidth=width;context.setLineDash(dash);context.beginPath();for(let i=0;i<path.length;i++)i?context.lineTo(path[i].x,path[i][key]):context.moveTo(path[i].x,path[i][key]);context.stroke();};
       strokeRail(secondaryKey,secondaryColor,1.35);strokeRail(primaryKey,color,Math.max(2,Math.min(5,trend.lineWidth??2)));
       const startY=path[0].center;
-      if(Number.isFinite(startY)&&x1>=0&&x1<=right){context.setLineDash([]);context.fillStyle=color;context.beginPath();context.arc(x1,startY,4,0,Math.PI*2);context.fill();if(width>=650){context.font='800 9px Inter,system-ui,sans-serif';context.textAlign='left';context.textBaseline='bottom';context.fillText(`${trend.direction>0?'↑':'↓'} BẮT ĐẦU`,x1+6,startY-4);}}
+      if(Number.isFinite(startY)&&x1>=0&&x1<=right){context.setLineDash([]);context.fillStyle=color;context.beginPath();context.arc(x1,startY,4,0,Math.PI*2);context.fill();if(width>=650){context.font='800 9px Inter,system-ui,sans-serif';context.textAlign='left';context.textBaseline='bottom';context.fillText(`${trend.direction>0?'?':'?'} B?T �?U`,x1+6,startY-4);}}
       if(trend.confirmationTime!==trend.startTime&&confirmPoint&&confirmPoint.x>=0&&confirmPoint.x<=right){context.setLineDash([]);context.strokeStyle=color;context.lineWidth=1.5;context.beginPath();context.arc(confirmPoint.x,confirmPoint.center,3,0,Math.PI*2);context.stroke();}
     }
   }
@@ -414,17 +417,17 @@ function drawGeometryOverlay(){
     const x1=chart.timeScale().timeToCoordinate(line.startTime/1000),x2=chart.timeScale().timeToCoordinate(line.endTime/1000),y1=price.priceToCoordinate(line.startValue),y2=price.priceToCoordinate(line.endValue);
     if(![x1,x2,y1,y2].every(Number.isFinite)||Math.max(x1,x2)<0||Math.min(x1,x2)>right||Math.max(y1,y2)<0||Math.min(y1,y2)>paneHeight)continue;
     const provisionalColor=line.kind==='support'?'rgba(54,221,189,.82)':'rgba(255,180,84,.82)';context.strokeStyle=provisionalColor;context.lineWidth=2.1;context.setLineDash([2,4]);context.beginPath();context.moveTo(x1,y1);context.lineTo(x2,y2);context.stroke();
-    if(width>=650&&x2>70&&x2<right-6&&y2>10&&y2<paneHeight-8){context.setLineDash([]);context.font='700 9px Inter,system-ui,sans-serif';context.textAlign='right';context.textBaseline='bottom';context.fillStyle=line.kind==='support'?'#71f7d6':'#ffd092';context.fillText(`${line.kind==='support'?'HT':'KC'} SỚM · ${line.lookbackBars}n`,x2-4,y2-3);}
+    if(width>=650&&x2>70&&x2<right-6&&y2>10&&y2<paneHeight-8){context.setLineDash([]);context.font='700 9px Inter,system-ui,sans-serif';context.textAlign='right';context.textBaseline='bottom';context.fillStyle=line.kind==='support'?'#71f7d6':'#ffd092';context.fillText(`${line.kind==='support'?'HT':'KC'} S?M � ${line.lookbackBars}n`,x2-4,y2-3);}
   }
   for(const line of [...geometryState.lines].reverse()){
     const x1=chart.timeScale().timeToCoordinate(line.startTime/1000),x2=chart.timeScale().timeToCoordinate(line.endTime/1000),y1=price.priceToCoordinate(line.startValue),y2=price.priceToCoordinate(line.endValue);
     if(![x1,x2,y1,y2].every(Number.isFinite)||Math.max(x1,x2)<0||Math.min(x1,x2)>right||Math.max(y1,y2)<0||Math.min(y1,y2)>paneHeight)continue;
     const alpha=.48+.45*Math.max(0,Math.min(1,(line.score-55)/35));context.strokeStyle=line.kind==='support'?`rgba(54,221,189,${alpha})`:`rgba(255,180,84,${alpha})`;context.lineWidth=1.2+2*Math.max(0,Math.min(1,(line.score-55)/35));context.setLineDash(line.score>=75?[]:[6,4]);context.beginPath();context.moveTo(x1,y1);context.lineTo(x2,y2);context.stroke();
-    if(width>=650&&x2>70&&x2<right-6&&y2>10&&y2<paneHeight-8){context.setLineDash([]);context.font='700 9px Inter,system-ui,sans-serif';context.textAlign='right';context.textBaseline='bottom';context.fillStyle=line.kind==='support'?'#7dffd9':'#ffd092';context.fillText(`${line.kind==='support'?'HT':'KC'} ${line.score} · ${line.touches}x`,x2-4,y2-3);}
+    if(width>=650&&x2>70&&x2<right-6&&y2>10&&y2<paneHeight-8){context.setLineDash([]);context.font='700 9px Inter,system-ui,sans-serif';context.textAlign='right';context.textBaseline='bottom';context.fillStyle=line.kind==='support'?'#7dffd9':'#ffd092';context.fillText(`${line.kind==='support'?'HT':'KC'} ${line.score} � ${line.touches}x`,x2-4,y2-3);}
   }
   context.setLineDash([]);for(const point of geometryStatePoints){
     const x=chart.timeScale().timeToCoordinate(point.at/1000),y=price.priceToCoordinate(point.lineValue);if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||x>right||y<0||y>paneHeight)continue;
-    const color=point.breakDirection>0?'#1ae0a3':'#ff6383',trueBreak=point.key==='true_break';context.fillStyle=trueBreak?color:'rgba(9,18,31,.96)';context.strokeStyle=color;context.lineWidth=trueBreak?1.4:2.4;context.beginPath();context.arc(x,y,5,0,Math.PI*2);context.fill();context.stroke();context.font='900 8px Inter,system-ui,sans-serif';context.textAlign='center';context.textBaseline='middle';context.fillStyle=trueBreak?'#07131f':color;context.fillText(point.breakDirection>0?'↑':'↓',x,y+.3);
+    const color=point.breakDirection>0?'#1ae0a3':'#ff6383',trueBreak=point.key==='true_break';context.fillStyle=trueBreak?color:'rgba(9,18,31,.96)';context.strokeStyle=color;context.lineWidth=trueBreak?1.4:2.4;context.beginPath();context.arc(x,y,5,0,Math.PI*2);context.fill();context.stroke();context.font='900 8px Inter,system-ui,sans-serif';context.textAlign='center';context.textBaseline='middle';context.fillStyle=trueBreak?'#07131f':color;context.fillText(point.breakDirection>0?'?':'?',x,y+.3);
   }
   if($('geometry-pivots').checked){
     context.setLineDash([]);for(const pivot of geometryState.pivots.slice(-60)){
@@ -444,8 +447,8 @@ function render(fit=false){
   const seriesContext=[$('symbol').value,$('interval').value,$('signal').value,$('days').value,$('candle-agreement-color').checked,$('phase-width').checked].join('|');
   const p=rows[$('symbol').value]??[],signalRows=rows[$('signal').value]??[],model=Object.keys(modelRows).length?modelRows:rows;
   dayBoundaries=dayBoundaryTimes(p);
-  const compositeCvd=$('symbol').value==='SPYUSDT',cvdBars=compositeCvd?projectNetFlowToPrice(p,rows.COMPOSITE??[]):p;
-  cvdSourceLabel=compositeCvd?'C→S':'Q';$('cvd-spectrum').dataset.source=compositeCvd?'COMPOSITE→SPY':'QQQUSDT';
+  const compositeCvd=isSpyPrice(),cvdBars=compositeCvd?projectNetFlowToPrice(p,rows.COMPOSITE??[]):p;
+  cvdSourceLabel=compositeCvd?'C?S':'Q';$('cvd-spectrum').dataset.source=compositeCvd?'COMPOSITE?SPY':'QQQUSDT';
   cvdProfile=continuousCvdSpectrum(cvdBars);cvdAnchorTime=cvdBars.at(-1)?.t??null;
   const alignment=flowAlignment(rows.SPYUSDT??[],rows.QQQUSDT??[],{step:STEPS[$('interval').value]});
   const closedBefore=cache?.serverTime??Infinity,closedPrice=p.filter(row=>(row.end??row.t)<closedBefore),closedTimes=new Set(closedPrice.map(row=>row.t)),modelPrice=model[$('symbol').value]??p,modelClosedPrice=modelPrice.filter(row=>(row.end??row.t)<closedBefore),modelClosedTimes=new Set(modelClosedPrice.map(row=>row.t));
@@ -455,7 +458,7 @@ function render(fit=false){
   const clusterColors=$('candle-agreement-color').checked;
   price.applyOptions({priceFormat:$('symbol').value==='SPYUSDT'?{type:'price',precision:1,minMove:.1}:{type:'price',precision:2,minMove:.01}});
   writeSeries('price',price,p.map(x=>{const color=clusterColors?candleClusterPalette(candleClusterMap.get(x.t)):candlePalette(candleColorMap.get(x.t));return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color:color.body,wickColor:color.wick,borderColor:color.border};}),seriesContext);
-  pivotFlowState=pivotFlowRealtime(pivotZoneState.flow,rows.SPYUSDT??[],rows.COMPOSITE??[],closedBefore,pivotFlowState?.volatility?.key);
+  pivotFlowState=pivotFlowRealtime(pivotZoneState.flow,selectedPrice(),rows.COMPOSITE??[],closedBefore,pivotFlowState?.volatility?.key);
   const priceBands=weightedPriceBands(p,STEPS[$('interval').value]),trendThickness=new Map(wlrTrendThickness(p,STEPS[$('interval').value]).map(x=>[x.t,x]));priceBandMap=new Map(priceBands.map(x=>[x.t,x]));
   updateRev63();
   writeSeries('priceMid',series.priceMid,priceLineData(priceBands,maps.COMPOSITE??new Map(),volumeStrengthMap,trendThickness),seriesContext);for(const [name,field] of [['priceUpper','upper'],['priceLower','lower']])writeSeries(name,series[name],lineData(priceBands,field),seriesContext);
@@ -522,29 +525,29 @@ function updatePivotZones(){
 }
 function showTooltip(t){
   const p=maps[$('symbol').value]?.get(t),record=statsMap.get(t),state=record?.state,colorSignal=candleColorMap.get(t),clusterSignal=candleClusterMap.get(t),geometryEvent=geometryState.events?.find(event=>event.at===t),breakoutEvent=geometryStatePoints.find(event=>event.at===t)??(breakoutState&&breakoutState.at===t&&['true_break','false_break'].includes(breakoutState.key)?breakoutState:null),geometryLine=inspectedTime===null?geometryState.lines?.[0]:null;
-  const time=p?new Date(t).toLocaleString('vi-VN',{timeZone:'America/New_York'})+' ET':'Chưa có dữ liệu';
-  const running=p&&p.end>=(cache?.serverTime??Infinity),mode=inspectedTime!==null?'NẾN ĐANG XEM':'MỚI NHẤT';
+  const time=p?new Date(t).toLocaleString('vi-VN',{timeZone:'America/New_York'})+' ET':'Ch�a c� d? li?u';
+  const running=p&&p.end>=(cache?.serverTime??Infinity),mode=inspectedTime!==null?'N?N �ANG XEM':'M?I NH?T';
   if(!state){
-    for(const id of ['stat-group','stat-score','stat-pair'])statValue(id,'—');
-    for(const id of ['stat-group-note','stat-score-note','stat-pair-note'])$(id).textContent='Chờ đủ Strength và quote volume của SPY/QQQ';
-    $('tooltip').textContent=`${mode} · ${time} · Chưa đủ dữ liệu để chấm điểm và thống kê nhóm Strength.`;return;
+    for(const id of ['stat-group','stat-score','stat-pair'])statValue(id,'�');
+    for(const id of ['stat-group-note','stat-score-note','stat-pair-note'])$(id).textContent='Ch? �? Strength v� quote volume c?a SPY/QQQ';
+    $('tooltip').textContent=`${mode} � ${time} � Ch�a �? d? li?u �? ch?m �i?m v� th?ng k� nh�m Strength.`;return;
   }
   $('stat-group').replaceChildren(...state.signs.map((s,i)=>{const span=document.createElement('span');span.className=tone(s);span.textContent=`${['S','Q','C'][i]}${signLabel(s)}`;return span;}));
-  $('stat-group-note').textContent=`${sourceName($('signal').value)} ${signed(state.value)} · ${state.session}${state.marker?' · ● >0.95':state.extreme?' · <−0.95':''}`;
-  statValue('stat-score',state.score===null?'Trung tính':`${state.score}/100`,state.score>=65?'positive':state.score<40?'negative':'neutral');
-  $('stat-score-note').textContent=`Mua ${fmt(state.buyShare*100)}% / Bán ${fmt(state.sellShare*100)}% · ${state.flowDirection===0?'Cân bằng':state.flowDirection===state.direction?'Cùng dấu':'Ngược dấu Strength'}`;
+  $('stat-group-note').textContent=`${sourceName($('signal').value)} ${signed(state.value)} � ${state.session}${state.marker?' � ? >0.95':state.extreme?' � <?0.95':''}`;
+  statValue('stat-score',state.score===null?'Trung t�nh':`${state.score}/100`,state.score>=65?'positive':state.score<40?'negative':'neutral');
+  $('stat-score-note').textContent=`Mua ${fmt(state.buyShare*100)}% / B�n ${fmt(state.sellShare*100)}% � ${state.flowDirection===0?'C�n b?ng':state.flowDirection===state.direction?'C�ng d?u':'Ng�?c d?u Strength'}`;
   const a=state.alignment;
-  statValue('stat-pair',a.detailState, a.detailState==='THUẬN MUA'?'positive':a.detailState==='THUẬN BÁN'?'negative':'neutral');
-  $('stat-pair-note').textContent=`NF% mượt · S ${signed(a.smoothSpyNf)} / Q ${signed(a.smoothQqqNf)}`;
-  const regimeText=colorSignal?.direction?`Composite×Volume ${colorSignal.colorRegime}: Composite ${signed(colorSignal.compositeStrength)}, SPY Volume ${signed(colorSignal.volumeStrength)}; độ đậm theo min(|Composite|, |Volume|) = ${fmt(colorSignal.agreement)}.`:`Composite×Volume TRUNG TÍNH${colorSignal?.neutralReason?` (${colorSignal.neutralReason.toLowerCase()})`:''}: Composite ${signed(colorSignal?.compositeStrength)}, SPY Volume ${signed(colorSignal?.volumeStrength)}; trái dấu, bằng 0 hoặc thiếu dữ liệu đều dùng xám.`;
-  const clusterName=clusterSignal?.group>0?'CỤM TĂNG':clusterSignal?.group<0?'CỤM GIẢM':'TRUNG TÍNH',colorText=$('candle-agreement-color').checked?`Màu nến Cụm Giá×SPY V ${clusterName} · ${clusterSignal?.level??'weak'}${clusterSignal?.counter?' · nến ngược nhỏ, giữ màu cụm':''}${clusterSignal?.transition?' · thử chuyển pha, viền vàng':''}${running?' · LIVE chỉ xem trước':''}. Điểm mượt ${signed(clusterSignal?.smooth)} = WLR8 45% + SPY V 35% + thân/ATR 20%; cần hai nến đối nghịch để đảo cụm.`:`Màu nến ${regimeText}`;
-  const text=[`${mode} · ${time} · ${state.session} · Giá ${sourceName($('symbol').value)}, Strength phân tích ${sourceName($('signal').value)}${running?' · Nến đang chạy: điểm tạm thời, lịch sử so sánh dùng nến đóng':''}`,
-    geometryLine?`GEO hiện tại: ${geometryLineText(geometryLine)}. Line chỉ xuất hiện từ ${new Date(geometryLine.knownAt).toLocaleString('vi-VN',{timeZone:'America/New_York'})} ET, sau khi pivot thứ hai được xác nhận; không dùng nến đang chạy.`:null,
-    breakoutEvent?`Thông báo cắt Trendline causal: ${breakoutEvent.label} ${breakoutEvent.breakDirection>0?'lên ↑':'xuống ↓'} tại ${breakoutEvent.lineKind==='support'?'hỗ trợ':'kháng cự'} ${fmt(breakoutEvent.lineValue)} · line ${breakoutEvent.lineScore}/100 · cách ${fmt(breakoutEvent.distanceAtr)} ATR${breakoutEvent.key==='true_break'?' · Strength Composite, SPY V và NetFlow cùng xác nhận hướng phá':' · giá đã giành lại phía cũ của line'}. Line tham chiếu đã tồn tại và được khóa trước hai nến xác nhận.`:null,
-    geometryEvent?`Dị biệt được xác nhận tại nến này: ${geometryEvent.direction==='bullish'?'phân kỳ tăng':geometryEvent.direction==='bearish'?'phân kỳ giảm':'SPY/QQQ luân phiên dẫn dắt'} · điểm ${geometryEvent.score}/100 · ΔStrength SPY ${signed(geometryEvent.spyDelta)} / QQQ ${signed(geometryEvent.qqqDelta)} / SPY V ${signed(geometryEvent.volumeDelta)} · ΔNetFlow ${signed(geometryEvent.flowDelta)}${geometryEvent.pairSplit?` · Strength SPY và QQQ ngược nhau, giá đang gần nhịp ${geometryEvent.leader==='SPY'?'SPY':geometryEvent.leader==='QQQ'?'QQQ':'hỗn hợp'}`:''}. Đây là mô tả hợp lưu tại thời điểm xác nhận, không phải dự báo chắc chắn.`:null,
-    `Màu SPY−QQQ tương đối dùng dấu NetFlow cùng nến: ${a.state} · SPY ${signed(a.spyNet)} / QQQ ${signed(a.qqqNet)}. Chiều cao vẫn là Relative NetFlow mượt, không dùng dữ liệu sổ lệnh.`,
+  statValue('stat-pair',a.detailState, a.detailState==='THU?N MUA'?'positive':a.detailState==='THU?N B�N'?'negative':'neutral');
+  $('stat-pair-note').textContent=`NF% m�?t � S ${signed(a.smoothSpyNf)} / Q ${signed(a.smoothQqqNf)}`;
+  const regimeText=colorSignal?.direction?`Composite�Volume ${colorSignal.colorRegime}: Composite ${signed(colorSignal.compositeStrength)}, SPY Volume ${signed(colorSignal.volumeStrength)}; �? �?m theo min(|Composite|, |Volume|) = ${fmt(colorSignal.agreement)}.`:`Composite�Volume TRUNG T�NH${colorSignal?.neutralReason?` (${colorSignal.neutralReason.toLowerCase()})`:''}: Composite ${signed(colorSignal?.compositeStrength)}, SPY Volume ${signed(colorSignal?.volumeStrength)}; tr�i d?u, b?ng 0 ho?c thi?u d? li?u �?u d�ng x�m.`;
+  const clusterName=clusterSignal?.group>0?'C?M T�NG':clusterSignal?.group<0?'C?M GI?M':'TRUNG T�NH',colorText=$('candle-agreement-color').checked?`M�u n?n C?m Gi��SPY V ${clusterName} � ${clusterSignal?.level??'weak'}${clusterSignal?.counter?' � n?n ng�?c nh?, gi? m�u c?m':''}${clusterSignal?.transition?' � th? chuy?n pha, vi?n v�ng':''}${running?' � LIVE ch? xem tr�?c':''}. �i?m m�?t ${signed(clusterSignal?.smooth)} = WLR8 45% + SPY V 35% + th�n/ATR 20%; c?n hai n?n �?i ngh?ch �? �?o c?m.`:`M�u n?n ${regimeText}`;
+  const text=[`${mode} � ${time} � ${state.session} � Gi� ${sourceName($('symbol').value)}, Strength ph�n t�ch ${sourceName($('signal').value)}${running?' � N?n �ang ch?y: �i?m t?m th?i, l?ch s? so s�nh d�ng n?n ��ng':''}`,
+    geometryLine?`GEO hi?n t?i: ${geometryLineText(geometryLine)}. Line ch? xu?t hi?n t? ${new Date(geometryLine.knownAt).toLocaleString('vi-VN',{timeZone:'America/New_York'})} ET, sau khi pivot th? hai ��?c x�c nh?n; kh�ng d�ng n?n �ang ch?y.`:null,
+    breakoutEvent?`Th�ng b�o c?t Trendline causal: ${breakoutEvent.label} ${breakoutEvent.breakDirection>0?'l�n ?':'xu?ng ?'} t?i ${breakoutEvent.lineKind==='support'?'h? tr?':'kh�ng c?'} ${fmt(breakoutEvent.lineValue)} � line ${breakoutEvent.lineScore}/100 � c�ch ${fmt(breakoutEvent.distanceAtr)} ATR${breakoutEvent.key==='true_break'?' � Strength Composite, SPY V v� NetFlow c�ng x�c nh?n h�?ng ph�':' � gi� �? gi�nh l?i ph�a c? c?a line'}. Line tham chi?u �? t?n t?i v� ��?c kh�a tr�?c hai n?n x�c nh?n.`:null,
+    geometryEvent?`D? bi?t ��?c x�c nh?n t?i n?n n�y: ${geometryEvent.direction==='bullish'?'ph�n k? t�ng':geometryEvent.direction==='bearish'?'ph�n k? gi?m':'SPY/QQQ lu�n phi�n d?n d?t'} � �i?m ${geometryEvent.score}/100 � ?Strength SPY ${signed(geometryEvent.spyDelta)} / QQQ ${signed(geometryEvent.qqqDelta)} / SPY V ${signed(geometryEvent.volumeDelta)} � ?NetFlow ${signed(geometryEvent.flowDelta)}${geometryEvent.pairSplit?` � Strength SPY v� QQQ ng�?c nhau, gi� �ang g?n nh?p ${geometryEvent.leader==='SPY'?'SPY':geometryEvent.leader==='QQQ'?'QQQ':'h?n h?p'}`:''}. ��y l� m� t? h?p l�u t?i th?i �i?m x�c nh?n, kh�ng ph?i d? b�o ch?c ch?n.`:null,
+    `M�u SPY?QQQ t��ng �?i d�ng d?u NetFlow c�ng n?n: ${a.state} � SPY ${signed(a.spyNet)} / QQQ ${signed(a.qqqNet)}. Chi?u cao v?n l� Relative NetFlow m�?t, kh�ng d�ng d? li?u s? l?nh.`,
     colorText,
-    `Điểm xác nhận ${state.score??'—'}/100 = Taker ${fmt(state.taker)}/50 + Dải ${fmt(state.pair)}/30 + |Strength| ${fmt(state.strength)}/20. Điểm theo quy tắc, không phải xác suất thắng.`];
+    `�i?m x�c nh?n ${state.score??'�'}/100 = Taker ${fmt(state.taker)}/50 + D?i ${fmt(state.pair)}/30 + |Strength| ${fmt(state.strength)}/20. �i?m theo quy t?c, kh�ng ph?i x�c su?t th?ng.`];
   const nodes=text.filter(Boolean).map(value=>{const div=document.createElement('div');div.textContent=value;return div;});
   $('tooltip').replaceChildren(...nodes);
 }
@@ -569,20 +572,24 @@ async function refresh(clear=false){
   loading=true;$('refresh').disabled=true;
   if(clear){resetStudies();cache=null;rows={};volumeStrengthRows=[];modelRows={};modelVolumeStrengthRows=[];modelStamp=null;trendRows={};trendVolumeStrengthRows=[];trendStamp=null;trainingMeta=null;maps={};lastSuccess=null;inspectedTime=null;pivotZoneKey='';pivotZoneState={ready:false,reason:'history',support:null,resistance:null};pivotFlowState=null;render(true);}
   const interval=$('interval').value,days=+$('days').value;
-  status(`Đang xác minh SPYUSDT/QQQUSDT và tải ${interval} · ${days} ngày…`);
+  status(`�ang x�c minh SPYUSDT/QQQUSDT v� t?i ${interval} � ${days} ng�y�`);
   try{
-    const data=await load(interval,days,{signal:controller.signal,previous:cache});if(gen!==generation)return;
+    const wantSpy=$('symbol').value==='SPY';
+    const [data,etf]=await Promise.all([load(interval,days,{signal:controller.signal,previous:cache}),wantSpy?loadSpy(interval,days,{signal:controller.signal}):null]);if(gen!==generation)return;
+    if(etf){data.SPY=hybridSpy(etf.bars,data.SPYUSDT);data.spyM15=etf.m15;data.spyMeta=etf.meta;}
     const step=STEPS[interval];
     rows={SPYUSDT:analyze(data.SPYUSDT,step),QQQUSDT:analyze(data.QQQUSDT,step),COMPOSITE:analyze(composite(data.SPYUSDT,data.QQQUSDT),step)};
+    if(data.SPY)rows.SPY=analyze(data.SPY,step);
     volumeStrengthRows=analyze(data.SPYUSDT,step,{strength:calculateVolumeStrength(data.SPYUSDT,step)});
     modelRows=rows;modelVolumeStrengthRows=volumeStrengthRows;
     maps=Object.fromEntries(Object.entries(rows).map(([k,v])=>[k,new Map(v.map(x=>[x.t,x]))]));
+    const sourceNote=$('price-source-note');if(sourceNote)sourceNote.textContent=etf?`Gi�: SPY ETF USD / Yahoo Finance (c� th? tr?) � N?n cu?i ${new Date(etf.meta.lastTime).toLocaleString('vi-VN')} � Taker/CVD/Strength: Binance SPYUSDT + QQQUSDT � A�B�A chuy?n m� h?nh, ch�a ki?m �?nh ri�ng SPY.`:'Gi� v� d?ng ti?n: Binance perpetual.';
     cache=data;serverOffsetMs=data.serverTime-Date.now();lastSuccess=new Date();render(clear);setLive(true);
-    const modelText=interval==='15m'?' · Nghiên cứu lịch sử chạy nền':'';
-    status(`SPYUSDT + QQQUSDT · TRADING / ${data.contracts.map(x=>x.contractType).join(' + ')} · ${rows.SPYUSDT.length}/${rows.QQQUSDT.length} nến, gồm nến đang chạy · ${rows.COMPOSITE.length} timestamp chung${modelText} · ${data.incremental?'cập nhật realtime ~3 giây':'tải lịch sử song song'} · cập nhật ${lastSuccess.toLocaleTimeString('vi-VN')} · ${rows.COMPOSITE.length?'Dữ liệu thật Binance':'Composite chưa có dữ liệu giao nhau'}`);
+    const modelText=interval==='15m'?' � Nghi�n c?u l?ch s? ch?y n?n':'';
+    status(`SPYUSDT + QQQUSDT � TRADING / ${data.contracts.map(x=>x.contractType).join(' + ')} � ${rows.SPYUSDT.length}/${rows.QQQUSDT.length} n?n, g?m n?n �ang ch?y � ${rows.COMPOSITE.length} timestamp chung${modelText} � ${data.incremental?'c?p nh?t realtime ~3 gi�y':'t?i l?ch s? song song'} � c?p nh?t ${lastSuccess.toLocaleTimeString('vi-VN')} � ${rows.COMPOSITE.length?'D? li?u th?t Binance':'Composite ch�a c� d? li?u giao nhau'}`);
   }catch(e){
     if(gen!==generation)return;
-    setLive(false);schedulePivotFlowOverlay();status(`${e.message}. Có thể bị CORS, vùng truy cập, mất mạng hoặc rate limit. ${cache?`Dữ liệu cũ chưa cập nhật (lần thành công ${lastSuccess.toLocaleTimeString('vi-VN')}).`:'Không có dữ liệu thay thế; biểu đồ để trống.'} Dùng Tải lại sau khi kiểm tra kết nối.`,true);
+    setLive(false);schedulePivotFlowOverlay();status(`${e.message}. C� th? b? CORS, v�ng truy c?p, m?t m?ng ho?c rate limit. ${cache?`D? li?u c? ch�a c?p nh?t (l?n th�nh c�ng ${lastSuccess.toLocaleTimeString('vi-VN')}).`:'Kh�ng c� d? li?u thay th?; bi?u �? �? tr?ng.'} D�ng T?i l?i sau khi ki?m tra k?t n?i.`,true);
   }finally{if(gen===generation){loading=false;$('refresh').disabled=false;}}
 }
 function exportCSV(){
@@ -602,7 +609,7 @@ function fitChart(windowMs=FIT_WINDOW_MS){
   scheduleCvdSpectrum();scheduleDaySeparators();scheduleGeometryOverlay();
 }
 function isFullChart(){const card=document.querySelector('.chart-card');return document.fullscreenElement===card||card.classList.contains('fullscreen-fallback');}
-function syncFullChart(){const active=isFullChart();$('fullscreen').textContent=active?'✕ Thu nhỏ':'⛶ Full chart';$('fullscreen').setAttribute('aria-pressed',String(active));document.body.classList.toggle('chart-fullscreen',active);applyResponsiveChartOptions();setTimeout(()=>{window.dispatchEvent(new Event('resize'));scheduleCvdSpectrum();scheduleDaySeparators();scheduleGeometryOverlay();},50);}
+function syncFullChart(){const active=isFullChart();$('fullscreen').textContent=active?'? Thu nh?':'? Full chart';$('fullscreen').setAttribute('aria-pressed',String(active));document.body.classList.toggle('chart-fullscreen',active);applyResponsiveChartOptions();setTimeout(()=>{window.dispatchEvent(new Event('resize'));scheduleCvdSpectrum();scheduleDaySeparators();scheduleGeometryOverlay();},50);}
 async function toggleFullChart(){
   const card=document.querySelector('.chart-card');
   if(document.fullscreenElement===card){await document.exitFullscreen();return;}
@@ -627,11 +634,12 @@ function bindChartGestures(){
 if(init()){
   updateTrendMethodCopy();
   setupChartActions();
-  forecastLayer=createWlrAba({chart,wlr:series.priceMid,host:$('chart'),actions:document.querySelector('.chart-actions'),paneBounds,getCvdBounds:cvdSpectrumBounds,getContext:()=>({symbol:$('symbol').value,interval:$('interval').value,features:studyResultKey===studyKey?researchFeatures:[],expectedTime:(rows[$('symbol').value]??[]).filter(r=>r.end<(cache?.serverTime??0)).at(-1)?.t,displayRows:rows[$('symbol').value]??[],live:Boolean(cache&&lastSuccess&&Date.now()-lastSuccess<15000),now:Date.now()+serverOffsetMs})});
+  forecastLayer=createWlrAba({chart,wlr:series.priceMid,host:$('chart'),actions:document.querySelector('.chart-actions'),paneBounds,getCvdBounds:cvdSpectrumBounds,getContext:()=>({symbol:$('symbol').value,interval:$('interval').value,features:studyResultKey===studyKey?researchFeatures:[],expectedTime:(rows[$('symbol').value]??[]).filter(r=>r.end<(cache?.serverTime??0)).at(-1)?.t,displayRows:rows[$('symbol').value]??[],live:Boolean(cache&&lastSuccess&&Date.now()-lastSuccess<15000&&($('symbol').value!=='SPY'||Date.now()-cache.spyMeta?.lastTime<20*60000)),now:Date.now()+serverOffsetMs})});
   restoreSavedSetup();
   syncDisplayModeButtons();
   $('refresh').onclick=()=>refresh();for(const id of ['interval','days'])$(id).onchange=()=>refresh(true);
-  for(const id of ['symbol','signal'])$(id).onchange=()=>{resetStudies();render(false);};
+  $('symbol').onchange=()=>{resetStudies();void refresh(true);};
+  $('signal').onchange=()=>{resetStudies();render(false);};
   for(const id of ['spy','qqq','composite','relative','alignment','price-bands','pivot-zones','cvd-spectrum-toggle','show-strength','spy-volume-strength','bands','markers','geometry-toggle','geometry-provisional','causal-trend-channel','causal-trend-channel-provisional','geometry-pivots'])$(id).onchange=toggle;
   for(const id of ['geometry-score','geometry-lines'])$(id).onchange=()=>render(false);
   $('wlr-width-mode').onclick=()=>{$('phase-width').checked=!$('phase-width').checked;syncDisplayModeButtons();render(false);};
@@ -644,6 +652,7 @@ if(init()){
   setInterval(()=>{if(!document.hidden)refreshCalendar();},CALENDAR_REFRESH_MS);
   setInterval(updateCandleCountdown,250);
 }
+
 
 
 
