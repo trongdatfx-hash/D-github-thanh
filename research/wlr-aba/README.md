@@ -27,3 +27,8 @@ A day can have several correlated segment queries. Report query count and distin
 No fixed eight-point path is invented for this variable-time event. Future UI could show the target median zone and change%, membership status, occurrence/completion estimates, and WAIT. No UI is changed now.
 
 The archive was previously inspected: all findings are exploratory and require future validation. Read-only GitHub Actions installs actual STUMPY, tests numerical parity and causality, and saves a research artifact. No production imports, web report, chart change, AUTO change, schedule, market fetch or git push.
+
+
+## Authorized web experiment
+
+Later on 2026-10-21 the user explicitly requested publishing ABA, removing unrelated predictions, and preserving trend age and its yellow readout. Shared core now lives in netflow-stumpy/wlr-aba-core.mjs; this research module re-exports it. The read-only research workflow remains artifact-only. The existing production workflow separately publishes a compact ABA archive and report under the user authorization. No price-edge claim is implied.

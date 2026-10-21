@@ -1,16 +1,5 @@
-name: NetFlow aeon V1 research
+name: Archived aeon V1 research - manual only
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/netflow-aeon.yml'
-      - 'netflow-stumpy/scripts/aeon-v1.py'
-      - 'netflow-stumpy/requirements-aeon.txt'
-      - 'netflow-stumpy/analogs-features.mjs'
-      - 'netflow-stumpy/analogs-core.mjs'
-      - 'netflow-stumpy/tests/strength-sources.test.mjs'
-  schedule:
-    - cron: '37 21 * * 1-5'
   workflow_dispatch:
 permissions:
   contents: write
@@ -64,3 +53,4 @@ jobs:
             git push origin HEAD:main && exit 0
           done
           exit 1
+

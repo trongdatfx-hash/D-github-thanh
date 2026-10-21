@@ -1,3 +1,4 @@
+import {chartWlrRows} from './wlr-aba-core.mjs';
 import {analyze,composite,calculateVolumeStrength,STEPS,sessionAt} from './engine.mjs';
 import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeometry} from './geometry.mjs';
 import {pivotZones} from './pivot-zones.mjs';
@@ -23,5 +24,7 @@ export function computeStudies({rows,volumeRows,symbol,interval,options,now,tren
   const historicalChannels=channelState.episodes.filter(c=>new Date(c.startTime).toLocaleDateString('en-CA',{timeZone:'America/New_York'})!==new Date(now).toLocaleDateString('en-CA',{timeZone:'America/New_York'}));
   rev63.dataInfo={currentSession:sessionAt(now).session,firstTime:closedTrend[0]?.t??null,lastTime:closedTrend.at(-1)?.t??null,bars:closedTrend.length,days:new Set(closedTrend.filter(r=>['PRE','RTH'].includes(r.session)).map(r=>r.day)).size,channels:historicalChannels.length,displayQualified:historicalChannels.filter(c=>c.displayQualified).length};
   const features=interval==='15m'?chartFeatureRows(model.rows[symbol]??[],model.rows.COMPOSITE??[],model.volume,{now}):[];
-  return {geometry,channels,breakout,points,backtest,pivot,rev63,features};
+  const abaRows=interval==='15m'&&symbol==='SPYUSDT'?chartWlrRows(modelPrice,features):[];
+  return {geometry,channels,breakout,points,backtest,pivot,rev63,abaRows};
 }
+
