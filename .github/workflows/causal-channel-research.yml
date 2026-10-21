@@ -1,4 +1,4 @@
-name: Causal Channel RTH Research - no web publication
+name: First RTH Close +8 Research - no web publication
 on:
   push:
     branches: [main]
@@ -33,7 +33,7 @@ jobs:
         run: |
           node netflow-stumpy/scripts/rth-structure-dataset.mjs
           node netflow-stumpy/scripts/rth-forecast-dataset.mjs
-      - name: Snapshot channel state at each historical closed bar
+      - name: Snapshot causal state and select first RTH close only
         run: node research/causal-channel/dataset.mjs
       - name: Shared STUMPY profiles for channel and indicator variants
         run: python research/causal-channel/profiles.py --input research/causal-channel/output/tasks.json --output research/causal-channel/output/profiles.json
@@ -47,8 +47,9 @@ jobs:
       - name: Retain research result only as Actions artifact
         uses: actions/upload-artifact@v4
         with:
-          name: causal-channel-research
+          name: causal-channel-rth-open-plus8
           path: |
             research/causal-channel/output/report.json
             research/causal-channel/output/summary.md
           retention-days: 14
+

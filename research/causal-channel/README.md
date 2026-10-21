@@ -15,3 +15,12 @@ Three fixed model families:
 Controls: FLAT, all eligible same-clock PRIOR, clean PAIR8/16, and frozen CURRENT8/16 from the existing original ten-channel study. Exact same archive/as-of and50/20/30 dates are asserted, as are identical query timestamps. All candidate targets finish before the sixteen-bar query input begins, same NY minute, max20 non-overlapping analogs, one/day. Current query channel state is never used to peek at target prices.
 
 Select one trial and current reference input length by validation path MAE only. Final test compares the frozen trial with current reference and FLAT using paired97.5 percent five-day block bootstrap intervals,5000 draws (Bonferroni across the two primary benchmarks). Require positive lower bounds and at least30 test days against both benchmarks. Also require this on the identical active-case subset to guard against missing-channel flat fallbacks. Other model scores are descriptive, not additional winners selected from the final test. Archive already inspected in prior studies: exploratory results still need truly future validation. No automatic website promotion even for a promising interval.
+
+
+## First RTH candle protocol (2026-10-21)
+
+Per user request, the current research cohort is **one forecast per day immediately after the first RTH candle closes**: the 09:30-09:45 New York candle anchors the prediction; the next eight M15 bars run from 09:45 through 11:45. Do not forecast before the first close or wait for eight RTH bars. M8 contains seven PRE bars plus that first RTH bar; M16 contains fifteen PRE bars plus it. The running second candle cannot enter either input. NY timezone conversion handles DST; use the actual trading calendar, including early closes.
+
+`opening.mjs` gates the query and filters the historical evaluation/profile frame to that exact clock. Frozen source and validation/test dates remain unchanged. CURRENT8/16 controls are restricted to the same opening timestamps; reselect the trial and reference using opening validation errors only. Report one observation per day, active channel coverage and active-only comparisons. This narrower test follows earlier inspection of the archive and remains exploratory. The earlier all-clock experiment is reproducible at commit dfca99945cb0353a65d1c5e7eaa38a9baae17576.
+
+No production UI, chart layer, AUTO choice or indicator is changed by this research adjustment. Results stay in the Actions artifact `causal-channel-rth-open-plus8`.
