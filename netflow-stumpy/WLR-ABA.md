@@ -18,3 +18,11 @@ Các điểm số hồi cứu trong báo cáo dùng mốc đầu đoạn đủ �
 
 Lợi thế dự báo trung vị giá chưa được xác lập. Các kết quả trên kho đã nghiên cứu vẫn mang tính thăm dò. Nút bật/tắt A–B–A không ảnh hưởng nến giá, WLR, hai Strength hoặc dự báo tuổi trend.
 
+
+## Chỉ tiêu chính: cao / thấp so với WLR cuối
+
+Mốc là điểm WLR của nến cuối đã đóng tại lúc phát dự báo, không phải close OHLC hoặc điểm cuối A còn chưa biết. Mốc được giữ nguyên qua A→B→A; phần trăm trên chart cũng so với mốc này. Mô hình trung vị và cách chọn validation MAE giữ nguyên. Đánh giá hướng là phép kiểm tra bổ sung thăm dò, không chọn lại người thắng trên test.
+
+Hướng mô hình lấy dấu của trung vị dự kiến trừ mốc WLR. Tần suất hướng có điều kiện lấy phân phối delta/ATR đã dùng cho vùng giá, chiếu tại mốc truy vấn; không phải xác suất hiệu chỉnh. Nền hướng chọn phía phổ biến hơn trong các nhãn hoàn tất lịch sử cùng màu/phiên, lấy một mẫu gần giờ nhất mỗi ngày, nhãn trưởng thành trước cửa sổ đầu vào. Không dùng tỷ lệ toàn tập test để chọn phía. Hòa không phát hướng.
+
+Chấm cùng các mốc mà cả hai bên đủ ít nhất 12 ngày có hướng lịch sử khác mốc, mô hình sẵn sàng và trung vị A kế tiếp đã hoàn tất. Mục tiêu bằng mốc được đếm riêng. Mẫu dở không bị gán sai. Báo số lần đúng/tổng số và tỷ lệ trung bình theo ngày; kiểm định ghép cặp block bootstrap 5 ngày, 5000 lần, 97,5%, cần ít nhất 30 ngày và toàn khoảng cải thiện lớn hơn 0. Tín hiệu hồi cứu vẫn cần forward test. Tỷ lệ thuộc mẫu A–B–A, độ chính xác hướng và sai số giá là ba chỉ tiêu riêng. P10–P90 chưa có kiểm định độ phủ ngoài mẫu.

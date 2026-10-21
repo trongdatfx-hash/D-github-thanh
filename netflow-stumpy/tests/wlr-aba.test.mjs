@@ -45,3 +45,22 @@ test('both pages retain the yellow age-trend readout and remove unrelated old fo
  const app=fs.readFileSync(new URL('../app.mjs',import.meta.url),'utf8');assert.match(app,/formatPreRthWlrTrend/);assert.match(app,/createWlrAba/);assert.doesNotMatch(app,/createRthForecast|rth-forecast-ui|updateAnalogs/);
 });
 
+
+import {forecastFromWlr,directionScore,sideOf} from '../wlr-aba-direction.mjs';
+
+test('direction compares next median with frozen last closed WLR, using a causal prior majority',()=>{
+ const q={day:'2026-10-19',phase:'PRE',color:1,inputStart:1000,clockMinute:255,currentMedian:100,currentWlr:105,atr:1},p={value:104,ready:true},pool=Array.from({length:12},(_,i)=>({i,day:'2026-09-'+String(i+1).padStart(2,'0'),phase:'PRE',color:1,clockMinute:255,currentWlr:100,label:{event:1,matureAt:0,target:{median:104,deltaAtr:4}}})),ranked=pool.map(c=>({case:c,distance:0})),d=forecastFromWlr(q,p,pool,ranked,'CYCLE8');
+ assert.equal(d.anchor,105);assert.equal(d.side,-1);assert.equal(d.baseline.side,1);assert.equal(d.n,12);assert.equal(d.pAbove,1/14);assert.equal(d.ready,true);
+ const future={...pool[0],i:100,day:'2026-10-20',label:{event:1,matureAt:1001,target:{median:10,deltaAtr:-90}}};
+ assert.deepEqual(forecastFromWlr(q,p,[...pool,future],[{case:future,distance:-1},...ranked],'CYCLE8'),d);
+ const duplicated=pool.flatMap(c=>[c,{...c,i:c.i+50}]);assert.equal(forecastFromWlr(q,p,duplicated,duplicated.map(c=>({case:c,distance:0})),'CYCLE8').n,12);
+ assert.equal(forecastFromWlr(q,p,pool.slice(0,11),ranked.slice(0,11),'CYCLE8').ready,false);
+ assert.equal(forecastFromWlr(q,{...p,value:105},pool,ranked,'CYCLE8').ready,false);
+ const tied=pool.map((c,i)=>({...c,label:{...c.label,target:{median:i%2?96:104,deltaAtr:i%2?-4:4}}}));assert.equal(forecastFromWlr(q,p,tied,tied.map(c=>({case:c,distance:0})),'CYCLE8').baseline.ready,false);
+});
+test('direction scoring excludes unfinished and flat targets and counts paired independent days',()=>{
+ const d={anchor:105,side:-1,ready:true,pAbove:.2,baseline:{side:1,ready:true,pAbove:.8}},rs=Array.from({length:30},(_,i)=>({day:'day'+i,issuedAt:i,target:104,direction:d})),s=directionScore([...rs,{day:'pending',issuedAt:31,target:null,direction:d},{day:'flat',issuedAt:32,target:105,direction:d}]);
+ assert.equal(s.n,30);assert.equal(s.hits,30);assert.equal(s.baselineHits,0);assert.equal(s.flatTargets,1);assert.equal(s.unfinished,1);assert.equal(s.status,'PROMISING_REQUIRES_FORWARD_TEST');
+ assert.notEqual(directionScore(rs.map(r=>({...r,day:'oneDay'}))).status,'PROMISING_REQUIRES_FORWARD_TEST');
+ assert.equal(sideOf(null,105),null);assert.equal(sideOf(105,105),0);
+});
