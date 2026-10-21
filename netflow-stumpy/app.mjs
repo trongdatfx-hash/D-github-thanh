@@ -1,4 +1,4 @@
-import {createWlrAba} from './wlr-aba-ui.mjs?v=20261021-stable20';
+import {createWlrAba} from './wlr-aba-ui.mjs?v=20261021-v2';
 import {createSeriesWriter} from './chart-data-cache.mjs';
 import {STEPS,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,strengthPhaseLineStyle,directionalVolumeDelta,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,weightedPriceBands,wlrTrendThickness,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs?v=20261018-9';
 import {load} from './data.mjs';

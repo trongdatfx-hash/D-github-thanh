@@ -34,3 +34,13 @@ Dịch ngang sang trái đúng 20 vị trí nến theo logical scale hiện tạ
 Giữ nguyên mốc, giá kỳ vọng và hai phân vị của cùng lượt dự báo khi chuyển A→B→A. Chỉ lượt mới sau kết thúc/phá mẫu đã xác nhận hoặc thao tác thủ công mới có giá mới. Canvas dùng back buffer, không resize/xóa nếu hình học không đổi; khung đã vẽ chỉ được thay sau khi khung mới hoàn tất. Đồng bộ ngắn tối đa 20 giây được giữ khung cũ với nhãn đang đồng bộ, giới hạn một nến đã đóng chênh lệch; mất dữ liệu mới, đổi symbol/timeframe hoặc ngoài điều kiện live thì ẩn. Không giữ vùng cũ vô thời hạn như dự báo live.
 
 Nhãn A ↑ …% / nền …%: cả hai số cùng đo phía cao hơn mốc WLR đã chốt, có điều kiện trung vị mục tiêu hoàn tất. Lấy từ dự báo hướng hiện tại và nền lịch sử causal tại cùng mốc, không lấy tỷ lệ đúng hồi cứu chung 69,7% để gắn lên mọi mẫu. Mẫu thiếu lịch sử ghi WAIT; không thay bằng tỷ lệ thuộc mẫu hoặc phần trăm biến động giá.
+
+## V2: chọn hướng, thử hiệu chỉnh, chọn WAIT
+
+Các cửa sổ cố định: chọn CYCLE8/16 theo tỷ lệ đúng hướng trung bình theo ngày từ 01/06 đến trước 17/07; fit sigmoid ridge theo trọng số mỗi ngày từ 17/07 đến trước 07/08; chọn giữ tỷ lệ gốc hay dùng sigmoid và chọn WAIT từ 07/08 đến trước 21/08. Không dùng nhãn test để chọn model, calibrator hoặc gate. Test lịch sử đã được xem trong nghiên cứu trước nên là hồi cứu thăm dò; forward từ 22/10/2026 được báo riêng và không dùng để refit.
+
+Phép hiệu chỉnh có đối chứng identity. Nếu sigmoid không hạ Brier trên validation kế tiếp thì giữ tỷ lệ gốc, không gọi là xác suất đã đáng tin cậy hơn. WAIT luôn yêu cầu tỷ lệ hỗ trợ phía của P50 và vượt nền cùng phía; thử thêm các mức vượt 0/5/10 điểm % và điều kiện cả dải P10–P90 cùng phía WLR. Cấu hình cần ≥20 mốc và ≥5 ngày validation, giữ ≥30% các mốc đủ điều kiện. Bộ lọc quá ít mẫu không được chọn mặc định. V2 tiếp tục theo dõi mẫu đang dở khi WAIT, chỉ ẩn vùng dự báo phát tín hiệu. Đổi mốc bằng nút thủ công hoặc sau khi lượt cũ kết thúc/phá; không đổi WLR neo theo màu nến đang chạy.
+
+Báo trước/sau WAIT cùng tỷ lệ tín hiệu; kết quả hai tập mốc khác nhau không chứng minh tự động mô hình tốt hơn. Độ phủ P10–P90 được đo trên các trung vị hoàn tất có dự báo giá sẵn sàng, cả theo số mốc và trung bình theo ngày; chưa coi là dải hiệu chỉnh có bảo đảm 80%.
+
+Theo điều chỉnh hiển thị mới nhất: vùng dự báo rộng bằng 1/3 bề ngang phổ CVD, neo tâm CVD; thay cho độ lệch 20 nến cũ. Không vẽ nhãn chữ trong vùng giá và ẩn badge phủ lên nến. Giá WLR và phân vị vẫn giữ nguyên, số liệu xem ở bảng dưới chart.

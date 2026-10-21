@@ -67,9 +67,9 @@ test('direction scoring excludes unfinished and flat targets and counts paired i
 
 import {freezeAbaResult,canRetainAba,abaOverlayGeometry,abaPaintKey,abaLabel} from '../wlr-aba-overlay.mjs';
 const stableFixture=()=>({status:'READY',track:{day:'2026-10-21',originStart:1,q:{issuedAt:2,currentWlr:100,color:1},prediction:{ready:true,value:104,low:98,high:110},direction:{ready:true,pAbove:.72,baseline:{ready:true,pAbove:.54}}},lastTime:900000,changePct:4});
-test('ABA offset is 20 logical candles at every zoom and uses WLR prices exclusively',()=>{
+test('ABA zone is one third of CVD width, centered on its spectrum, using WLR prices',()=>{
  const t=stableFixture().track,seen=[],wlr={priceToCoordinate:p=>{seen.push(p);return 500-p;}},pane={top:0,height:500},bounds={left:700,right:850,xBase:775};
- for(const spacing of [6,12,5.75]){const scale={coordinateToLogical:x=>x/spacing,logicalToCoordinate:l=>l*spacing,options:()=>({barSpacing:spacing})},g=abaOverlayGeometry(scale,wlr,pane,bounds,t);assert.ok(Math.abs(g.left-(700-20*spacing))<1e-8);assert.equal(g.width,150);assert.equal(g.y,396);assert.equal(g.anchorY,400);}
+ for(const spacing of [6,12,5.75]){const scale={coordinateToLogical:x=>x/spacing,logicalToCoordinate:l=>l*spacing,options:()=>({barSpacing:spacing})},g=abaOverlayGeometry(scale,wlr,pane,bounds,t);assert.equal(g.left,750);assert.equal(g.right,800);assert.equal(g.width,50);assert.equal(g.y,396);assert.equal(g.anchorY,400);}
  assert.deepEqual(seen.slice(0,4),[100,104,98,110]);assert.equal(abaLabel(t).first,'A↑ 72%');assert.equal(abaLabel(t).second,'/ nền 54%');
 });
 test('same ABA issue freezes WLR anchor, quantiles and color; a new confirmed issue can change',()=>{
@@ -84,15 +84,41 @@ test('ABA synchronization retention is bounded and never crosses symbol/timefram
 });
 test('ABA canvas swaps complete frames, skips unchanged/color-only paints and retains temporary coordinates',()=>{
  const source=fs.readFileSync(new URL('../wlr-aba-ui.mjs',import.meta.url),'utf8'),src=source.slice(source.indexOf(' function clearDrawing('),source.indexOf(' function show(result)'));
- let writes=0,clears=0,swaps=0,now=0,invalid=false,spacing=6;const text=[];
+ let writes=0,clears=0,swaps=0,now=0,invalid=false,spacing=6,center=775;const text=[];
  const canvas={dataset:{},setAttribute(){},getContext:()=>({setTransform(){},clearRect(){clears++;},drawImage(){swaps++;}})};
  for(const k of ['width','height']){let value=0;Object.defineProperty(canvas,k,{get:()=>value,set:v=>{value=v;writes++;}});}
  const ctx=new Proxy({measureText:t=>({width:t.length*5}),fillText:t=>text.push(t)},{get:(o,k)=>o[k]??(()=>{})}),buffer={width:0,height:0,getContext:()=>ctx},host={clientWidth:1000,clientHeight:500},toggle={checked:true},initial=stableFixture(),scale={coordinateToLogical:x=>x/spacing,logicalToCoordinate:l=>l*spacing,options:()=>({barSpacing:spacing}),width:()=>1000},chart={timeScale:()=>scale},wlr={priceToCoordinate:p=>invalid?null:500-p};
  const factory=new Function('host','canvas','buffer','toggle','initial','chart','wlr','paneBounds','getCvdBounds','window','performance','abaOverlayGeometry','abaPaintKey','abaLabel','fmt','change',"let frame=0,active=initial,lastPaintKey='',geometryMissingAt=null;"+src+";return {draw,replace:r=>active=r};");
- const r=factory(host,canvas,buffer,toggle,initial,chart,wlr,()=>({top:0,height:500}),()=>({left:700,right:850,xBase:775}),{devicePixelRatio:2},{now:()=>now},abaOverlayGeometry,abaPaintKey,abaLabel,String,String);
- r.draw();for(let i=0;i<10;i++)r.draw();assert.equal(swaps,1);assert.equal(clears,1);assert.equal(writes,2);assert.equal(canvas.dataset.left,'580');assert.equal(text[0],'A↑ 72%');assert.equal(text[1],'/ nền 54%');
+ const r=factory(host,canvas,buffer,toggle,initial,chart,wlr,()=>({top:0,height:500}),()=>({left:center-75,right:center+75,xBase:center}),{devicePixelRatio:2},{now:()=>now},abaOverlayGeometry,abaPaintKey,abaLabel,String,String);
+ r.draw();for(let i=0;i<10;i++)r.draw();assert.equal(swaps,1);assert.equal(clears,1);assert.equal(writes,2);assert.equal(canvas.dataset.left,'750');assert.equal(text.length,0);
  r.replace(freezeAbaResult(initial,{...initial,track:{...initial.track,q:{...initial.track.q,color:-1},prediction:{...initial.track.prediction,value:999}},state:{}}));r.draw();assert.equal(swaps,1);
- invalid=true;now=1;r.draw();assert.equal(clears,1);invalid=false;spacing=12;r.draw();assert.equal(swaps,2);assert.equal(writes,2);assert.equal(canvas.dataset.left,'460');
+ invalid=true;now=1;r.draw();assert.equal(clears,1);invalid=false;spacing=12;center=700;r.draw();assert.equal(swaps,2);assert.equal(writes,2);assert.equal(canvas.dataset.left,'675');
  toggle.checked=false;r.draw();assert.equal(canvas.dataset.status,'HIDDEN');assert.equal(clears,3);
  const css=fs.readFileSync(new URL('../wlr-aba.css',import.meta.url),'utf8');assert.ok(css.includes('#wlr-aba-overlay{width:100%;height:100%}'));
+});
+
+import {buildPolicy,fitCalibration,calibratedProbability,calibrateDirection,applyPolicy,gateSignal} from '../wlr-aba-policy.mjs';
+function policyFixture(model){
+ const out=[];for(const [start,days] of [['2026-06-01',20],['2026-07-17',14],['2026-08-07',10],['2026-08-21',10]])for(let day=0;day<days;day++)for(let j=0;j<3;j++){
+  const date=new Date(Date.parse(start+'T00:00:00Z')+day*86400000).toISOString().slice(0,10),i=day*3+j,y=i%2?1:-1,correct=model==='CYCLE8'?i%5!==0:i%3!==0,side=correct?y:-y;
+  out.push({day:date,issuedAt:Date.parse(date+'T04:00:00Z')+j*900000,target:100+y,prediction:{ready:true,value:100+side*2,low:98,high:102},direction:{anchor:100,side,ready:true,pAbove:side>0?.8:.2,pBelow:side>0?.2:.8,baseline:{side:1,ready:true,pAbove:.55,pBelow:.45}}});
+ }return out;
+}
+test('V2 chooses direction model and calibrator/WAIT before test; future outcomes cannot change policy',()=>{
+ const rows={CYCLE8:policyFixture('CYCLE8'),CYCLE16:policyFixture('CYCLE16')},p=buildPolicy(rows);assert.equal(p.selectedModel,'CYCLE8');assert.equal(p.calibration.model.n,42);
+ const changed=Object.fromEntries(Object.entries(rows).map(([m,rs])=>[m,rs.map(r=>r.day>='2026-08-21'?{...r,target:m==='CYCLE16'?100+r.direction.side:100-r.direction.side}:r)])),other=buildPolicy(changed);
+ assert.equal(other.selectedModel,p.selectedModel);assert.deepEqual(other.calibration,p.calibration);assert.deepEqual(other.gate,p.gate);
+});
+test('V2 calibration uses independent days and reports sparse fits instead of claiming confidence',()=>{
+ const rows=policyFixture('CYCLE8').filter(r=>r.day>='2026-07-17'&&r.day<'2026-08-07'),fit=fitCalibration(rows),more=fitCalibration([...rows,...rows.filter(r=>r.day===rows[0].day)]);
+ assert.equal(fit.status,'READY');assert.ok(Math.abs(fit.a-more.a)<1e-8);assert.ok(Math.abs(fit.b-more.b)<1e-8);
+ assert.equal(fitCalibration(rows.slice(0,3)).status,'WAIT');assert.equal(calibratedProbability(.72,{status:'READY',a:1,b:0}),.72);
+});
+test('V2 WAIT rejects near-base, opposite P50 and crossing-band cases without reading future labels',()=>{
+ const identity={status:'READY',a:1,b:0},calibration={model:identity,baseline:identity},r={day:'2026-09-01',issuedAt:1,target:101,prediction:{ready:true,value:102,low:99,high:105},direction:{anchor:100,side:1,ready:true,pAbove:.8,pBelow:.2,baseline:{side:1,ready:true,pAbove:.6,pBelow:.4}}},d=calibrateDirection(r.direction,calibration),ready={...r,direction:d};
+ assert.equal(gateSignal(ready,{band:'any',gap:.05}).emit,true);assert.equal(gateSignal(ready,{band:'whole',gap:.05}).reason,'BAND_CROSSES_WLR');
+ assert.equal(gateSignal({...ready,direction:{...d,pAbove:.6,pBelow:.4}},{band:'any',gap:0}).reason,'NEAR_BASE');
+ assert.equal(gateSignal({...ready,direction:{...d,pAbove:.4,pBelow:.6}},{band:'any',gap:0}).reason,'CALIBRATION_DISAGREES');
+ const p={calibration,gate:{band:'any',gap:.05}},a=applyPolicy(r,p),b=applyPolicy({...r,target:99},p);assert.deepEqual(a.direction,b.direction);assert.deepEqual(a.signal,b.signal);
+ assert.equal(abaLabel({...stableFixture().track,signal:{emit:false,reason:'NEAR_BASE'}}).first,'A · WAIT');
 });

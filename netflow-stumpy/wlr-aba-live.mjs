@@ -2,6 +2,13 @@ import {segmentWlr,knownQuery,candidatePool,predict,cycleDistance,median} from '
 import {shapeDistance} from './analogs-core.mjs';
 import {ny,tradingDay,postEnd,STEP} from './rth-structure.mjs';
 import {forecastFromWlr} from './wlr-aba-direction.mjs?v=20261021-direction1';
+import {applyPolicy} from './wlr-aba-policy.mjs?v=20261021-v2';
+function withPolicy(track,policy){
+ if(!policy)return track;
+ if(track.model!==policy.selectedModel)return {...track,signal:{emit:false,reason:'MODEL_CHANGED'},policyVersion:2};
+ const rawDirection=track.rawDirection??track.direction,applied=applyPolicy({day:track.day,issuedAt:track.q.issuedAt,direction:rawDirection,prediction:track.prediction},policy);
+ return {...track,rawDirection,direction:applied.direction,signal:applied.signal,policyVersion:2,policyCalibration:policy.calibration};
+}
 export const COLOR_NAMES={'1':'Xanh','-1':'Đỏ','0':'Vàng'};
 export function liveGate(rows,now){
  const p=ny(now),last=rows.at(-1);
@@ -14,12 +21,12 @@ export function startTrack(frame,archive,report,now){
  const q=knownQuery(frame.rows,frame.segments,current.end);
  if(!q)return null;
  if(q.day<report.spec.testStart)return null;
- const model=report.selectedTrial;if(!['CYCLE8','CYCLE16'].includes(model))return null;
+ const model=report.v2?report.v2.selectedModel:report.selectedTrial;if(!['CYCLE8','CYCLE16'].includes(model))return null;
  const m=model.endsWith('16')?16:8,pool=candidatePool(archive.cases,q),query=frame.rows.slice(q.i-m+1,q.i+1),ranked=pool.map(c=>{
   const window=c.window.slice(-m).map(i=>({pv:archive.vectors[i]})),base=shapeDistance(query,window,{technique:'price-volume'});
   return {case:c,distance:cycleDistance(base,q,c)};
  }).sort((a,b)=>a.distance-b.distance||a.case.i-b.case.i),prediction=predict(q,pool,ranked,model),baseline=predict(q,pool,null,'COLOR_PRIOR'),direction=forecastFromWlr(q,prediction,pool,ranked,model);
- return {day:q.day,originStart:current.startTime,q,prediction,baseline,direction,model,computedAt:now,sourceAsOf:archive.sourceAsOf};
+ return withPolicy({day:q.day,originStart:current.startTime,q,prediction,baseline,direction,model,computedAt:now,sourceAsOf:archive.sourceAsOf},report.v2);
 }
 export function followTrack(frame,track){
  const a=frame.segments.find(s=>s.day===track.day&&s.startTime===track.originStart);if(!a)return {stage:'LOST_CONTEXT'};
@@ -49,7 +56,8 @@ export function updateAba({rows,archive,report,now,previous=null,reset=false}){
   const q=track.q,m=track.model.endsWith('16')?16:8,index=frame.rows.findIndex(r=>r.t+STEP===q.issuedAt),pool=candidatePool(archive.cases,q),query=frame.rows.slice(index-m+1,index+1);
   if(index>=m-1){const ranked=pool.map(c=>({case:c,distance:cycleDistance(shapeDistance(query,c.window.slice(-m).map(i=>({pv:archive.vectors[i]})),{technique:'price-volume'}),q,c)})).sort((a,b)=>a.distance-b.distance||a.case.i-b.case.i);track={...track,baseline:predict(q,pool,null,'COLOR_PRIOR'),direction:forecastFromWlr(q,track.prediction,pool,ranked,track.model)};}
  }
+ if(report.v2&&track.policyVersion!==2)track=withPolicy(track,report.v2);
  const prediction=track.prediction,changePct=prediction.ready?100*(prediction.value/track.q.currentWlr-1):null;
- return {status:'READY',track,progress,changePct,lastTime:rows.at(-1).t,state:{track,history:history.slice(-8)},report:{sourceAsOf:report.sourceAsOf,selectedTrial:report.selectedTrial,test:report.test[track.model],reference:report.test.CURRENT_MEDIAN,decision:report.decision}};
+ return {status:'READY',track,progress,changePct,lastTime:rows.at(-1).t,state:{track,history:history.slice(-8)},report:{sourceAsOf:report.sourceAsOf,selectedTrial:report.v2?.selectedModel??report.selectedTrial,test:report.test[track.model],reference:report.test.CURRENT_MEDIAN,decision:report.decision}};
 }
 
