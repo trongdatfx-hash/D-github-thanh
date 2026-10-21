@@ -3,5 +3,3 @@
 .aba-comparison{margin-top:18px;padding-top:14px;border-top:1px solid #294054}.aba-comparison h3{font-size:15px;color:#dce8f4}.aba-table-scroll{max-width:100%;overflow-x:auto;border:1px solid #294054;border-radius:7px}.aba-table-scroll:focus-visible{outline:2px solid #74cbb9}.aba-comparison table{border-collapse:collapse;width:100%;min-width:600px;font-size:11px;font-variant-numeric:tabular-nums}.aba-comparison caption{text-align:left;padding:10px;color:#a9becf;background:#0b1724}.aba-comparison th,.aba-comparison td{padding:9px 10px;border-bottom:1px solid #253949;text-align:left;line-height:1.5;vertical-align:top}.aba-comparison thead th{background:#142638;color:#d7e5f1}.aba-comparison tbody th{font-weight:500;min-width:150px}.aba-comparison td{min-width:110px}.aba-direction-status{padding:10px;border:1px solid #715f32;border-radius:6px;background:#2a2418;color:#f6d28a!important;font-weight:700}.aba-direction-status[data-state=PROMISING_REQUIRES_FORWARD_TEST]{border-color:#347963;color:#8be6bd!important;background:#142b25}.aba-comparison p{overflow-wrap:anywhere}
 
 #wlr-aba-overlay{width:100%;height:100%}
-
-#wlr-aba-readout{display:none!important}
