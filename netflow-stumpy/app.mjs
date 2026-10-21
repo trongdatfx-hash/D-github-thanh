@@ -1,10 +1,7 @@
-import {createWlrAba} from './wlr-aba-ui.mjs?v=20261021-spy2';
+import {createWlrAba} from './wlr-aba-ui.mjs?v=20261021-v2';
 import {createSeriesWriter} from './chart-data-cache.mjs';
 import {STEPS,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,strengthPhaseLineStyle,directionalVolumeDelta,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,weightedPriceBands,wlrTrendThickness,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs?v=20261018-9';
 import {load} from './data.mjs';
-import {loadSpy,hybridSpy} from './spy-data.mjs?v=20261021-spy2';
-const isSpyPrice=()=>['SPYUSDT','SPY'].includes(document.getElementById('symbol')?.value);
-const selectedPrice=()=>rows[document.getElementById('symbol')?.value]??[];
 import {pivotFlowRealtime} from './pivot-zones.mjs?v=20261017-2';
 import {pivotFlowLayout,pivotFlowZeroCoordinate} from './pivot-flow-layout.mjs?v=20261016-2';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261014-2';
@@ -20,8 +17,7 @@ const flowColors={
   COMPOSITE:{up:'rgba(39,211,164,.82)',down:'rgba(255,91,116,.82)'}
 };
 const LIVE_REFRESH_MS=3000;
-const seriesWriter=createSeriesWriter();
-const writeSeries=(key,series,data,context)=>{if($('symbol')?.value==='SPY'){const times=new Set((rows.SPY??[]).map(b=>b.t/1000));data=data.filter(b=>times.has(b.time));}return seriesWriter(key,series,data,context);};
+const writeSeries=createSeriesWriter();
 let studiesWorker=null,studyKey='',studyResultKey='',statsWorker=null,statsRequest=0,researchFeatures=[],studyTimingMs=0;
 const CALENDAR_REFRESH_MS=5*60*1000;
 const FIT_WINDOW_MS=36*60*60*1000,FIT_HALF_WINDOW_MS=12*60*60*1000,DOUBLE_TAP_MS=360,DOUBLE_TAP_DISTANCE=28,TAP_MOVE_TOLERANCE=14;
@@ -164,14 +160,14 @@ function requestStudies(){
   const key=`${symbol}|${interval}|${$('days').value}|${closed[0]?.t}|${closed.at(-1)?.t}|${closed.length}|${options.minScore}|${options.maxLines}`;
   if(key===studyKey)return;studyKey=key;
   if(!studiesWorker){
-    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261021-spy2',import.meta.url),{type:'module'});
+    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261021-age-audit1',import.meta.url),{type:'module'});
     studiesWorker.onmessage=({data})=>{
       if(data.key!==studyKey)return;
       if(data.error){$('chart').dataset.studyStatus='error';$('chart').dataset.studyError=data.error;studyKey='';return;}
       const r=data.result;geometryState=r.geometry;causalChannelState=r.channels;breakoutState=r.breakout;geometryStatePoints=r.points;geometryBacktest=r.backtest;pivotZoneState=r.pivot;rev63State=r.rev63;
       researchFeatures=r.abaRows;studyResultKey=data.key;studyTimingMs=data.computeMs;trainingMeta=data.archive;
       $('chart').dataset.studyStatus='ready';$('chart').dataset.studyComputeMs=String(Math.round(studyTimingMs));
-      const now=cache?.serverTime??Date.now();pivotFlowState=pivotFlowRealtime(pivotZoneState.flow,selectedPrice(),rows.COMPOSITE??[],now,pivotFlowState?.volatility?.key);
+      const now=cache?.serverTime??Date.now();pivotFlowState=pivotFlowRealtime(pivotZoneState.flow,rows.SPYUSDT??[],rows.COMPOSITE??[],now,pivotFlowState?.volatility?.key);
       updateRev63();updatePivotZones();scheduleGeometryOverlay();schedulePivotFlowOverlay();forecastLayer?.update();
     };
     studiesWorker.onerror=()=>{$('chart').dataset.studyStatus='error';studyKey='';studiesWorker?.terminate();studiesWorker=null;};
@@ -203,7 +199,6 @@ function renderTrendCohorts(){
   let info=document.getElementById('trend-data-info');if(!info){info=document.createElement('p');info.id='trend-data-info';info.className='trend-cohort-note';status.after(info);}
   const meta=rev63State?.dataInfo,date=t=>Number.isFinite(t)?new Date(t).toLocaleString('vi-VN',{timeZone:'America/New_York'}):'—';
   info.textContent=meta?`Phiên hiện tại: ${meta.currentSession??'—'}; cột Bắt đầu là phiên mở trend. Nguồn: Binance M15 lưu trên GitHub + nến live đã đóng · ${date(meta.firstTime)} → ${date(meta.lastTime)} (New York) · ${meta.bars} nến / ${meta.days} ngày có PRE–RTH. N bảng = ${totalN} episode lịch sử. Bộ kênh gốc có ${meta.channels} Flow-Leg, ${meta.displayQualified} kênh đạt tiêu chí vẽ (trước giới hạn 12 kênh trên chart). Mỗi Flow-Leg đã xác nhận chỉ được tính một episode; dừng ngay khi kênh báo kết thúc, không thêm một lượt dung sai ở lớp nhãn. N đếm episode theo hướng + phiên bắt đầu; gồm nhịp ngắn/R² thấp. Số ngày không phải số mẫu độc lập. Chart dùng khoảng lịch sử riêng; trend đang chạy chưa vào N.`:'Đang nạp thông tin kho lịch sử…';
-  if($('symbol').value==='SPY'&&meta)info.textContent='Giá trend: SPY ETF; Strength: Binance. '+info.textContent.replace('Binance M15 lưu trên GitHub + nến live đã đóng','SPY ETF M15 trên GitHub + dòng tiền Binance khớp thời gian');
 
 }
 function updateTrendMethodCopy(){
@@ -301,7 +296,7 @@ function drawPivotFlowOverlay(){
   const bitmapWidth=Math.round(width*dpr),bitmapHeight=Math.round(height*dpr);if(canvas.width!==bitmapWidth||canvas.height!==bitmapHeight){canvas.width=bitmapWidth;canvas.height=bitmapHeight;}
   const context=canvas.getContext('2d');context.setTransform(dpr,0,0,dpr,0,0);context.clearRect(0,0,width,height);canvas.dataset.status='hidden';canvas.dataset.bins='0';canvas.dataset.live='false';delete canvas.dataset.barWidth;delete canvas.dataset.barSpacing;delete canvas.dataset.placement;delete canvas.dataset.mode;delete canvas.dataset.volatilityKey;delete canvas.dataset.volatilityScore;canvas.setAttribute('aria-label','Histogram Composite NF và mức biến động 5 nến: chưa hiển thị vì thiếu dữ liệu SPY/QQQ hoặc chart không phải SPY.');
   const {support,resistance}=pivotZoneState,flow=pivotFlowState,live=!!flow?.live&&$('live-indicator').className==='live'&&!!lastSuccess&&Date.now()-lastSuccess<15000;
-  if(!$('pivot-zones').checked||!isSpyPrice()||!flow)return;
+  if(!$('pivot-zones').checked||$('symbol').value!=='SPYUSDT'||!flow)return;
   const paneHeight=chart.panes()[0]?.getHeight?.()??height*.5,position=pivotFlowZeroCoordinate(paneHeight,resistance?price.priceToCoordinate(resistance.low):null,support?price.priceToCoordinate(support.high):null);
   if(!position)return;
   const scaleWidth=chart.priceScale('right',0)?.width?.()??56,right=width-scaleWidth-7,layout=pivotFlowLayout(chart.timeScale().options().barSpacing,flow.bins.length,right-12);
@@ -330,7 +325,7 @@ function positionForecastReadout(){
   node.style.top=`${Math.max(8,paneHeight-node.offsetHeight-10)}px`;
 }
 function updateCandleCountdown(){
-  const node=$('candle-countdown'),bar=selectedPrice().at(-1),show=$('interval').value==='15m'&&isSpyPrice();
+  const node=$('candle-countdown'),bar=(rows.SPYUSDT??[]).at(-1),show=$('interval').value==='15m'&&$('symbol').value==='SPYUSDT';
   if(!node||!show||!bar){if(node)node.style.display='none';return;}
   node.style.display='block';
   const serverNow=Date.now()+serverOffsetMs,remaining=Math.max(0,bar.end+1-serverNow),seconds=Math.ceil(remaining/1000);
@@ -447,9 +442,9 @@ function drawGeometryOverlay(){
 function render(fit=false){
   const renderStarted=performance.now(),range=chart.timeScale().getVisibleLogicalRange();
   const seriesContext=[$('symbol').value,$('interval').value,$('signal').value,$('days').value,$('candle-agreement-color').checked,$('phase-width').checked].join('|');
-  const p=rows[$('symbol').value]??[],priceTimes=new Set(p.map(b=>b.t)),signalRows=(rows[$('signal').value]??[]).filter(b=>$('symbol').value!=='SPY'||priceTimes.has(b.t)),model=Object.keys(modelRows).length?modelRows:rows;
+  const p=rows[$('symbol').value]??[],signalRows=rows[$('signal').value]??[],model=Object.keys(modelRows).length?modelRows:rows;
   dayBoundaries=dayBoundaryTimes(p);
-  const compositeCvd=isSpyPrice(),cvdBars=compositeCvd?projectNetFlowToPrice(p,rows.COMPOSITE??[]):p;
+  const compositeCvd=$('symbol').value==='SPYUSDT',cvdBars=compositeCvd?projectNetFlowToPrice(p,rows.COMPOSITE??[]):p;
   cvdSourceLabel=compositeCvd?'C→S':'Q';$('cvd-spectrum').dataset.source=compositeCvd?'COMPOSITE→SPY':'QQQUSDT';
   cvdProfile=continuousCvdSpectrum(cvdBars);cvdAnchorTime=cvdBars.at(-1)?.t??null;
   const alignment=flowAlignment(rows.SPYUSDT??[],rows.QQQUSDT??[],{step:STEPS[$('interval').value]});
@@ -460,7 +455,7 @@ function render(fit=false){
   const clusterColors=$('candle-agreement-color').checked;
   price.applyOptions({priceFormat:$('symbol').value==='SPYUSDT'?{type:'price',precision:1,minMove:.1}:{type:'price',precision:2,minMove:.01}});
   writeSeries('price',price,p.map(x=>{const color=clusterColors?candleClusterPalette(candleClusterMap.get(x.t)):candlePalette(candleColorMap.get(x.t));return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color:color.body,wickColor:color.wick,borderColor:color.border};}),seriesContext);
-  pivotFlowState=pivotFlowRealtime(pivotZoneState.flow,selectedPrice(),rows.COMPOSITE??[],closedBefore,pivotFlowState?.volatility?.key);
+  pivotFlowState=pivotFlowRealtime(pivotZoneState.flow,rows.SPYUSDT??[],rows.COMPOSITE??[],closedBefore,pivotFlowState?.volatility?.key);
   const priceBands=weightedPriceBands(p,STEPS[$('interval').value]),trendThickness=new Map(wlrTrendThickness(p,STEPS[$('interval').value]).map(x=>[x.t,x]));priceBandMap=new Map(priceBands.map(x=>[x.t,x]));
   updateRev63();
   writeSeries('priceMid',series.priceMid,priceLineData(priceBands,maps.COMPOSITE??new Map(),volumeStrengthMap,trendThickness),seriesContext);for(const [name,field] of [['priceUpper','upper'],['priceLower','lower']])writeSeries(name,series[name],lineData(priceBands,field),seriesContext);
@@ -576,16 +571,12 @@ async function refresh(clear=false){
   const interval=$('interval').value,days=+$('days').value;
   status(`Đang xác minh SPYUSDT/QQQUSDT và tải ${interval} · ${days} ngày…`);
   try{
-    const wantSpy=$('symbol').value==='SPY';
-    const [data,etf]=await Promise.all([load(interval,days,{signal:controller.signal,previous:cache}),wantSpy?loadSpy(interval,days,{signal:controller.signal}):null]);if(gen!==generation)return;
-    if(etf){data.SPY=hybridSpy(etf.bars,data.SPYUSDT);data.spyM15=etf.m15;data.spyMeta=etf.meta;}
+    const data=await load(interval,days,{signal:controller.signal,previous:cache});if(gen!==generation)return;
     const step=STEPS[interval];
     rows={SPYUSDT:analyze(data.SPYUSDT,step),QQQUSDT:analyze(data.QQQUSDT,step),COMPOSITE:analyze(composite(data.SPYUSDT,data.QQQUSDT),step)};
-    if(data.SPY)rows.SPY=analyze(data.SPY,step);
     volumeStrengthRows=analyze(data.SPYUSDT,step,{strength:calculateVolumeStrength(data.SPYUSDT,step)});
     modelRows=rows;modelVolumeStrengthRows=volumeStrengthRows;
     maps=Object.fromEntries(Object.entries(rows).map(([k,v])=>[k,new Map(v.map(x=>[x.t,x]))]));
-    const sourceNote=$('price-source-note');if(sourceNote)sourceNote.textContent=etf?`Giá: SPY ETF USD / Yahoo Finance (có thể trễ) · Nến cuối ${new Date(etf.meta.lastTime).toLocaleString('vi-VN')} · Taker/CVD/Strength: Binance SPYUSDT + QQQUSDT · A–B–A chuyển mô hình, chưa kiểm định riêng SPY.`:'Giá và dòng tiền: Binance perpetual.';
     cache=data;serverOffsetMs=data.serverTime-Date.now();lastSuccess=new Date();render(clear);setLive(true);
     const modelText=interval==='15m'?' · Nghiên cứu lịch sử chạy nền':'';
     status(`SPYUSDT + QQQUSDT · TRADING / ${data.contracts.map(x=>x.contractType).join(' + ')} · ${rows.SPYUSDT.length}/${rows.QQQUSDT.length} nến, gồm nến đang chạy · ${rows.COMPOSITE.length} timestamp chung${modelText} · ${data.incremental?'cập nhật realtime ~3 giây':'tải lịch sử song song'} · cập nhật ${lastSuccess.toLocaleTimeString('vi-VN')} · ${rows.COMPOSITE.length?'Dữ liệu thật Binance':'Composite chưa có dữ liệu giao nhau'}`);
@@ -636,12 +627,11 @@ function bindChartGestures(){
 if(init()){
   updateTrendMethodCopy();
   setupChartActions();
-  forecastLayer=createWlrAba({chart,wlr:series.priceMid,host:$('chart'),actions:document.querySelector('.chart-actions'),paneBounds,getCvdBounds:cvdSpectrumBounds,getContext:()=>({symbol:$('symbol').value,interval:$('interval').value,features:studyResultKey===studyKey?researchFeatures:[],expectedTime:(rows[$('symbol').value]??[]).filter(r=>r.end<(cache?.serverTime??0)).at(-1)?.t,displayRows:rows[$('symbol').value]??[],live:Boolean(cache&&lastSuccess&&Date.now()-lastSuccess<15000&&($('symbol').value!=='SPY'||Date.now()-cache.spyMeta?.lastTime<20*60000)),now:Date.now()+serverOffsetMs})});
+  forecastLayer=createWlrAba({chart,wlr:series.priceMid,host:$('chart'),actions:document.querySelector('.chart-actions'),paneBounds,getCvdBounds:cvdSpectrumBounds,getContext:()=>({symbol:$('symbol').value,interval:$('interval').value,features:studyResultKey===studyKey?researchFeatures:[],expectedTime:(rows[$('symbol').value]??[]).filter(r=>r.end<(cache?.serverTime??0)).at(-1)?.t,displayRows:rows[$('symbol').value]??[],live:Boolean(cache&&lastSuccess&&Date.now()-lastSuccess<15000),now:Date.now()+serverOffsetMs})});
   restoreSavedSetup();
   syncDisplayModeButtons();
   $('refresh').onclick=()=>refresh();for(const id of ['interval','days'])$(id).onchange=()=>refresh(true);
-  $('symbol').onchange=()=>{resetStudies();void refresh(true);};
-  $('signal').onchange=()=>{resetStudies();render(false);};
+  for(const id of ['symbol','signal'])$(id).onchange=()=>{resetStudies();render(false);};
   for(const id of ['spy','qqq','composite','relative','alignment','price-bands','pivot-zones','cvd-spectrum-toggle','show-strength','spy-volume-strength','bands','markers','geometry-toggle','geometry-provisional','causal-trend-channel','causal-trend-channel-provisional','geometry-pivots'])$(id).onchange=toggle;
   for(const id of ['geometry-score','geometry-lines'])$(id).onchange=()=>render(false);
   $('wlr-width-mode').onclick=()=>{$('phase-width').checked=!$('phase-width').checked;syncDisplayModeButtons();render(false);};
@@ -654,7 +644,6 @@ if(init()){
   setInterval(()=>{if(!document.hidden)refreshCalendar();},CALENDAR_REFRESH_MS);
   setInterval(updateCandleCountdown,250);
 }
-
 
 
 

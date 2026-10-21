@@ -8,7 +8,7 @@ export function freezeAbaResult(previous,result){
  return {...result,track,state:{...result.state,track},changePct:track.prediction.ready?100*(track.prediction.value/track.q.currentWlr-1):null};
 }
 export function canRetainAba(active,context,ageMs){
- return Boolean(active?.track.prediction.ready&&context.live&&['SPYUSDT','SPY'].includes(context.symbol)&&context.interval==='15m'&&Number.isFinite(context.expectedTime)&&context.expectedTime>=active.lastTime&&context.expectedTime-active.lastTime<=900000&&ageMs>=0&&ageMs<=20000);
+ return Boolean(active?.track.prediction.ready&&context.live&&context.symbol==='SPYUSDT'&&context.interval==='15m'&&Number.isFinite(context.expectedTime)&&context.expectedTime>=active.lastTime&&context.expectedTime-active.lastTime<=900000&&ageMs>=0&&ageMs<=20000);
 }
 export function abaOverlayGeometry(timeScale,wlr,pane,bounds,track){
  if(!pane||!bounds||!wlr||!track?.prediction.ready)return null;
@@ -25,4 +25,3 @@ export function abaPaintKey(geometry,width,height,dpr,track){
  const snap=v=>Math.round(v*dpr);
  return [width,height,dpr,...['left','right','y','low','high','top','height'].map(k=>snap(geometry[k])),track.originStart,track.q.issuedAt,track.q.currentWlr,track.q.color,track.prediction.value,track.direction?.ready,track.direction?.pAbove,track.direction?.baseline.ready,track.direction?.baseline.pAbove,track.signal?.emit,track.signal?.reason].join('|');
 }
-
