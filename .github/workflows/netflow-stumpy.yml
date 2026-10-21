@@ -12,6 +12,7 @@ on:
       - 'netflow-stumpy/rth-structure.mjs'
       - 'netflow-stumpy/rth-pivot.mjs'
       - 'netflow-stumpy/geometry.mjs'
+      - 'netflow-stumpy/rth-forecast-core.mjs'
   schedule:
     - cron: '17,47 * * * *'
   workflow_dispatch:
@@ -64,11 +65,22 @@ jobs:
         run: node --test netflow-stumpy/tests/rth-structure.test.mjs netflow-stumpy/tests/rth-pivot.test.mjs netflow-stumpy/tests/analogs.test.mjs
       - name: Publish RTH geometry report
         run: node netflow-stumpy/scripts/rth-structure-dataset.mjs --finalize
+      - name: Build exact eight-bar RTH price-path evaluation
+        run: node netflow-stumpy/scripts/rth-forecast-dataset.mjs
+      - name: Actual STUMPY profiles for price-path candidates
+        run: python netflow-stumpy/scripts/stumpy-profiles.py --input netflow-stumpy/data/rth-forecast/tasks.json --output netflow-stumpy/data/rth-forecast/profiles.json
+      - name: Verify price-path time gates and MASS parity
+        env:
+          ANALOG_FEATURES: netflow-stumpy/data/rth-forecast/tasks.json
+          ANALOG_PROFILES: netflow-stumpy/data/rth-forecast/profiles.json
+        run: node --test netflow-stumpy/tests/rth-forecast.test.mjs netflow-stumpy/tests/analogs.test.mjs
+      - name: Select path model on validation and publish separate final test
+        run: node netflow-stumpy/scripts/rth-forecast-dataset.mjs --finalize
       - name: Commit closed history and report
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add netflow-stumpy/data/binance/m15 netflow-stumpy/data/analogs/snapshot.json netflow-stumpy/data/rth-structure/report.json
+          git add netflow-stumpy/data/binance/m15 netflow-stumpy/data/analogs/snapshot.json netflow-stumpy/data/rth-structure/report.json netflow-stumpy/data/rth-forecast/archive.json netflow-stumpy/data/rth-forecast/report.json
           if git diff --cached --quiet; then exit 0; fi
           git commit -m 'data: refresh STUMPY historical analogs'
           for attempt in 1 2 3; do
