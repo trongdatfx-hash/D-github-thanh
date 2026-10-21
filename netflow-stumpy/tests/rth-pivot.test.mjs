@@ -36,6 +36,7 @@ test('fixed hierarchy uses exact group, broad structure, then original without d
  result=choosePivotCohort(ranked,candidates,{pivot:{structure:'UP',divergence:'bearish'}});assert.equal(result.level,'STRUCTURE');assert.equal(result.picked.length,20);
  result=choosePivotCohort(ranked,candidates.slice(0,10),q);assert.equal(result.level,'BASE');assert.equal(result.picked.length,10);
  result=choosePivotCohort(ranked,candidates,{pivot:{structure:'UNRESOLVED',divergence:'none'}});assert.equal(result.level,'BASE');
+ result=choosePivotCohort(ranked,candidates,{pivot:{structure:'UNRESOLVED',divergence:'bullish'}});assert.equal(result.level,'DIVERGENCE');assert.equal(result.picked.length,13);
  const groups=pivotGroups(candidates,q);assert.equal(groups.reduce((s,g)=>s+g.n,0),candidates.length);assert.equal(groups[0].current,true);
  // Changing future labels cannot affect membership or STUMPY rank order.
  const mutated=candidates.map(c=>({...c,outcome:{label:'DOWN_TREND'}}));assert.deepEqual(choosePivotCohort(ranked,mutated,q).picked.map(c=>c.startIndex),choosePivotCohort(ranked,candidates,q).picked.map(c=>c.startIndex));

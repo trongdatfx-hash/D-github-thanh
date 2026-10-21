@@ -51,10 +51,11 @@ export function attachPivotStates(rows){
 export function choosePivotCohort(ranked,candidates,query){
  const state=query.pivot,structure=state?.structure??'UNRESOLVED',divergence=state?.divergence??'none';
  const structural=candidates.filter(c=>c.pivot?.structure===structure),exact=structural.filter(c=>c.pivot?.divergence===divergence);
- const pools=[['EXACT',exact],['STRUCTURE',structural],['BASE',candidates]];
- for(const [level,pool]of pools){if(level!=='BASE'&&structure==='UNRESOLVED')continue;
+ const divergenceOnly=candidates.filter(c=>c.pivot?.divergence===divergence),pools=[['EXACT',exact],['STRUCTURE',structural],['DIVERGENCE',divergenceOnly],['BASE',candidates]];
+ for(const [level,pool]of pools){if(['EXACT','STRUCTURE'].includes(level)&&structure==='UNRESOLVED')continue;
+  if(level==='DIVERGENCE'&&divergence==='none')continue;
   const picked=selectCases(ranked,pool,PIVOT_PROTOCOL.maxMatches);
-  if(picked.length>=PIVOT_PROTOCOL.minimumMatches||level==='BASE')return {picked,pool,level,poolSizes:{exact:exact.length,structure:structural.length,base:candidates.length}};
+  if(picked.length>=PIVOT_PROTOCOL.minimumMatches||level==='BASE')return {picked,pool,level,poolSizes:{exact:exact.length,structure:structural.length,divergence:divergenceOnly.length,base:candidates.length}};
  }
 }
 
