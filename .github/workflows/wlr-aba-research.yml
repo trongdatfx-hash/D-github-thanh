@@ -1,0 +1,48 @@
+name: WLR A-B-A Median Research - no web publication
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'research/wlr-aba/**'
+      - '.github/workflows/wlr-aba-research.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: wlr-aba-research
+  cancel-in-progress: false
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NUMBA_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install actual STUMPY
+        run: python -m pip install -r netflow-stumpy/requirements-analogs.txt
+      - name: Build literal WLR-color A-B-A targets from frozen closed history
+        run: node research/wlr-aba/dataset.mjs
+      - name: Actual STUMPY profiles for identical same-color day pools
+        run: python netflow-stumpy/scripts/stumpy-profiles.py --input research/wlr-aba/output/tasks.json --output research/wlr-aba/output/profiles.json
+      - name: Verify target causality, literal colors, failed-case denominator and MASS parity
+        env:
+          WLR_TASKS: research/wlr-aba/output/tasks.json
+          WLR_PROFILES: research/wlr-aba/output/profiles.json
+        run: node --test research/wlr-aba/tests.mjs netflow-stumpy/tests/engine.test.mjs netflow-stumpy/tests/strength-sources.test.mjs
+      - name: Score conditional median and all-query occurrence without selecting on test
+        run: node research/wlr-aba/dataset.mjs --finalize
+      - name: Retain off-web research result
+        uses: actions/upload-artifact@v4
+        with:
+          name: wlr-aba-median-research
+          path: |
+            research/wlr-aba/output/report.json
+            research/wlr-aba/output/summary.md
+          retention-days: 14
