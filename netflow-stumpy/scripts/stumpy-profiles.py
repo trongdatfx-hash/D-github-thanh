@@ -25,7 +25,10 @@ def profiles(payload):
         total = np.zeros(len(values) - m + 1)
         for channel, weight in enumerate(PV_WEIGHTS if pv else WEIGHTS):
             series = np.ascontiguousarray(values[:, channel])
-            query = np.ascontiguousarray(series[-m:])
+            query_end = payload.get('queries', {}).get(key, len(series)-1)
+            if query_end < m-1 or query_end >= len(series):
+                raise ValueError('Invalid causal query endpoint')
+            query = np.ascontiguousarray(series[query_end-m+1:query_end+1])
             scale = PV_SCALES[channel] if pv else 1
             distance = stumpy.mass(query*scale, series*scale, normalize=not pv or channel==0)
             total += weight * distance**2 / m

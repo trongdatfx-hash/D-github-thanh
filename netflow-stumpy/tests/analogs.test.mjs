@@ -22,7 +22,7 @@ test('constant distance convention matches STUMPY',()=>{
 test('real STUMPY MASS vs browser distance across all admitted historical candidates',(t)=>{
  if(!process.env.ANALOG_FEATURES||!process.env.ANALOG_PROFILES){t.skip('Run with actual STUMPY profiles');return;}
  const data=JSON.parse(fs.readFileSync(process.env.ANALOG_FEATURES)),profiles=JSON.parse(fs.readFileSync(process.env.ANALOG_PROFILES));let n=0;
- for(const [key,ranked]of Object.entries(profiles.ranked)){const [symbol,window,,technique='flow']=key.split(':'),m=+window,a=data.rows[symbol],q=a.slice(-m);for(const r of ranked){assert.ok(Math.abs(shapeDistance(q,a.slice(r.index,r.index+m),{technique})-r.distance)<1e-5,`${key}:${r.index}`);n++;}}
+ for(const [key,ranked]of Object.entries(profiles.ranked)){const [symbol,window,,technique='flow']=key.split(':'),m=+window,a=data.rows[symbol],end=data.queries?.[key]??a.length-1,q=a.slice(end-m+1,end+1);for(const r of ranked){assert.ok(Math.abs(shapeDistance(q,a.slice(r.index,r.index+m),{technique})-r.distance)<1e-5,`${key}:${r.index}`);n++;}}
  if(!n)t.skip('No admissible query in this session');else console.log(`Compared ${n} real STUMPY distances`);
 });
 
