@@ -60,7 +60,8 @@ export function createWlrAba({chart,wlr,host,actions,getContext,paneBounds,getCv
  }
  function draw(){
   frame=0;const w=host.clientWidth,h=host.clientHeight,dpr=window.devicePixelRatio||1;
-  if(!toggle.checked||!active?.track.prediction.ready||active.track.signal?.emit===false){clearDrawing(!toggle.checked?'HIDDEN':active?.track.signal?.emit===false?'WAIT_FILTER':'WAIT');return;}
+  if(!toggle.checked||!active?.track.prediction.ready){clearDrawing(!toggle.checked?'HIDDEN':'WAIT');return;}
+  const waiting=active.track.signal?.emit===false,displayStatus=waiting?'VISIBLE_WAIT':'VISIBLE';
   const track=active.track,p=track.prediction,geometry=abaOverlayGeometry(chart.timeScale(),wlr,paneBounds(0),getCvdBounds(),track);
   // Chart setData/resize can temporarily have no coordinates. Keep the last
   // completed bitmap until the next scheduled chart paint, never publish a blank.
@@ -68,18 +69,18 @@ export function createWlrAba({chart,wlr,host,actions,getContext,paneBounds,getCv
   const {left,right,width:regionWidth,y,low,high,top,height}=geometry;
   if(right<=0||left>=chart.timeScale().width()){clearDrawing('OFFSCREEN');return;}
   const key=abaPaintKey(geometry,w,h,dpr,track);
-  if(key===lastPaintKey){canvas.dataset.status='VISIBLE';return;}
+  if(key===lastPaintKey){canvas.dataset.status=displayStatus;return;}
   const bitmapWidth=Math.round(w*dpr),bitmapHeight=Math.round(h*dpr);
   if(buffer.width!==bitmapWidth||buffer.height!==bitmapHeight){buffer.width=bitmapWidth;buffer.height=bitmapHeight;}
   const ctx=buffer.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
   const color=track.q.color>0?'26,224,163':track.q.color<0?'255,77,112':'246,200,95';
-  ctx.save();ctx.translate(0,top);ctx.beginPath();ctx.rect(left,0,regionWidth,height);ctx.clip();ctx.fillStyle=`rgba(${color},.14)`;ctx.fillRect(left,Math.min(high,low),regionWidth,Math.abs(low-high));ctx.strokeStyle=`rgb(${color})`;ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(right,y);ctx.stroke();ctx.setLineDash([]);
+  ctx.save();ctx.globalAlpha=waiting?.4:1;ctx.translate(0,top);ctx.beginPath();ctx.rect(left,0,regionWidth,height);ctx.clip();ctx.fillStyle=`rgba(${color},.14)`;ctx.fillRect(left,Math.min(high,low),regionWidth,Math.abs(low-high));ctx.strokeStyle=`rgb(${color})`;ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(right,y);ctx.stroke();ctx.setLineDash([]);
   ctx.restore();
   // Only resize the visible canvas when its dimensions change. Swap the fully
   // rendered back buffer in the same task so no empty intermediate frame shows.
   if(canvas.width!==bitmapWidth||canvas.height!==bitmapHeight){canvas.width=bitmapWidth;canvas.height=bitmapHeight;}
   const front=canvas.getContext('2d');front.setTransform(1,0,0,1,0,0);front.clearRect(0,0,bitmapWidth,bitmapHeight);front.drawImage(buffer,0,0);
-  lastPaintKey=key;canvas.dataset.status='VISIBLE';canvas.dataset.left=String(left);canvas.dataset.right=String(right);canvas.dataset.widthRatio='1/3';canvas.dataset.alignment='cvd-center';canvas.setAttribute('aria-label',`${abaLabel(track).first} ${abaLabel(track).second}; trung vị WLR dự kiến ${fmt(p.value)}, P10 ${fmt(p.low)}, P90 ${fmt(p.high)}, mốc WLR ${fmt(track.q.currentWlr)}; rộng một phần ba, neo tâm phổ CVD`);canvas.dataset.referenceWlr=String(track.q.currentWlr);canvas.dataset.expectedWlr=String(p.value);canvas.dataset.p10Wlr=String(p.low);canvas.dataset.p90Wlr=String(p.high);
+  lastPaintKey=key;canvas.dataset.status=displayStatus;canvas.dataset.left=String(left);canvas.dataset.right=String(right);canvas.dataset.widthRatio='1/3';canvas.dataset.alignment='cvd-center';canvas.setAttribute('aria-label',`${waiting?'WAIT · vùng tham khảo, chưa đạt bộ lọc; ':''}${abaLabel(track).first} ${abaLabel(track).second}; trung vị WLR dự kiến ${fmt(p.value)}, P10 ${fmt(p.low)}, P90 ${fmt(p.high)}, mốc WLR ${fmt(track.q.currentWlr)}; rộng một phần ba, neo tâm phổ CVD`);canvas.dataset.referenceWlr=String(track.q.currentWlr);canvas.dataset.expectedWlr=String(p.value);canvas.dataset.p10Wlr=String(p.low);canvas.dataset.p90Wlr=String(p.high);
  }
  function show(result){
   if(result.status!=='READY'){wait(result.message);return;}active=freezeAbaResult(active,result);result=active;syncStartedAt=null;canvas.dataset.sync='ready';const {track:t,progress:g}=result,p=t.prediction,name=COLOR_NAMES[t.q.color],other=COLOR_NAMES[g.betweenColor];canvas.dataset.status=p.ready?'READY':'WAIT_SAMPLES';canvas.dataset.color=String(t.q.color);liveTable(result);

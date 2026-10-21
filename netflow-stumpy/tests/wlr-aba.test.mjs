@@ -94,6 +94,10 @@ test('ABA canvas swaps complete frames, skips unchanged/color-only paints and re
  r.replace(freezeAbaResult(initial,{...initial,track:{...initial.track,q:{...initial.track.q,color:-1},prediction:{...initial.track.prediction,value:999}},state:{}}));r.draw();assert.equal(swaps,1);
  invalid=true;now=1;r.draw();assert.equal(clears,1);invalid=false;spacing=12;center=700;r.draw();assert.equal(swaps,2);assert.equal(writes,2);assert.equal(canvas.dataset.left,'675');
  toggle.checked=false;r.draw();assert.equal(canvas.dataset.status,'HIDDEN');assert.equal(clears,3);
+ toggle.checked=true;r.replace({...initial,track:{...initial.track,signal:{emit:false,reason:'NEAR_BASE'}}});r.draw();assert.equal(canvas.dataset.status,'VISIBLE_WAIT');assert.equal(ctx.globalAlpha,.4);assert.equal(swaps,3);
+ r.draw();assert.equal(swaps,3);assert.equal(canvas.dataset.status,'VISIBLE_WAIT');
+ r.replace(initial);r.draw();assert.equal(canvas.dataset.status,'VISIBLE');assert.equal(ctx.globalAlpha,1);assert.equal(swaps,4);
+ r.replace({...initial,track:{...initial.track,prediction:{ready:false},signal:{emit:false,reason:'WAIT_HISTORY'}}});r.draw();assert.equal(canvas.dataset.status,'WAIT');
  const css=fs.readFileSync(new URL('../wlr-aba.css',import.meta.url),'utf8');assert.ok(css.includes('#wlr-aba-overlay{width:100%;height:100%}'));
 });
 
