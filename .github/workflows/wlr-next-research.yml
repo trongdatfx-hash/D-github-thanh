@@ -21,9 +21,13 @@ jobs:
         with:
           node-version: '22'
       - name: Check next-segment labels, causality and all WLR colors
-        run: node --test research/wlr-next/tests.mjs
+        run: node --test research/wlr-next/tests.mjs research/wlr-next/rolling-tests.mjs
       - name: Evaluate A or C, direction and conditional WLR quantiles
         run: node research/wlr-next/dataset.mjs
+      - name: Replay continuous next-WLR forecasts and measure convergence
+        run: node research/wlr-next/rolling-dataset.mjs
+      - name: Audit every issued forecast, color probability and unfinished target
+        run: node research/wlr-next/audit.mjs
       - name: Retain research report and every query without publishing web data
         uses: actions/upload-artifact@v4
         with:
