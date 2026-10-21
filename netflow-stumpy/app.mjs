@@ -1,4 +1,4 @@
-import {createWlrAba} from './wlr-aba-ui.mjs?v=20261021-direction1';
+import {createWlrAba} from './wlr-aba-ui.mjs?v=20261021-stable20';
 import {createSeriesWriter} from './chart-data-cache.mjs';
 import {STEPS,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,strengthPhaseLineStyle,directionalVolumeDelta,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,weightedPriceBands,wlrTrendThickness,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs?v=20261018-9';
 import {load} from './data.mjs';
@@ -287,7 +287,7 @@ function relativeData(data){
   return data.map(x=>Number.isFinite(x.relative)?{time:x.t/1000,value:x.relative,color:relativeFlowColor(x)}:{time:x.t/1000});
 }
 function volumeDeltaBandData(data,volumeStrengthMap){return data.map(x=>({time:x.t/1000,value:volumeDeltaStrengthValue(x.value),color:volumeDeltaStrengthColor(x.value,volumeStrengthMap.get(x.t)?.adjusted)}));}
-function scheduleCvdSpectrum(){if(cvdFrame)return;cvdFrame=requestAnimationFrame(()=>{cvdFrame=requestAnimationFrame(()=>{cvdFrame=0;drawCvdSpectrum();});});}
+function scheduleCvdSpectrum(){if(cvdFrame)return;cvdFrame=requestAnimationFrame(()=>{cvdFrame=requestAnimationFrame(()=>{cvdFrame=0;drawCvdSpectrum();forecastLayer?.schedule();});});}
 function scheduleDaySeparators(){if(dayFrame)return;dayFrame=requestAnimationFrame(()=>{dayFrame=requestAnimationFrame(()=>{dayFrame=0;drawDaySeparators();});});}
 function scheduleGeometryOverlay(){if(geometryFrame)return;geometryFrame=requestAnimationFrame(()=>{geometryFrame=requestAnimationFrame(()=>{geometryFrame=0;drawGeometryOverlay();});});}
 function schedulePivotFlowOverlay(){if(pivotFlowFrame)return;pivotFlowFrame=requestAnimationFrame(()=>{pivotFlowFrame=requestAnimationFrame(()=>{pivotFlowFrame=0;drawPivotFlowOverlay();});});}
@@ -626,7 +626,7 @@ function bindChartGestures(){
 if(init()){
   updateTrendMethodCopy();
   setupChartActions();
-  forecastLayer=createWlrAba({chart,price,host:$('chart'),actions:document.querySelector('.chart-actions'),paneBounds,getCvdBounds:cvdSpectrumBounds,getContext:()=>({symbol:$('symbol').value,interval:$('interval').value,features:studyResultKey===studyKey?researchFeatures:[],expectedTime:(rows[$('symbol').value]??[]).filter(r=>r.end<(cache?.serverTime??0)).at(-1)?.t,displayRows:rows[$('symbol').value]??[],live:Boolean(cache&&lastSuccess&&Date.now()-lastSuccess<15000),now:Date.now()+serverOffsetMs})});
+  forecastLayer=createWlrAba({chart,wlr:series.priceMid,host:$('chart'),actions:document.querySelector('.chart-actions'),paneBounds,getCvdBounds:cvdSpectrumBounds,getContext:()=>({symbol:$('symbol').value,interval:$('interval').value,features:studyResultKey===studyKey?researchFeatures:[],expectedTime:(rows[$('symbol').value]??[]).filter(r=>r.end<(cache?.serverTime??0)).at(-1)?.t,displayRows:rows[$('symbol').value]??[],live:Boolean(cache&&lastSuccess&&Date.now()-lastSuccess<15000),now:Date.now()+serverOffsetMs})});
   restoreSavedSetup();
   syncDisplayModeButtons();
   $('refresh').onclick=()=>refresh();for(const id of ['interval','days'])$(id).onchange=()=>refresh(true);

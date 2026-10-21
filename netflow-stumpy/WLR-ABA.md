@@ -26,3 +26,11 @@ Mốc là điểm WLR của nến cuối đã đóng tại lúc phát dự báo,
 Hướng mô hình lấy dấu của trung vị dự kiến trừ mốc WLR. Tần suất hướng có điều kiện lấy phân phối delta/ATR đã dùng cho vùng giá, chiếu tại mốc truy vấn; không phải xác suất hiệu chỉnh. Nền hướng chọn phía phổ biến hơn trong các nhãn hoàn tất lịch sử cùng màu/phiên, lấy một mẫu gần giờ nhất mỗi ngày, nhãn trưởng thành trước cửa sổ đầu vào. Không dùng tỷ lệ toàn tập test để chọn phía. Hòa không phát hướng.
 
 Chấm cùng các mốc mà cả hai bên đủ ít nhất 12 ngày có hướng lịch sử khác mốc, mô hình sẵn sàng và trung vị A kế tiếp đã hoàn tất. Mục tiêu bằng mốc được đếm riêng. Mẫu dở không bị gán sai. Báo số lần đúng/tổng số và tỷ lệ trung bình theo ngày; kiểm định ghép cặp block bootstrap 5 ngày, 5000 lần, 97,5%, cần ít nhất 30 ngày và toàn khoảng cải thiện lớn hơn 0. Tín hiệu hồi cứu vẫn cần forward test. Tỷ lệ thuộc mẫu A–B–A, độ chính xác hướng và sai số giá là ba chỉ tiêu riêng. P10–P90 chưa có kiểm định độ phủ ngoài mẫu.
+
+## Vùng vẽ ổn định theo WLR
+
+Dịch ngang sang trái đúng 20 vị trí nến theo logical scale hiện tại của biểu đồ, không phải 20 pixel hoặc 300 phút lịch qua đêm/cuối tuần. Vùng vẫn có thể chồng lên CVD, thay đổi khoảng cách pixel khi zoom. Giá trị dọc dùng priceToCoordinate của chính series WLR; điểm tham chiếu là WLR cuối đã đóng tại lúc phát dự báo. Không dùng close OHLC hoặc màu nến làm tham chiếu. Mô hình và các giá trị dự báo WLR tuyệt đối không đổi bởi việc dịch vùng vẽ.
+
+Giữ nguyên mốc, giá kỳ vọng và hai phân vị của cùng lượt dự báo khi chuyển A→B→A. Chỉ lượt mới sau kết thúc/phá mẫu đã xác nhận hoặc thao tác thủ công mới có giá mới. Canvas dùng back buffer, không resize/xóa nếu hình học không đổi; khung đã vẽ chỉ được thay sau khi khung mới hoàn tất. Đồng bộ ngắn tối đa 20 giây được giữ khung cũ với nhãn đang đồng bộ, giới hạn một nến đã đóng chênh lệch; mất dữ liệu mới, đổi symbol/timeframe hoặc ngoài điều kiện live thì ẩn. Không giữ vùng cũ vô thời hạn như dự báo live.
+
+Nhãn A ↑ …% / nền …%: cả hai số cùng đo phía cao hơn mốc WLR đã chốt, có điều kiện trung vị mục tiêu hoàn tất. Lấy từ dự báo hướng hiện tại và nền lịch sử causal tại cùng mốc, không lấy tỷ lệ đúng hồi cứu chung 69,7% để gắn lên mọi mẫu. Mẫu thiếu lịch sử ghi WAIT; không thay bằng tỷ lệ thuộc mẫu hoặc phần trăm biến động giá.

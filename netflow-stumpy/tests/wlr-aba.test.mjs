@@ -64,3 +64,35 @@ test('direction scoring excludes unfinished and flat targets and counts paired i
  assert.notEqual(directionScore(rs.map(r=>({...r,day:'oneDay'}))).status,'PROMISING_REQUIRES_FORWARD_TEST');
  assert.equal(sideOf(null,105),null);assert.equal(sideOf(105,105),0);
 });
+
+import {freezeAbaResult,canRetainAba,abaOverlayGeometry,abaPaintKey,abaLabel} from '../wlr-aba-overlay.mjs';
+const stableFixture=()=>({status:'READY',track:{day:'2026-10-21',originStart:1,q:{issuedAt:2,currentWlr:100,color:1},prediction:{ready:true,value:104,low:98,high:110},direction:{ready:true,pAbove:.72,baseline:{ready:true,pAbove:.54}}},lastTime:900000,changePct:4});
+test('ABA offset is 20 logical candles at every zoom and uses WLR prices exclusively',()=>{
+ const t=stableFixture().track,seen=[],wlr={priceToCoordinate:p=>{seen.push(p);return 500-p;}},pane={top:0,height:500},bounds={left:700,right:850,xBase:775};
+ for(const spacing of [6,12,5.75]){const scale={coordinateToLogical:x=>x/spacing,logicalToCoordinate:l=>l*spacing,options:()=>({barSpacing:spacing})},g=abaOverlayGeometry(scale,wlr,pane,bounds,t);assert.ok(Math.abs(g.left-(700-20*spacing))<1e-8);assert.equal(g.width,150);assert.equal(g.y,396);assert.equal(g.anchorY,400);}
+ assert.deepEqual(seen.slice(0,4),[100,104,98,110]);assert.equal(abaLabel(t).first,'A↑ 72%');assert.equal(abaLabel(t).second,'/ nền 54%');
+});
+test('same ABA issue freezes WLR anchor, quantiles and color; a new confirmed issue can change',()=>{
+ const old=stableFixture(),changed={...old,track:{...old.track,q:{...old.track.q,currentWlr:900,color:-1},prediction:{...old.track.prediction,value:999,low:990,high:1005}},state:{}},fixed=freezeAbaResult(old,changed);
+ assert.deepEqual(fixed.track.q,old.track.q);assert.deepEqual(fixed.track.prediction,old.track.prediction);assert.deepEqual(fixed.track.direction,old.track.direction);
+ const next={...changed,track:{...changed.track,q:{...changed.track.q,issuedAt:3}}};assert.equal(freezeAbaResult(old,next),next);
+});
+test('ABA synchronization retention is bounded and never crosses symbol/timeframe or stale data',()=>{
+ const active=stableFixture(),c={live:true,symbol:'SPYUSDT',interval:'15m',expectedTime:1800000};
+ assert.equal(canRetainAba(active,c,100),true);assert.equal(canRetainAba(active,c,20001),false);
+ for(const changed of [{...c,live:false},{...c,symbol:'QQQUSDT'},{...c,interval:'1h'},{...c,expectedTime:2700000}])assert.equal(canRetainAba(active,changed,100),false);
+});
+test('ABA canvas swaps complete frames, skips unchanged/color-only paints and retains temporary coordinates',()=>{
+ const source=fs.readFileSync(new URL('../wlr-aba-ui.mjs',import.meta.url),'utf8'),src=source.slice(source.indexOf(' function clearDrawing('),source.indexOf(' function show(result)'));
+ let writes=0,clears=0,swaps=0,now=0,invalid=false,spacing=6;const text=[];
+ const canvas={dataset:{},setAttribute(){},getContext:()=>({setTransform(){},clearRect(){clears++;},drawImage(){swaps++;}})};
+ for(const k of ['width','height']){let value=0;Object.defineProperty(canvas,k,{get:()=>value,set:v=>{value=v;writes++;}});}
+ const ctx=new Proxy({measureText:t=>({width:t.length*5}),fillText:t=>text.push(t)},{get:(o,k)=>o[k]??(()=>{})}),buffer={width:0,height:0,getContext:()=>ctx},host={clientWidth:1000,clientHeight:500},toggle={checked:true},initial=stableFixture(),scale={coordinateToLogical:x=>x/spacing,logicalToCoordinate:l=>l*spacing,options:()=>({barSpacing:spacing}),width:()=>1000},chart={timeScale:()=>scale},wlr={priceToCoordinate:p=>invalid?null:500-p};
+ const factory=new Function('host','canvas','buffer','toggle','initial','chart','wlr','paneBounds','getCvdBounds','window','performance','abaOverlayGeometry','abaPaintKey','abaLabel','fmt','change',"let frame=0,active=initial,lastPaintKey='',geometryMissingAt=null;"+src+";return {draw,replace:r=>active=r};");
+ const r=factory(host,canvas,buffer,toggle,initial,chart,wlr,()=>({top:0,height:500}),()=>({left:700,right:850,xBase:775}),{devicePixelRatio:2},{now:()=>now},abaOverlayGeometry,abaPaintKey,abaLabel,String,String);
+ r.draw();for(let i=0;i<10;i++)r.draw();assert.equal(swaps,1);assert.equal(clears,1);assert.equal(writes,2);assert.equal(canvas.dataset.left,'580');assert.equal(text[0],'A↑ 72%');assert.equal(text[1],'/ nền 54%');
+ r.replace(freezeAbaResult(initial,{...initial,track:{...initial.track,q:{...initial.track.q,color:-1},prediction:{...initial.track.prediction,value:999}},state:{}}));r.draw();assert.equal(swaps,1);
+ invalid=true;now=1;r.draw();assert.equal(clears,1);invalid=false;spacing=12;r.draw();assert.equal(swaps,2);assert.equal(writes,2);assert.equal(canvas.dataset.left,'460');
+ toggle.checked=false;r.draw();assert.equal(canvas.dataset.status,'HIDDEN');assert.equal(clears,3);
+ const css=fs.readFileSync(new URL('../wlr-aba.css',import.meta.url),'utf8');assert.ok(css.includes('#wlr-aba-overlay{width:100%;height:100%}'));
+});
