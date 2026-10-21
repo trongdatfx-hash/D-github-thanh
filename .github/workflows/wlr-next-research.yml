@@ -1,0 +1,32 @@
+name: WLR After A-B Research - no web changes
+on:
+  push:
+    branches: [main, research/wlr-next-after-ab]
+    paths:
+      - 'research/wlr-next/**'
+      - '.github/workflows/wlr-next-research.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: wlr-next-research-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check next-segment labels, causality and all WLR colors
+        run: node --test research/wlr-next/tests.mjs
+      - name: Evaluate A or C, direction and conditional WLR quantiles
+        run: node research/wlr-next/dataset.mjs
+      - name: Retain research report and every query without publishing web data
+        uses: actions/upload-artifact@v4
+        with:
+          name: wlr-next-after-ab-research
+          path: research/wlr-next/output/
+          retention-days: 30
