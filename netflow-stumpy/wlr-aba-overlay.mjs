@@ -17,9 +17,9 @@ export function abaOverlayGeometry(timeScale,wlr,pane,bounds,track){
  return {left,right,width:right-left,anchorY,y,low,high,top:pane.top,height:pane.height,widthRatio:ABA_OVERLAY_WIDTH_RATIO,alignment:'cvd-center'};
 }
 export function abaLabel(track){
- if(track.signal?.emit===false)return {first:'A � WAIT',second:({NEAR_BASE:'g?n n?n',BAND_CROSSES_WLR:'d?i c?t WLR',CALIBRATION_DISAGREES:'P50 ch�a r?',WAIT_HISTORY:'thi?u m?u'}[track.signal.reason]??'ch? ki?m �?nh')};
+ if(track.signal?.emit===false)return {first:'A · WAIT',second:({NEAR_BASE:'gần nền',BAND_CROSSES_WLR:'dải cắt WLR',CALIBRATION_DISAGREES:'P50 chưa rõ',WAIT_HISTORY:'thiếu mẫu'}[track.signal.reason]??'chờ kiểm định')};
  const d=track.direction,pct=v=>Math.round(100*v)+'%';
- return {first:d?.ready&&Number.isFinite(d.pAbove)?'A? '+pct(d.pAbove):'A? WAIT',second:d?.baseline.ready&&Number.isFinite(d.baseline.pAbove)?'/ n?n '+pct(d.baseline.pAbove):'/ n?n WAIT'};
+ return {first:d?.ready&&Number.isFinite(d.pAbove)?'A↑ '+pct(d.pAbove):'A↑ WAIT',second:d?.baseline.ready&&Number.isFinite(d.baseline.pAbove)?'/ nền '+pct(d.baseline.pAbove):'/ nền WAIT'};
 }
 export function abaPaintKey(geometry,width,height,dpr,track){
  const snap=v=>Math.round(v*dpr);

@@ -2,7 +2,7 @@ import {STEPS,sessionAt} from './engine.mjs';
 export const SPY_SCHEMA='spy-etf-5m-v1';
 export function spyBars(doc,interval,now=Date.now(),days=30){
   const step=STEPS[interval];
-  if(doc?.schema!==SPY_SCHEMA||doc.symbol!=='SPY'||!Array.isArray(doc.bars)||!step)throw Error('SPY: snapshot kh�ng h?p l?');
+  if(doc?.schema!==SPY_SCHEMA||doc.symbol!=='SPY'||!Array.isArray(doc.bars)||!step)throw Error('SPY: snapshot không hợp lệ');
   const buckets=new Map(),seen=new Set(),start=now-days*86400000;
   for(const b of [...doc.bars].sort((a,b)=>a.t-b.t)){
     if(![b.t,b.o,b.h,b.l,b.c,b.v].every(Number.isFinite)||b.t%300000||b.t>now||seen.has(b.t)||b.l<=0||b.v<0||b.l>Math.min(b.o,b.c)||b.h<Math.max(b.o,b.c)||b.l>b.h)continue;
@@ -22,10 +22,10 @@ let snapshot=null,loadedAt=0;
 export async function loadSpy(interval,days,{signal,now=Date.now(),get=fetch}={}){
   if(!snapshot||Date.now()-loadedAt>60000){
     const response=await get(new URL('data/spy/5m.json',import.meta.url),{signal,cache:'no-store'});
-    if(!response.ok)throw Error(`SPY: ch�a c� d? li?u ETF (HTTP ${response.status})`);
+    if(!response.ok)throw Error(`SPY: chưa có dữ liệu ETF (HTTP ${response.status})`);
     const next=await response.json();spyBars(next,interval,now,days);snapshot=next;loadedAt=Date.now();
   }
   const bars=spyBars(snapshot,interval,now,days);
-  if(!bars.length)throw Error('SPY: kh�ng c� n?n ETF trong kho?ng �? ch?n');
+  if(!bars.length)throw Error('SPY: không có nến ETF trong khoảng đã chọn');
   return {bars,m15:spyBars(snapshot,'15m',now,60),meta:{provider:'Yahoo Finance',fetchedAt:snapshot.fetchedAt,lastTime:bars.at(-1).t,delayed:true}};
 }
