@@ -13,7 +13,6 @@ on:
       - 'netflow-stumpy/rth-pivot.mjs'
       - 'netflow-stumpy/geometry.mjs'
       - 'netflow-stumpy/rth-forecast-core.mjs'
-      - 'netflow-stumpy/macd-research.mjs'
   schedule:
     - cron: '17,47 * * * *'
   workflow_dispatch:
@@ -77,22 +76,11 @@ jobs:
         run: node --test netflow-stumpy/tests/rth-forecast.test.mjs netflow-stumpy/tests/analogs.test.mjs
       - name: Select path model on validation and publish separate final test
         run: node netflow-stumpy/scripts/rth-forecast-dataset.mjs --finalize
-      - name: Build fair MACD versus SPY V and Composite experiment
-        run: node netflow-stumpy/scripts/macd-research-dataset.mjs
-      - name: Actual STUMPY distances shared across indicator ablations
-        run: python netflow-stumpy/scripts/macd-profiles.py --input netflow-stumpy/data/macd/tasks.json --output netflow-stumpy/data/macd/profiles.json
-      - name: Verify causal MACD, clean channel isolation and MASS parity
-        env:
-          MACD_TASKS: netflow-stumpy/data/macd/tasks.json
-          MACD_PROFILES: netflow-stumpy/data/macd/profiles.json
-        run: node --test netflow-stumpy/tests/macd-research.test.mjs
-      - name: Publish paired MACD research comparisons
-        run: node netflow-stumpy/scripts/macd-research-dataset.mjs --finalize
       - name: Commit closed history and report
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add netflow-stumpy/data/binance/m15 netflow-stumpy/data/analogs/snapshot.json netflow-stumpy/data/rth-structure/report.json netflow-stumpy/data/rth-forecast/archive.json netflow-stumpy/data/rth-forecast/report.json netflow-stumpy/data/macd/report.json
+          git add netflow-stumpy/data/binance/m15 netflow-stumpy/data/analogs/snapshot.json netflow-stumpy/data/rth-structure/report.json netflow-stumpy/data/rth-forecast/archive.json netflow-stumpy/data/rth-forecast/report.json
           if git diff --cached --quiet; then exit 0; fi
           git commit -m 'data: refresh STUMPY historical analogs'
           for attempt in 1 2 3; do
