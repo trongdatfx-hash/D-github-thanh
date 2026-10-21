@@ -20,7 +20,8 @@ const flowColors={
   COMPOSITE:{up:'rgba(39,211,164,.82)',down:'rgba(255,91,116,.82)'}
 };
 const LIVE_REFRESH_MS=3000;
-const writeSeries=createSeriesWriter();
+const seriesWriter=createSeriesWriter();
+const writeSeries=(key,series,data,context)=>{if($('symbol')?.value==='SPY'){const times=new Set((rows.SPY??[]).map(b=>b.t/1000));data=data.filter(b=>times.has(b.time));}return seriesWriter(key,series,data,context);};
 let studiesWorker=null,studyKey='',studyResultKey='',statsWorker=null,statsRequest=0,researchFeatures=[],studyTimingMs=0;
 const CALENDAR_REFRESH_MS=5*60*1000;
 const FIT_WINDOW_MS=36*60*60*1000,FIT_HALF_WINDOW_MS=12*60*60*1000,DOUBLE_TAP_MS=360,DOUBLE_TAP_DISTANCE=28,TAP_MOVE_TOLERANCE=14;
@@ -202,6 +203,7 @@ function renderTrendCohorts(){
   let info=document.getElementById('trend-data-info');if(!info){info=document.createElement('p');info.id='trend-data-info';info.className='trend-cohort-note';status.after(info);}
   const meta=rev63State?.dataInfo,date=t=>Number.isFinite(t)?new Date(t).toLocaleString('vi-VN',{timeZone:'America/New_York'}):'�';
   info.textContent=meta?`Phi�n hi?n t?i: ${meta.currentSession??'�'}; c?t B?t �?u l� phi�n m? trend. Ngu?n: Binance M15 l�u tr�n GitHub + n?n live �? ��ng � ${date(meta.firstTime)} ? ${date(meta.lastTime)} (New York) � ${meta.bars} n?n / ${meta.days} ng�y c� PRE�RTH. N b?ng = ${totalN} episode l?ch s?. B? k�nh g?c c� ${meta.channels} Flow-Leg, ${meta.displayQualified} k�nh �?t ti�u ch� v? (tr�?c gi?i h?n 12 k�nh tr�n chart). M?i Flow-Leg �? x�c nh?n ch? ��?c t�nh m?t episode; d?ng ngay khi k�nh b�o k?t th�c, kh�ng th�m m?t l�?t dung sai ? l?p nh?n. N �?m episode theo h�?ng + phi�n b?t �?u; g?m nh?p ng?n/R� th?p. S? ng�y kh�ng ph?i s? m?u �?c l?p. Chart d�ng kho?ng l?ch s? ri�ng; trend �ang ch?y ch�a v�o N.`:'�ang n?p th�ng tin kho l?ch s?�';
+  if($('symbol').value==='SPY'&&meta)info.textContent='Gi� trend: SPY ETF; Strength: Binance. '+info.textContent.replace('Binance M15 l�u tr�n GitHub + n?n live �? ��ng','SPY ETF M15 tr�n GitHub + d?ng ti?n Binance kh?p th?i gian');
 
 }
 function updateTrendMethodCopy(){
@@ -445,7 +447,7 @@ function drawGeometryOverlay(){
 function render(fit=false){
   const renderStarted=performance.now(),range=chart.timeScale().getVisibleLogicalRange();
   const seriesContext=[$('symbol').value,$('interval').value,$('signal').value,$('days').value,$('candle-agreement-color').checked,$('phase-width').checked].join('|');
-  const p=rows[$('symbol').value]??[],signalRows=rows[$('signal').value]??[],model=Object.keys(modelRows).length?modelRows:rows;
+  const p=rows[$('symbol').value]??[],priceTimes=new Set(p.map(b=>b.t)),signalRows=(rows[$('signal').value]??[]).filter(b=>$('symbol').value!=='SPY'||priceTimes.has(b.t)),model=Object.keys(modelRows).length?modelRows:rows;
   dayBoundaries=dayBoundaryTimes(p);
   const compositeCvd=isSpyPrice(),cvdBars=compositeCvd?projectNetFlowToPrice(p,rows.COMPOSITE??[]):p;
   cvdSourceLabel=compositeCvd?'C?S':'Q';$('cvd-spectrum').dataset.source=compositeCvd?'COMPOSITE?SPY':'QQQUSDT';
