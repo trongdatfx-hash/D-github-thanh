@@ -1,5 +1,5 @@
-import {hybridSpy} from './spy-data.mjs?v=20261021-spy1';
-import {analyzeTrendSource,computeStudies} from './studies-core.mjs?v=20261021-spy1';
+import {hybridSpy} from './spy-data.mjs?v=20261021-spy2';
+import {analyzeTrendSource,computeStudies} from './studies-core.mjs?v=20261021-spy2';
 import {loadPersistentHistory} from './history-store.mjs?v=20261020-perf1';
 let serial=0,trend=null,trendKey='',historyPending=null;
 self.onmessage=async({data})=>{
