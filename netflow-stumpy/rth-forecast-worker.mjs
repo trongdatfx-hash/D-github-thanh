@@ -3,11 +3,11 @@ import {shapeDistance} from './analogs-core.mjs';
 import {attachPivotStates} from './rth-pivot.mjs';
 let libraryPromise=null;
 function library(){return libraryPromise??=Promise.all(['archive','report'].map(async name=>{const r=await fetch(`data/rth-forecast/${name}.json`,{cache:'no-cache'});if(!r.ok)throw Error('Chưa có thư viện đường RTH');return r.json();})).catch(e=>{libraryPromise=null;throw e;});}
-self.onmessage=async({data:{id,features,now}})=>{
+self.onmessage=async({data:{id,features,now,mode='AUTO'}})=>{
  try{
-  const [archive,report]=await library(),model=report.selectedModel;
-  self.postMessage({id,selection:{model,validation:report.validation,test:report.test,testStart:report.testStart,sourceAsOf:report.sourceAsOf}});
-  if(!model)throw Error('Chưa đủ ngày validation để chọn đường');
+  const [archive,report]=await library(),statistical=Object.keys(report.validation).filter(m=>m!=='FLAT').sort((a,b)=>(report.validation[a].pathMaePct??Infinity)-(report.validation[b].pathMaePct??Infinity))[0],model=mode==='STAT'?statistical:report.selectedModel;
+  self.postMessage({id,selection:{model,automatic:report.selectedModel,statistical,validation:report.validation,test:report.test,testStart:report.testStart,sourceAsOf:report.sourceAsOf}});
+  if(!model||!report.selectedModel)throw Error('Chưa đủ ngày validation để chọn đường');
   const queryRows=model.startsWith('PIVOT')?attachPivotStates(features):features,q=forecastQuery(queryRows,{now});if(!q)throw Error('Cần đủ 8 nến M15 sắp tới nằm trọn trong RTH và dữ liệu chart còn mới');
   if(q.targetDay<report.testStart)throw Error('Mốc chart trước thời điểm chọn mô hình; không vẽ hồi cứu bằng lựa chọn tương lai');
   const candidates=forecastCandidates(archive.cases,q);if(candidates.length<20)throw Error('Chưa đủ 20 ngày cùng phút RTH trong quá khứ');
