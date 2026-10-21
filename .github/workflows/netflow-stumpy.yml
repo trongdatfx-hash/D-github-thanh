@@ -10,6 +10,8 @@ on:
       - 'netflow-stumpy/requirements-analogs.txt'
       - 'netflow-stumpy/tests/**'
       - 'netflow-stumpy/rth-structure.mjs'
+      - 'netflow-stumpy/rth-pivot.mjs'
+      - 'netflow-stumpy/geometry.mjs'
   schedule:
     - cron: '17,47 * * * *'
   workflow_dispatch:
@@ -59,7 +61,7 @@ jobs:
         env:
           ANALOG_FEATURES: netflow-stumpy/data/rth-structure/tasks.json
           ANALOG_PROFILES: netflow-stumpy/data/rth-structure/profiles.json
-        run: node --test netflow-stumpy/tests/rth-structure.test.mjs netflow-stumpy/tests/analogs.test.mjs
+        run: node --test netflow-stumpy/tests/rth-structure.test.mjs netflow-stumpy/tests/rth-pivot.test.mjs netflow-stumpy/tests/analogs.test.mjs
       - name: Publish RTH geometry report
         run: node netflow-stumpy/scripts/rth-structure-dataset.mjs --finalize
       - name: Commit closed history and report

@@ -40,7 +40,7 @@ export function caseAt(rows,index,m,h,lookup=new Map(rows.map(r=>[r.t,r]))){
   const atr=history.reduce((sum,r,j)=>{const prev=rows[Math.max(0,index-13)+j-1]?.c;return sum+Math.max(r.high-r.low,Number.isFinite(prev)?Math.abs(r.high-prev):0,Number.isFinite(prev)?Math.abs(r.low-prev):0);},0)/14;if(!(atr>1e-10))return null;
   const future=Array.from({length:effectiveH},(_,j)=>lookup.get(start+j*STEP)),complete=future.every(r=>r&&Number.isFinite(r.open)&&Number.isFinite(r.high)&&Number.isFinite(r.low));
   const end=start+effectiveH*STEP,outcome=complete?shapeDescriptor(future,atr):null;
-  return {i:index,startIndex:index-m+1,inputStart:window[0].t,inputEnd:asOf,queryTime:last.t,queryDay:p.day,clockMinute:minute,phase,targetDay,targetStart:start,targetEnd:end,h:effectiveH,requestedH:h,m,atr,outcome};
+  return {i:index,startIndex:index-m+1,inputStart:window[0].t,inputEnd:asOf,queryTime:last.t,queryDay:p.day,clockMinute:minute,phase,targetDay,targetStart:start,targetEnd:end,h:effectiveH,requestedH:h,m,atr,pivot:last.pivot??null,outcome};
 }
 export function candidatesFor(cases,query){return cases.filter(c=>c.outcome&&c.phase===query.phase&&c.clockMinute===query.clockMinute&&c.h===query.h&&c.targetEnd<=query.inputStart&&c.inputEnd<=query.inputStart);}
 export function selectCases(ranked,cases,limit=20){const map=new Map(cases.map(c=>[c.startIndex,c])),picked=[],days=new Set();for(const r of ranked){const c=map.get(r.index);if(!c||days.has(c.targetDay)||picked.some(p=>!(c.inputStart>=p.targetEnd||p.inputStart>=c.targetEnd)))continue;days.add(c.targetDay);picked.push({...c,distance:r.distance});if(picked.length===limit)break;}return picked;}

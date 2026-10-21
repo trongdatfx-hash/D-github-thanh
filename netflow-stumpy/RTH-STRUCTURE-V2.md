@@ -17,3 +17,16 @@ The existing STUMPY GitHub job creates and validates this report every scheduled
 ## Phase coverage and query checkpoints
 
 Reports include AUTO (latest valid PRE/POST-window query) and four predetermined retrospective checkpoints: PRE 09:00, RTH 10:00, RTH 13:00, POST 20:00 New York. Each supports 8/16 input bars and 60/120 minutes or remaining/full RTH targets. A preset must match its actual phase; RTH 13:00 does not become a POST forecast on a 13:00 close day. Historical/canonical query times are prominently dated; a past target or old source remains a reference. Identical query tasks are deduplicated across AUTO and checkpoints. These are initial research checkpoints, not a claim to have tested every possible decision minute.
+
+
+## Pivot / divergence experimental grouping (report v3)
+
+The chart is unchanged. SPY high/low pivots reuse confirmedPricePivots from geometry.mjs (left 3, right 2, prominence 0.12 ATR). Known time is the CLOSE of the second right bar, never the pivot bar. Pivot context resets at each NY PRE-to-POST day or data gap and may precede the 8/16-bar matching window; ATR uses the original causal warm-up.
+
+Structure uses the latest confirmed high/low and the most recent same-side predecessor 6–160 bars apart. Moves larger than 0.15 current causal ATR define HH/HL (UP), LH/LL (DOWN), HH/LL (EXPANDING), LH/HL (CONTRACTING); missing/flat sides are UNRESOLVED.
+
+confirmedDivergences is applied separately to original-volume SPY V and Composite Strength, with price swing >=0.15 ATR and absolute Strength change >=0.06. Signals expire after 8 closed M15 bars. Both sources agreeing gives bullish/bearish; opposite sources give mixed; absent/expired signals give none. QQQ price and standalone QQQ Strength are not substituted. No-signal does not prove absence of divergence: it includes insufficient pivots.
+
+Fixed hierarchy: same structure + divergence, then same structure, then original STUMPY. Each informative level requires >=12 selected non-overlapping analogs; at most 20. Unresolved structures use original STUMPY. MASS distances/weights and six RTH outcome labels remain unchanged. Groups only filter the already causal candidate pool; no label-dependent ranking.
+
+Both variants use identical evaluation timestamps, outcomes and historical candidate availability. Sparse-group days remain in the evaluation through fallback; report exact/structure/base coverage. Compare paired Brier (original minus grouped; positive helps grouped) with 1000 paired 5-day moving-block bootstrap samples. This is a post-hoc exploratory addition, not a newly untouched test. No threshold or hierarchy is selected by test performance, no multiple-comparison correction, and future validation is required. Snapshot group tables are descriptive archive counts, not OOS metrics. Existing aeon V1 still has a different 3-bar target.
