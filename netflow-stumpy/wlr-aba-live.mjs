@@ -1,4 +1,4 @@
-import {segmentWlr,knownQuery,candidatePool,predict,cycleDistance,median} from './wlr-aba-core.mjs';
+import {segmentWlr,knownQuery,candidatePool,predict,cycleDistance,median} from './wlr-aba-core.mjs?v=20261021-pre0';
 import {shapeDistance} from './analogs-core.mjs';
 import {ny,tradingDay,postEnd,STEP} from './rth-structure.mjs';
 export const COLOR_NAMES={'1':'Xanh','-1':'Đỏ','0':'Vàng'};
@@ -37,7 +37,7 @@ export function updateAba({rows,archive,report,now,previous=null,reset=false}){
   history.push({day:track.day,color:track.q.color,stage:'UNCONFIRMED_FRAME',computedAt:track.computedAt,value:track.prediction.ready?track.prediction.value:null});track=null;
  }
  if(!track)track=startTrack(frame,archive,report,now);
- if(!track)return {status:'WAIT',message:'Cần 16 nến M15 liên tục trong PRE–POST và mô hình đã được chọn bằng validation',state:{track:null,history:history.slice(-8)}};
+ if(!track)return {status:'WAIT',message:'Chờ nến PRE–POST đã đóng, đủ lịch sử M15 liên tục (có thể dùng trước PRE) và mô hình validation sẵn sàng',state:{track:null,history:history.slice(-8)}};
  let progress=followTrack(frame,track);
  if(['PATTERN_BROKEN','COMPLETE_ABA'].includes(progress.stage)){
   history.push({day:track.day,color:track.q.color,stage:progress.stage,computedAt:track.computedAt,knownAt:progress.knownAt,reference:track.q.currentMedian,value:track.prediction.ready?track.prediction.value:null,actualMedian:progress.actualMedian??null});
@@ -46,3 +46,4 @@ export function updateAba({rows,archive,report,now,previous=null,reset=false}){
  const prediction=track.prediction,changePct=prediction.ready?100*(prediction.value/track.q.currentMedian-1):null;
  return {status:'READY',track,progress,changePct,lastTime:rows.at(-1).t,state:{track,history:history.slice(-8)},report:{sourceAsOf:report.sourceAsOf,selectedTrial:report.selectedTrial,test:report.test[track.model],reference:report.test.CURRENT_MEDIAN,decision:report.decision}};
 }
+

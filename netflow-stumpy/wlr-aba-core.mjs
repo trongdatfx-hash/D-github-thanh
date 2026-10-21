@@ -2,7 +2,7 @@ import {weightedPriceBands,strengthPhaseLineStyle} from './engine.mjs';
 import {percentile} from './analogs-core.mjs';
 import {ny,tradingDay,closeMinute,postEnd,stamp,STEP} from './rth-structure.mjs';
 
-export const SPEC=Object.freeze({version:2,scope:'PRE through POST; all three literal WLR colors',decision:'first eligible closed-bar snapshot per color segment',m:[8,16],minimumMatches:12,maximumMatches:20,minimumValidationDays:10,minimumTestDays:30,contextWeight:.20,validationStart:'2026-07-17',testStart:'2026-08-21'});
+export const SPEC=Object.freeze({version:3,scope:'PRE through POST; all three literal WLR colors',inputScope:'closed-history-pre0-v1',warmup:'Consecutive closed M15 history may include NIGHT before PRE; segment A begins inside PRE-to-POST. PRE candle 0 is eligible at its close when history is ready.',decision:'first eligible closed-bar snapshot per color segment',m:[8,16],minimumMatches:12,maximumMatches:20,minimumValidationDays:10,minimumTestDays:30,contextWeight:.20,validationStart:'2026-07-17',testStart:'2026-08-21'});
 export const MODELS=['CURRENT_MEDIAN','LAST_SAME','COLOR_PRIOR','STUMPY8','STUMPY16','CYCLE8','CYCLE16'];
 export const median=a=>percentile(a,.5);
 const mean=a=>a.length?a.reduce((s,v)=>s+v,0)/a.length:null;
@@ -34,7 +34,10 @@ export function knownQuery(rows,segments,i){
  if(i<15)return null;const r=rows[i],p=ny(r.t),clockMinute=p.minute+15;
  if(clockMinute<=240||clockMinute>=postEnd(p.day)||!tradingDay(p.day)||r.segment===null)return null;
  const input=rows.slice(i-15,i+1);
- if(input.some((b,j)=>ny(b.t).day!==p.day||ny(b.t).minute<240||b.pv?.length!==10||!b.pv.every(Number.isFinite)||(j&&b.t-input[j-1].t!==STEP)))return null;
+ // Warm up M8/M16 from already closed history, including NIGHT. Only the
+ // current query and A/B/A segments are restricted to PRE-to-POST; requiring
+ // every input bar to be inside PRE delayed candle 0 until candle 15.
+ if(input.some((b,j)=>b.pv?.length!==10||!b.pv.every(Number.isFinite)||(j&&b.t-input[j-1].t!==STEP)))return null;
  const ranges=rows.slice(i-13,i+1).map((b,j)=>{const prev=rows[i-14+j]?.c;return Math.max(b.high-b.low,Number.isFinite(prev)?Math.abs(b.high-prev):0,Number.isFinite(prev)?Math.abs(b.low-prev):0);}),atr=mean(ranges);
  if(!(atr>0))return null;
  const s=segments[r.segment],known=rows.slice(s.start,i+1).map(b=>b.mid),currentMedian=median(known),lastSame=segments.slice(0,s.id).reverse().find(b=>b.frame===s.frame&&b.color===s.color&&b.complete&&b.confirmedAt<=r.t+STEP),previous=segments[s.id-1],lastSameMedian=lastSame?.median??null;
@@ -84,3 +87,4 @@ export function metrics(records){
  const resolved=records.filter(r=>Number.isFinite(r.membershipBrier));
  return {queries:records.length,days:dayCount(records),targetN:target.length,targetDays:dayCount(target),readyTargetN:ready.length,readyTargetDays:dayCount(ready),coverage:records.length?records.filter(r=>r.ready).length/records.length:0,maePct:dailyMean(target,'loss'),queryMaePct:mean(target.map(r=>r.loss)),readyMaePct:dailyMean(ready,'loss'),brier:dailyMean(events,'brier'),brier8:dailyMean(events,'brier8'),membershipBrier:dailyMean(resolved,'membershipBrier'),membershipN:resolved.length,unconfirmedN:records.length-resolved.length};
 }
+

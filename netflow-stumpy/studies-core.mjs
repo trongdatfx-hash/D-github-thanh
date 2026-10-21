@@ -1,4 +1,4 @@
-import {chartWlrRows} from './wlr-aba-core.mjs';
+import {chartWlrRows} from './wlr-aba-core.mjs?v=20261021-pre0';
 import {analyze,composite,calculateVolumeStrength,STEPS,sessionAt} from './engine.mjs';
 import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeometry} from './geometry.mjs';
 import {pivotZones} from './pivot-zones.mjs';
@@ -27,4 +27,5 @@ export function computeStudies({rows,volumeRows,symbol,interval,options,now,tren
   const abaRows=interval==='15m'&&symbol==='SPYUSDT'?chartWlrRows(modelPrice,features):[];
   return {geometry,channels,breakout,points,backtest,pivot,rev63,abaRows};
 }
+
 
