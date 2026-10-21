@@ -1,4 +1,4 @@
-import {analyzeTrendSource,computeStudies} from './studies-core.mjs?v=20261021-pre0';
+import {analyzeTrendSource,computeStudies} from './studies-core.mjs?v=20261021-age-audit1';
 import {loadPersistentHistory} from './history-store.mjs?v=20261020-perf1';
 let serial=0,trend=null,trendKey='',historyPending=null;
 self.onmessage=async({data})=>{
@@ -20,5 +20,6 @@ self.onmessage=async({data})=>{
   }catch(error){if(token===serial)self.postMessage({key:data.key,error:error.message});}
 };
 function merge(a=[],b=[]){const map=new Map(a.map(r=>[r.t,r]));for(const row of b)map.set(row.t,row);return [...map.values()].sort((x,y)=>x.t-y.t);}
+
 
 

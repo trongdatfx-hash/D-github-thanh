@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {sessionAt} from '../engine.mjs';
 import {isUsMarketTradingDay} from '../market-calendar.mjs';
-import {classifyStrengthRegression,formatPreRthWlrTrend,kaplanMeier,preRthWlrTrend,survivalAt} from '../pre-rth-wlr-trend.mjs';
+import {classifyStrengthRegression,formatPreRthWlrTrend,kaplanMeier,preRthWlrTrend,survivalAt,trendAgeStatistics,trendReadoutState} from '../pre-rth-wlr-trend.mjs';
 
 test('Kaplan–Meier keeps session-end trends as right-censored observations',()=>{
   const curve=kaplanMeier([
@@ -61,9 +61,9 @@ test('one SPY V sign mismatch stays inside the episode but is not counted in tre
   assert.equal(filtered.active,true);assert.equal(filtered.elapsedBars,baseline.elapsedBars);assert.equal(filtered.currentBars,baseline.currentBars-1);assert(filtered.volumeAlignment<1);
 });
 
-test('the complete causal channel lifecycle supplies trend age and elapsed bars',()=>{
-  const input=fixture(),baseline=preRthWlrTrend({...input,minCohort:3}),currentDay=input.priceRows.at(-1).day,currentRows=input.priceRows.filter(row=>row.day===currentDay),channelTrends=[{direction:1,confirmationTime:currentRows[0].t,insideEndTime:currentRows.at(-2).t,endTime:currentRows.at(-1).t}],filtered=preRthWlrTrend({...input,channelTrends,requireChannel:true,minCohort:3});
-  assert.equal(filtered.active,true);assert(filtered.elapsedBars>baseline.elapsedBars);assert.equal(filtered.currentBars,currentRows.length-1);assert(filtered.elapsedBars>=filtered.currentBars);assert(filtered.channelAlignment<1);assert.equal(filtered.volumeAlignment,1);
+test('the observed channel exit closes the age label immediately without a second weak-bar grace',()=>{
+  const input=fixture(),currentDay=input.priceRows.at(-1).day,currentRows=input.priceRows.filter(row=>row.day===currentDay),channelTrends=[{direction:1,confirmationTime:currentRows[0].t,insideEndTime:currentRows.at(-2).t,endTime:currentRows.at(-1).t,exitTime:currentRows.at(-1).t,provisional:false}],filtered=preRthWlrTrend({...input,channelTrends,requireChannel:true,minCohort:3});
+  assert.equal(filtered.active,false);assert.equal(filtered.label,'WAIT');assert.equal(filtered.currentBars,0);
 });
 
 test('per-candle SPY V sign noise does not remove candles from a qualified channel trend',()=>{
@@ -102,3 +102,55 @@ test('PRE→RTH WLR returns WAIT outside the live PRE/RTH trading window',()=>{
   const input=fixture(),saturday=Date.UTC(2026,9,17,16),state=preRthWlrTrend({...input,now:saturday,minCohort:3});
   assert.equal(state.label,'WAIT');assert.equal(state.active,false);assert.match(state.reason,/Không có trend/);assert.equal(state.groups.length,4);assert(state.groups.some(group=>Number.isFinite(group.continuation)&&group.baseline&&group.evaluationBars===1));
 });
+
+test('accepted-bar survival matches exact discrete probabilities and conditional medians',()=>{
+  const durations=[2,3,4,5,6,7,7,8,9,11,13,17,22,28,60,80,90,100,110,120],episodes=durations.map((duration,i)=>({duration,censored:false,day:'d'+i}));
+  for(let age=1;age<=80;age++)for(let horizon=1;horizon<=4;horizon++){
+    const alive=durations.filter(d=>d>=age),s=trendAgeStatistics(episodes,age,horizon);
+    if(alive.length<5){assert.equal(s.ready,false);assert.equal(s.continuation,null);continue;}
+    assert.equal(s.ready,true);assert.ok(Math.abs(s.continuation-alive.filter(d=>d>=age+horizon).length/alive.length)<1e-12);
+    assert.equal(s.remainingBars,[...alive].sort((a,b)=>a-b)[Math.ceil(alive.length/2)-1]-age);
+    assert.equal(s.agePercentile,Math.round(100*durations.filter(d=>d<=age).length/durations.length));
+  }
+  const half=trendAgeStatistics([...Array(6).fill({duration:7,censored:false}),...Array(6).fill({duration:11,censored:false})],7);
+  assert.equal(half.continuation,.5);assert.equal(half.remainingBars,0);assert.equal(half.atRiskN,12);
+  assert.equal(trendAgeStatistics(Array(12).fill({duration:100,censored:false}),60).remainingBars,40);
+});
+test('right censoring without horizon followup waits instead of showing a spurious 100%',()=>{
+  const unknown=trendAgeStatistics(Array(12).fill({duration:7,censored:true}),7);assert.equal(unknown.ready,false);assert.equal(unknown.continuation,null);assert.equal(unknown.horizonSupported,false);assert.equal(unknown.resolvedHorizonN,0);
+  const observed=trendAgeStatistics(Array(12).fill({duration:20,censored:true}),7);assert.equal(observed.continuation,1);assert.equal(observed.remainingBars,null);assert.equal(observed.resolvedHorizonN,12);
+  const insufficient=trendAgeStatistics(Array(4).fill({duration:20,censored:false}),7);assert.equal(insufficient.continuation,null);assert.equal(insufficient.remainingBars,null);
+});
+test('future channel confirmation/end/length cannot leak into the closed age label',()=>{
+  const input=fixture(),day=input.priceRows.at(-1).day,rs=input.priceRows.filter(r=>r.day===day),channel={direction:1,startTime:rs[0].t,confirmationTime:rs[5].t,insideEndTime:rs.at(-1).t,endTime:rs.at(-1).t,bars:999,provisional:true,volumeQualified:true},base={...input,channelTrends:[channel],requireChannel:true,minCohort:3};
+  assert.equal(preRthWlrTrend({...base,now:rs[3].end+1}).active,false);
+  const clipped=preRthWlrTrend({...base,now:rs[6].end+1});assert.equal(clipped.active,true);assert.equal(clipped.currentBars,7);
+  const ended={...channel,exitTime:rs[12].t,insideEndTime:rs[11].t,endTime:rs[12].t,provisional:false,bars:12};
+  assert.equal(preRthWlrTrend({...base,channelTrends:[ended],now:rs[6].end+1}).active,true);
+  assert.equal(preRthWlrTrend({...base,channelTrends:[ended],now:rs[12].end+1}).active,false);
+});
+test('missing or stale M15 candles cannot keep an old channel active or inflate its age',()=>{
+  const input=fixture(),day=input.priceRows.at(-1).day,rs=input.priceRows.filter(r=>r.day===day),channel={direction:1,startTime:rs[0].t,confirmationTime:rs[3].t,insideEndTime:rs.at(-1).t,endTime:rs.at(-1).t,bars:16,provisional:true,volumeQualified:true};
+  const base={...input,channelTrends:[channel],requireChannel:true,minCohort:3};assert.equal(preRthWlrTrend(base).active,true);
+  assert.equal(preRthWlrTrend({...base,priceRows:input.priceRows.filter(r=>r.t!==rs[8].t)}).active,false);
+  const stale=preRthWlrTrend({...base,now:rs.at(-1).end+1+915001});assert.equal(stale.active,false);assert.equal(stale.groups.reduce((n,g)=>n+g.n,0),0);
+  const open=preRthWlrTrend({...base,priceRows:input.priceRows.map(r=>r.t===rs.at(-1).t?{...r,end:undefined}:r),now:rs.at(-1).t+1000});assert.equal(open.currentBars,15);
+});
+test('fallback broadens past a cohort with insufficient living observations',()=>{
+  const priceRows=[],strengthRows=[],channelTrends=[],days=tradingDays(28).filter(date=>isUsMarketTradingDay(date.toISOString().slice(0,10)));
+  for(const [j,date] of days.entries()){
+    const current=j===days.length-1,direction=j<13||current?1:-1,duration=current?7:j<13?3:12,start=Date.UTC(date.getUTCFullYear(),date.getUTCMonth(),date.getUTCDate(),8),count=current?7:15;
+    for(let i=0;i<count;i++){const t=start+i*900000,c=100+direction*i;priceRows.push({t,end:t+899999,o:c-.1*direction,h:c+.2,l:c-.2,c,...sessionAt(t)});strengthRows.push({t,adjusted:.8*direction});}
+    channelTrends.push({direction,startTime:start,confirmationTime:start+900000,insideEndTime:start+(duration-1)*900000,endTime:start+(current?duration-1:duration)*900000,exitTime:current?null:start+duration*900000,bars:duration,provisional:current,volumeQualified:true});
+  }
+  const state=preRthWlrTrend({priceRows,strengthRows,volumeRows:strengthRows,channelTrends,requireChannel:true,now:priceRows.at(-1).end+1});assert.equal(state.active,true);assert.equal(state.cohort,'all');assert.equal(state.reliable,true);assert.ok(state.atRiskN>=5);
+});
+
+test('readout retains the compact age label and masks stale/off-session percentages without changing the estimate',()=>{
+  const now=Date.parse('2026-10-20T14:00:00Z'),state={active:true,label:'UP',currentBars:7,expectedBars:12,remainingBars:7,agePercentile:16,continuation:.75,horizon:3};
+  assert.equal(formatPreRthWlrTrend(state),'↑ UP · 7/12 NẾN · TUỔI P16 · CÒN ~7 NẾN · TREND CÒN 75%');
+  assert.equal(trendReadoutState(state,{now,live:true,lastTime:now-900000}),state);
+  for(const options of [{now,live:false,lastTime:now-900000},{now,live:true,lastTime:now-2700000},{now:Date.parse('2026-10-20T20:00:00Z'),live:true,lastTime:now-900000}]){const masked=trendReadoutState(state,options);assert.equal(masked.label,'WAIT');assert.equal(masked.continuation,null);assert.equal(masked.active,false);}
+  assert.equal(state.label,'UP');assert.equal(state.continuation,.75);
+});
+
