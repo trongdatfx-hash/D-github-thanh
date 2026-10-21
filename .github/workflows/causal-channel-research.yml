@@ -1,0 +1,54 @@
+name: Causal Channel RTH Research - no web publication
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'research/causal-channel/**'
+      - '.github/workflows/causal-channel-research.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: causal-channel-research
+  cancel-in-progress: false
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NUMBA_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install actual STUMPY
+        run: python -m pip install -r netflow-stumpy/requirements-analogs.txt
+      - name: Build frozen causal feature history without fetching new market data
+        run: node netflow-stumpy/scripts/analogs-dataset.mjs
+      - name: Prepare exact RTH query frame
+        run: |
+          node netflow-stumpy/scripts/rth-structure-dataset.mjs
+          node netflow-stumpy/scripts/rth-forecast-dataset.mjs
+      - name: Snapshot channel state at each historical closed bar
+        run: node research/causal-channel/dataset.mjs
+      - name: Shared STUMPY profiles for channel and indicator variants
+        run: python research/causal-channel/profiles.py --input research/causal-channel/output/tasks.json --output research/causal-channel/output/profiles.json
+      - name: Verify prefix causality, context truncation, direct projection and MASS parity
+        env:
+          CHANNEL_TASKS: research/causal-channel/output/tasks.json
+          CHANNEL_PROFILES: research/causal-channel/output/profiles.json
+        run: node --test research/causal-channel/tests.mjs netflow-stumpy/tests/causal-trend-channel.test.mjs
+      - name: Evaluate frozen validation choice on heldout days
+        run: node research/causal-channel/dataset.mjs --finalize
+      - name: Retain research result only as Actions artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: causal-channel-research
+          path: |
+            research/causal-channel/output/report.json
+            research/causal-channel/output/summary.md
+          retention-days: 14
