@@ -2,7 +2,7 @@ name: SPY ETF price snapshot
 on:
   push:
     branches: [main]
-    paths: ['.github/workflows/spy-etf.yml', 'netflow-stumpy/scripts/collect-spy.py', 'netflow-stumpy/spy-data.mjs']
+    paths: ['.github/workflows/spy-etf.yml', 'netflow-stumpy/scripts/collect-spy.py', 'netflow-stumpy/spy-data.mjs', 'netflow-stumpy/app.mjs']
   schedule:
     - cron: '*/5 * * * 1-5'
   workflow_dispatch:
