@@ -2,6 +2,35 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {sessionAt} from '../engine.mjs';
 import {isUsMarketTradingDay} from '../market-calendar.mjs';
+import {trendSessionAt,trendSessionRows} from '../trend-session.mjs';
+import {europeOpen} from '../wlr-aba-core.mjs';
+import {stamp} from '../rth-structure.mjs';
+
+test('age window follows London DST and US RTH close, excluding weekends and US holidays',()=>{
+ for(const [day,utc] of [['2026-07-20','07:00'],['2026-12-07','08:00'],['2026-03-16','08:00'],['2026-10-26','08:00']]){
+  const open=Date.parse(day+'T'+utc+':00Z');
+  assert.equal(trendSessionAt(open-1).active,false);assert.equal(trendSessionAt(open).active,true);
+  assert.equal(trendSessionAt(stamp(day,960)-1).active,true);assert.equal(trendSessionAt(stamp(day,960)).active,false);
+ }
+ for(const day of ['2026-10-24','2026-10-25','2026-01-01','2026-04-03','2026-07-03','2026-11-26','2026-12-25']){
+  assert.equal(trendSessionAt(europeOpen(day)).active,false,day);
+  assert.equal(trendSessionRows([{t:europeOpen(day)}]).length,0,day);
+ }
+ assert.equal(trendSessionAt(stamp('2026-11-27',780)-1).active,true);
+ assert.equal(trendSessionAt(stamp('2026-11-27',780)).active,false);
+});
+
+test('European candles enter the live age and EURO cohort; POST cannot extend age',()=>{
+ const day='2026-10-20',start=europeOpen(day),priceRows=Array.from({length:4},(_,i)=>{
+  const t=start+i*900000,c=100+i;return {t,end:t+899999,o:c-.1,h:c+.2,l:c-.2,c,...sessionAt(t)};
+ }),strengthRows=priceRows.map(r=>({t:r.t,adjusted:.8})),channel={direction:1,startTime:start,confirmationTime:start+900000,insideEndTime:priceRows.at(-1).t,endTime:priceRows.at(-1).t,provisional:true,volumeQualified:true};
+ const args={priceRows,strengthRows,volumeRows:strengthRows,channelTrends:[channel],requireChannel:true,now:priceRows.at(-1).end+1};
+ const state=preRthWlrTrend(args);assert.equal(state.active,true);assert.equal(state.currentBars,4);assert.equal(state.cohortKey,'1|EURO');
+ assert.equal(trendReadoutState(state,{now:args.now-900000,lastTime:priceRows[2].t}),state);
+ const closed=preRthWlrTrend({...args,now:stamp(day,960)});assert.equal(closed.active,false);
+ assert.equal(closed.groups.find(g=>g.key==='1|EURO').censoredN,1);
+ assert.equal(trendReadoutState(state,{now:stamp(day,960),lastTime:stamp(day,945)}).active,false);
+});
 import {classifyStrengthRegression,formatPreRthWlrTrend,kaplanMeier,preRthWlrTrend,survivalAt,trendAgeStatistics,trendReadoutState} from '../pre-rth-wlr-trend.mjs';
 
 test('Kaplan–Meier keeps session-end trends as right-censored observations',()=>{
@@ -42,7 +71,7 @@ test('PRE→RTH WLR finds the active strongest price trend and formats only the 
   const input=fixture(),state=preRthWlrTrend({...input,minCohort:3});
   assert.equal(state.active,true,JSON.stringify(state));assert.equal(state.direction,1);assert(state.currentBars>=2);assert(Number.isFinite(state.expectedBars));assert(state.reliable?Number.isFinite(state.remainingBars)&&Number.isFinite(state.continuation):state.remainingBars===null&&state.continuation===null);assert(Number.isInteger(state.censoredN));
   assert(['new','developing','durable','extended'].includes(state.ageGroup.key));assert.match(state.ageGroup.label,/MỚI|PHÁT TRIỂN|BỀN|KÉO DÀI/);assert.match(state.reason,/Nhóm/);
-  assert.equal(state.groups.length,4);assert.equal(new Set(state.groups.map(group=>group.key)).size,4);assert(state.groups.some(group=>group.key===state.cohortKey));assert(state.groups.every(group=>Number.isInteger(group.n)&&Number.isInteger(group.censoredN)&&(group.n===0||Number.isInteger(group.rawMedianBars))&&['support','mixed','opposed'].every(key=>Number.isInteger(group.contexts[key].n))));
+  assert.equal(state.groups.length,6);assert.equal(new Set(state.groups.map(group=>group.key)).size,6);assert(state.groups.some(group=>group.key===state.cohortKey));assert(state.groups.every(group=>Number.isInteger(group.n)&&Number.isInteger(group.censoredN)&&(group.n===0||Number.isInteger(group.rawMedianBars))&&['support','mixed','opposed'].every(key=>Number.isInteger(group.contexts[key].n))));
   assert.match(formatPreRthWlrTrend(state),/^(↑ UP|WAIT) · \d+\/(\d+|—) NẾN · TUỔI P(\d+|—) · CÒN ~(\d+|—) NẾN · TREND CÒN (\d+|—)%$/);
 });
 
@@ -100,7 +129,7 @@ test('PRE→RTH WLR is prefix-causal and ignores open/future bars',()=>{
 
 test('PRE→RTH WLR returns WAIT outside the live PRE/RTH trading window',()=>{
   const input=fixture(),saturday=Date.UTC(2026,9,17,16),state=preRthWlrTrend({...input,now:saturday,minCohort:3});
-  assert.equal(state.label,'WAIT');assert.equal(state.active,false);assert.match(state.reason,/Không có trend/);assert.equal(state.groups.length,4);assert(state.groups.some(group=>Number.isFinite(group.continuation)&&group.baseline&&group.evaluationBars===1));
+  assert.equal(state.label,'WAIT');assert.equal(state.active,false);assert.match(state.reason,/Không có trend/);assert.equal(state.groups.length,6);assert(state.groups.some(group=>Number.isFinite(group.continuation)&&group.baseline&&group.evaluationBars===1));
 });
 
 test('accepted-bar survival matches exact discrete probabilities and conditional medians',()=>{
@@ -153,4 +182,3 @@ test('readout retains the compact age label and masks stale/off-session percenta
   for(const options of [{now,live:false,lastTime:now-900000},{now,live:true,lastTime:now-2700000},{now:Date.parse('2026-10-20T20:00:00Z'),live:true,lastTime:now-900000}]){const masked=trendReadoutState(state,options);assert.equal(masked.label,'WAIT');assert.equal(masked.continuation,null);assert.equal(masked.active,false);}
   assert.equal(state.label,'UP');assert.equal(state.continuation,.75);
 });
-

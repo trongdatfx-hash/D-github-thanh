@@ -1,5 +1,5 @@
 import {sessionAt} from './engine.mjs';
-import {eligibleMarketBar,isUsMarketTradingDay} from './market-calendar.mjs';
+import {trendSessionAt,trendSessionRows} from './trend-session.mjs?v=20261022-trend-europe1';
 
 export const PRE_RTH_WLR_WINDOW=8;
 export const PRE_RTH_WLR_HORIZON=3;
@@ -28,7 +28,7 @@ function trueRange(rows,index){
   return previous?Math.max(row.h-row.l,Math.abs(row.h-previous.c),Math.abs(row.l-previous.c)):row.h-row.l;
 }
 
-const DIRECTIONS=[1,-1],START_SESSIONS=['PRE','RTH'],STRENGTH_CONTEXTS=['support','mixed','opposed'];
+const DIRECTIONS=[1,-1],START_SESSIONS=['EURO','PRE','RTH'],STRENGTH_CONTEXTS=['support','mixed','opposed'];
 const RIDGE_MIN_TRAIN=60,RIDGE_MIN_OOS=60,RIDGE_OOS_WINDOW=500,RIDGE_LAMBDA=1;
 function solveLinear(matrix,vector){
   const n=vector.length,a=matrix.map((row,index)=>[...row,vector[index]]);
@@ -183,7 +183,7 @@ function detectEpisodes(signals,day,{leaveActive=false}={}){
     }else candidate=null;
     previous=bar;
   }
-  // The PRE→RTH boundary stops observation; it does not prove the trend died.
+  // The Âu→RTH boundary stops observation; it does not prove the trend died.
   if(active&&!leaveActive){const episode=finishEpisode(active,previous,day,active.channelCensored!==false);if(episode)completed.push(episode);active=null;}
   return {completed,active};
 }
@@ -212,22 +212,22 @@ function cohortGroups(episodes,currentBars=null,horizon=PRE_RTH_WLR_HORIZON,minC
 }
 
 export function preRthWlrTrend({priceRows=[],strengthRows=[],volumeRows=[],channelTrends=[],requireChannel=false,now=Date.now(),window=PRE_RTH_WLR_WINDOW,horizon=PRE_RTH_WLR_HORIZON,minCohort=12}={}){
-  if(!Number.isInteger(window)||window<4||!Number.isInteger(horizon)||horizon<1||!Number.isInteger(minCohort)||minCohort<1)throw Error('Tham số PRE→RTH WLR không hợp lệ');
+  if(!Number.isInteger(window)||window<4||!Number.isInteger(horizon)||horizon<1||!Number.isInteger(minCohort)||minCohort<1)throw Error('Tham số Âu→RTH WLR không hợp lệ');
   const strengthMap=new Map(strengthRows.map(row=>[row.t,row]));
   const volumeMap=new Map(volumeRows.map(row=>[row.t,row]));
-  const marketRows=priceRows
-    .filter(row=>(Number.isFinite(row.end)?row.end:row.t+899999)<now&&eligibleMarketBar(row)&&['PRE','RTH'].includes(row.session)&&[row.t,row.o,row.h,row.l,row.c].every(Number.isFinite))
+  const marketRows=trendSessionRows(priceRows)
+    .filter(row=>(Number.isFinite(row.end)?row.end:row.t+899999)<now&&[row.t,row.o,row.h,row.l,row.c].every(Number.isFinite))
     .sort((a,b)=>a.t-b.t);
   const channelMap=requireChannel?causalChannelMap(marketRows,channelTrends):new Map();
   const days=new Map();
   for(const row of marketRows){if(!days.has(row.day))days.set(row.day,[]);days.get(row.day).push(row);}
-  const ordered=[...days.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([day,rows])=>[day,rows.sort((a,b)=>a.t-b.t)]),nowState=sessionAt(now),slopeHistory=[],scoreHistory=[],regressionStates={PRE:createRegressionState(),RTH:createRegressionState()},historical=[];let current=null,currentCompleted=[];
+  const ordered=[...days.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([day,rows])=>[day,rows.sort((a,b)=>a.t-b.t)]),nowState=trendSessionAt(now),slopeHistory=[],scoreHistory=[],regressionStates={EURO:createRegressionState(),PRE:createRegressionState(),RTH:createRegressionState()},historical=[];let current=null,currentCompleted=[];
   for(const [day,rows] of ordered){
-    const signals=daySignals(rows,strengthMap,volumeMap,channelMap,requireChannel,slopeHistory,scoreHistory,regressionStates,window),lastClosed=rows.at(-1),fresh=lastClosed&&now-(Number.isFinite(lastClosed.end)?lastClosed.end+1:lastClosed.t+900000)<=915000,isCurrent=day===nowState.day&&['PRE','RTH'].includes(nowState.session)&&isUsMarketTradingDay(day),detected=(requireChannel?detectChannelEpisodes:detectEpisodes)(signals,day,{leaveActive:isCurrent&&fresh});
+    const signals=daySignals(rows,strengthMap,volumeMap,channelMap,requireChannel,slopeHistory,scoreHistory,regressionStates,window),lastClosed=rows.at(-1),fresh=lastClosed&&now-(Number.isFinite(lastClosed.end)?lastClosed.end+1:lastClosed.t+900000)<=915000,isCurrent=day===nowState.day&&nowState.active,detected=(requireChannel?detectChannelEpisodes:detectEpisodes)(signals,day,{leaveActive:isCurrent&&fresh});
     if(isCurrent){current=detected.active;currentCompleted=detected.completed;}
     else historical.push(...detected.completed);
   }
-  if(!current)return {label:'WAIT',direction:0,active:false,currentBars:0,ageGroup:trendAgeGroup(0),expectedBars:null,agePercentile:null,continuation:null,horizon,sampleN:historical.length,atRiskN:0,cohort:'none',cohortKey:null,strengthContext:null,groups:cohortGroups(historical,null,horizon,minCohort),reason:'Không có trend WLR giá đang hoạt động trong PRE→RTH'};
+  if(!current)return {label:'WAIT',direction:0,active:false,currentBars:0,ageGroup:trendAgeGroup(0),expectedBars:null,agePercentile:null,continuation:null,horizon,sampleN:historical.length,atRiskN:0,cohort:'none',cohortKey:null,strengthContext:null,groups:cohortGroups(historical,null,horizon,minCohort),reason:'Không có trend WLR giá đang hoạt động trong Âu→RTH'};
   const strongestCompleted=currentCompleted.reduce((best,item)=>Math.max(best,item.peakScore),-Infinity);
   if(!requireChannel&&current.peakScore<strongestCompleted){const currentBars=current.trendBars;return {label:'WAIT',direction:current.direction,active:false,currentBars,ageGroup:trendAgeGroup(currentBars),elapsedBars:current.elapsedBars,volumeAlignment:current.elapsedBars?current.volumeBars/current.elapsedBars:null,channelAlignment:current.elapsedBars?current.channelBars/current.elapsedBars:null,expectedBars:null,agePercentile:null,continuation:null,horizon,sampleN:historical.length,atRiskN:0,cohort:'none',cohortKey:`${current.direction}|${current.startSession}`,strengthContext:current.strengthContext,strengthRegression:current.strengthRegression,groups:cohortGroups(historical,currentBars,horizon,minCohort),reason:'Trend đang chạy không phải trend WLR giá mạnh nhất trong ngày'};}
   const currentBars=current.trendBars,cohort=chooseCohort(historical,current,currentBars,minCohort,Math.max(12,minCohort),horizon),stats=trendAgeStatistics(cohort.episodes,currentBars,horizon,minCohort,5),expectedBars=stats.n>=minCohort?stats.medianBars:null,{remainingBars,agePercentile,continuation}=stats,atRisk=stats.atRiskN;
@@ -244,8 +244,7 @@ export function formatPreRthWlrTrend(state){
 
 export function trendReadoutState(state,{now=Date.now(),live=true,lastTime=state?.dataInfo?.lastTime}={}){
   if(!state?.active)return state;
-  const clock=sessionAt(now),inSession=['PRE','RTH'].includes(clock.session)&&isUsMarketTradingDay(clock.day),stale=Number.isFinite(lastTime)&&(sessionAt(lastTime).day!==clock.day||now-lastTime-900000>915000);
+  const clock=trendSessionAt(now),inSession=clock.active,stale=Number.isFinite(lastTime)&&(sessionAt(lastTime).day!==clock.day||now-lastTime-900000>915000);
   if(live&&inSession&&!stale)return state;
-  return {...state,label:'WAIT',active:false,currentBars:0,expectedBars:null,remainingBars:null,agePercentile:null,continuation:null,reason:!inSession?'Ngoài PRE→RTH; không phát xác suất tuổi trend live':!live?'Mất dữ liệu live; chờ nến đã đóng còn mới':'Dữ liệu M15 đã đóng bị cũ; chờ đồng bộ'};
+  return {...state,label:'WAIT',active:false,currentBars:0,expectedBars:null,remainingBars:null,agePercentile:null,continuation:null,reason:!inSession?'Ngoài Âu→RTH; không phát xác suất tuổi trend live':!live?'Mất dữ liệu live; chờ nến đã đóng còn mới':'Dữ liệu M15 đã đóng bị cũ; chờ đồng bộ'};
 }
-
