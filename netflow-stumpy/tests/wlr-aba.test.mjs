@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
 import {updateAba,liveGate} from '../wlr-aba-live.mjs';
 import {compactArchive} from '../wlr-aba-archive.mjs';
-import {SPEC,segmentWlr,knownQuery} from '../wlr-aba-core.mjs';
+import {SPEC,segmentWlr,knownQuery,europeOpen,abaStartMinute} from '../wlr-aba-core.mjs';
 import {stamp,STEP} from '../rth-structure.mjs';
 const day='2026-10-19',rows=Array.from({length:65},(_,i)=>({t:stamp(day,240+i*15),open:600+i*.1,c:600+i*.1,high:600.2+i*.1,low:599.8+i*.1,mid:600+i*.1,color:i<25?1:i<27?-1:i<30?1:-1,pv:Array(10).fill(.2),x:[0,.3,.5,0]}));
 const archive={sourceAsOf:stamp('2026-10-16',1200),vectors:[Array(10).fill(.2)],cases:Array.from({length:20},(_,i)=>({i,day:'2026-09-'+String(i+1).padStart(2,'0'),phase:'RTH',color:1,clockMinute:585,label:{event:1,event8:0,member:1,matureAt:0,target:{deltaAtr:1}},context:Array(9).fill(0),window:Array(16).fill(0)}))},report={selectedTrial:'CYCLE8',spec:{testStart:'2026-08-21'},test:{CYCLE8:{days:33},CURRENT_MEDIAN:{days:33}},sourceAsOf:archive.sourceAsOf};
@@ -20,22 +20,31 @@ test('a third literal color breaks ABA; stale/night data never produces an activ
 test('compact archive retains exact vectors and refuses mismatched source/report/input contracts',()=>{
  const c={i:15,label:{event:0}},data={asOf:1,spec:SPEC,source:{},rows:{SPYUSDT:Array.from({length:16},(_,i)=>({pv:Array(10).fill(i/13)}))},cases:[c],evaluations:[{split:'test'}]},r={sourceAsOf:1,spec:SPEC,test:{CURRENT_MEDIAN:{queries:1}}},out=compactArchive(data,r);assert.equal(out.archive.cases[0].window.length,16);assert.equal(out.archive.vectors[15][0],15/13);assert.equal(out.archive.inputScope,SPEC.inputScope);assert.equal(out.report.spec.inputScope,SPEC.inputScope);assert.equal(out.archive.schema,'wlr-aba-v2');assert.throws(()=>compactArchive(data,{...r,sourceAsOf:2}),/mismatch/);assert.throws(()=>compactArchive({...data,spec:{}},r),/input scope mismatch/);assert.throws(()=>compactArchive(data,{...r,spec:{}}),/input scope mismatch/);
 });
-const opening=(date,color=1)=>Array.from({length:20},(_,i)=>({...rows[0],t:stamp(date,15+i*15),mid:500+i,c:500+i,high:501+i,low:499+i,color:i<15?-1:color,pv:Array(10).fill(i/100)}));
-test('PRE candle 0 starts live with preceding NIGHT history in summer/winter for all WLR colors',()=>{
- for(const date of ['2026-07-20','2026-12-07'])for(const color of [-1,0,1]){
-  const input=opening(date,color).slice(0,16),a={...archive,cases:archive.cases.map(c=>({...c,phase:'PRE',color}))},r={...report,spec:{...SPEC,testStart:'2026-07-01'}},now=stamp(date,255);
+const opening=(date,color=1)=>Array.from({length:20},(_,i)=>({...rows[0],t:europeOpen(date)+(i-15)*STEP,mid:500+i,c:500+i,high:501+i,low:499+i,color:i<15?-1:color,pv:Array(10).fill(i/100)}));
+test('London opening follows UK DST including weeks when US and UK offsets differ; POST end stays exclusive',()=>{
+ for(const [date,utc,minute] of [['2026-07-20','07:00',180],['2026-12-07','08:00',180],['2026-03-16','08:00',240],['2026-10-26','08:00',240]]){
+  assert.equal(europeOpen(date),Date.parse(date+'T'+utc+':00Z'));assert.equal(abaStartMinute(date),minute);
+  const final={...rows[0],t:stamp(date,1185)};
+  assert.equal(liveGate([final],stamp(date,1200)), 'Ngoài Âu–POST · mẫu chưa xác nhận được giữ nguyên, không gán sai');
+  assert.match(liveGate([],europeOpen(date)-1),/Ngoài/);
+ }
+ const early='2026-11-27';assert.match(liveGate([{...rows[0],t:stamp(early,1005)}],stamp(early,1020)),/Ngoài/);
+});
+test('European opening candle 0 starts live with preceding NIGHT history in summer/winter for all WLR colors',()=>{
+ for(const date of ['2026-07-20','2026-12-07','2026-03-16','2026-10-26'])for(const color of [-1,0,1]){
+  const input=opening(date,color).slice(0,16),a={...archive,cases:archive.cases.map(c=>({...c,phase:abaStartMinute(date)<240?'EURO':'PRE',color}))},r={...report,spec:{...SPEC,testStart:'2026-01-01'}},now=europeOpen(date)+STEP;
   const result=updateAba({rows:input,archive:a,report:r,now});
-  assert.equal(result.status,'READY');assert.equal(result.track.q.issuedAt,now);assert.equal(result.track.q.phase,'PRE');assert.equal(result.track.q.knownBars,1);assert.equal(result.track.q.currentMedian,input[15].mid);assert.equal(result.track.q.inputStart,stamp(date,15));assert.equal(result.track.originStart,stamp(date,240));assert.equal(result.track.prediction.ready,true);assert.equal(result.progress.stage,'A_FORMING');
+  assert.equal(result.status,'READY');assert.equal(result.track.q.issuedAt,now);assert.equal(result.track.q.phase,abaStartMinute(date)<240?'EURO':'PRE');assert.equal(result.track.q.knownBars,1);assert.equal(result.track.q.currentMedian,input[15].mid);assert.equal(result.track.q.inputStart,europeOpen(date)-15*STEP);assert.equal(result.track.originStart,europeOpen(date));assert.equal(result.track.prediction.ready,true);assert.equal(result.progress.stage,'A_FORMING');
   const frame=segmentWlr(input);assert.equal(frame.segments.length,1);assert.equal(frame.rows[14].segment,null);assert.equal(result.track.q.lastSameMedian,null);
-  // Altering future PRE colors/prices cannot change the candle-0 query.
+  // Altering future session colors/prices cannot change the candle-0 query.
   const full=segmentWlr(opening(date,color).map((b,i)=>i>15?{...b,mid:9000,color:0}:b));assert.deepEqual(knownQuery(full.rows,full.segments,15),result.track.q);
  }
 });
-test('PRE candle 0 waits for its close and valid continuous warmup; NIGHT never starts an ABA track',()=>{
- const input=opening(day).slice(0,16),now=stamp(day,255),a={...archive,cases:archive.cases.map(c=>({...c,phase:'PRE'}))};
+test('European opening candle 0 waits for its close and valid continuous warmup; NIGHT never starts an ABA track',()=>{
+ const input=opening(day).slice(0,16),now=europeOpen(day)+STEP,a={...archive,cases:archive.cases.map(c=>({...c,phase:'PRE'}))};
  const run=data=>updateAba({rows:data,archive:a,report,now});
  assert.equal(updateAba({rows:input,archive:a,report,now:now-1}).status,'WAIT');
- assert.equal(updateAba({rows:input.slice(0,15),archive:a,report,now:stamp(day,239)}).status,'WAIT');
+ assert.equal(updateAba({rows:input.slice(0,15),archive:a,report,now:europeOpen(day)-1}).status,'WAIT');
  assert.equal(run(input.slice(1)).status,'WAIT');
  assert.equal(run(input.map((b,i)=>i===4?{...b,t:b.t-STEP}:b)).status,'WAIT');
  assert.equal(run(input.map((b,i)=>i===5?{...b,pv:[NaN,...b.pv.slice(1)]}:b)).status,'WAIT');

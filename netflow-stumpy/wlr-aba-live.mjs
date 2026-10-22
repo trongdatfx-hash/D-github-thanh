@@ -1,4 +1,4 @@
-import {segmentWlr,knownQuery,candidatePool,predict,cycleDistance,median} from './wlr-aba-core.mjs?v=20261021-pre0';
+import {segmentWlr,knownQuery,abaStartMinute,candidatePool,predict,cycleDistance,median} from './wlr-aba-core.mjs?v=20261022-europe1';
 import {shapeDistance} from './analogs-core.mjs';
 import {ny,tradingDay,postEnd,STEP} from './rth-structure.mjs';
 import {forecastFromWlr} from './wlr-aba-direction.mjs?v=20261021-direction1';
@@ -12,7 +12,7 @@ function withPolicy(track,policy){
 export const COLOR_NAMES={'1':'Xanh','-1':'Đỏ','0':'Vàng'};
 export function liveGate(rows,now){
  const p=ny(now),last=rows.at(-1);
- if(!tradingDay(p.day)||p.minute<240||p.minute>=postEnd(p.day))return 'Ngoài PRE–POST · mẫu chưa xác nhận được giữ nguyên, không gán sai';
+ if(!tradingDay(p.day)||p.minute<abaStartMinute(p.day)||p.minute>=postEnd(p.day))return 'Ngoài Âu–POST · mẫu chưa xác nhận được giữ nguyên, không gán sai';
  if(!last||ny(last.t).day!==p.day||now-last.t-STEP<0||now-last.t-STEP>STEP+15000)return 'Chờ dữ liệu M15 đã đóng còn mới';
  return null;
 }
@@ -45,7 +45,7 @@ export function updateAba({rows,archive,report,now,previous=null,reset=false}){
   history.push({day:track.day,color:track.q.color,stage:'UNCONFIRMED_FRAME',computedAt:track.computedAt,value:track.prediction.ready?track.prediction.value:null});track=null;
  }
  if(!track)track=startTrack(frame,archive,report,now);
- if(!track)return {status:'WAIT',message:'Chờ nến PRE–POST đã đóng, đủ lịch sử M15 liên tục (có thể dùng trước PRE) và mô hình validation sẵn sàng',state:{track:null,history:history.slice(-8)}};
+ if(!track)return {status:'WAIT',message:'Chờ nến Âu–POST đã đóng, đủ lịch sử M15 liên tục (có thể dùng trước phiên Âu) và mô hình validation sẵn sàng',state:{track:null,history:history.slice(-8)}};
  let progress=followTrack(frame,track);
  if(['PATTERN_BROKEN','COMPLETE_ABA'].includes(progress.stage)){
   history.push({day:track.day,color:track.q.color,stage:progress.stage,computedAt:track.computedAt,knownAt:progress.knownAt,reference:track.q.currentMedian,value:track.prediction.ready?track.prediction.value:null,actualMedian:progress.actualMedian??null});
@@ -60,4 +60,3 @@ export function updateAba({rows,archive,report,now,previous=null,reset=false}){
  const prediction=track.prediction,changePct=prediction.ready?100*(prediction.value/track.q.currentWlr-1):null;
  return {status:'READY',track,progress,changePct,lastTime:rows.at(-1).t,state:{track,history:history.slice(-8)},report:{sourceAsOf:report.sourceAsOf,selectedTrial:report.v2?.selectedModel??report.selectedTrial,test:report.test[track.model],reference:report.test.CURRENT_MEDIAN,decision:report.decision}};
 }
-
