@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-10-22T18:49:07.563Z",
+  "updatedAt": "2026-10-22T21:56:58.485Z",
   "events": [
     {
       "title": "IMF Meetings",
@@ -19,9 +19,9 @@
       "date": "2026-10-18T21:30:00.000Z",
       "timestamp": 1792359000000,
       "impact": "Low",
-      "actual": "50.9",
+      "actual": "",
       "forecast": "",
-      "previous": "51.0"
+      "previous": "51.2"
     },
     {
       "title": "Trade Balance",
@@ -29,9 +29,9 @@
       "date": "2026-10-18T21:45:00.000Z",
       "timestamp": 1792359900000,
       "impact": "Low",
-      "actual": "-1971M",
+      "actual": "",
       "forecast": "-775M",
-      "previous": "-1536M"
+      "previous": "-1349M"
     },
     {
       "title": "Rightmove HPI m/m",
@@ -39,7 +39,7 @@
       "date": "2026-10-18T23:01:00.000Z",
       "timestamp": 1792364460000,
       "impact": "Low",
-      "actual": "1.0%",
+      "actual": "",
       "forecast": "",
       "previous": "0.7%"
     },
@@ -59,7 +59,7 @@
       "date": "2026-10-19T01:30:00.000Z",
       "timestamp": 1792373400000,
       "impact": "Low",
-      "actual": "-0.14%",
+      "actual": "",
       "forecast": "",
       "previous": "-0.17%"
     },
@@ -69,7 +69,7 @@
       "date": "2026-10-19T02:00:00.000Z",
       "timestamp": 1792375200000,
       "impact": "Low",
-      "actual": "-7.2%",
+      "actual": "",
       "forecast": "-7.3%",
       "previous": "-7.2%"
     },
@@ -79,7 +79,7 @@
       "date": "2026-10-19T02:00:00.000Z",
       "timestamp": 1792375200000,
       "impact": "Low",
-      "actual": "4.5%",
+      "actual": "",
       "forecast": "4.4%",
       "previous": "4.3%"
     },
@@ -89,7 +89,7 @@
       "date": "2026-10-19T02:00:00.000Z",
       "timestamp": 1792375200000,
       "impact": "Low",
-      "actual": "5.5%",
+      "actual": "",
       "forecast": "5.4%",
       "previous": "5.2%"
     },
@@ -109,7 +109,7 @@
       "date": "2026-10-19T02:00:00.000Z",
       "timestamp": 1792375200000,
       "impact": "Low",
-      "actual": "1.1%",
+      "actual": "",
       "forecast": "0.5%",
       "previous": "0.4%"
     },
@@ -119,7 +119,7 @@
       "date": "2026-10-19T02:00:00.000Z",
       "timestamp": 1792375200000,
       "impact": "Low",
-      "actual": "5.2%",
+      "actual": "",
       "forecast": "5.3%",
       "previous": "5.3%"
     },
@@ -129,9 +129,9 @@
       "date": "2026-10-19T04:30:00.000Z",
       "timestamp": 1792384200000,
       "impact": "Low",
-      "actual": "-0.1%",
+      "actual": "",
       "forecast": "-0.3%",
-      "previous": "0.2%"
+      "previous": "0.4%"
     },
     {
       "title": "Common CPI y/y",
@@ -139,7 +139,7 @@
       "date": "2026-10-19T12:30:00.000Z",
       "timestamp": 1792413000000,
       "impact": "Medium",
-      "actual": "2.4%",
+      "actual": "",
       "forecast": "2.6%",
       "previous": "2.6%"
     },
@@ -149,7 +149,7 @@
       "date": "2026-10-19T12:30:00.000Z",
       "timestamp": 1792413000000,
       "impact": "Low",
-      "actual": "0.0%",
+      "actual": "",
       "forecast": "",
       "previous": "0.1%"
     },
@@ -159,7 +159,7 @@
       "date": "2026-10-19T12:30:00.000Z",
       "timestamp": 1792413000000,
       "impact": "High",
-      "actual": "0.1%",
+      "actual": "",
       "forecast": "0.2%",
       "previous": "-0.1%"
     },
@@ -169,7 +169,7 @@
       "date": "2026-10-19T12:30:00.000Z",
       "timestamp": 1792413000000,
       "impact": "High",
-      "actual": "1.9%",
+      "actual": "",
       "forecast": "2.0%",
       "previous": "2.0%"
     },
@@ -179,7 +179,7 @@
       "date": "2026-10-19T12:30:00.000Z",
       "timestamp": 1792413000000,
       "impact": "High",
-      "actual": "1.8%",
+      "actual": "",
       "forecast": "1.9%",
       "previous": "1.9%"
     },
@@ -189,7 +189,7 @@
       "date": "2026-10-19T14:00:00.000Z",
       "timestamp": 1792418400000,
       "impact": "Low",
-      "actual": "29",
+      "actual": "",
       "forecast": "31",
       "previous": "32"
     },
@@ -209,7 +209,7 @@
       "date": "2026-10-20T01:00:00.000Z",
       "timestamp": 1792458000000,
       "impact": "Low",
-      "actual": "3.00%",
+      "actual": "",
       "forecast": "3.00%",
       "previous": "3.00%"
     },
@@ -219,7 +219,7 @@
       "date": "2026-10-20T01:00:00.000Z",
       "timestamp": 1792458000000,
       "impact": "Low",
-      "actual": "3.50%",
+      "actual": "",
       "forecast": "3.50%",
       "previous": "3.50%"
     },
@@ -229,7 +229,7 @@
       "date": "2026-10-20T06:00:00.000Z",
       "timestamp": 1792476000000,
       "impact": "Low",
-      "actual": "1.9%",
+      "actual": "",
       "forecast": "1.5%",
       "previous": "1.1%"
     },
@@ -239,7 +239,7 @@
       "date": "2026-10-20T06:00:00.000Z",
       "timestamp": 1792476000000,
       "impact": "Medium",
-      "actual": "3.7%",
+      "actual": "",
       "forecast": "3.8%",
       "previous": "3.9%"
     },
@@ -249,9 +249,9 @@
       "date": "2026-10-20T06:00:00.000Z",
       "timestamp": 1792476000000,
       "impact": "Low",
-      "actual": "30.3K",
+      "actual": "",
       "forecast": "19.4K",
-      "previous": "7.0K"
+      "previous": "27.8K"
     },
     {
       "title": "Unemployment Rate",
@@ -259,7 +259,7 @@
       "date": "2026-10-20T06:00:00.000Z",
       "timestamp": 1792476000000,
       "impact": "Low",
-      "actual": "4.7%",
+      "actual": "",
       "forecast": "4.9%",
       "previous": "4.9%"
     },
@@ -269,9 +269,9 @@
       "date": "2026-10-20T08:00:00.000Z",
       "timestamp": 1792483200000,
       "impact": "Low",
-      "actual": "8.7B",
+      "actual": "",
       "forecast": "29.2B",
-      "previous": "27.2B"
+      "previous": "27.6B"
     },
     {
       "title": "German ZEW Economic Sentiment",
@@ -279,7 +279,7 @@
       "date": "2026-10-20T09:00:00.000Z",
       "timestamp": 1792486800000,
       "impact": "Low",
-      "actual": "28.1",
+      "actual": "",
       "forecast": "30.2",
       "previous": "34.7"
     },
@@ -289,7 +289,7 @@
       "date": "2026-10-20T09:00:00.000Z",
       "timestamp": 1792486800000,
       "impact": "Low",
-      "actual": "18.5",
+      "actual": "",
       "forecast": "23.6",
       "previous": "25.8"
     },
@@ -299,8 +299,8 @@
       "date": "2026-10-20T09:03:00.000Z",
       "timestamp": 1792486980000,
       "impact": "Low",
-      "actual": "5.42",
-      "forecast": "3.6",
+      "actual": "",
+      "forecast": "",
       "previous": "5.38|3.3"
     },
     {
@@ -309,9 +309,9 @@
       "date": "2026-10-20T12:15:00.000Z",
       "timestamp": 1792498500000,
       "impact": "Low",
-      "actual": "18.5K",
+      "actual": "",
       "forecast": "",
-      "previous": "26.0K"
+      "previous": "24.8K"
     },
     {
       "title": "Building Permits",
@@ -319,9 +319,9 @@
       "date": "2026-10-20T12:30:00.000Z",
       "timestamp": 1792499400000,
       "impact": "Low",
-      "actual": "1.40M",
+      "actual": "",
       "forecast": "1.39M",
-      "previous": "1.40M"
+      "previous": "1.39M"
     },
     {
       "title": "Housing Starts",
@@ -329,9 +329,9 @@
       "date": "2026-10-20T12:30:00.000Z",
       "timestamp": 1792499400000,
       "impact": "Low",
-      "actual": "1.22M",
+      "actual": "",
       "forecast": "1.30M",
-      "previous": "1.29M"
+      "previous": "1.28M"
     },
     {
       "title": "Pending Home Sales m/m",
@@ -339,7 +339,7 @@
       "date": "2026-10-20T14:00:00.000Z",
       "timestamp": 1792504800000,
       "impact": "Low",
-      "actual": "-7.3%",
+      "actual": "",
       "forecast": "-0.6%",
       "previous": "0.3%"
     },
@@ -349,7 +349,7 @@
       "date": "2026-10-20T15:19:00.000Z",
       "timestamp": 1792509540000,
       "impact": "Low",
-      "actual": "2.5%",
+      "actual": "",
       "forecast": "",
       "previous": "1.2%"
     },
@@ -389,9 +389,9 @@
       "date": "2026-10-20T23:50:00.000Z",
       "timestamp": 1792540200000,
       "impact": "Low",
-      "actual": "-0.70T",
+      "actual": "",
       "forecast": "-0.26T",
-      "previous": "-0.80T"
+      "previous": "-0.84T"
     },
     {
       "title": "Credit Card Spending y/y",
@@ -399,9 +399,9 @@
       "date": "2026-10-21T02:00:00.000Z",
       "timestamp": 1792548000000,
       "impact": "Low",
-      "actual": "6.9%",
+      "actual": "",
       "forecast": "",
-      "previous": "3.6%"
+      "previous": "3.5%"
     },
     {
       "title": "Core CPI y/y",
@@ -409,7 +409,7 @@
       "date": "2026-10-21T06:00:00.000Z",
       "timestamp": 1792562400000,
       "impact": "Low",
-      "actual": "2.8%",
+      "actual": "",
       "forecast": "2.8%",
       "previous": "2.6%"
     },
@@ -419,7 +419,7 @@
       "date": "2026-10-21T06:00:00.000Z",
       "timestamp": 1792562400000,
       "impact": "High",
-      "actual": "3.5%",
+      "actual": "",
       "forecast": "3.4%",
       "previous": "3.1%"
     },
@@ -429,9 +429,9 @@
       "date": "2026-10-21T06:00:00.000Z",
       "timestamp": 1792562400000,
       "impact": "Low",
-      "actual": "1.5%",
+      "actual": "",
       "forecast": "1.3%",
-      "previous": "0.5%"
+      "previous": "0.3%"
     },
     {
       "title": "PPI Output m/m",
@@ -439,7 +439,7 @@
       "date": "2026-10-21T06:00:00.000Z",
       "timestamp": 1792562400000,
       "impact": "Low",
-      "actual": "0.8%",
+      "actual": "",
       "forecast": "0.7%",
       "previous": "0.7%"
     },
@@ -449,9 +449,9 @@
       "date": "2026-10-21T06:00:00.000Z",
       "timestamp": 1792562400000,
       "impact": "Low",
-      "actual": "24.5B",
+      "actual": "",
       "forecast": "23.8B",
-      "previous": "17.3B"
+      "previous": "18.3B"
     },
     {
       "title": "RPI y/y",
@@ -459,7 +459,7 @@
       "date": "2026-10-21T06:00:00.000Z",
       "timestamp": 1792562400000,
       "impact": "Low",
-      "actual": "3.9%",
+      "actual": "",
       "forecast": "3.9%",
       "previous": "3.4%"
     },
@@ -479,9 +479,9 @@
       "date": "2026-10-21T08:30:00.000Z",
       "timestamp": 1792571400000,
       "impact": "Low",
-      "actual": "0.9%",
+      "actual": "",
       "forecast": "1.2%",
-      "previous": "1.2%"
+      "previous": "1.4%"
     },
     {
       "title": "German Buba Monthly Report",
@@ -509,7 +509,7 @@
       "date": "2026-10-21T14:30:00.000Z",
       "timestamp": 1792593000000,
       "impact": "Low",
-      "actual": "-3.1M",
+      "actual": "",
       "forecast": "-0.1M",
       "previous": "-8.6M"
     },
@@ -519,7 +519,7 @@
       "date": "2026-10-21T21:45:00.000Z",
       "timestamp": 1792619100000,
       "impact": "High",
-      "actual": "0.7%",
+      "actual": "",
       "forecast": "0.8%",
       "previous": "1.5%"
     },
@@ -539,7 +539,7 @@
       "date": "2026-10-22T07:41:00.000Z",
       "timestamp": 1792654860000,
       "impact": "Low",
-      "actual": "-4.3%",
+      "actual": "",
       "forecast": "",
       "previous": "-5.3%"
     },
@@ -549,7 +549,7 @@
       "date": "2026-10-22T10:00:00.000Z",
       "timestamp": 1792663200000,
       "impact": "Low",
-      "actual": "-32",
+      "actual": "",
       "forecast": "-20",
       "previous": "-9"
     },
@@ -559,9 +559,9 @@
       "date": "2026-10-22T12:30:00.000Z",
       "timestamp": 1792672200000,
       "impact": "Medium",
-      "actual": "194K",
+      "actual": "",
       "forecast": "200K",
-      "previous": "200K"
+      "previous": "199K"
     },
     {
       "title": "IPPI m/m",
@@ -569,9 +569,9 @@
       "date": "2026-10-22T12:38:00.000Z",
       "timestamp": 1792672680000,
       "impact": "Low",
-      "actual": "2.0%",
+      "actual": "",
       "forecast": "0.9%",
-      "previous": "1.2%"
+      "previous": "1.3%"
     },
     {
       "title": "RMPI m/m",
@@ -579,9 +579,9 @@
       "date": "2026-10-22T12:38:00.000Z",
       "timestamp": 1792672680000,
       "impact": "Low",
-      "actual": "4.8%",
+      "actual": "",
       "forecast": "3.1%",
-      "previous": "3.3%"
+      "previous": "3.1%"
     },
     {
       "title": "NHPI m/m",
@@ -589,7 +589,7 @@
       "date": "2026-10-22T13:55:00.000Z",
       "timestamp": 1792677300000,
       "impact": "Low",
-      "actual": "-0.2%",
+      "actual": "",
       "forecast": "-0.1%",
       "previous": "-0.1%"
     },
@@ -599,7 +599,7 @@
       "date": "2026-10-22T14:00:00.000Z",
       "timestamp": 1792677600000,
       "impact": "Low",
-      "actual": "-18",
+      "actual": "",
       "forecast": "-17",
       "previous": "-17"
     },
@@ -609,7 +609,7 @@
       "date": "2026-10-22T14:00:00.000Z",
       "timestamp": 1792677600000,
       "impact": "Low",
-      "actual": "0.0%",
+      "actual": "",
       "forecast": "-0.1%",
       "previous": "-0.1%"
     },
@@ -619,7 +619,7 @@
       "date": "2026-10-22T14:30:00.000Z",
       "timestamp": 1792679400000,
       "impact": "Low",
-      "actual": "77B",
+      "actual": "",
       "forecast": "80B",
       "previous": "67B"
     },
@@ -631,7 +631,7 @@
       "impact": "Low",
       "actual": "",
       "forecast": "",
-      "previous": "49.6"
+      "previous": "49.3"
     },
     {
       "title": "Flash Services PMI",
@@ -641,7 +641,7 @@
       "impact": "Low",
       "actual": "",
       "forecast": "",
-      "previous": "51.9"
+      "previous": "51.4"
     },
     {
       "title": "GfK Consumer Confidence",
@@ -691,7 +691,7 @@
       "impact": "Medium",
       "actual": "",
       "forecast": "50.5",
-      "previous": "50.6"
+      "previous": "50.3"
     },
     {
       "title": "French Flash Services PMI",
@@ -701,7 +701,7 @@
       "impact": "Medium",
       "actual": "",
       "forecast": "50.7",
-      "previous": "51.2"
+      "previous": "51.4"
     },
     {
       "title": "German Flash Manufacturing PMI",
@@ -711,7 +711,7 @@
       "impact": "Medium",
       "actual": "",
       "forecast": "53.5",
-      "previous": "53.9"
+      "previous": "53.8"
     },
     {
       "title": "German Flash Services PMI",
@@ -731,7 +731,7 @@
       "impact": "Low",
       "actual": "",
       "forecast": "52.7",
-      "previous": "52.9"
+      "previous": "52.7"
     },
     {
       "title": "Flash Services PMI",
@@ -751,7 +751,7 @@
       "impact": "Medium",
       "actual": "",
       "forecast": "51.8",
-      "previous": "51.9"
+      "previous": "52.0"
     },
     {
       "title": "Flash Services PMI",
@@ -761,7 +761,7 @@
       "impact": "Medium",
       "actual": "",
       "forecast": "51.8",
-      "previous": "52.1"
+      "previous": "51.7"
     },
     {
       "title": "Core Retail Sales m/m",
@@ -801,7 +801,7 @@
       "impact": "Medium",
       "actual": "",
       "forecast": "55.4",
-      "previous": "55.9"
+      "previous": "57.0"
     },
     {
       "title": "Flash Services PMI",
@@ -811,7 +811,7 @@
       "impact": "Medium",
       "actual": "",
       "forecast": "57.9",
-      "previous": "58.8"
+      "previous": "58.7"
     },
     {
       "title": "Revised UoM Consumer Sentiment",
