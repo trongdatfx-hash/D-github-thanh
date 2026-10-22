@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/netflow-stumpy.yml'
       - 'netflow-stumpy/scripts/**'
+      - 'netflow-stumpy/collect-history.py'
       - 'netflow-stumpy/wlr-aba-*.mjs'
       - 'netflow-stumpy/analogs-core.mjs'
       - 'netflow-stumpy/analogs-features.mjs'
@@ -40,8 +41,9 @@ jobs:
         run: python -m pip install -r netflow-stumpy/requirements-analogs.txt
       - name: Collect closed candles (never substitute fixtures)
         id: collect
-        continue-on-error: true
         run: python netflow-stumpy/collect-history.py
+      - name: Verify collector fallback and data integrity
+        run: python -m unittest discover -s netflow-stumpy/tests -p 'test_collect_history.py'
       - name: Build WLR A-B-A cases including unfinished membership states
         run: node research/wlr-aba/dataset.mjs
       - name: Actual STUMPY profiles for WLR A-B-A
