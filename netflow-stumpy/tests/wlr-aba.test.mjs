@@ -21,6 +21,18 @@ test('compact archive retains exact vectors and refuses mismatched source/report
  const c={i:15,label:{event:0}},data={asOf:1,spec:SPEC,source:{},rows:{SPYUSDT:Array.from({length:16},(_,i)=>({pv:Array(10).fill(i/13)}))},cases:[c],evaluations:[{split:'test'}]},r={sourceAsOf:1,spec:SPEC,test:{CURRENT_MEDIAN:{queries:1}}},out=compactArchive(data,r);assert.equal(out.archive.cases[0].window.length,16);assert.equal(out.archive.vectors[15][0],15/13);assert.equal(out.archive.inputScope,SPEC.inputScope);assert.equal(out.report.spec.inputScope,SPEC.inputScope);assert.equal(out.archive.schema,'wlr-aba-v2');assert.throws(()=>compactArchive(data,{...r,sourceAsOf:2}),/mismatch/);assert.throws(()=>compactArchive({...data,spec:{}},r),/input scope mismatch/);assert.throws(()=>compactArchive(data,{...r,spec:{}}),/input scope mismatch/);
 });
 const opening=(date,color=1)=>Array.from({length:20},(_,i)=>({...rows[0],t:europeOpen(date)+(i-15)*STEP,mid:500+i,c:500+i,high:501+i,low:499+i,color:i<15?-1:color,pv:Array(10).fill(i/100)}));
+test('ABA excludes NY weekends and full market holidays in both live forecasts and historical cases',()=>{
+ for(const date of ['2026-10-24','2026-10-25','2026-01-01','2026-04-03','2026-07-03','2026-11-26','2026-12-25']){
+  const input=opening(date).slice(0,16),frame=segmentWlr(input),now=europeOpen(date)+STEP;
+  assert.equal(frame.segments.length,0,date);
+  assert.equal(knownQuery(frame.rows,frame.segments,15),null,date);
+  assert.match(liveGate(input,now),/Ngoài/,date);
+  assert.equal(updateAba({rows:input,archive,report,now}).status,'WAIT',date);
+ }
+ // Saturday in Vietnam is still the Friday US post session.
+ const fridayPost=Date.parse('2026-10-23T23:45:00Z');
+ assert.equal(liveGate([{...rows[0],t:fridayPost-STEP}],fridayPost),null);
+});
 test('London opening follows UK DST including weeks when US and UK offsets differ; POST end stays exclusive',()=>{
  for(const [date,utc,minute] of [['2026-07-20','07:00',180],['2026-12-07','08:00',180],['2026-03-16','08:00',240],['2026-10-26','08:00',240]]){
   assert.equal(europeOpen(date),Date.parse(date+'T'+utc+':00Z'));assert.equal(abaStartMinute(date),minute);
