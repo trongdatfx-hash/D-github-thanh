@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-10-22T00:09:17.977Z",
+  "updatedAt": "2026-10-22T09:38:14.781Z",
   "events": [
     {
       "title": "IMF Meetings",
@@ -536,10 +536,10 @@
     {
       "title": "Foreign Direct Investment ytd/y",
       "country": "CNY",
-      "date": "2026-10-22T09:10:00.000Z",
-      "timestamp": 1792660200000,
+      "date": "2026-10-22T07:41:00.000Z",
+      "timestamp": 1792654860000,
       "impact": "Low",
-      "actual": "",
+      "actual": "-4.3%",
       "forecast": "",
       "previous": "-5.3%"
     },
