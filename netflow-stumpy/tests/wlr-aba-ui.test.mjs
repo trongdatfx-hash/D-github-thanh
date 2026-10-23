@@ -32,6 +32,10 @@ test('panel updates source age, WAIT, evidence and snapshot failure together wit
   globalThis.requestAnimationFrame=()=>1;
   globalThis.setInterval=(fn,ms)=>{intervals.push({fn,ms});return intervals.length;};
   const report=JSON.parse(fs.readFileSync(new URL('../data/wlr-aba/report.json',import.meta.url),'utf8'));
+  report.sourceAsOf=Date.parse('2026-10-22T00:00:00Z');report.decision='NOT_ESTABLISHED';report.selectionReady=true;report.selectedTrial='CYCLE8';
+  report.collection={source:'daily-archive',status:'delayed',checkedAt:report.sourceAsOf+23.62*3600000,lastTimeBySymbol:{SPYUSDT:report.sourceAsOf-900000,QQQUSDT:report.sourceAsOf-900000}};
+  report.v2.status='WAIT_GATE_VALIDATION';report.v2.gate=null;report.v2.forward={...report.v2.forward,queries:0,filtered:{...report.v2.forward.filtered,n:0,days:0}};
+  report.v2.test.filtered={...report.v2.test.filtered,n:0,accuracy:null,baselineAccuracy:null};
   let c={symbol:'SPYUSDT',interval:'15m',features:[],expectedTime:0,live:false,now:report.sourceAsOf+24*3600000};
   const layer=createWlrAba({chart:{timeScale:()=>({subscribeVisibleLogicalRangeChange(){}})},wlr:{},host:new Element(),actions:new Element(),getContext:()=>c,paneBounds:()=>null,getCvdBounds:()=>null});
   assert.equal(worker.sent[0].type,'refresh');
@@ -39,6 +43,8 @@ test('panel updates source age, WAIT, evidence and snapshot failure together wit
   assert.match(elements.get('aba-collection-health').textContent,/DELAYED.*24.00 giờ/);
   assert.match(elements.get('aba-decision-health').textContent,/NOT_ESTABLISHED/);
   assert.match(elements.get('aba-forward-health').textContent,/0 queries/);
+  const tableText=elements.get('aba-direction-table').children.flatMap(row=>row.children.map(cell=>cell.textContent)).join(' ');
+  assert.doesNotMatch(tableText,/\\+0\\.00 điểm %/);
   assert.equal(elements.get('aba-direction-status').dataset.state,'WAIT_GATE_VALIDATION');
   assert.match(elements.get('aba-direction-status').textContent,/WAIT_GATE_VALIDATION/);
   c.now+=3600000;layer.update();assert.match(elements.get('aba-collection-health').textContent,/25.00 giờ/);

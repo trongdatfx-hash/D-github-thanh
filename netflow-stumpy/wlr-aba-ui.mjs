@@ -49,7 +49,7 @@ export function createWlrAba({chart,wlr,host,actions,getContext,paneBounds,getCv
   tableRows('aba-reliability-table',s.reliability.model.map(b=>[(100*b.from).toFixed(0)+'–'+(100*b.to).toFixed(0)+'%',pct(b.forecast),pct(b.actual),b.n+' / '+b.days]));
   const cmp=filtered.comparison,interval=c=>Number.isFinite(c.low)?signed(100*c.low)+' … '+signed(100*c.high)+' điểm %':'Chưa đủ mẫu';
   tableRows('aba-direction-table',[
-   ['Đúng hướng · theo số mốc',pct(filtered.accuracy),pct(filtered.baselineAccuracy),signed(100*(filtered.accuracy-filtered.baselineAccuracy))+' điểm %',filtered.hits+'/'+filtered.n+' so '+filtered.baselineHits+'/'+filtered.n],
+   ['Đúng hướng · theo số mốc',pct(filtered.accuracy),pct(filtered.baselineAccuracy),signed(Number.isFinite(filtered.accuracy)&&Number.isFinite(filtered.baselineAccuracy)?100*(filtered.accuracy-filtered.baselineAccuracy):null)+' điểm %',filtered.hits+'/'+filtered.n+' so '+filtered.baselineHits+'/'+filtered.n],
    ['Đúng hướng · cân bằng theo ngày',pct(filtered.dayAccuracy),pct(filtered.baselineDayAccuracy),signed(100*cmp.gain)+' điểm %','Khoảng 97,5%: '+interval(cmp)],
    ['Trước / sau WAIT · theo số mốc',pct(raw.accuracy),pct(filtered.accuracy),'Khác tập mốc','Giữ '+filtered.n+'/'+raw.n+' mốc đã chấm'],
    ['Trước / sau WAIT · cân bằng ngày',pct(raw.dayAccuracy),pct(filtered.dayAccuracy),'Khác tập mốc','Không coi thay đổi tỷ lệ là bằng chứng tự động'],
