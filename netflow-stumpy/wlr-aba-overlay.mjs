@@ -1,4 +1,4 @@
-import {reasonText} from './wlr-aba-status.mjs?v=20261023-v3';
+import {reasonText} from './wlr-aba-status.mjs?v=20261023-v3fix1';
 // Presentation helpers; no OHLC prices, candle colors or model refitting.
 export const ABA_OVERLAY_WIDTH_RATIO=1/3;
 export function freezeAbaResult(previous,result){

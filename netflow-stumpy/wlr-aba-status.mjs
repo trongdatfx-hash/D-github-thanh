@@ -27,8 +27,9 @@ export function usableSignal(track,report,now,{verified=false,live=false}={}){
  if(policy.version===3&&(!policy.policyId||!Number.isFinite(policy.forwardOpen)||policy.freeze?.status!=='FROZEN'||policy.freeze?.id!==policy.policyId))return blocked('WAIT_POLICY_FREEZE');
  if(policy.status!=='READY')return blocked(policy.status??'WAIT_POLICY');
  if(!policy.gate)return blocked('WAIT_GATE_VALIDATION');
- if(track?.policyKey!==policyKey(policy))return blocked('POLICY_CHANGED');
  if(policy.version===3&&now<policy.forwardOpen)return blocked('WAIT_FORWARD_START');
+ if(!track)return blocked('WAIT_FORECAST');
+ if(track.policyKey!==policyKey(policy))return blocked('POLICY_CHANGED');
  if(collectionState(report,now).status!=='LIVE')return blocked('DELAYED_ARCHIVE');
  if(report.decision!=='PROMISING_REQUIRES_FUTURE_VALIDATION')return blocked(report.decision??'NOT_ESTABLISHED');
  // Date-based forward replay is not an immutable live prediction ledger.
@@ -36,4 +37,4 @@ export function usableSignal(track,report,now,{verified=false,live=false}={}){
  // a separately audited ledger and promotion protocol exist; never infer it from N>0.
  return blocked('FORWARD_NOT_VALIDATED');
 }
-export const reasonText=reason=>({WAIT_POLICY_FREEZE:'chờ khóa cấu hình V3',WAIT_FORWARD_START:'V3 chờ forward từ 26/10/2026',WAIT_LIVE:'chờ dữ liệu chart còn mới',WAIT_SNAPSHOT:'chờ xác minh snapshot',WAIT_POLICY:'chưa có policy hợp lệ',WAIT_GATE_VALIDATION:'chờ kiểm định WAIT',WAIT_CALIBRATION:'chờ hiệu chỉnh',WAIT_SELECTION:'chờ chọn mô hình',POLICY_CHANGED:'policy đã đổi; giữ mẫu cũ để nghiên cứu',DELAYED_ARCHIVE:'kho nghiên cứu trễ hoặc chưa rõ độ mới',NOT_ESTABLISHED:'chưa xác lập lợi thế giá',FORWARD_NOT_VALIDATED:'chưa xác thực forward ghi nhận live',NEAR_BASE:'gần nền',BAND_CROSSES_WLR:'dải cắt WLR',CALIBRATION_DISAGREES:'tỷ lệ chưa đồng thuận P50',WAIT_HISTORY:'thiếu mẫu',MODEL_CHANGED:'bấm Theo WLR hiện tại để dùng mô hình mới',BEFORE_POLICY_WINDOW:'chưa tới giai đoạn policy'}[reason]??reason??'chờ dữ liệu');
+export const reasonText=reason=>({WAIT_FORECAST:'chờ mẫu dự báo hiện tại',WAIT_POLICY_FREEZE:'chờ khóa cấu hình V3',WAIT_FORWARD_START:'V3 chờ forward từ 26/10/2026',WAIT_LIVE:'chờ dữ liệu chart còn mới',WAIT_SNAPSHOT:'chờ xác minh snapshot',WAIT_POLICY:'chưa có policy hợp lệ',WAIT_GATE_VALIDATION:'chờ kiểm định WAIT',WAIT_CALIBRATION:'chờ hiệu chỉnh',WAIT_SELECTION:'chờ chọn mô hình',POLICY_CHANGED:'policy đã đổi; giữ mẫu cũ để nghiên cứu',DELAYED_ARCHIVE:'kho nghiên cứu trễ hoặc chưa rõ độ mới',NOT_ESTABLISHED:'chưa xác lập lợi thế giá',FORWARD_NOT_VALIDATED:'chưa xác thực forward ghi nhận live',NEAR_BASE:'gần nền',BAND_CROSSES_WLR:'dải cắt WLR',CALIBRATION_DISAGREES:'tỷ lệ chưa đồng thuận P50',WAIT_HISTORY:'thiếu mẫu',MODEL_CHANGED:'bấm Theo WLR hiện tại để dùng mô hình mới',BEFORE_POLICY_WINDOW:'chưa tới giai đoạn policy'}[reason]??reason??'chờ dữ liệu');

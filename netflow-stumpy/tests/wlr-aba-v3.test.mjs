@@ -52,6 +52,7 @@ test('V3 respects its own policy start and remains separate from usable signals'
  const report={activePolicyVersion:3,v2:{status:'WAIT_GATE_VALIDATION'},v3:p,decision:'NOT_ESTABLISHED'};
  assert.equal(activePolicy(report),p);assert.equal(activePolicy({...report,activePolicyVersion:4}),null);
  assert.equal(usableSignal({policyKey:policyKey(p)},report,freezeNow,{live:true,verified:true}).reason,'WAIT_FORWARD_START');
+ assert.equal(usableSignal(null,report,freezeNow,{live:true,verified:true}).reason,'WAIT_FORWARD_START');
  const base={schema:'wlr-aba-v2',sourceAsOf,inputScope:SPEC.inputScope,activePolicyVersion:3,policyId:p.policyId,snapshotId:'same'};
  const full={...report,schema:base.schema,sourceAsOf,spec:SPEC,snapshotId:'same',v2:{version:2}};
  assert.doesNotThrow(()=>validateSnapshot(base,full));

@@ -1,4 +1,4 @@
-import {snapshotKey,SNAPSHOT_TTL,activePolicy} from './wlr-aba-status.mjs?v=20261023-v3';
+import {snapshotKey,SNAPSHOT_TTL,activePolicy} from './wlr-aba-status.mjs?v=20261023-v3fix1';
 import {SPEC} from './wlr-aba-core.mjs?v=20261022-europe1';
 export function validateSnapshot(archive,report){
  if(archive?.schema!=='wlr-aba-v2'||report?.schema!=='wlr-aba-v2'||archive.inputScope!==SPEC.inputScope||report.spec?.inputScope!==SPEC.inputScope||archive.sourceAsOf!==report.sourceAsOf)throw Error('WAIT · kho và báo cáo A–B–A không đồng bộ');

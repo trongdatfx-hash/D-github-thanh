@@ -1,5 +1,5 @@
-import {updateAba} from './wlr-aba-live.mjs?v=20261023-v3';
-import {createSnapshotLoader} from './wlr-aba-snapshot.mjs?v=20261023-v3';
+import {updateAba} from './wlr-aba-live.mjs?v=20261023-v3fix1';
+import {createSnapshotLoader} from './wlr-aba-snapshot.mjs?v=20261023-v3fix1';
 const library=createSnapshotLoader();
 let state=null,serial=0;
 self.onmessage=async({data})=>{

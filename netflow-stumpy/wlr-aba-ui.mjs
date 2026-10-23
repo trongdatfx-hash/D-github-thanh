@@ -1,6 +1,6 @@
-import {collectionState,snapshotKey,usableSignal,reasonText,SNAPSHOT_TTL,activePolicy} from './wlr-aba-status.mjs?v=20261023-v3';
-import {COLOR_NAMES} from './wlr-aba-live.mjs?v=20261023-v3';
-import {freezeAbaResult,canRetainAba,abaOverlayGeometry,abaPaintKey,abaLabel} from './wlr-aba-overlay.mjs?v=20261023-v3';
+import {collectionState,snapshotKey,usableSignal,reasonText,SNAPSHOT_TTL,activePolicy} from './wlr-aba-status.mjs?v=20261023-v3fix1';
+import {COLOR_NAMES} from './wlr-aba-live.mjs?v=20261023-v3fix1';
+import {freezeAbaResult,canRetainAba,abaOverlayGeometry,abaPaintKey,abaLabel} from './wlr-aba-overlay.mjs?v=20261023-v3fix1';
 const fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',pct=x=>Number.isFinite(x)?(100*x).toFixed(1)+'%':'—',change=x=>Number.isFinite(x)?(x>=0?'+':'')+x.toFixed(2)+'%':'—',date=t=>Number.isFinite(t)?new Date(t).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
 export function createWlrAba({chart,wlr,host,actions,getContext,paneBounds,getCvdBounds}){
  const label=document.createElement('label');label.className='aba-toggle';const toggle=document.createElement('input');toggle.type='checkbox';toggle.id='wlr-aba-toggle';toggle.checked=true;label.append(toggle,'WLR A–B–A · nghiên cứu');actions.append(label);
@@ -160,7 +160,7 @@ export function createWlrAba({chart,wlr,host,actions,getContext,paneBounds,getCv
  }
  function ensureWorker(){
   if(worker)return;
-  worker=new Worker(new URL('./wlr-aba-worker.mjs?v=20261023-v3',import.meta.url),{type:'module'});
+  worker=new Worker(new URL('./wlr-aba-worker.mjs?v=20261023-v3fix1',import.meta.url),{type:'module'});
   worker.onmessage=({data})=>{
    if(data.type==='snapshot'){refreshing=false;acceptSnapshot(data.report);update();return;}
    if(data.type==='snapshot-error'){refreshing=false;snapshotFailed(data.error);return;}
