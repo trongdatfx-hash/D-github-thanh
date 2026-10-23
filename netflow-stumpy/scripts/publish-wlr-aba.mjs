@@ -1,7 +1,13 @@
+import {createHash} from 'node:crypto';
 import fs from 'node:fs';import path from 'node:path';import {fileURLToPath} from 'node:url';
 import {compactArchive} from '../wlr-aba-archive.mjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..'),input=path.join(root,'research/wlr-aba/output'),output=path.join(root,'netflow-stumpy/data/wlr-aba'),read=name=>JSON.parse(fs.readFileSync(path.join(input,name+'.json'))),result=compactArchive(read('tasks'),read('report'));
 const manifest=JSON.parse(fs.readFileSync(path.join(root,'netflow-stumpy/data/binance/m15/manifest.json')));
-for(const body of Object.values(result))body.collection=manifest.collection??null;
+const collection=manifest.collection,times=['SPYUSDT','QQQUSDT'].map(s=>collection?.lastTimeBySymbol?.[s]);
+if(!collection||!times.every(Number.isFinite)||!Number.isFinite(collection.checkedAt)||!['live','delayed'].includes(collection.status)||!['rest','daily-archive'].includes(collection.source)||Math.min(...times)+900000!==result.archive.sourceAsOf||times.some(t=>t+900000>collection.checkedAt))throw Error('Refusing publication: collection metadata does not match ABA source');
+if(collection.source==='daily-archive'&&collection.status!=='delayed')throw Error('Daily archives must be marked delayed');
+for(const body of Object.values(result))body.collection=collection;
+const snapshotId=createHash('sha256').update(JSON.stringify(result)).digest('hex');
+for(const body of Object.values(result))body.snapshotId=snapshotId;
 fs.mkdirSync(output,{recursive:true});for(const [name,body]of Object.entries(result))fs.writeFileSync(path.join(output,name+'.json'),JSON.stringify(body));
-console.log(JSON.stringify({published:result.archive.schema,cases:result.archive.cases.length,vectors:result.archive.vectors.length,sourceAsOf:result.archive.sourceAsOf,model:result.report.selectedTrial}));
+console.log(JSON.stringify({published:result.archive.schema,cases:result.archive.cases.length,vectors:result.archive.vectors.length,sourceAsOf:result.archive.sourceAsOf,model:result.report.selectedTrial,snapshotId,collection:collection.status,decision:result.report.decision,policy:result.report.v2?.status}));

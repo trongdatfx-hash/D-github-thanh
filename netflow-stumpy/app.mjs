@@ -1,4 +1,5 @@
-import {createWlrAba} from './wlr-aba-ui.mjs?v=20261022-europe1';
+import {chartFresh} from './wlr-aba-status.mjs?v=20261023-status1';
+import {createWlrAba} from './wlr-aba-ui.mjs?v=20261023-status1';
 import {createSeriesWriter} from './chart-data-cache.mjs';
 import {STEPS,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,strengthPhaseLineStyle,directionalVolumeDelta,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,weightedPriceBands,wlrTrendThickness,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs?v=20261018-9';
 import {load} from './data.mjs';
@@ -97,7 +98,8 @@ class VariableWidthLineSeries{
   destroy(){}
 }
 function status(text,error=false){$('status').textContent=text;$('status').classList.toggle('error',error);}
-function setLive(live){const node=$('live-indicator');node.textContent=live?'● LIVE':'● KHÔNG LIVE';node.className=live?'live':'offline';forecastLayer?.update();}
+function isChartLive(){return chartFresh(cache,Date.now()+serverOffsetMs,lastSuccess?.getTime());}
+function setLive(live){live=live&&isChartLive();const node=$('live-indicator');node.textContent=live?'● CHART LIVE':'● CHART KHÔNG LIVE';node.className=live?'live':'offline';forecastLayer?.update();}
 function setupChartActions(){
   const actions=document.querySelector('.chart-actions'),fit=$('chart-fit'),live=$('live-indicator');
   if(!actions||!fit||!live)return;
@@ -627,7 +629,7 @@ function bindChartGestures(){
 if(init()){
   updateTrendMethodCopy();
   setupChartActions();
-  forecastLayer=createWlrAba({chart,wlr:series.priceMid,host:$('chart'),actions:document.querySelector('.chart-actions'),paneBounds,getCvdBounds:cvdSpectrumBounds,getContext:()=>({symbol:$('symbol').value,interval:$('interval').value,features:studyResultKey===studyKey?researchFeatures:[],expectedTime:(rows[$('symbol').value]??[]).filter(r=>r.end<(cache?.serverTime??0)).at(-1)?.t,displayRows:rows[$('symbol').value]??[],live:Boolean(cache&&lastSuccess&&Date.now()-lastSuccess<15000),now:Date.now()+serverOffsetMs})});
+  forecastLayer=createWlrAba({chart,wlr:series.priceMid,host:$('chart'),actions:document.querySelector('.chart-actions'),paneBounds,getCvdBounds:cvdSpectrumBounds,getContext:()=>({symbol:$('symbol').value,interval:$('interval').value,features:studyResultKey===studyKey?researchFeatures:[],expectedTime:(rows[$('symbol').value]??[]).filter(r=>r.end<(cache?.serverTime??0)).at(-1)?.t,displayRows:rows[$('symbol').value]??[],live:isChartLive(),now:Date.now()+serverOffsetMs})});
   restoreSavedSetup();
   syncDisplayModeButtons();
   $('refresh').onclick=()=>refresh();for(const id of ['interval','days'])$(id).onchange=()=>refresh(true);
@@ -640,7 +642,7 @@ if(init()){
   document.addEventListener('fullscreenchange',syncFullChart);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.querySelector('.chart-card').classList.contains('fullscreen-fallback')){document.querySelector('.chart-card').classList.remove('fullscreen-fallback');syncFullChart();}});
   $('export').onclick=exportCSV;
   const changeCalendarFilter=()=>{delete $('calendar-list').dataset.positioned;renderCalendar();};$('calendar-impact').onchange=changeCalendarFilter;$('calendar-currency').onchange=changeCalendarFilter;$('calendar-refresh').onclick=refreshCalendar;
-  setLive(false);refreshCalendar();refresh(true);setInterval(()=>{updateCandleCountdown();if(lastSuccess&&Date.now()-lastSuccess>15000){setLive(false);schedulePivotFlowOverlay();}updateGeometryReadout();if(!document.hidden&&!loading)refresh();},LIVE_REFRESH_MS);
+  setLive(false);refreshCalendar();refresh(true);setInterval(()=>{updateCandleCountdown();if(!isChartLive()){setLive(false);schedulePivotFlowOverlay();}updateGeometryReadout();if(!document.hidden&&!loading)refresh();},LIVE_REFRESH_MS);
   setInterval(()=>{if(!document.hidden)refreshCalendar();},CALENDAR_REFRESH_MS);
   setInterval(updateCandleCountdown,250);
 }

@@ -44,3 +44,16 @@ Phép hiệu chỉnh có đối chứng identity. Nếu sigmoid không hạ Brie
 Báo trước/sau WAIT cùng tỷ lệ tín hiệu; kết quả hai tập mốc khác nhau không chứng minh tự động mô hình tốt hơn. Độ phủ P10–P90 được đo trên các trung vị hoàn tất có dự báo giá sẵn sàng, cả theo số mốc và trung bình theo ngày; chưa coi là dải hiệu chỉnh có bảo đảm 80%.
 
 Theo điều chỉnh hiển thị mới nhất: vùng dự báo rộng bằng 1/3 bề ngang phổ CVD, neo tâm CVD; thay cho độ lệch 20 nến cũ. Không vẽ nhãn chữ trong vùng giá và ẩn badge phủ lên nến. Giá WLR và phân vị vẫn giữ nguyên, số liệu xem ở bảng dưới chart.
+
+
+## Data and signal status (2026-10-23)
+
+The chart polls Binance separately from the published historical archive. CHART LIVE requires fresh bars from BOTH SPYUSDT and QQQUSDT plus a successful request within 15 seconds. It never implies a live research archive. Archive age is computed from the older symbol's last closed M15 bar against the current clock, not from the time the JSON was published. Daily archive fallback always stays DELAYED.
+
+The panel independently reports archive freshness, model selection, price-edge decision, V2 policy state, and forward counts. Passing selection or having a READY computation is not evidence of predictive value. P50/P10–P90 remain research overlays. The existing publisher has no prospective validation protocol, so this release does not promote any overlay into a usable trading signal, even if a retrospective policy later becomes READY or its date-based forward count grows.
+
+A worker revalidates archive/report every minute, including while chart data is unavailable. New publications share a SHA-256 snapshot ID. Mismatched files, fetch errors, unknown metadata, changed policies and expired verification fail to WAIT. Source clocks and publication clocks remain visible independently. Existing frozen anchors and quantiles are retained; current policy locks are always rechecked.
+
+The field v2.forward is a replay from archived candles with dates on or after forwardStart. A true forward evaluation requires a separate append-only ledger of predictions stored before outcomes: issuedAt, input last timestamps, snapshotId, frozen policy ID, WLR anchor, probabilities/quantiles, gate reason, subsequent outcome and its observed time. Selection/calibration/gates must be frozen before the new evaluation window. A completed, independently reviewed promotion protocol is required before enabling usable signals.
+
+For fresh unattended collection, run the collector on a user-controlled runner/server in a region where Binance officially permits the endpoints, or use a licensed source with equivalent fields. Keep delayed archive fallback explicitly labelled. Adding aliases, disguising locations, or relabelling daily archive data does not make the feed live. No runner, external account or paid service is provisioned by this status fix.

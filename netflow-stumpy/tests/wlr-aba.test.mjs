@@ -87,7 +87,7 @@ test('direction scoring excludes unfinished and flat targets and counts paired i
 });
 
 import {freezeAbaResult,canRetainAba,abaOverlayGeometry,abaPaintKey,abaLabel} from '../wlr-aba-overlay.mjs';
-const stableFixture=()=>({status:'READY',track:{day:'2026-10-21',originStart:1,q:{issuedAt:2,currentWlr:100,color:1},prediction:{ready:true,value:104,low:98,high:110},direction:{ready:true,pAbove:.72,baseline:{ready:true,pAbove:.54}}},lastTime:900000,changePct:4});
+const stableFixture=()=>({status:'READY',track:{signal:{emit:true,reason:'READY'},day:'2026-10-21',originStart:1,q:{issuedAt:2,currentWlr:100,color:1},prediction:{ready:true,value:104,low:98,high:110},direction:{ready:true,pAbove:.72,baseline:{ready:true,pAbove:.54}}},lastTime:900000,changePct:4});
 test('ABA zone is one third of CVD width, centered on its spectrum, using WLR prices',()=>{
  const t=stableFixture().track,seen=[],wlr={priceToCoordinate:p=>{seen.push(p);return 500-p;}},pane={top:0,height:500},bounds={left:700,right:850,xBase:775};
  for(const spacing of [6,12,5.75]){const scale={coordinateToLogical:x=>x/spacing,logicalToCoordinate:l=>l*spacing,options:()=>({barSpacing:spacing})},g=abaOverlayGeometry(scale,wlr,pane,bounds,t);assert.equal(g.left,750);assert.equal(g.right,800);assert.equal(g.width,50);assert.equal(g.y,396);assert.equal(g.anchorY,400);}

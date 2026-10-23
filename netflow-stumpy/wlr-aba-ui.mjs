@@ -1,10 +1,12 @@
-import {COLOR_NAMES} from './wlr-aba-live.mjs?v=20261022-europe1';
-import {freezeAbaResult,canRetainAba,abaOverlayGeometry,abaPaintKey,abaLabel} from './wlr-aba-overlay.mjs?v=20261021-v2';
+import {collectionState,snapshotKey,usableSignal,reasonText,SNAPSHOT_TTL} from './wlr-aba-status.mjs?v=20261023-status1';
+import {COLOR_NAMES} from './wlr-aba-live.mjs?v=20261023-status1';
+import {freezeAbaResult,canRetainAba,abaOverlayGeometry,abaPaintKey,abaLabel} from './wlr-aba-overlay.mjs?v=20261023-status1';
 const fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',pct=x=>Number.isFinite(x)?(100*x).toFixed(1)+'%':'—',change=x=>Number.isFinite(x)?(x>=0?'+':'')+x.toFixed(2)+'%':'—',date=t=>Number.isFinite(t)?new Date(t).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
 export function createWlrAba({chart,wlr,host,actions,getContext,paneBounds,getCvdBounds}){
  const label=document.createElement('label');label.className='aba-toggle';const toggle=document.createElement('input');toggle.type='checkbox';toggle.id='wlr-aba-toggle';toggle.checked=true;label.append(toggle,'WLR A–B–A V2 · thử nghiệm');actions.append(label);
- const panel=document.createElement('section');panel.className='aba-panel';panel.setAttribute('aria-labelledby','aba-title');panel.innerHTML=`<div class="aba-head"><div><span class="aba-eyebrow">ÂU → PRE → RTH → POST · XANH / ĐỎ / VÀNG</span><h2 id="aba-title">WLR A–B–A V2</h2></div><button id="aba-reset" type="button">Theo WLR hiện tại</button></div><p id="aba-status" role="status" aria-live="polite">Đang chờ dữ liệu M15 đã đóng…</p><div class="aba-grid"><div><small>WLR cuối đã đóng tại mốc dự báo</small><strong id="aba-reference">—</strong><span id="aba-origin"></span></div><div><small>Trung vị A kế tiếp · P50</small><strong id="aba-target">—</strong><span id="aba-range"></span></div><div><small>Thuộc A–B–A · tần suất mẫu đã xác nhận</small><strong id="aba-membership">—</strong><span id="aba-count"></span></div></div><p id="aba-progress"></p><p id="aba-source"></p><section class="aba-comparison" aria-labelledby="aba-compare-title"><h3 id="aba-compare-title">Trung vị A kế tiếp cao hay thấp hơn WLR cuối?</h3><p>Mốc so sánh là điểm WLR tại nến cuối đã đóng lúc phát dự báo, được giữ nguyên qua A→B→A; không dùng điểm kết thúc A còn chưa biết. Nền hướng đoán phía thường gặp hơn từ lịch sử cùng màu/phiên, một mẫu đủ điều kiện mỗi ngày.</p><div class="aba-table-scroll" tabindex="0" role="region" aria-label="So sánh hướng và giá dự báo với nền"><table><caption>Mẫu đang theo dõi</caption><thead><tr><th scope="col">Chỉ số</th><th scope="col">A–B–A</th><th scope="col">Nền cùng màu / phiên</th></tr></thead><tbody id="aba-live-table"><tr><td colspan="3">Chờ dữ liệu dự báo…</td></tr></tbody></table></div></section><section class="aba-comparison" aria-labelledby="aba-direction-title"><h3 id="aba-direction-title">Tỷ lệ đoán đúng hướng · kiểm định ngoài mẫu</h3><p id="aba-direction-status" class="aba-direction-status" role="status">Đang tải kiểm định hướng…</p><p id="aba-direction-sample"></p><p id="aba-v2-protocol"></p><p id="aba-v2-calibration"></p><p id="aba-v2-gate"></p><p id="aba-v2-interval"></p><div class="aba-table-scroll" tabindex="0" role="region" aria-label="Đối chiếu tỷ lệ dự báo với thực tế"><table><caption>Kiểm tra tỷ lệ cao hơn WLR · theo nhóm dự báo</caption><thead><tr><th>Nhóm dự báo</th><th>Trung bình dự báo</th><th>Thực tế cao hơn</th><th>Số mốc / ngày</th></tr></thead><tbody id="aba-reliability-table"></tbody></table></div><div class="aba-table-scroll" tabindex="0" role="region" aria-label="Thống kê dự đoán hướng ngoài mẫu"><table><caption id="aba-direction-caption">Chấm cùng mốc, không tính mẫu chưa có trung vị cuối là sai</caption><thead><tr><th scope="col">Thước đo</th><th scope="col">Mô hình</th><th scope="col">Nền</th><th scope="col">Chênh lệch</th><th scope="col">Kiểm định</th></tr></thead><tbody id="aba-direction-table"></tbody></table></div><p id="aba-direction-limit">Tỷ lệ đúng hướng càng cao càng tốt; Brier càng thấp càng tốt. Kiểm định chênh lệch dùng block bootstrap theo ngày, 97,5%, cần ≥30 ngày và cả khoảng cải thiện lớn hơn 0. V2 chọn theo độ chính xác hướng trong giai đoạn riêng; phép hiệu chỉnh và WAIT được chọn trước test. Dữ liệu test cũ đã được xem nên kết quả vẫn mang tính thăm dò; forward được ghi riêng. Tỷ lệ hướng dùng phép hiệu chỉnh đã chọn trên validation, hoặc giữ tỷ lệ gốc khi phép hiệu chỉnh chưa tốt hơn; chưa bảo đảm độ tin cậy riêng cho từng mẫu.</p><p>P10–P90 đã có thống kê độ phủ hồi cứu ở trên; chưa được hiệu chỉnh để bảo đảm độ phủ 80% trong tương lai. Mẫu A–B–A đang dở vẫn được theo dõi, nhưng chỉ chấm hướng khi trung vị A kế tiếp đã hoàn tất.</p></section><details><summary>Kết quả kiểm tra và cách hiểu</summary><p id="aba-validation">Đang tải kết quả kiểm tra…</p><p>Bắt đầu từ nến mở cửa châu Âu (08:00–08:15 London), sau khi nến đóng; tự đổi giờ mùa hè. Hoạt động đến hết POST New York. Cửa sổ 8/16 nến dùng lịch sử liên tục trước phiên Âu để khởi tạo. Thiếu lịch sử thì báo chờ.</p><p>A là WLR đang theo dõi; B là đúng một đoạn khác màu. Vàng được tính như xanh và đỏ. Trung vị lấy trên đường WLR, khác giá đóng nến. Nhận dạng mẫu và xác định trung vị cuối đoạn là hai việc riêng: A kế tiếp đang mở vẫn thuộc mẫu, nhưng trung vị cuối chưa được biết.</p><p>Vùng P10–P90 và đường trung vị dự kiến được vẽ gọn bằng một phần ba bề ngang phổ CVD và neo đúng tâm phổ, cho phép chồng lên CVD, theo trục giá SPY. P10–P90 là phân vị lịch sử có điều kiện, không phải khoảng chắc chắn của giá. Thời gian hoàn tất thay đổi; vùng ngang không đại diện 8 nến tương lai. Tần suất thuộc mẫu chỉ tính trên các mẫu lịch sử đã xác nhận; mẫu chưa xác nhận được báo riêng. Không phải tỷ lệ thắng hoặc xác suất đã hiệu chỉnh.</p><p>Giá kỳ vọng, P10–P90 và mốc WLR cuối đã đóng được giữ nguyên trong cùng lượt A→B→A. Màu nến đang chạy không đổi mốc này. Nhãn A ↑ …% / nền …% so cùng khả năng trung vị A kế tiếp cao hơn WLR mốc, có điều kiện mẫu hoàn tất; đây là tần suất lịch sử có làm trơn, không phải tỷ lệ nhận dạng A–B–A hoặc xác suất đã hiệu chỉnh. Vùng vẽ dùng trực tiếp thang giá của đường WLR; chỉ đổi lượt khi mẫu kết thúc/bị phá bằng nến đã đóng hoặc bấm “Theo WLR hiện tại”. Khi đồng bộ ngắn, giữ khung cũ kèm trạng thái; dữ liệu mất mới hoặc đổi symbol/timeframe thì ẩn.</p><a href="data/wlr-aba/report.json" target="_blank" rel="noopener">Báo cáo A–B–A</a> · <a href="WLR-ABA.md" target="_blank" rel="noopener">Phương pháp</a></details><div id="aba-history" aria-live="polite"></div>`;host.closest('.chart-card').after(panel);
+ const panel=document.createElement('section');panel.className='aba-panel';panel.setAttribute('aria-labelledby','aba-title');panel.innerHTML=`<div class="aba-head"><div><span class="aba-eyebrow">ÂU → PRE → RTH → POST · XANH / ĐỎ / VÀNG</span><h2 id="aba-title">WLR A–B–A V2</h2></div><button id="aba-reset" type="button">Theo WLR hiện tại</button></div><div class="aba-health" role="group" aria-label="Độ mới dữ liệu và điều kiện sử dụng"><p id="aba-chart-health"></p><p id="aba-collection-health"></p><p id="aba-publication-health"></p><p id="aba-decision-health"></p><p id="aba-signal-health"></p><p id="aba-forward-health"></p></div><p id="aba-status" role="status" aria-live="polite">Đang chờ dữ liệu M15 đã đóng…</p><div class="aba-grid"><div><small>WLR cuối đã đóng tại mốc dự báo</small><strong id="aba-reference">—</strong><span id="aba-origin"></span></div><div><small>P50 nghiên cứu · A kế tiếp</small><strong id="aba-target">—</strong><span id="aba-range"></span></div><div><small>Thuộc A–B–A · tần suất mẫu đã xác nhận</small><strong id="aba-membership">—</strong><span id="aba-count"></span></div></div><p id="aba-progress"></p><p id="aba-source"></p><section class="aba-comparison" aria-labelledby="aba-compare-title"><h3 id="aba-compare-title">Trung vị A kế tiếp cao hay thấp hơn WLR cuối?</h3><p>Mốc so sánh là điểm WLR tại nến cuối đã đóng lúc phát dự báo, được giữ nguyên qua A→B→A; không dùng điểm kết thúc A còn chưa biết. Nền hướng đoán phía thường gặp hơn từ lịch sử cùng màu/phiên, một mẫu đủ điều kiện mỗi ngày.</p><div class="aba-table-scroll" tabindex="0" role="region" aria-label="So sánh hướng và giá dự báo với nền"><table><caption>Nghiên cứu đang theo dõi · chưa phải tín hiệu sử dụng</caption><thead><tr><th scope="col">Chỉ số</th><th scope="col">A–B–A</th><th scope="col">Nền cùng màu / phiên</th></tr></thead><tbody id="aba-live-table"><tr><td colspan="3">Chờ dữ liệu dự báo…</td></tr></tbody></table></div></section><section class="aba-comparison" aria-labelledby="aba-direction-title"><h3 id="aba-direction-title">Tỷ lệ đoán đúng hướng · kiểm định ngoài mẫu</h3><p id="aba-direction-status" class="aba-direction-status" role="status">Đang tải kiểm định hướng…</p><p id="aba-direction-sample"></p><p id="aba-v2-protocol"></p><p id="aba-v2-calibration"></p><p id="aba-v2-gate"></p><p id="aba-v2-interval"></p><div class="aba-table-scroll" tabindex="0" role="region" aria-label="Đối chiếu tỷ lệ dự báo với thực tế"><table><caption>Kiểm tra tỷ lệ cao hơn WLR · theo nhóm dự báo</caption><thead><tr><th>Nhóm dự báo</th><th>Trung bình dự báo</th><th>Thực tế cao hơn</th><th>Số mốc / ngày</th></tr></thead><tbody id="aba-reliability-table"></tbody></table></div><div class="aba-table-scroll" tabindex="0" role="region" aria-label="Thống kê dự đoán hướng ngoài mẫu"><table><caption id="aba-direction-caption">Chấm cùng mốc, không tính mẫu chưa có trung vị cuối là sai</caption><thead><tr><th scope="col">Thước đo</th><th scope="col">Mô hình</th><th scope="col">Nền</th><th scope="col">Chênh lệch</th><th scope="col">Kiểm định</th></tr></thead><tbody id="aba-direction-table"></tbody></table></div><p id="aba-direction-limit">Tỷ lệ đúng hướng càng cao càng tốt; Brier càng thấp càng tốt. Kiểm định chênh lệch dùng block bootstrap theo ngày, 97,5%, cần ≥30 ngày và cả khoảng cải thiện lớn hơn 0. V2 chọn theo độ chính xác hướng trong giai đoạn riêng; phép hiệu chỉnh và WAIT được chọn trước test. Dữ liệu test cũ đã được xem nên kết quả vẫn mang tính thăm dò; forward được ghi riêng. Tỷ lệ hướng dùng phép hiệu chỉnh đã chọn trên validation, hoặc giữ tỷ lệ gốc khi phép hiệu chỉnh chưa tốt hơn; chưa bảo đảm độ tin cậy riêng cho từng mẫu.</p><p>P10–P90 đã có thống kê độ phủ hồi cứu ở trên; chưa được hiệu chỉnh để bảo đảm độ phủ 80% trong tương lai. Mẫu A–B–A đang dở vẫn được theo dõi, nhưng chỉ chấm hướng khi trung vị A kế tiếp đã hoàn tất.</p></section><details><summary>Kết quả kiểm tra và cách hiểu</summary><p id="aba-validation">Đang tải kết quả kiểm tra…</p><p>Bắt đầu từ nến mở cửa châu Âu (08:00–08:15 London), sau khi nến đóng; tự đổi giờ mùa hè. Hoạt động đến hết POST New York. Cửa sổ 8/16 nến dùng lịch sử liên tục trước phiên Âu để khởi tạo. Thiếu lịch sử thì báo chờ.</p><p>A là WLR đang theo dõi; B là đúng một đoạn khác màu. Vàng được tính như xanh và đỏ. Trung vị lấy trên đường WLR, khác giá đóng nến. Nhận dạng mẫu và xác định trung vị cuối đoạn là hai việc riêng: A kế tiếp đang mở vẫn thuộc mẫu, nhưng trung vị cuối chưa được biết.</p><p>Vùng P10–P90 và đường trung vị dự kiến được vẽ gọn bằng một phần ba bề ngang phổ CVD và neo đúng tâm phổ, cho phép chồng lên CVD, theo trục giá SPY. P10–P90 là phân vị lịch sử có điều kiện, không phải khoảng chắc chắn của giá. Thời gian hoàn tất thay đổi; vùng ngang không đại diện 8 nến tương lai. Tần suất thuộc mẫu chỉ tính trên các mẫu lịch sử đã xác nhận; mẫu chưa xác nhận được báo riêng. Không phải tỷ lệ thắng hoặc xác suất đã hiệu chỉnh.</p><p>Giá kỳ vọng, P10–P90 và mốc WLR cuối đã đóng được giữ nguyên trong cùng lượt A→B→A. Màu nến đang chạy không đổi mốc này. Nhãn A ↑ …% / nền …% so cùng khả năng trung vị A kế tiếp cao hơn WLR mốc, có điều kiện mẫu hoàn tất; đây là tần suất lịch sử có làm trơn, không phải tỷ lệ nhận dạng A–B–A hoặc xác suất đã hiệu chỉnh. Vùng vẽ dùng trực tiếp thang giá của đường WLR; chỉ đổi lượt khi mẫu kết thúc/bị phá bằng nến đã đóng hoặc bấm “Theo WLR hiện tại”. Khi đồng bộ ngắn, giữ khung cũ kèm trạng thái; dữ liệu mất mới hoặc đổi symbol/timeframe thì ẩn.</p><a href="data/wlr-aba/report.json" target="_blank" rel="noopener">Báo cáo A–B–A</a> · <a href="WLR-ABA.md" target="_blank" rel="noopener">Phương pháp</a></details><div id="aba-history" aria-live="polite"></div>`;host.closest('.chart-card').after(panel);
  const $=id=>panel.querySelector('#'+id),canvas=document.createElement('canvas');canvas.id='wlr-aba-overlay';canvas.setAttribute('role','img');canvas.setAttribute('aria-label','Vùng trung vị dự kiến của WLR cùng màu kế tiếp');host.append(canvas);const badge=document.createElement('div');badge.id='wlr-aba-readout';badge.setAttribute('aria-live','polite');host.append(badge);
+ let snapshotReport=null,snapshotVerified=false,snapshotReceivedAt=0,snapshotError='',refreshing=false,activeStage='';
  let worker=null,active=null,request=0,pending='',frame=0,resetNext=false,restored=null,syncStartedAt=null,geometryMissingAt=null,lastPaintKey='';
  const buffer=document.createElement('canvas');
  try{restored=JSON.parse(sessionStorage.getItem('netflow:wlr-aba:europe-post:v1')??'null');}catch{}
@@ -18,13 +20,13 @@ export function createWlrAba({chart,wlr,host,actions,getContext,paneBounds,getCv
  }
 
  function tableRows(id,rows){const body=$(id);body.replaceChildren();for(const cells of rows){const tr=document.createElement('tr');cells.forEach((text,i)=>{const td=document.createElement(i?'td':'th');if(!i)td.scope='row';td.textContent=text;tr.append(td);});body.append(tr);}}
- const gateReason=reason=>({NEAR_BASE:'gần nền',BAND_CROSSES_WLR:'dải cắt WLR',CALIBRATION_DISAGREES:'tỷ lệ chưa đồng thuận P50',WAIT_HISTORY:'thiếu mẫu',WAIT_GATE_VALIDATION:'chờ kiểm định WAIT',MODEL_CHANGED:'bấm Theo WLR hiện tại để dùng V2',BEFORE_POLICY_WINDOW:'chưa tới giai đoạn V2'}[reason]??'chờ dữ liệu');
+ const gateReason=reasonText;
  const signed=(x,digits=2)=>Number.isFinite(x)?(x>=0?'+':'')+x.toFixed(digits):'—',sideText=s=>s===1?'CAO HƠN':s===-1?'THẤP HƠN':'WAIT · hòa / chưa đủ mẫu';
  function liveTable(result){
   const t=result.track,p=t.prediction,b=t.baseline,d=t.direction,priceText=v=>v?.ready?fmt(v.value)+' · '+change(100*(v.value/t.q.currentWlr-1)):'WAIT',band=v=>v?.ready?fmt(v.low)+' – '+fmt(v.high):'WAIT';
   tableRows('aba-live-table',[
    ['Mốc WLR cuối đã đóng',fmt(t.q.currentWlr),fmt(t.q.currentWlr)],
-   ['Hướng trung vị A kế tiếp',t.signal?.emit===false?'WAIT · '+gateReason(t.signal.reason):d?.ready?sideText(d.side):'WAIT',d?.baseline.ready?sideText(d.baseline.side):'WAIT'],
+   ['Hướng trung vị A kế tiếp',t.signal?.emit!==true?'WAIT · '+gateReason(t.signal.reason):d?.ready?sideText(d.side):'WAIT',d?.baseline.ready?sideText(d.baseline.side):'WAIT'],
    ['Tần suất cao hơn / thấp hơn · có điều kiện',d?.ready?pct(d.pAbove)+' / '+pct(d.pBelow):'WAIT',d?.baseline.ready?pct(d.baseline.pAbove)+' / '+pct(d.baseline.pBelow):'WAIT'],
    ['Trung vị A kế tiếp',priceText(p),priceText(b)],
    ['Vùng P10–P90',band(p),band(b)],
@@ -34,12 +36,12 @@ export function createWlrAba({chart,wlr,host,actions,getContext,paneBounds,getCv
  }
  function directionTable(report){
   const v=report.v2,status=$('aba-direction-status');
-  if(!v?.test){status.textContent='WAIT · đang tính A–B–A V2';return;}
+  if(!v?.test){status.dataset.state=v?.status??'WAIT';status.textContent='WAIT · '+(v?.status??'đang tính A–B–A V2');return;}
   const s=v.test,raw=s.raw,filtered=s.filtered,model=v.selectedModel;
-  status.dataset.state=filtered.status;status.textContent=v.status!=='READY'?'WAIT · '+v.status:filtered.status==='PROMISING_REQUIRES_FORWARD_TEST'?'V2 · CÓ TÍN HIỆU HỒI CỨU · chưa forward test':'V2 · CHƯA CHỨNG MINH VƯỢT NỀN';
+  status.dataset.state=v.status!=='READY'?v.status:filtered.status;status.textContent=v.status!=='READY'?'WAIT · '+v.status:filtered.status==='PROMISING_REQUIRES_FORWARD_TEST'?'V2 · CÓ TÍN HIỆU HỒI CỨU · chưa forward test':'V2 · CHƯA CHỨNG MINH VƯỢT NỀN';
   $('aba-direction-caption').textContent=model+' · chọn theo đúng hướng, hiệu chỉnh có đối chứng, WAIT chọn bằng validation';
   $('aba-direction-sample').textContent=filtered.hits+'/'+filtered.n+' lần đúng sau WAIT; '+filtered.days+' ngày. Trước WAIT: '+raw.hits+'/'+raw.n+'. Phát '+s.emitted+'/'+s.queries+' mốc dự báo ('+pct(s.signalCoverage)+'); '+filtered.unfinished+' mốc đã phát chưa có trung vị cuối, không chấm sai. Kho '+date(report.sourceAsOf)+'.';
-  $('aba-v2-protocol').textContent='Chọn mô hình: '+v.spec.selectionStart+' → '+v.spec.calibrationStart+'; fit hiệu chỉnh: → '+v.spec.gateStart+'; chọn phép hiệu chỉnh và WAIT: → '+v.spec.testStart+'. Kết quả test cũ là hồi cứu đã được xem. Forward từ '+v.spec.forwardStart+': '+v.forward.filtered.n+' mốc chấm / '+v.forward.filtered.days+' ngày.';
+  $('aba-v2-protocol').textContent='Chọn mô hình: '+v.spec.selectionStart+' → '+v.spec.calibrationStart+'; fit hiệu chỉnh: → '+v.spec.gateStart+'; chọn phép hiệu chỉnh và WAIT: → '+v.spec.testStart+'. Kết quả test cũ là hồi cứu đã được xem. Forward từ '+v.spec.forwardStart+': '+v.forward.filtered.n+' mốc chấm / '+v.forward.filtered.days+' ngày · '+v.forward.queries+' queries. Đây là tái tính theo ngày từ kho, chưa phải sổ dự báo ghi nhận live.';
   const c=v.calibration,used=c.model.validation.usedFit,baseUsed=c.baseline.validation.usedFit;
   $('aba-v2-calibration').textContent='Hiệu chỉnh mô hình: '+(used?'dùng sigmoid đã fit':c.model.fittedCandidate.status!=='READY'?'chưa đủ mẫu, giữ tỷ lệ gốc':'giữ tỷ lệ gốc; sigmoid chưa thắng validation')+'; nền: '+(baseUsed?'dùng sigmoid':'giữ tỷ lệ gốc')+'. Fit '+c.model.n+' mốc / '+c.model.days+' ngày; chọn trên '+c.model.validation.n+' mốc / '+c.model.validation.days+' ngày khác. Đây vẫn là tỷ lệ thăm dò.';
   $('aba-v2-gate').textContent=v.gate?'WAIT khi tỷ lệ không đồng thuận P50 hoặc không vượt nền hơn '+(100*v.gate.gap).toFixed(0)+' điểm %. '+(v.gate.band==='whole'?'Yêu cầu cả P10–P90 ở cùng phía WLR.':'Bộ lọc bắt buộc cả dải một phía chưa đủ mẫu validation nên chưa dùng làm mặc định.'):'Chưa chọn được ngưỡng WAIT đủ mẫu.';
@@ -61,7 +63,7 @@ export function createWlrAba({chart,wlr,host,actions,getContext,paneBounds,getCv
  function draw(){
   frame=0;const w=host.clientWidth,h=host.clientHeight,dpr=window.devicePixelRatio||1;
   if(!toggle.checked||!active?.track.prediction.ready){clearDrawing(!toggle.checked?'HIDDEN':'WAIT');return;}
-  const waiting=active.track.signal?.emit===false,displayStatus=waiting?'VISIBLE_WAIT':'VISIBLE';
+  const waiting=active.track.signal?.emit!==true,displayStatus=waiting?'VISIBLE_WAIT':'VISIBLE';
   const track=active.track,p=track.prediction,geometry=abaOverlayGeometry(chart.timeScale(),wlr,paneBounds(0),getCvdBounds(),track);
   // Chart setData/resize can temporarily have no coordinates. Keep the last
   // completed bitmap until the next scheduled chart paint, never publish a blank.
@@ -83,10 +85,14 @@ export function createWlrAba({chart,wlr,host,actions,getContext,paneBounds,getCv
   lastPaintKey=key;canvas.dataset.status=displayStatus;canvas.dataset.left=String(left);canvas.dataset.right=String(right);canvas.dataset.widthRatio='1/3';canvas.dataset.alignment='cvd-center';canvas.setAttribute('aria-label',`${waiting?'WAIT · vùng tham khảo, chưa đạt bộ lọc; ':''}${abaLabel(track).first} ${abaLabel(track).second}; trung vị WLR dự kiến ${fmt(p.value)}, P10 ${fmt(p.low)}, P90 ${fmt(p.high)}, mốc WLR ${fmt(track.q.currentWlr)}; rộng một phần ba, neo tâm phổ CVD`);canvas.dataset.referenceWlr=String(track.q.currentWlr);canvas.dataset.expectedWlr=String(p.value);canvas.dataset.p10Wlr=String(p.low);canvas.dataset.p90Wlr=String(p.high);
  }
  function show(result){
-  if(result.status!=='READY'){wait(result.message);return;}active=freezeAbaResult(active,result);result=active;syncStartedAt=null;canvas.dataset.sync='ready';const {track:t,progress:g}=result,p=t.prediction,name=COLOR_NAMES[t.q.color],other=COLOR_NAMES[g.betweenColor];canvas.dataset.status=p.ready?'READY':'WAIT_SAMPLES';canvas.dataset.color=String(t.q.color);liveTable(result);
+  if(result.status!=='READY'){wait(result.message);return;}
+  const context=getContext(),signal=usableSignal(result.track,snapshotReport,context.now,{verified:snapshotIsVerified(),live:context.live});
+  result={...result,track:{...result.track,signal}};
+  active=freezeAbaResult(active,result);result=active;syncStartedAt=null;canvas.dataset.sync='ready';const {track:t,progress:g}=result,p=t.prediction,name=COLOR_NAMES[t.q.color],other=COLOR_NAMES[g.betweenColor];canvas.dataset.status=p.ready?'READY':'WAIT_SAMPLES';canvas.dataset.color=String(t.q.color);liveTable(result);
   const stage=g.stage==='NEXT_A_FORMING'?`ĐÃ THUỘC A–B–A · A ${name} kế tiếp đang mở`:g.stage==='B_FORMING'?`A ${name} → B ${other} · chờ A ${name} kế tiếp`:`A ${name} đang hình thành · chờ đúng một B khác màu`;
-  $('aba-status').textContent=(t.signal?.emit===false?'WAIT · '+gateReason(t.signal.reason)+' · ':'')+stage;$('aba-reference').textContent=fmt(t.q.currentWlr);$('aba-origin').textContent=`A ${name} · mốc mẫu ${date(t.q.issuedAt)} · ${t.q.knownBars} nến đã biết`;
-  $('aba-target').textContent=t.signal?.emit===false?'WAIT · '+gateReason(t.signal.reason):p.ready?`${fmt(p.value)} · ${change(result.changePct)}`:'WAIT · chưa đủ mẫu';$('aba-range').textContent=p.ready?`P10–P90: ${fmt(p.low)} – ${fmt(p.high)}`:`Cần 12 ngày có trung vị hoàn tất; hiện có ${p.n}`;
+  activeStage=stage;
+  $('aba-status').textContent=(t.signal?.emit!==true?'WAIT · '+gateReason(t.signal.reason)+' · ':'')+stage;$('aba-reference').textContent=fmt(t.q.currentWlr);$('aba-origin').textContent=`A ${name} · mốc mẫu ${date(t.q.issuedAt)} · ${t.q.knownBars} nến đã biết`;
+  $('aba-target').textContent=t.signal?.emit!==true?'WAIT · '+gateReason(t.signal.reason):p.ready?`${fmt(p.value)} · ${change(result.changePct)}`:'WAIT · chưa đủ mẫu';$('aba-range').textContent=p.ready?`Nghiên cứu P50 ${fmt(p.value)} · P10–P90: ${fmt(p.low)} – ${fmt(p.high)}`:`Cần 12 ngày có trung vị hoàn tất; hiện có ${p.n}`;
   $('aba-membership').textContent=p.memberReady?pct(p.pMembership):'WAIT · ít mẫu xác nhận';$('aba-count').textContent=`${p.memberN} ngày đã xác nhận · ${p.unresolvedN} chưa xác nhận trong nhóm ${p.nEvents} ngày`;
   $('aba-progress').textContent=g.stage==='NEXT_A_FORMING'?`Đã quan sát ${g.observedBars} nến của A kế tiếp; trung vị tạm ${fmt(g.observedMedian)}. Chưa dùng làm trung vị thực tế cuối cùng.`:`${p.predictedMembership===true?'Dự đoán nghiêng về A–B–A':p.predictedMembership===false?'Dự đoán chưa nghiêng về A–B–A':'Chưa đủ dữ liệu để kết luận thuộc mẫu'}. Mẫu đang dở vẫn được theo dõi; chưa xác nhận không đồng nghĩa sai.`;
   $('aba-source').textContent=`${t.model} · SPY M15 · SPY V + Composite · kho ${date(t.sourceAsOf)} · tính lúc ${date(t.computedAt)}. Dự báo được giữ nguyên để theo dõi A→B→A.`;
@@ -95,14 +101,76 @@ export function createWlrAba({chart,wlr,host,actions,getContext,paneBounds,getCv
  }
  function update(){
   canvas.style.display=badge.style.display=toggle.checked?'block':'none';panel.dataset.enabled=String(toggle.checked);if(!toggle.checked){++request;pending='';active=null;tableRows('aba-live-table',[['Mẫu hiện tại','Đã tắt','Đã tắt']]);$('aba-status').textContent='Đã tắt vùng dự báo A–B–A';schedule();return;}
+  renderHealth();
   const c=getContext(),last=c.features?.at(-1);if(c.symbol!=='SPYUSDT'||c.interval!=='15m'){++request;pending='';wait('Chỉ hỗ trợ SPY M15');return;}
   if(!c.live){++request;pending='';wait('WAIT · chờ dữ liệu SPY M15 đã đóng còn mới');return;}
   if(!last||last.t!==c.expectedTime){++request;pending='';wait('WAIT · dữ liệu WLR đang đồng bộ',true);return;}
-  const key=last.t+'|'+resetNext;if(key===pending){schedule();return;}pending=key;const id=++request;
-  if(!worker){worker=new Worker(new URL('./wlr-aba-worker.mjs?v=20261022-europe1',import.meta.url),{type:'module'});worker.onmessage=({data})=>{if(data.id!==request||!toggle.checked)return;if(data.error){pending='';wait(data.error,true);return;}const context=getContext();if(!context.live){pending='';wait('WAIT · dữ liệu SPY không còn mới');return;}if(context.expectedTime!==context.features?.at(-1)?.t){pending='';wait('WAIT · dữ liệu WLR đang đồng bộ',true);return;}show(data.result);try{sessionStorage.setItem('netflow:wlr-aba:europe-post:v1',JSON.stringify(data.result.state));}catch{}};worker.onerror=()=>{pending='';wait('WAIT · lỗi xử lý A–B–A',true);worker?.terminate();worker=null;};}
+  const key=last.t+'|'+snapshotKey(snapshotReport)+'|'+Math.floor(c.now/SNAPSHOT_TTL)+'|'+resetNext;if(key===pending){schedule();return;}pending=key;const id=++request;
+  ensureWorker();
   worker.postMessage({id,rows:c.features,now:c.now,reset:resetNext,restore:restored});resetNext=false;restored=null;
  }
  $('aba-reset').addEventListener('click',()=>{resetNext=true;pending='';update();});toggle.addEventListener('change',()=>{pending='';update();});chart.timeScale().subscribeVisibleLogicalRangeChange(schedule);window.addEventListener('resize',schedule);new ResizeObserver(schedule).observe(host);for(const e of ['wheel','pointermove','pointerup'])host.addEventListener(e,schedule,{passive:true});
- fetch('data/wlr-aba/report.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw Error();return r.json();}).then(r=>{directionTable(r);const selected=r.v2?.selectedModel??r.selectedTrial,test=r.test[selected];$('aba-validation').textContent=`Kiểm tra tại mốc đầu đoạn: ${test.days} ngày / ${test.queries} mốc; ${test.targetN} trung vị đã hoàn tất. ${selected}: MAE trung vị ${test.maePct.toFixed(4)}%; giữ trung vị hiện tại ${r.test.CURRENT_MEDIAN.maePct.toFixed(4)}%. Chưa xác lập lợi thế dự báo giá; kết quả thăm dò trên kho đã nghiên cứu. Kho ${date(r.sourceAsOf)}.`;}).catch(()=>{$('aba-direction-status').textContent='WAIT · chưa tải được báo cáo kiểm định hướng';$('aba-validation').textContent='Chưa tải được báo cáo kiểm tra A–B–A.';});
+ function snapshotIsVerified(){return snapshotVerified&&Date.now()-snapshotReceivedAt<2*SNAPSHOT_TTL;}
+ function renderHealth(){
+  const c=getContext(),r=snapshotReport,source=collectionState(r,c.now),verified=snapshotIsVerified();
+  $('aba-chart-health').textContent='Chart Binance: '+(c.live?'LIVE':'KHÔNG LIVE')+' · độc lập với kho nghiên cứu';
+  $('aba-chart-health').dataset.state=c.live?'LIVE':'WAIT';
+  $('aba-collection-health').textContent='Kho nghiên cứu: '+source.status+' · '+source.source+' · trễ hiện tại '+(Number.isFinite(source.lagHours)?source.lagHours.toFixed(2)+' giờ':'chưa rõ')+' · nến cuối đóng '+date(source.lastClose)+' (giờ VN)';
+  $('aba-collection-health').dataset.state=verified?source.status:'UNKNOWN';
+  $('aba-publication-health').textContent='Publish '+date(r?.publishedAt)+' (giờ VN) · dữ liệu đến '+date(r?.sourceAsOf)+' · '+(verified?'đã đối chiếu archive/report':snapshotError||'WAIT · chờ xác minh snapshot')+'. Publish mới không đồng nghĩa dữ liệu live.';
+  $('aba-decision-health').textContent='Lợi thế giá: '+(r?.decision??'WAIT')+' · '+(r?.selectionReady?'đã chọn '+r.selectedTrial:'chưa chọn mô hình')+'; chọn mô hình không xác nhận hiệu quả.';
+  $('aba-decision-health').dataset.state=verified?(r?.decision??'WAIT'):'WAIT';
+  const signal=usableSignal(active?.track,r,c.now,{verified,live:c.live});
+  $('aba-signal-health').textContent='Tín hiệu sử dụng: WAIT · '+reasonText(signal.reason)+' · vùng P50/P10–P90 chỉ để nghiên cứu.';
+  $('aba-signal-health').dataset.state='WAIT';
+  $('aba-forward-health').textContent='Forward theo ngày: '+(r?.v2?.forward?.queries??'—')+' queries · '+(r?.v2?.forward?.filtered?.n??'—')+' mốc chấm / '+(r?.v2?.forward?.filtered?.days??'—')+' ngày. Chưa xác thực sổ dự báo ghi nhận live.';
+  if(active){
+   active={...active,track:{...active.track,signal}};
+   liveTable(active);$('aba-target').textContent='WAIT · '+reasonText(signal.reason);
+   $('aba-status').textContent='WAIT · '+reasonText(signal.reason)+' · '+activeStage;
+   badge.textContent='A · WAIT · '+reasonText(signal.reason)+' · NGHIÊN CỨU';schedule();
+  }
+ }
+ function acceptSnapshot(r){
+  const changed=snapshotKey(r)!==snapshotKey(snapshotReport);
+  snapshotReport=r;snapshotVerified=true;snapshotReceivedAt=Date.now();snapshotError='';
+  directionTable(r);
+  const selected=r.v2?.selectedModel??r.selectedTrial,test=r.test?.[selected];
+  $('aba-validation').textContent=test?`Nghiên cứu ${test.days} ngày / ${test.queries} mốc; ${test.targetN} trung vị hoàn tất. ${selected}: MAE ${fmt(test.maePct)}%; nền giữ trung vị ${fmt(r.test?.CURRENT_MEDIAN?.maePct)}%. Quyết định giá: ${r.decision??'WAIT'}.`:'WAIT · chưa có kết quả nghiên cứu';
+  if(changed)pending='';renderHealth();
+ }
+ function snapshotFailed(message){
+  snapshotVerified=false;snapshotError=message;pending='';
+  $('aba-direction-status').dataset.state='WAIT';
+  $('aba-direction-status').textContent='WAIT · '+message+' · kết quả bên dưới là bản đã tải trước đó';
+  renderHealth();
+ }
+ function ensureWorker(){
+  if(worker)return;
+  worker=new Worker(new URL('./wlr-aba-worker.mjs?v=20261023-status1',import.meta.url),{type:'module'});
+  worker.onmessage=({data})=>{
+   if(data.type==='snapshot'){refreshing=false;acceptSnapshot(data.report);update();return;}
+   if(data.type==='snapshot-error'){refreshing=false;snapshotFailed(data.error);return;}
+   if(data.id!==request||!toggle.checked)return;
+   if(data.error){snapshotFailed(data.error);wait(data.error,true);return;}
+   acceptSnapshot(data.report);
+   const context=getContext();
+   if(!context.live){pending='';wait('WAIT · dữ liệu chart không còn mới');return;}
+   if(context.expectedTime!==context.features?.at(-1)?.t){pending='';wait('WAIT · dữ liệu WLR đang đồng bộ',true);return;}
+   show(data.result);
+   try{sessionStorage.setItem('netflow:wlr-aba:europe-post:v1',JSON.stringify(data.result.state));}catch{}
+  };
+  worker.onerror=()=>{refreshing=false;snapshotFailed('lỗi xử lý A–B–A');wait('WAIT · lỗi xử lý A–B–A',true);worker?.terminate();worker=null;};
+ }
+ function refreshSnapshot(){
+  if(refreshing)return;refreshing=true;
+  try{ensureWorker();worker.postMessage({type:'refresh'});}
+  catch(e){refreshing=false;snapshotFailed(e.message);}
+ }
+ refreshSnapshot();
+ setInterval(refreshSnapshot,SNAPSHOT_TTL);
+ setInterval(()=>{renderHealth();if(toggle.checked)update();},3000);
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden){refreshSnapshot();update();}});
+
  return {update,schedule,toggle};
 }

@@ -112,6 +112,12 @@ def save(path,obj):
     with open(tmp,"w",encoding="utf-8") as f:json.dump(obj,f,separators=(",",":"),ensure_ascii=False)
     os.replace(tmp,path)
 
+def collection_metadata(source, checked_at, last_by_symbol):
+    if any(s not in last_by_symbol for s in SYMBOLS):
+        raise RuntimeError("Missing history for an ABA input symbol")
+    lag=max(0,checked_at-min(last_by_symbol.values())-STEP)
+    return {"source":source,"status":"delayed" if source=="daily-archive" or lag>STEP+15000 else "live","checkedAt":checked_at,"lastTimeBySymbol":last_by_symbol,"lagHours":round(lag/3600000,2)}
+
 def main():
     global SOURCE
     try:
@@ -179,7 +185,7 @@ def main():
     manifest={"version":1,"interval":INTERVAL,"step":STEP,"retentionDays":RETENTION_DAYS,"updatedAt":server_time,"firstTime":first,"lastTime":last,"months":months,"symbols":list(SYMBOLS),"bars":bars,"touched":touched}
     if len(last_by_symbol)!=len(SYMBOLS): raise RuntimeError("Missing history for an ABA input symbol")
     lag=max(0,server_time-min(last_by_symbol.values())-STEP)
-    manifest["collection"]={"source":SOURCE,"status":"delayed" if SOURCE=="daily-archive" else "live","checkedAt":server_time,"lastTimeBySymbol":last_by_symbol,"lagHours":round(lag/3600000,2)}
+    manifest["collection"]=collection_metadata(SOURCE,server_time,last_by_symbol)
     # Daily public files are delayed; reject a stalled archive rather than republish it forever.
     maximum_lag=72*3600000 if SOURCE=="daily-archive" else 2*3600000
     if lag>maximum_lag: raise RuntimeError(f"History stale: {lag/3600000:.1f} hours; refusing ABA publication")

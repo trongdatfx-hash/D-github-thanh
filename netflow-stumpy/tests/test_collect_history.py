@@ -14,6 +14,15 @@ spec.loader.exec_module(c)
 class CollectorTests(unittest.TestCase):
     def setUp(self): c.SOURCE='rest'
 
+    def test_metadata_never_marks_stale_rest_or_archive_as_live(self):
+        now=100*c.STEP
+        for source,last,expected in [('rest',now-c.STEP,'live'),('rest',now-5*c.STEP,'delayed'),('daily-archive',now-c.STEP,'delayed')]:
+            result=c.collection_metadata(source,now,{'SPYUSDT':last,'QQQUSDT':last})
+            self.assertEqual(result['status'],expected)
+        self.assertEqual(c.collection_metadata('rest',now,{'SPYUSDT':now-c.STEP,'QQQUSDT':now-5*c.STEP})['status'],'delayed')
+        with self.assertRaises(RuntimeError):
+            c.collection_metadata('rest',now,{'SPYUSDT':now-c.STEP})
+
     def test_451_is_not_retried(self):
         error=urllib.error.HTTPError('url',451,'restricted',{},None)
         with patch.object(c.urllib.request,'urlopen',side_effect=error) as request:
