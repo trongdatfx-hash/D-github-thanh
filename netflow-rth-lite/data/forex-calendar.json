@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-10-23T10:13:09.538Z",
+  "updatedAt": "2026-10-23T15:06:34.260Z",
   "events": [
     {
       "title": "IMF Meetings",
@@ -769,9 +769,9 @@
       "date": "2026-10-23T12:30:00.000Z",
       "timestamp": 1792758600000,
       "impact": "Low",
-      "actual": "",
+      "actual": "1.2%",
       "forecast": "1.1%",
-      "previous": "-0.7%"
+      "previous": "-0.8%"
     },
     {
       "title": "Retail Sales m/m",
@@ -779,9 +779,9 @@
       "date": "2026-10-23T12:30:00.000Z",
       "timestamp": 1792758600000,
       "impact": "Low",
-      "actual": "",
+      "actual": "1.2%",
       "forecast": "1.3%",
-      "previous": "-0.7%"
+      "previous": "-0.8%"
     },
     {
       "title": "Belgian NBB Business Climate",
@@ -789,7 +789,7 @@
       "date": "2026-10-23T13:00:00.000Z",
       "timestamp": 1792760400000,
       "impact": "Low",
-      "actual": "",
+      "actual": "-9.8",
       "forecast": "-11.8",
       "previous": "-12.1"
     },
@@ -799,7 +799,7 @@
       "date": "2026-10-23T13:45:00.000Z",
       "timestamp": 1792763100000,
       "impact": "Medium",
-      "actual": "",
+      "actual": "56.0",
       "forecast": "55.4",
       "previous": "55.9"
     },
@@ -809,7 +809,7 @@
       "date": "2026-10-23T13:45:00.000Z",
       "timestamp": 1792763100000,
       "impact": "Medium",
-      "actual": "",
+      "actual": "57.9",
       "forecast": "57.9",
       "previous": "58.8"
     },
@@ -819,7 +819,7 @@
       "date": "2026-10-23T14:00:00.000Z",
       "timestamp": 1792764000000,
       "impact": "Medium",
-      "actual": "",
+      "actual": "48.0",
       "forecast": "46.3",
       "previous": "46.3"
     },
@@ -829,7 +829,7 @@
       "date": "2026-10-23T14:00:00.000Z",
       "timestamp": 1792764000000,
       "impact": "Medium",
-      "actual": "",
+      "actual": "4.7%",
       "forecast": "",
       "previous": "4.7%"
     },
