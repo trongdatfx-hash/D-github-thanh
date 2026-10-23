@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-10-23T00:28:25.496Z",
+  "updatedAt": "2026-10-23T05:13:22.403Z",
   "events": [
     {
       "title": "IMF Meetings",
@@ -669,7 +669,7 @@
       "date": "2026-10-23T00:30:00.000Z",
       "timestamp": 1792715400000,
       "impact": "Low",
-      "actual": "",
+      "actual": "53.3",
       "forecast": "54.5",
       "previous": "54.1"
     },
