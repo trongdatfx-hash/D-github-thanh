@@ -69,6 +69,15 @@ class PublicationTests(unittest.TestCase):
             publisher.publish(self.repo)
         self.assertEqual(self.published()["sourceAsOf"],3)
 
+    def test_frozen_v3_policy_cannot_be_overwritten_by_concurrent_publisher(self):
+        name="netflow-stumpy/data/wlr-aba/v3-policy-lock.json"
+        self.write(self.repo,name,json.dumps({"id":"local"}))
+        self.peer_update(name,json.dumps({"id":"already-frozen"}))
+        with patch.dict(os.environ,{"GITHUB_ACTIONS":"true"}):
+            with self.assertRaisesRegex(RuntimeError,"frozen V3 policy already exists"):
+                publisher.publish(self.repo)
+        self.assertEqual(json.loads(self.run_git(self.base,"--git-dir="+str(self.remote),"show","main:"+name))["id"],"already-frozen")
+
     def test_changed_model_requires_rebuild(self):
         self.peer_update("netflow-stumpy/engine.mjs","new model")
         with patch.dict(os.environ,{"GITHUB_ACTIONS":"true"}):

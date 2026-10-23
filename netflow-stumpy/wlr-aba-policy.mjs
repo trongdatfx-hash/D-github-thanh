@@ -39,7 +39,7 @@ export function gateSignal(record,config){
 }
 export function applyPolicy(record,policy){
  const direction=calibrateDirection(record.direction,policy.calibration),out={...record,direction};
- const signal=record.day<POLICY_SPEC.testStart?{emit:false,reason:'BEFORE_POLICY_WINDOW'}:gateSignal(out,policy.gate);
+ const signal=record.day<(policy.spec?.testStart??POLICY_SPEC.testStart)?{emit:false,reason:'BEFORE_POLICY_WINDOW'}:gateSignal(out,policy.gate);
  return {...out,signal};
 }
 function chooseCalibration(fit,records,field){
@@ -65,17 +65,17 @@ export function policyScore(records,policy){
  const reasons={};for(const r of applied)if(!r.signal.emit)reasons[r.signal.reason]=(reasons[r.signal.reason]??0)+1;
  return {queries:records.length,emitted:signals.length,signalCoverage:records.length?signals.length/records.length:0,raw,calibrated,filtered,matchedRaw,calibrationVsRaw:paired(old,trial,'brier'),waiting:reasons,reliability:{model:reliability(applied,'model'),baseline:reliability(applied,'baseline')},intervals:intervals(records)};
 }
-export function buildPolicy(recordsByModel){
- const selection=Object.fromEntries(['CYCLE8','CYCLE16'].map(m=>[m,directionScore(recordsByModel[m].filter(r=>inRange(r,POLICY_SPEC.selectionStart,POLICY_SPEC.calibrationStart)))]));
- const candidates=['CYCLE8','CYCLE16'].filter(m=>selection[m].days>=POLICY_SPEC.minimumSelectionDays&&selection[m].n>=POLICY_SPEC.minimumSelectionN).sort((a,b)=>selection[b].dayAccuracy-selection[a].dayAccuracy||selection[a].brier-selection[b].brier||a.localeCompare(b));
+export function buildPolicy(recordsByModel,spec=POLICY_SPEC){
+ const selection=Object.fromEntries(['CYCLE8','CYCLE16'].map(m=>[m,directionScore(recordsByModel[m].filter(r=>inRange(r,spec.selectionStart,spec.calibrationStart)))]));
+ const candidates=['CYCLE8','CYCLE16'].filter(m=>selection[m].days>=spec.minimumSelectionDays&&selection[m].n>=spec.minimumSelectionN).sort((a,b)=>selection[b].dayAccuracy-selection[a].dayAccuracy||selection[a].brier-selection[b].brier||a.localeCompare(b));
  const selectedModel=candidates[0]??null;
- if(!selectedModel)return {version:2,spec:POLICY_SPEC,selectedModel:null,status:'WAIT_SELECTION',selection};
- const rs=recordsByModel[selectedModel],calibrationRows=rs.filter(r=>inRange(r,POLICY_SPEC.calibrationStart,POLICY_SPEC.gateStart)),gateRaw=rs.filter(r=>inRange(r,POLICY_SPEC.gateStart,POLICY_SPEC.testStart)),calibration={model:chooseCalibration(fitCalibration(calibrationRows),gateRaw,'model'),baseline:chooseCalibration(fitCalibration(calibrationRows,'baseline'),gateRaw,'baseline')},gateRows=gateRaw.map(r=>({...r,direction:calibrateDirection(r.direction,calibration)})),eligible=common(gateRows),trials=[];
- for(const band of POLICY_SPEC.bands)for(const gap of POLICY_SPEC.gaps){
-  const config={band,gap},kept=gateRows.filter(r=>gateSignal(r,config).emit),score=directionScore(kept),coverage=eligible.length?score.n/eligible.length:0,valid=score.n>=POLICY_SPEC.minimumGateN&&score.days>=POLICY_SPEC.minimumGateDays&&coverage>=POLICY_SPEC.minimumGateCoverage;
+ if(!selectedModel)return {version:spec.version,spec:spec,selectedModel:null,status:'WAIT_SELECTION',selection};
+ const rs=recordsByModel[selectedModel],calibrationRows=rs.filter(r=>inRange(r,spec.calibrationStart,spec.gateStart)),gateRaw=rs.filter(r=>inRange(r,spec.gateStart,spec.testStart)),calibration={model:chooseCalibration(fitCalibration(calibrationRows),gateRaw,'model'),baseline:chooseCalibration(fitCalibration(calibrationRows,'baseline'),gateRaw,'baseline')},gateRows=gateRaw.map(r=>({...r,direction:calibrateDirection(r.direction,calibration)})),eligible=common(gateRows),trials=[];
+ for(const band of spec.bands)for(const gap of spec.gaps){
+  const config={band,gap},kept=gateRows.filter(r=>gateSignal(r,config).emit),score=directionScore(kept),coverage=eligible.length?score.n/eligible.length:0,valid=score.n>=spec.minimumGateN&&score.days>=spec.minimumGateDays&&coverage>=spec.minimumGateCoverage;
   trials.push({config,score,coverage,valid});
  }
  const gates=trials.filter(t=>t.valid&&t.score.comparison.gain>0).sort((a,b)=>b.score.dayAccuracy-a.score.dayAccuracy||b.coverage-a.coverage||a.config.gap-b.config.gap),gate=gates[0]?.config??null;
- const policy={version:2,spec:POLICY_SPEC,selectedModel,status:calibration.model.status!=='READY'||calibration.baseline.status!=='READY'?'WAIT_CALIBRATION':gate?'READY':'WAIT_GATE_VALIDATION',selection,calibration,gate,gateValidation:{eligible:eligible.length,days:new Set(eligible.map(r=>r.day)).size,trials},sourceLimit:'All historical windows were previously inspected. Exploratory retrospective comparison; forward evaluation begins 2026-10-22. Do not tune from test or forward outcomes.'};
- return {...policy,test:policyScore(rs.filter(r=>inRange(r,POLICY_SPEC.testStart,POLICY_SPEC.forwardStart)),policy),forward:policyScore(rs.filter(r=>r.day>=POLICY_SPEC.forwardStart),policy)};
+ const policy={version:spec.version,spec:spec,selectedModel,status:calibration.model.status!=='READY'||calibration.baseline.status!=='READY'?'WAIT_CALIBRATION':gate?'READY':'WAIT_GATE_VALIDATION',selection,calibration,gate,gateValidation:{eligible:eligible.length,days:new Set(eligible.map(r=>r.day)).size,trials},sourceLimit:spec.version===2?'All historical windows were previously inspected. Exploratory retrospective comparison; forward evaluation begins 2026-10-22. Do not tune from test or forward outcomes.':'Previously inspected historical archive. Six-week gate is exploratory development data; historical holdout is descriptive. Only post-freeze dates can be future evaluation.'};
+ return {...policy,test:policyScore(rs.filter(r=>inRange(r,spec.testStart,spec.forwardStart)),policy),forward:policyScore(rs.filter(r=>r.day>=spec.forwardStart),policy)};
 }

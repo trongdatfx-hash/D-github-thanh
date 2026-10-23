@@ -62,3 +62,14 @@ For fresh unattended collection, run the collector on a user-controlled runner/s
 ### Why WAIT_GATE_VALIDATION does not disappear just by collecting new bars
 
 V2 gate validation is frozen to 2026-08-07 through 2026-08-21. In the reviewed snapshot, the widest gate keeps 14 completed eligible targets across 8 days, below minimumGateN=20. Later live candles and forward outcomes do not enter that historical gate window. Do not lower thresholds or move the window after seeing test/forward results to force V2 into READY. Preserve V2's WAIT result. Define a new version with a prospective calibration/gate evaluation window, freeze its protocol and candidate policy before collecting outcomes, then evaluate on a later untouched forward window. Collecting fresh market data and establishing a predictive edge are separate requirements.
+
+
+## V3 six-week gate protocol (frozen before 2026-10-26)
+
+V2 stays unchanged as a comparison. V3 uses model selection from 2026-06-01 to before 2026-07-17, calibration from 2026-07-17 to before 2026-08-21, then a fixed six-week gate window from 2026-08-21 to before 2026-10-02. Gate requirements remain at least 20 completed scored targets, at least 5 distinct days, at least 30% coverage and positive day-balanced improvement against the baseline. The wider window is development data; it does not turn old test results into independent evidence.
+
+The descriptive historical holdout is 2026-10-02 to before 2026-10-23. Previously inspected historical results are explicitly retrospective. The dates 2026-10-23 through 2026-10-25 are excluded from that holdout. Forward begins at the Europe opening on Monday 2026-10-26 (08:00 London). It is not permitted to select a window based on forward outcomes or backdate the initial freeze.
+
+The first publication stores data/wlr-aba/v3-policy-lock.json: the selected model, calibration coefficients, gate, protocol, creation time, source cutoff and a SHA-256 fingerprint of model source files. Subsequent builds load that exact lock and only update evaluation statistics. Changes to model code or frozen settings fail closed and require a new prospective protocol. Concurrent publishers may not overwrite a previously committed policy lock.
+
+V3 policy READY means the development gate has enough samples and passed its fixed selection rules. It does not mean a trading signal is established. The dashboard compares V2 and V3 gate counts and continues to show source DELAYED, price NOT_ESTABLISHED and usable-signal WAIT independently. The forecast overlay can use V3 for research. Date-based post-freeze evaluation is labelled POST_FREEZE_REPLAY and is distinct from a live prediction ledger. At least 30 scored forward days and 40 scored targets are declared before evaluating future evidence; no automatic promotion to usable signals is implemented.

@@ -33,6 +33,11 @@ def publish(root):
         code_changes=[p for p in changed if not p.startswith(PREFIXES) and p.endswith((".mjs",".py",".txt"))]
         if code_changes:
             raise RuntimeError("Model inputs changed during computation; a fresh workflow must rebuild: "+", ".join(code_changes))
+        lock_name="netflow-stumpy/data/wlr-aba/v3-policy-lock.json"
+        if lock_name in payload and payload[lock_name] is not None:
+            existing=git(root,"show","origin/main:"+lock_name,check=False)
+            if existing.returncode==0 and json.loads(existing.stdout)!=json.loads(payload[lock_name]):
+                raise RuntimeError("A frozen V3 policy already exists on main; rebuild using that lock instead of overwriting it")
         remote=git(root,"show","origin/main:netflow-stumpy/data/wlr-aba/report.json",check=False)
         if remote.returncode==0:
             current=json.loads(remote.stdout)

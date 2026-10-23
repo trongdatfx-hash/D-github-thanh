@@ -9,5 +9,7 @@ if(collection.source==='daily-archive'&&collection.status!=='delayed')throw Erro
 for(const body of Object.values(result))body.collection=collection;
 const snapshotId=createHash('sha256').update(JSON.stringify(result)).digest('hex');
 for(const body of Object.values(result))body.snapshotId=snapshotId;
-fs.mkdirSync(output,{recursive:true});for(const [name,body]of Object.entries(result))fs.writeFileSync(path.join(output,name+'.json'),JSON.stringify(body));
-console.log(JSON.stringify({published:result.archive.schema,cases:result.archive.cases.length,vectors:result.archive.vectors.length,sourceAsOf:result.archive.sourceAsOf,model:result.report.selectedTrial,snapshotId,collection:collection.status,decision:result.report.decision,policy:result.report.v2?.status}));
+const v3Lock=read('v3-policy-lock');
+if(result.report.activePolicyVersion!==3||result.report.v3?.policyId!==v3Lock.id||result.report.v3?.freeze?.id!==v3Lock.id)throw Error('V3 report/lock identity mismatch');
+fs.mkdirSync(output,{recursive:true});fs.writeFileSync(path.join(output,'v3-policy-lock.json'),JSON.stringify(v3Lock));for(const [name,body]of Object.entries(result))fs.writeFileSync(path.join(output,name+'.json'),JSON.stringify(body));
+console.log(JSON.stringify({published:result.archive.schema,cases:result.archive.cases.length,vectors:result.archive.vectors.length,sourceAsOf:result.archive.sourceAsOf,model:result.report.selectedTrial,snapshotId,collection:collection.status,decision:result.report.decision,v2Policy:result.report.v2?.status,v3Policy:result.report.v3?.status,v3PolicyId:result.report.v3?.policyId}));

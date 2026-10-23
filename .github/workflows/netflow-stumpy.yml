@@ -53,7 +53,7 @@ jobs:
         env:
           WLR_TASKS: research/wlr-aba/output/tasks.json
           WLR_PROFILES: research/wlr-aba/output/profiles.json
-        run: node --test research/wlr-aba/tests.mjs netflow-stumpy/tests/wlr-aba.test.mjs netflow-stumpy/tests/wlr-aba-status.test.mjs netflow-stumpy/tests/wlr-aba-ui.test.mjs netflow-stumpy/tests/engine.test.mjs netflow-stumpy/tests/strength-sources.test.mjs netflow-stumpy/tests/pre-rth-wlr-trend.test.mjs
+        run: node --test research/wlr-aba/tests.mjs netflow-stumpy/tests/wlr-aba.test.mjs netflow-stumpy/tests/wlr-aba-status.test.mjs netflow-stumpy/tests/wlr-aba-v3.test.mjs netflow-stumpy/tests/wlr-aba-ui.test.mjs netflow-stumpy/tests/engine.test.mjs netflow-stumpy/tests/strength-sources.test.mjs netflow-stumpy/tests/pre-rth-wlr-trend.test.mjs
       - name: Score frozen validation choice and publish compact ABA archive
         run: |
           node research/wlr-aba/dataset.mjs --finalize
@@ -67,8 +67,10 @@ jobs:
           console.log('## WLR data and evidence status');
           console.log('- Archive: **'+c.status+'** / '+c.source+'; lag at collection: '+c.lagHours+' hours');
           console.log('- Data through: '+new Date(r.sourceAsOf).toISOString());
-          console.log('- Price decision: **'+r.decision+'**; policy: **'+r.v2.status+'**');
-          console.log('- Forward replay queries: '+r.v2.forward.queries+' (not a prospective live prediction ledger)');
+          console.log('- Price decision: **'+r.decision+'**; V2: **'+r.v2.status+'**; V3 gate: **'+r.v3.status+'**');
+          console.log('- V3 gate: '+r.v3.spec.gateStart+' to '+r.v3.spec.testStart+'; fixed six-week development window');
+          console.log('- V3 policy frozen: '+r.v3.policyId+' at '+new Date(r.v3.freeze.createdAt).toISOString());
+          console.log('- V3 forward from '+r.v3.spec.forwardStart+'; replay queries: '+r.v3.forward.queries+' (not a prospective live prediction ledger)');
           console.log('- Snapshot: '+r.snapshotId);
           NODE
       - name: Commit closed history and authorized ABA snapshot
