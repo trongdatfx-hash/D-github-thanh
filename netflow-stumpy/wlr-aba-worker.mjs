@@ -1,4 +1,4 @@
-import {updateAba} from './wlr-aba-live.mjs?v=20261023-v3fix1';
+import {updateAba} from './wlr-aba-live.mjs?v=20261023-v3preview1';
 import {createSnapshotLoader} from './wlr-aba-snapshot.mjs?v=20261023-v3fix1';
 const library=createSnapshotLoader();
 let state=null,serial=0;
