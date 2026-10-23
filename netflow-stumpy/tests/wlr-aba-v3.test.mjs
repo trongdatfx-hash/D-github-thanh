@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {POLICY_SPEC,buildPolicy,applyPolicy} from '../wlr-aba-policy.mjs';
 import {POLICY_V3_SPEC,selectV3Policy} from '../wlr-aba-policy-v3.mjs';
 import {buildFrozenV3,verifyV3Lock} from '../../research/wlr-aba/v3.mjs';
-import {activePolicy,policyKey,usableSignal} from '../wlr-aba-status.mjs';
+import {activePolicy,policyKey,researchPreviewSignal,usableSignal,YELLOW_PREVIEW_MIN_N,YELLOW_PREVIEW_MIN_CONFIDENCE} from '../wlr-aba-status.mjs';
 import {validateSnapshot} from '../wlr-aba-snapshot.mjs';
 import {SPEC,europeOpen} from '../wlr-aba-core.mjs';
 const freezeNow=Date.parse('2026-10-23T03:00:00Z'),sourceAsOf=Date.parse('2026-10-22T00:00:00Z'),modelCodeHash='a'.repeat(64);
@@ -57,4 +57,16 @@ test('V3 respects its own policy start and remains separate from usable signals'
  const full={...report,schema:base.schema,sourceAsOf,spec:SPEC,snapshotId:'same',v2:{version:2}};
  assert.doesNotThrow(()=>validateSnapshot(base,full));
  assert.throws(()=>validateSnapshot({...base,policyId:'wrong'},full),/V3/);
+});
+
+test('V3 research preview runs before forward but yellow requires high confidence and enough causal history',()=>{
+ const p=buildFrozenV3(records(),{now:freezeNow,sourceAsOf,modelCodeHash}).report,report={activePolicyVersion:3,v3:p};
+ const base={policyKey:policyKey(p),prediction:{ready:true},q:{color:0},direction:{n:YELLOW_PREVIEW_MIN_N},signal:{emit:true,reason:'READY',confidence:YELLOW_PREVIEW_MIN_CONFIDENCE-.01,base:.5,edge:.24}};
+ assert.equal(researchPreviewSignal(base,report,{live:true,verified:true}).reason,'WAIT_YELLOW_LOW_ACCURACY');
+ assert.equal(researchPreviewSignal({...base,direction:{n:YELLOW_PREVIEW_MIN_N-1},signal:{...base.signal,confidence:.9}},report,{live:true,verified:true}).reason,'WAIT_YELLOW_LOW_ACCURACY');
+ const yellow=researchPreviewSignal({...base,signal:{...base.signal,confidence:YELLOW_PREVIEW_MIN_CONFIDENCE}},report,{live:true,verified:true});
+ assert.equal(yellow.emit,true);assert.equal(yellow.reason,'V3_RESEARCH_PREVIEW');
+ const red=researchPreviewSignal({...base,q:{color:-1},direction:{n:1},signal:{...base.signal,confidence:.6}},report,{live:true,verified:true});
+ assert.equal(red.emit,true);
+ assert.equal(usableSignal(base,report,freezeNow,{live:true,verified:true}).reason,'WAIT_FORWARD_START');
 });
