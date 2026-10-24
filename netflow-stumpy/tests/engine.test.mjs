@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {STEPS,parseKlines,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,priceVolumeCandleSignal,strengthPhaseLineWidth,strengthPhaseLineStyle,calculateStrength,directionalVolumeDelta,commonVolumeDeltaValue,calculateDeltaVolumeStrength,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,regression,weightedPriceBands,wlrTrendThickness,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
+import {STEPS,parseKlines,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,priceVolumeCandleSignal,strengthPhaseLineWidth,strengthPhaseLineStyle,calculateStrength,directionalVolumeDelta,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,regression,weightedPriceBands,wlrTrendThickness,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
 import {load} from '../data.mjs';
 import {isUsMarketHoliday,isUsMarketTradingDay} from '../market-calendar.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL(p,import.meta.url),'utf8').replace(/^\uFEFF/,''));
@@ -188,16 +188,4 @@ test('SPY V candle delta is signed body volume normalized by causal SMA volume',
   const step=STEPS['15m'],bars=[{t:0,o:1,c:2,v:10},{t:step,o:2,c:1,v:20},{t:2*step,o:1,c:1,v:30},{t:4*step,o:1,c:2,v:40}],delta=directionalVolumeDelta(bars,step,{normLen:2});
   assert.deepEqual(delta.map(x=>x.direction),[1,-1,0,1]);assert.deepEqual(delta.map(x=>x.value),[1,-20/15,0,1]);assert.equal(delta[3].mean,40);
   assert.throws(()=>directionalVolumeDelta(bars,step,{normLen:0}),/không hợp lệ/);
-});
-test('common volume delta uses the fixed 70/30 tanh blend',()=>{
-  const expected=.7*Math.tanh(.5)+.3*Math.tanh(-.25);
-  assert(Math.abs(commonVolumeDeltaValue(.5,-.25)-expected)<1e-12);
-  assert.equal(commonVolumeDeltaValue(10,10),Math.tanh(10));
-  assert.equal(commonVolumeDeltaValue(null,.2),null);
-});
-test('common delta can use the same causal smoothing and Gaussian chain as SPY V',()=>{
-  const step=STEPS['15m'],delta=Array.from({length:520},(_,i)=>({t:i*step,value:i%11<7?.4:-.25})),full=calculateDeltaVolumeStrength(delta,step);
-  assert.equal(full.findIndex(Number.isFinite),506);
-  assert(full.filter(Number.isFinite).every(x=>x>=-1&&x<=1));
-  assert.deepEqual(calculateDeltaVolumeStrength(delta.slice(0,510),step),full.slice(0,510));
 });

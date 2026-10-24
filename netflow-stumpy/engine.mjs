@@ -137,10 +137,6 @@ export function directionalVolumeDelta(bars,step,{normLen=20}={}){
     return {t:b.t,value:mean>0?direction*b.v/mean:0,volume:b.v,mean,direction};
   });
 }
-export function commonVolumeDeltaValue(spyValue,qqqValue,{spyWeight=.7}={}){
-  if(!Number.isFinite(spyValue)||!Number.isFinite(qqqValue)||!Number.isFinite(spyWeight)||spyWeight<0||spyWeight>1)return null;
-  return spyWeight*Math.tanh(spyValue)+(1-spyWeight)*Math.tanh(qqqValue);
-}
 export function volumeDeltaStrengthColor(deltaValue,strengthValue){
   const intensity=Math.min(1,Math.abs(Number.isFinite(deltaValue)?deltaValue:0)/2),alpha=.42+.5*intensity;
   const deltaSign=deltaValue>0?1:deltaValue<0?-1:0,strengthSign=strengthValue>0?1:strengthValue<0?-1:0;
@@ -159,14 +155,9 @@ export function symmetricPriceRange(range,{floor=1}={}){
 }
 export function calculateVolumeStrength(bars,step,{normLen=20,strLen=8,halfLife=2,lookback=500}={}){
   if(!Array.isArray(bars)||!Object.values(STEPS).includes(step)||![normLen,strLen,lookback].every(x=>Number.isInteger(x)&&x>0)||!Number.isFinite(halfLife)||halfLife<0)throw Error('Tham số Volume Strength không hợp lệ');
-  return calculateDeltaVolumeStrength(directionalVolumeDelta(bars,step,{normLen}),step,{strLen,halfLife,lookback});
-}
-export function calculateDeltaVolumeStrength(deltas,step,{strLen=8,halfLife=2,lookback=500}={}){
-  if(!Array.isArray(deltas)||!Object.values(STEPS).includes(step)||![strLen,lookback].every(x=>Number.isInteger(x)&&x>0)||!Number.isFinite(halfLife)||halfLife<0)throw Error('Tham số Delta Volume Strength không hợp lệ');
-  let impulses=[],magnitudes=[],ew=null,previous=null;
+  const deltas=directionalVolumeDelta(bars,step,{normLen});let impulses=[],magnitudes=[],ew=null,previous=null;
   const alpha=halfLife>0?1-2**(-1/Math.max(1,halfLife)):1;
   return deltas.map(delta=>{
-    if(!Number.isFinite(delta?.t)||!Number.isFinite(delta?.value))throw Error('Delta Volume Strength thiếu dữ liệu');
     if(previous!==null&&delta.t-previous!==step){impulses=[];magnitudes=[];ew=null;}previous=delta.t;
     impulses.push(delta.value);if(impulses.length>strLen)impulses.shift();
     if(impulses.length<strLen)return null;
