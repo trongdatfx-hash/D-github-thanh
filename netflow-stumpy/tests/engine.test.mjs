@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {STEPS,parseKlines,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,priceVolumeCandleSignal,strengthPhaseLineWidth,strengthPhaseLineStyle,calculateStrength,directionalVolumeDelta,normalizedTakerVolumeDelta,qqqVolumeConfirmColor,commonTakerVolumeDeltaValue,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,regression,weightedPriceBands,wlrTrendThickness,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
+import {STEPS,parseKlines,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,priceVolumeCandleSignal,strengthPhaseLineWidth,strengthPhaseLineStyle,calculateStrength,directionalVolumeDelta,normalizedTakerVolumeDelta,qqqVolumeConfirmColor,commonTakerVolumeDeltaValue,calculateDeltaVolumeStrength,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,regression,weightedPriceBands,wlrTrendThickness,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
 import {load} from '../data.mjs';
 import {isUsMarketHoliday,isUsMarketTradingDay} from '../market-calendar.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL(p,import.meta.url),'utf8').replace(/^\uFEFF/,''));
@@ -214,4 +214,10 @@ test('common taker delta uses the fixed 70/30 tanh blend',()=>{
   assert(Math.abs(commonTakerVolumeDeltaValue(.5,-.25)-expected)<1e-12);
   assert.equal(commonTakerVolumeDeltaValue(10,10),Math.tanh(10));
   assert.equal(commonTakerVolumeDeltaValue(null,.2),null);
+});
+test('common delta can use the same causal smoothing and Gaussian chain as SPY V',()=>{
+  const step=STEPS['15m'],delta=Array.from({length:520},(_,i)=>({t:i*step,value:i%11<7?.4:-.25})),full=calculateDeltaVolumeStrength(delta,step);
+  assert.equal(full.findIndex(Number.isFinite),506);
+  assert(full.filter(Number.isFinite).every(x=>x>=-1&&x<=1));
+  assert.deepEqual(calculateDeltaVolumeStrength(delta.slice(0,510),step),full.slice(0,510));
 });
