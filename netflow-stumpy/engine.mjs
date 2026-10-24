@@ -137,32 +137,7 @@ export function directionalVolumeDelta(bars,step,{normLen=20}={}){
     return {t:b.t,value:mean>0?direction*b.v/mean:0,volume:b.v,mean,direction};
   });
 }
-// True taker buy/sell delta from Binance quote-volume fields. Each symbol is
-// normalized independently so SPY and QQQ can share a visual scale without
-// raw notional volume from either contract dominating the other.
-export function normalizedTakerVolumeDelta(bars,step,{normLen=20}={}){
-  if(!Array.isArray(bars)||!Object.values(STEPS).includes(step)||!Number.isInteger(normLen)||normLen<1)throw Error('Tham số Taker Volume Delta không hợp lệ');
-  let quoteVolumes=[],previous=null;
-  return bars.map(b=>{
-    if(previous!==null&&b.t-previous!==step)quoteVolumes=[];previous=b.t;
-    const net=Number.isFinite(b.net)?b.net:Number.isFinite(b.q)&&Number.isFinite(b.buy)?2*b.buy-b.q:NaN;
-    if(!Number.isFinite(b.q)||b.q<0||!Number.isFinite(net)||Math.abs(net)>b.q+1e-8)throw Error('Thiếu taker quote volume Binance');
-    quoteVolumes.push(b.q);if(quoteVolumes.length>normLen)quoteVolumes.shift();
-    const mean=quoteVolumes.reduce((sum,value)=>sum+value,0)/quoteVolumes.length;
-    return {t:b.t,value:mean>0?net/mean:0,net,quoteVolume:b.q,mean,direction:net>0?1:net<0?-1:0};
-  });
-}
-export function qqqVolumeConfirmColor(spyValue,qqqValue,{deadband=.10}={}){
-  if(!Number.isFinite(deadband)||deadband<0||deadband>=1)throw Error('Dead-band xác nhận volume không hợp lệ');
-  if(!Number.isFinite(spyValue)||!Number.isFinite(qqqValue)||Math.abs(spyValue)<deadband||Math.abs(qqqValue)<deadband)return '#788ca5';
-  const spy=spyValue>0?1:spyValue<0?-1:0,qqq=qqqValue>0?1:qqqValue<0?-1:0;
-  if(spy>0&&qqq>0)return '#1ae0a3';
-  if(spy<0&&qqq<0)return '#ff4d70';
-  if(spy>0&&qqq<0)return '#f6c85f';
-  if(spy<0&&qqq>0)return '#ff9f43';
-  return '#788ca5';
-}
-export function commonTakerVolumeDeltaValue(spyValue,qqqValue,{spyWeight=.7}={}){
+export function commonVolumeDeltaValue(spyValue,qqqValue,{spyWeight=.7}={}){
   if(!Number.isFinite(spyValue)||!Number.isFinite(qqqValue)||!Number.isFinite(spyWeight)||spyWeight<0||spyWeight>1)return null;
   return spyWeight*Math.tanh(spyValue)+(1-spyWeight)*Math.tanh(qqqValue);
 }

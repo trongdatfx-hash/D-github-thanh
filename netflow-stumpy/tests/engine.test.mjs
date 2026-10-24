@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {STEPS,parseKlines,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,priceVolumeCandleSignal,strengthPhaseLineWidth,strengthPhaseLineStyle,calculateStrength,directionalVolumeDelta,normalizedTakerVolumeDelta,qqqVolumeConfirmColor,commonTakerVolumeDeltaValue,calculateDeltaVolumeStrength,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,regression,weightedPriceBands,wlrTrendThickness,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
+import {STEPS,parseKlines,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,priceVolumeCandleSignal,strengthPhaseLineWidth,strengthPhaseLineStyle,calculateStrength,directionalVolumeDelta,commonVolumeDeltaValue,calculateDeltaVolumeStrength,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,regression,weightedPriceBands,wlrTrendThickness,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
 import {load} from '../data.mjs';
 import {isUsMarketHoliday,isUsMarketTradingDay} from '../market-calendar.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL(p,import.meta.url),'utf8').replace(/^\uFEFF/,''));
@@ -189,31 +189,11 @@ test('SPY V candle delta is signed body volume normalized by causal SMA volume',
   assert.deepEqual(delta.map(x=>x.direction),[1,-1,0,1]);assert.deepEqual(delta.map(x=>x.value),[1,-20/15,0,1]);assert.equal(delta[3].mean,40);
   assert.throws(()=>directionalVolumeDelta(bars,step,{normLen:0}),/không hợp lệ/);
 });
-test('SPY and QQQ taker delta normalize quote flow independently and reset after gaps',()=>{
-  const step=STEPS['15m'],bars=[
-    {t:0,q:10,buy:7,net:4},
-    {t:step,q:20,buy:5,net:-10},
-    {t:3*step,q:40,buy:30,net:20}
-  ],delta=normalizedTakerVolumeDelta(bars,step,{normLen:2});
-  assert.deepEqual(delta.map(x=>x.direction),[1,-1,1]);
-  assert.deepEqual(delta.map(x=>x.value),[.4,-10/15,.5]);
-  assert.equal(delta[2].mean,40);
-  assert.throws(()=>normalizedTakerVolumeDelta([{t:0,q:10,buy:12}],step),/taker quote volume/);
-});
-test('QQQ confirmation colors distinguish agreement from divergence',()=>{
-  assert.equal(qqqVolumeConfirmColor(.2,.3),'#1ae0a3');
-  assert.equal(qqqVolumeConfirmColor(-.2,-.3),'#ff4d70');
-  assert.equal(qqqVolumeConfirmColor(.2,-.3),'#f6c85f');
-  assert.equal(qqqVolumeConfirmColor(-.2,.3),'#ff9f43');
-  assert.equal(qqqVolumeConfirmColor(.09,.3),'#788ca5');
-  assert.equal(qqqVolumeConfirmColor(0,.3),'#788ca5');
-  assert.throws(()=>qqqVolumeConfirmColor(.2,.3,{deadband:1}),/không hợp lệ/);
-});
-test('common taker delta uses the fixed 70/30 tanh blend',()=>{
+test('common volume delta uses the fixed 70/30 tanh blend',()=>{
   const expected=.7*Math.tanh(.5)+.3*Math.tanh(-.25);
-  assert(Math.abs(commonTakerVolumeDeltaValue(.5,-.25)-expected)<1e-12);
-  assert.equal(commonTakerVolumeDeltaValue(10,10),Math.tanh(10));
-  assert.equal(commonTakerVolumeDeltaValue(null,.2),null);
+  assert(Math.abs(commonVolumeDeltaValue(.5,-.25)-expected)<1e-12);
+  assert.equal(commonVolumeDeltaValue(10,10),Math.tanh(10));
+  assert.equal(commonVolumeDeltaValue(null,.2),null);
 });
 test('common delta can use the same causal smoothing and Gaussian chain as SPY V',()=>{
   const step=STEPS['15m'],delta=Array.from({length:520},(_,i)=>({t:i*step,value:i%11<7?.4:-.25})),full=calculateDeltaVolumeStrength(delta,step);
