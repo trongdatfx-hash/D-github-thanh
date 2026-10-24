@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {STEPS,parseKlines,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,priceVolumeCandleSignal,strengthPhaseLineWidth,strengthPhaseLineStyle,calculateStrength,directionalVolumeDelta,normalizedTakerVolumeDelta,qqqVolumeConfirmColor,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,regression,weightedPriceBands,wlrTrendThickness,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
+import {STEPS,parseKlines,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,priceVolumeCandleSignal,strengthPhaseLineWidth,strengthPhaseLineStyle,calculateStrength,directionalVolumeDelta,normalizedTakerVolumeDelta,qqqVolumeConfirmColor,commonTakerVolumeDeltaValue,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,regression,weightedPriceBands,wlrTrendThickness,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
 import {load} from '../data.mjs';
 import {isUsMarketHoliday,isUsMarketTradingDay} from '../market-calendar.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL(p,import.meta.url),'utf8').replace(/^\uFEFF/,''));
@@ -205,5 +205,13 @@ test('QQQ confirmation colors distinguish agreement from divergence',()=>{
   assert.equal(qqqVolumeConfirmColor(-.2,-.3),'#ff4d70');
   assert.equal(qqqVolumeConfirmColor(.2,-.3),'#f6c85f');
   assert.equal(qqqVolumeConfirmColor(-.2,.3),'#ff9f43');
+  assert.equal(qqqVolumeConfirmColor(.09,.3),'#788ca5');
   assert.equal(qqqVolumeConfirmColor(0,.3),'#788ca5');
+  assert.throws(()=>qqqVolumeConfirmColor(.2,.3,{deadband:1}),/không hợp lệ/);
+});
+test('common taker delta uses the fixed 70/30 tanh blend',()=>{
+  const expected=.7*Math.tanh(.5)+.3*Math.tanh(-.25);
+  assert(Math.abs(commonTakerVolumeDeltaValue(.5,-.25)-expected)<1e-12);
+  assert.equal(commonTakerVolumeDeltaValue(10,10),Math.tanh(10));
+  assert.equal(commonTakerVolumeDeltaValue(null,.2),null);
 });

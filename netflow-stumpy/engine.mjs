@@ -152,13 +152,19 @@ export function normalizedTakerVolumeDelta(bars,step,{normLen=20}={}){
     return {t:b.t,value:mean>0?net/mean:0,net,quoteVolume:b.q,mean,direction:net>0?1:net<0?-1:0};
   });
 }
-export function qqqVolumeConfirmColor(spyValue,qqqValue){
+export function qqqVolumeConfirmColor(spyValue,qqqValue,{deadband=.10}={}){
+  if(!Number.isFinite(deadband)||deadband<0||deadband>=1)throw Error('Dead-band xác nhận volume không hợp lệ');
+  if(!Number.isFinite(spyValue)||!Number.isFinite(qqqValue)||Math.abs(spyValue)<deadband||Math.abs(qqqValue)<deadband)return '#788ca5';
   const spy=spyValue>0?1:spyValue<0?-1:0,qqq=qqqValue>0?1:qqqValue<0?-1:0;
   if(spy>0&&qqq>0)return '#1ae0a3';
   if(spy<0&&qqq<0)return '#ff4d70';
   if(spy>0&&qqq<0)return '#f6c85f';
   if(spy<0&&qqq>0)return '#ff9f43';
   return '#788ca5';
+}
+export function commonTakerVolumeDeltaValue(spyValue,qqqValue,{spyWeight=.7}={}){
+  if(!Number.isFinite(spyValue)||!Number.isFinite(qqqValue)||!Number.isFinite(spyWeight)||spyWeight<0||spyWeight>1)return null;
+  return spyWeight*Math.tanh(spyValue)+(1-spyWeight)*Math.tanh(qqqValue);
 }
 export function volumeDeltaStrengthColor(deltaValue,strengthValue){
   const intensity=Math.min(1,Math.abs(Number.isFinite(deltaValue)?deltaValue:0)/2),alpha=.42+.5*intensity;
