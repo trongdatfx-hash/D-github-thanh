@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-10-25T06:53:35.994Z",
+  "updatedAt": "2026-10-25T21:53:25.474Z",
   "events": [
     {
       "title": "Bank Holiday",
@@ -121,7 +121,7 @@
       "impact": "Low",
       "actual": "",
       "forecast": "0.6%",
-      "previous": "0.2%"
+      "previous": "0.3%"
     },
     {
       "title": "Durable Goods Orders m/m",
@@ -131,7 +131,7 @@
       "impact": "Low",
       "actual": "",
       "forecast": "1.8%",
-      "previous": "-0.1%"
+      "previous": "0.0%"
     },
     {
       "title": "HPI m/m",
@@ -291,7 +291,7 @@
       "impact": "Low",
       "actual": "",
       "forecast": "",
-      "previous": "3.58"
+      "previous": "3.58|1.2"
     },
     {
       "title": "Annual Budget Release",
@@ -321,7 +321,7 @@
       "impact": "Low",
       "actual": "",
       "forecast": "-130.8B",
-      "previous": "-132.1B"
+      "previous": "-132.6B"
     },
     {
       "title": "Prelim Wholesale Inventories m/m",
@@ -331,7 +331,7 @@
       "impact": "Low",
       "actual": "",
       "forecast": "0.4%",
-      "previous": "0.5%"
+      "previous": "0.7%"
     },
     {
       "title": "CB Leading Index m/m",
@@ -511,7 +511,7 @@
       "impact": "Medium",
       "actual": "",
       "forecast": "3.5%",
-      "previous": "6.1%"
+      "previous": "6.2%"
     },
     {
       "title": "Advance GDP q/q",
@@ -521,7 +521,7 @@
       "impact": "High",
       "actual": "",
       "forecast": "3.2%",
-      "previous": "2.2%"
+      "previous": "1.5%"
     },
     {
       "title": "Core PCE Price Index m/m",
@@ -651,7 +651,7 @@
       "impact": "Low",
       "actual": "",
       "forecast": "1.3%",
-      "previous": "-2.4%"
+      "previous": "-1.7%"
     },
     {
       "title": "Retail Sales y/y",
@@ -661,7 +661,7 @@
       "impact": "Low",
       "actual": "",
       "forecast": "3.4%",
-      "previous": "2.9%"
+      "previous": "2.7%"
     },
     {
       "title": "PPI q/q",
@@ -761,7 +761,7 @@
       "impact": "Low",
       "actual": "",
       "forecast": "0.1%",
-      "previous": "0.0%"
+      "previous": "0.2%"
     },
     {
       "title": "German Import Prices m/m",
@@ -851,7 +851,7 @@
       "impact": "Medium",
       "actual": "",
       "forecast": "0.1%",
-      "previous": "0.3%"
+      "previous": "0.2%"
     },
     {
       "title": "Italian Prelim GDP q/q",
@@ -881,7 +881,7 @@
       "impact": "Low",
       "actual": "",
       "forecast": "0.2%",
-      "previous": "0.6%"
+      "previous": "0.4%"
     },
     {
       "title": "Unemployment Rate",
