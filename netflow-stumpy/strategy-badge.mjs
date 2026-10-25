@@ -28,8 +28,8 @@ export function strategyProbabilityText(s){
 }
 export function createStrategyBadge(){
  const style=document.createElement('style');style.textContent=`
- #trade-strategy-badge{position:fixed;top:max(8px,env(safe-area-inset-top));right:max(8px,env(safe-area-inset-right));z-index:10000;box-sizing:border-box;margin:0;text-align:left;width:340px;max-width:calc(100vw - 16px);padding:9px 12px;background:rgba(10,20,35,.96);border:1px solid #688096;border-radius:10px;box-shadow:0 4px 18px #0006;color:#e4edf7;font:12px/1.45 system-ui,sans-serif}
- #trade-strategy-badge summary{cursor:pointer;font-size:10px;letter-spacing:.3px;color:#b8c9db}
+ #trade-strategy-badge{position:fixed;top:max(8px,env(safe-area-inset-top));right:max(8px,env(safe-area-inset-right));z-index:10000;pointer-events:none;box-sizing:border-box;margin:0;text-align:left;width:340px;max-width:calc(100vw - 16px);padding:9px 12px;background:rgba(10,20,35,.96);border:1px solid #688096;border-radius:10px;box-shadow:0 4px 18px #0006;color:#e4edf7;font:12px/1.45 system-ui,sans-serif}
+ #trade-strategy-badge summary{pointer-events:auto;cursor:pointer;font-size:10px;letter-spacing:.3px;color:#b8c9db}
  #trade-strategy-badge strong{display:block;font-size:14px;margin:5px 0;color:#f6c85f}
  #trade-strategy-badge[data-tone=up] strong{color:#1ae0a3}#trade-strategy-badge[data-tone=down] strong{color:#ff7791}
  #trade-strategy-badge p{margin:3px 0;white-space:normal}#trade-strategy-badge small{display:block;color:#b1bfd0;font-size:10px;margin-top:5px}

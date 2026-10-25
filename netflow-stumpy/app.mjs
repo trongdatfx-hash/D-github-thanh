@@ -1,4 +1,4 @@
-import {createStrategyBadge} from './strategy-badge.mjs?v=20261025-strategy1';
+import {createStrategyBadge} from './strategy-badge.mjs?v=20261025-strategy2';
 import {wlrColorSegments} from './wlr-color-segments.mjs?v=20261025-wlr-colorfix1';
 import {wlrSlopeThickness,WLR_SLOPE_DEFAULTS} from './wlr-slope-thickness.mjs?v=20261025-wlr-slope1';
 import {wlrDisplayColors,WLR_COLOR_DEFAULTS} from './wlr-display-color.mjs?v=20261025-wlr-colorfix1';
