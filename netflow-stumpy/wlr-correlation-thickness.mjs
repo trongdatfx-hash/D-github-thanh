@@ -1,5 +1,5 @@
 // Descriptive display metric; independent of model features and frozen policies.
-export const WLR_CORRELATION_DEFAULTS=Object.freeze({window:34,minPairs:20,alignmentWindow:8,deadband:.07,minWidth:1,maxWidth:6,alpha:.35});
+export const WLR_CORRELATION_DEFAULTS=Object.freeze({window:34,minPairs:20,alignmentWindow:8,deadband:.07,minWidth:1,maxWidth:8,alpha:.35,flowWeight:.25,sigmaVolumeWeight:.375,sigmaCompositeWeight:.375});
 const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
 export function pearsonCorrelation(a,b){
   if(a.length!==b.length||a.length<2||!a.every(Number.isFinite)||!b.every(Number.isFinite))return null;
@@ -11,7 +11,7 @@ export function pearsonCorrelation(a,b){
 }
 export function wlrCorrelationThickness(rows,composite,volume,{step,closedBefore=Infinity,...options}={}){
   const c={...WLR_CORRELATION_DEFAULTS,...options};
-  if(!Array.isArray(rows)||!(composite instanceof Map)||!(volume instanceof Map)||!Number.isInteger(step)||step<=0||!(Number.isFinite(closedBefore)||closedBefore===Infinity)||![c.window,c.minPairs,c.alignmentWindow].every(n=>Number.isInteger(n)&&n>=2)||c.minPairs>c.window||![c.deadband,c.minWidth,c.maxWidth,c.alpha].every(Number.isFinite)||c.deadband<0||c.minWidth<=0||c.maxWidth<c.minWidth||c.alpha<=0||c.alpha>1)throw Error('Invalid WLR correlation thickness settings');
+  if(!Array.isArray(rows)||!(composite instanceof Map)||!(volume instanceof Map)||!Number.isInteger(step)||step<=0||!(Number.isFinite(closedBefore)||closedBefore===Infinity)||![c.window,c.minPairs,c.alignmentWindow].every(n=>Number.isInteger(n)&&n>=2)||c.minPairs>c.window||![c.deadband,c.minWidth,c.maxWidth,c.alpha].every(Number.isFinite)||c.deadband<0||c.minWidth<=0||c.maxWidth<c.minWidth||c.alpha<=0||c.alpha>1||![c.flowWeight,c.sigmaVolumeWeight,c.sigmaCompositeWeight].every(x=>Number.isFinite(x)&&x>0)||Math.abs(c.flowWeight+c.sigmaVolumeWeight+c.sigmaCompositeWeight-1)>1e-9)throw Error('Invalid WLR correlation thickness settings');
   let history=[],previous=null,smoothed=c.minWidth;
   return rows.map(row=>{
     if(!Number.isFinite(row?.t))throw Error('Invalid WLR thickness timestamp');
@@ -30,7 +30,7 @@ export function wlrCorrelationThickness(rows,composite,volume,{step,closedBefore
         alignment=recent.filter(x=>Math.abs(x.v)>c.deadband&&Math.abs(x.c)>c.deadband&&Math.sign(x.v)===Math.sign(x.c)).length/recent.length;
         const coherent=corrSigmaVolume*corrSigmaComposite>0;
         sigmaRelation=coherent?(corrSigmaVolume>0?'direct':'inverse'):'mixed';
-        quality=coherent?Math.cbrt(Math.max(0,corrVolumeComposite)*Math.abs(corrSigmaVolume)*Math.abs(corrSigmaComposite))*alignment:0;
+        quality=coherent?Math.max(0,corrVolumeComposite)**c.flowWeight*Math.abs(corrSigmaVolume)**c.sigmaVolumeWeight*Math.abs(corrSigmaComposite)**c.sigmaCompositeWeight*alignment:0;
       }
     }
     const targetWidth=c.minWidth+(c.maxWidth-c.minWidth)*clamp(quality);

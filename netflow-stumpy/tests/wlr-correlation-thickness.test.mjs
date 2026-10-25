@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {wlrCorrelationThickness,pearsonCorrelation} from '../wlr-correlation-thickness.mjs';
+import {wlrCorrelationThickness,pearsonCorrelation,WLR_CORRELATION_DEFAULTS} from '../wlr-correlation-thickness.mjs';
 const step=900000;
 function source({n=80,bear=false,inverse=false,opposed=false,flat=false}={}){
  const rows=Array.from({length:n},(_,i)=>({t:i*step,mid:100+i,sigma:flat?2:inverse?20-i*.1:1+i*.1}));
@@ -13,10 +13,10 @@ test('Pearson returns signed scale-independent correlation and treats constant d
  assert.equal(pearsonCorrelation([1,1,1],[2,3,4]),null);assert.equal(pearsonCorrelation([1,NaN],[1,2]),null);
 });
 test('coherent bullish and bearish three-way relations produce the same thick line',()=>{
- for(const bear of [false,true]){const result=run(source({bear}));assert(result.at(-1).width>5.99);assert.equal(result[19].ready,false);assert.equal(result[20].ready,true);assert.equal(result.at(-1).pairs,34);}
+ for(const bear of [false,true]){const result=run(source({bear}));assert(result.at(-1).width>7.99);assert.equal(result[19].ready,false);assert.equal(result[20].ready,true);assert.equal(result.at(-1).pairs,34);}
 });
 test('inverse sigma association counts when both Strength amplitudes share it',()=>{
- const result=run(source({inverse:true})).at(-1);assert.equal(result.sigmaRelation,'inverse');assert(result.width>5.99);
+ const result=run(source({inverse:true})).at(-1);assert.equal(result.sigmaRelation,'inverse');assert(result.width>7.99);
 });
 test('opposed Strength signs and negative inter-Strength correlation remain thin',()=>{
  const result=run(source({opposed:true})).at(-1);assert.equal(result.corrVolumeComposite,-1);assert.equal(result.quality,0);assert.equal(result.width,1);
@@ -42,4 +42,19 @@ test('price-unit changes do not change thickness and input prices remain untouch
 });
 test('invalid window and smoothing settings are rejected',()=>{
  assert.throws(()=>run(source(),{minPairs:40,window:34}),/settings/);assert.throws(()=>run(source(),{alpha:0}),/settings/);
+});
+
+test('sigma relationships carry 75 percent of the weighting and the maximum width is eight',()=>{
+ assert.equal(WLR_CORRELATION_DEFAULTS.maxWidth,8);
+ assert.equal(WLR_CORRELATION_DEFAULTS.sigmaVolumeWeight+WLR_CORRELATION_DEFAULTS.sigmaCompositeWeight,.75);
+ assert.equal(WLR_CORRELATION_DEFAULTS.flowWeight,.25);
+ const n=34,rows=Array.from({length:n+1},(_,i)=>({t:i*step,mid:100,sigma:2+Math.cos(2*Math.PI*i/n)}));
+ const volume=new Map(rows.map((r,i)=>[r.t,{adjusted:.5+.1*Math.cos(2*Math.PI*i/n)}]));
+ const composite=new Map(rows.map((r,i)=>[r.t,{adjusted:.5+.1*(.5*Math.cos(2*Math.PI*i/n)+Math.sqrt(.75)*Math.sin(2*Math.PI*i/n))}]));
+ const last=run({rows,volume,composite},{alpha:1}).at(-1);
+ // Orthogonal sine/cosine samples give rho(sigma,V)=1 and the other two rhos=1/2.
+ assert(Math.abs(last.quality-2**(-.625))<1e-12);
+ assert(Math.abs(last.width-(1+7*2**(-.625)))<1e-12);
+ assert(run(source()).every(x=>x.width>=1&&x.width<=8));
+ assert.throws(()=>run(source(),{flowWeight:.4}),/settings/);
 });
