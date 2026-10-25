@@ -44,17 +44,17 @@ test('invalid window and smoothing settings are rejected',()=>{
  assert.throws(()=>run(source(),{minPairs:40,window:34}),/settings/);assert.throws(()=>run(source(),{alpha:0}),/settings/);
 });
 
-test('sigma relationships carry 75 percent of the weighting and the maximum width is eight',()=>{
+test('sigma relationships carry 65 percent of the weighting and the maximum width is eight',()=>{
  assert.equal(WLR_CORRELATION_DEFAULTS.maxWidth,8);
- assert.equal(WLR_CORRELATION_DEFAULTS.sigmaVolumeWeight+WLR_CORRELATION_DEFAULTS.sigmaCompositeWeight,.75);
- assert.equal(WLR_CORRELATION_DEFAULTS.flowWeight,.25);
+ assert.equal(WLR_CORRELATION_DEFAULTS.sigmaVolumeWeight+WLR_CORRELATION_DEFAULTS.sigmaCompositeWeight,.65);
+ assert.equal(WLR_CORRELATION_DEFAULTS.flowWeight,.35);
  const n=34,rows=Array.from({length:n+1},(_,i)=>({t:i*step,mid:100,sigma:2+Math.cos(2*Math.PI*i/n)}));
  const volume=new Map(rows.map((r,i)=>[r.t,{adjusted:.5+.1*Math.cos(2*Math.PI*i/n)}]));
  const composite=new Map(rows.map((r,i)=>[r.t,{adjusted:.5+.1*(.5*Math.cos(2*Math.PI*i/n)+Math.sqrt(.75)*Math.sin(2*Math.PI*i/n))}]));
  const last=run({rows,volume,composite},{alpha:1}).at(-1);
  // Orthogonal sine/cosine samples give rho(sigma,V)=1 and the other two rhos=1/2.
- assert(Math.abs(last.quality-2**(-.625))<1e-12);
- assert(Math.abs(last.width-(1+7*2**(-.625)))<1e-12);
+ assert(Math.abs(last.quality-2**(-.675))<1e-12);
+ assert(Math.abs(last.width-(1+7*2**(-.675)))<1e-12);
  assert(run(source()).every(x=>x.width>=1&&x.width<=8));
  assert.throws(()=>run(source(),{flowWeight:.4}),/settings/);
 });
