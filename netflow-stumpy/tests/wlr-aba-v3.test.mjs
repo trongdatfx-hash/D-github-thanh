@@ -1,3 +1,4 @@
+import {COMPOSITE_STRENGTH_VERSION} from '../engine.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {POLICY_SPEC,buildPolicy,applyPolicy} from '../wlr-aba-policy.mjs';
@@ -53,8 +54,8 @@ test('V3 respects its own policy start and remains separate from usable signals'
  assert.equal(activePolicy(report),p);assert.equal(activePolicy({...report,activePolicyVersion:4}),null);
  assert.equal(usableSignal({policyKey:policyKey(p)},report,freezeNow,{live:true,verified:true}).reason,'WAIT_FORWARD_START');
  assert.equal(usableSignal(null,report,freezeNow,{live:true,verified:true}).reason,'WAIT_FORWARD_START');
- const base={schema:'wlr-aba-v2',sourceAsOf,inputScope:SPEC.inputScope,activePolicyVersion:3,policyId:p.policyId,snapshotId:'same'};
- const full={...report,schema:base.schema,sourceAsOf,spec:SPEC,snapshotId:'same',v2:{version:2}};
+ const base={strengthVersion:COMPOSITE_STRENGTH_VERSION,schema:'wlr-aba-v2',sourceAsOf,inputScope:SPEC.inputScope,activePolicyVersion:3,policyId:p.policyId,snapshotId:'same'};
+ const full={...report,strengthVersion:COMPOSITE_STRENGTH_VERSION,schema:base.schema,sourceAsOf,spec:SPEC,snapshotId:'same',v2:{version:2}};
  assert.doesNotThrow(()=>validateSnapshot(base,full));
  assert.throws(()=>validateSnapshot({...base,policyId:'wrong'},full),/V3/);
 });

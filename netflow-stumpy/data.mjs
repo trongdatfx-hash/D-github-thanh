@@ -1,4 +1,4 @@
-import {SYMBOLS,STEPS,validateSymbol,parseKlines} from './engine.mjs';
+import {SYMBOLS,STEPS,validateSymbol,parseKlines} from './engine.mjs?v=20261025-dcommon-all1';
 export const BASE='https://fapi.binance.com';
 const PAGE_LIMIT=1000,PARALLEL_PAGES=3,INFO_TTL=15*60000;
 let infoCache=null,infoCachedAt=0;

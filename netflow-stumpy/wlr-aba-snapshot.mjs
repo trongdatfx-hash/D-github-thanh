@@ -1,6 +1,8 @@
-import {snapshotKey,SNAPSHOT_TTL,activePolicy} from './wlr-aba-status.mjs?v=20261023-v3fix1';
-import {SPEC} from './wlr-aba-core.mjs?v=20261022-europe1';
+import {COMPOSITE_STRENGTH_VERSION} from './engine.mjs?v=20261025-dcommon-all1';
+import {snapshotKey,SNAPSHOT_TTL,activePolicy} from './wlr-aba-status.mjs?v=20261025-dcommon-all1';
+import {SPEC} from './wlr-aba-core.mjs?v=20261025-dcommon-all1';
 export function validateSnapshot(archive,report){
+ if(archive?.strengthVersion!==COMPOSITE_STRENGTH_VERSION||report?.strengthVersion!==COMPOSITE_STRENGTH_VERSION)throw Error('WAIT · đang xây lại A–B–A theo Composite D common');
  if(archive?.schema!=='wlr-aba-v2'||report?.schema!=='wlr-aba-v2'||archive.inputScope!==SPEC.inputScope||report.spec?.inputScope!==SPEC.inputScope||archive.sourceAsOf!==report.sourceAsOf)throw Error('WAIT · kho và báo cáo A–B–A không đồng bộ');
  if(report.activePolicyVersion===3&&(!activePolicy(report)||!report.v3.policyId||!Number.isFinite(report.v3.forwardOpen)||report.v3.freeze?.status!=='FROZEN'||report.v3.freeze.id!==report.v3.policyId||archive.activePolicyVersion!==3||archive.policyId!==report.v3.policyId))throw Error('WAIT · kho V3 và cấu hình đã khóa không khớp');
  if(report.v2?.version!==2)throw Error('WAIT · chưa có policy A–B–A V2');

@@ -1,6 +1,6 @@
-import {collectionState,snapshotKey,usableSignal,researchPreviewSignal,reasonText,SNAPSHOT_TTL,activePolicy} from './wlr-aba-status.mjs?v=20261023-v3preview1';
-import {COLOR_NAMES} from './wlr-aba-live.mjs?v=20261023-v3preview1';
-import {freezeAbaResult,canRetainAba,abaOverlayGeometry,abaPaintKey,abaLabel} from './wlr-aba-overlay.mjs?v=20261023-v3preview1';
+import {collectionState,snapshotKey,usableSignal,researchPreviewSignal,reasonText,SNAPSHOT_TTL,activePolicy} from './wlr-aba-status.mjs?v=20261025-dcommon-all1';
+import {COLOR_NAMES} from './wlr-aba-live.mjs?v=20261025-dcommon-all1';
+import {freezeAbaResult,canRetainAba,abaOverlayGeometry,abaPaintKey,abaLabel} from './wlr-aba-overlay.mjs?v=20261025-dcommon-all1';
 const fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',pct=x=>Number.isFinite(x)?(100*x).toFixed(1)+'%':'—',change=x=>Number.isFinite(x)?(x>=0?'+':'')+x.toFixed(2)+'%':'—',date=t=>Number.isFinite(t)?new Date(t).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
 export function createWlrAba({chart,wlr,host,actions,getContext,paneBounds,getCvdBounds}){
  const label=document.createElement('label');label.className='aba-toggle';const toggle=document.createElement('input');toggle.type='checkbox';toggle.id='wlr-aba-toggle';toggle.checked=true;label.append(toggle,'WLR A–B–A · nghiên cứu');actions.append(label);
@@ -9,7 +9,7 @@ export function createWlrAba({chart,wlr,host,actions,getContext,paneBounds,getCv
  let snapshotReport=null,snapshotVerified=false,snapshotReceivedAt=0,snapshotError='',refreshing=false,activeStage='';
  let worker=null,active=null,request=0,pending='',frame=0,resetNext=false,restored=null,syncStartedAt=null,geometryMissingAt=null,lastPaintKey='';
  const buffer=document.createElement('canvas');
- try{restored=JSON.parse(sessionStorage.getItem('netflow:wlr-aba:europe-post:policy-v3')??'null');}catch{}
+ try{restored=JSON.parse(sessionStorage.getItem('netflow:wlr-aba:europe-post:policy-v3:dcommon-v1')??'null');}catch{}
  const schedule=()=>{if(!frame)frame=requestAnimationFrame(()=>{frame=requestAnimationFrame(draw);});};
  function wait(message,retain=false){
   if(retain&&active&&syncStartedAt===null)syncStartedAt=performance.now();
@@ -163,7 +163,7 @@ export function createWlrAba({chart,wlr,host,actions,getContext,paneBounds,getCv
  }
  function ensureWorker(){
   if(worker)return;
-  worker=new Worker(new URL('./wlr-aba-worker.mjs?v=20261023-v3preview1',import.meta.url),{type:'module'});
+  worker=new Worker(new URL('./wlr-aba-worker.mjs?v=20261025-dcommon-all1',import.meta.url),{type:'module'});
   worker.onmessage=({data})=>{
    if(data.type==='snapshot'){refreshing=false;acceptSnapshot(data.report);update();return;}
    if(data.type==='snapshot-error'){refreshing=false;snapshotFailed(data.error);return;}
@@ -174,7 +174,7 @@ export function createWlrAba({chart,wlr,host,actions,getContext,paneBounds,getCv
    if(!context.live){pending='';wait('WAIT · dữ liệu chart không còn mới');return;}
    if(context.expectedTime!==context.features?.at(-1)?.t){pending='';wait('WAIT · dữ liệu WLR đang đồng bộ',true);return;}
    show(data.result);
-   try{sessionStorage.setItem('netflow:wlr-aba:europe-post:policy-v3',JSON.stringify(data.result.state));}catch{}
+   try{sessionStorage.setItem('netflow:wlr-aba:europe-post:policy-v3:dcommon-v1',JSON.stringify(data.result.state));}catch{}
   };
   worker.onerror=()=>{refreshing=false;snapshotFailed('lỗi xử lý A–B–A');wait('WAIT · lỗi xử lý A–B–A',true);worker?.terminate();worker=null;};
  }

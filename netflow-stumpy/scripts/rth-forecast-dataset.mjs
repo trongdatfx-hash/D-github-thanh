@@ -1,11 +1,13 @@
+import {COMPOSITE_STRENGTH_VERSION,requireCompositeStrengthVersion} from '../engine.mjs?v=20261025-dcommon-all1';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {caseAt,ny,STEP} from '../rth-structure.mjs';
-import {FORECAST_MODELS,predictPath,pathLoss,evaluatePaths} from '../rth-forecast-core.mjs';
-const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),dir=path.join(root,'data/rth-forecast'),save=(name,value)=>{fs.mkdirSync(dir,{recursive:true});fs.writeFileSync(path.join(dir,name),JSON.stringify(value));},finalize=process.argv.includes('--finalize');
+import {caseAt,ny,STEP} from '../rth-structure.mjs?v=20261025-dcommon-all1';
+import {FORECAST_MODELS,predictPath,pathLoss,evaluatePaths} from '../rth-forecast-core.mjs?v=20261025-dcommon-all1';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),dir=path.join(root,'data/rth-forecast'),save=(name,value)=>{fs.mkdirSync(dir,{recursive:true});fs.writeFileSync(path.join(dir,name),JSON.stringify({...value,strengthVersion:COMPOSITE_STRENGTH_VERSION}));},finalize=process.argv.includes('--finalize');
 if(!finalize){
  const source=JSON.parse(fs.readFileSync(path.join(root,'data/rth-structure/tasks.json'))),rows=source.rows.SPYUSDT,lookup=new Map(rows.map(r=>[r.t,r])),cases=[];
+ requireCompositeStrengthVersion(source);
  for(let i=15;i<rows.length;i++){
   const minute=ny(rows[i].t).minute+15;if(minute<570||minute>840)continue;
   const q=caseAt(rows,i,16,8,lookup);if(!q||q.h!==8||q.targetStart!==q.inputEnd||!q.outcome)continue;
@@ -22,6 +24,8 @@ if(!finalize){
  console.log(JSON.stringify({forecastCases:cases.length,forecastTasks:Object.keys(tasks).length,validationStart,testStart}));
 }else{
  const data=JSON.parse(fs.readFileSync(path.join(dir,'tasks.json'))),profiles=JSON.parse(fs.readFileSync(path.join(dir,'profiles.json'))),byStart=new Map(data.cases.map(c=>[c.startIndex,c])),records={validation:{},test:{}};
+ requireCompositeStrengthVersion(data);
+ requireCompositeStrengthVersion(profiles);
  for(const split of ['validation','test'])for(const model of FORECAST_MODELS)records[split][model]=[];
  for(const e of data.evaluations){
   const q=e.query,candidates=e.candidateStarts.map(i=>byStart.get(i)),rankings={};for(const m of [8,16])rankings[m]=profiles.ranked[e.keys[m]].map(r=>({...r,index:r.index-(16-m)}));

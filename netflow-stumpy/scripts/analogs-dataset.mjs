@@ -1,15 +1,18 @@
+import {COMPOSITE_STRENGTH_VERSION,requireCompositeStrengthVersion} from '../engine.mjs?v=20261025-dcommon-all1';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {prepareRaw,fromKlines} from '../analogs-features.mjs';
-import {sessionAt} from '../engine.mjs';
-import {candidateIndices,summarize} from '../analogs-core.mjs';
+import {prepareRaw,fromKlines} from '../analogs-features.mjs?v=20261025-dcommon-all1';
+import {sessionAt} from '../engine.mjs?v=20261025-dcommon-all1';
+import {candidateIndices,summarize} from '../analogs-core.mjs?v=20261025-dcommon-all1';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const args=process.argv.slice(2),get=(flag,fallback)=>{const i=args.indexOf(flag);return i<0?fallback:args[i+1];};
-function save(file,data){fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,JSON.stringify(data));}
+function save(file,data){fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,JSON.stringify({...data,strengthVersion:COMPOSITE_STRENGTH_VERSION}));}
 if(args.includes('--finalize')){
   const input=JSON.parse(fs.readFileSync(get('--input',path.join(root,'data/analogs/features.json'))));
+ requireCompositeStrengthVersion(input);
   const profiles=JSON.parse(fs.readFileSync(get('--profiles',path.join(root,'data/analogs/profiles.json'))));
+  requireCompositeStrengthVersion(profiles);
   const results={};for(const [key,ranked]of Object.entries(profiles.ranked)){
     const [symbol,m,h,technique='flow']=key.split(':');results[key]={...summarize(input.rows[symbol],+m,+h,ranked,20,{technique}),engine:'STUMPY MASS',libraryVersion:profiles.libraryVersion};
   }

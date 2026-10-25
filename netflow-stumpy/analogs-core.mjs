@@ -65,7 +65,7 @@ export function summarize(rows,m,h,ranked,limit=20,{technique='flow'}={}){
   });
   const values=outcomes.map(x=>x.returnPct),n=values.length,up=values.filter(x=>x>0).length,down=values.filter(x=>x<0).length;
   // Show descriptive frequencies, never treat pattern distance as a probability.
-  return {version:3,technique,featureSchema:technique==='price-volume'?'spyv-composite-v2':'flow-v1',method:technique==='price-volume'?'price-z-and-chart-state-distance':'weighted-z-distance',m,h,queryTime:anchor?.t??null,queryStart:query[0]?.t??null,session:anchor?.session??null,rows:rows.length,candidates:ranked.length,n,up,down,flat:n-up-down,pUp:n?up/n:null,interval:wilson(up,n),q25:percentile(values,.25),median:percentile(values,.5),q75:percentile(values,.75),status:n>=12?'EXPLORATORY':'WAIT',matches:outcomes,queryPath:query.map(r=>100*(r.c/anchor.c-1))};
+  return {version:3,technique,featureSchema:technique==='price-volume'?'spyv-dcommon-v3':'flow-dcommon-v2',method:technique==='price-volume'?'price-z-and-chart-state-distance':'weighted-z-distance',m,h,queryTime:anchor?.t??null,queryStart:query[0]?.t??null,session:anchor?.session??null,rows:rows.length,candidates:ranked.length,n,up,down,flat:n-up-down,pUp:n?up/n:null,interval:wilson(up,n),q25:percentile(values,.25),median:percentile(values,.5),q75:percentile(values,.75),status:n>=12?'EXPLORATORY':'WAIT',matches:outcomes,queryPath:query.map(r=>100*(r.c/anchor.c-1))};
 }
 export function searchAnalogs(rows,{m=16,h=3,technique='flow'}={}){
   if(![8,16,32].includes(m)||![3,6,12].includes(h))throw Error('Unsupported window/horizon');

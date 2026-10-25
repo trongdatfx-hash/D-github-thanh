@@ -1,3 +1,4 @@
+import {COMPOSITE_STRENGTH_VERSION,requireCompositeStrengthVersion} from '../../netflow-stumpy/engine.mjs';
 import {createHash} from 'node:crypto';
 import {buildFrozenV3} from './v3.mjs';
 import fs from 'node:fs';import path from 'node:path';import {fileURLToPath} from 'node:url';
@@ -6,7 +7,7 @@ import {sessionAt} from '../../netflow-stumpy/engine.mjs';
 import {SPEC,MODELS,chartWlrRows,segmentWlr,knownQuery,labelQuery,candidatePool,cycleDistance,predict,paired,metrics} from './core.mjs';
 import {forecastFromWlr,directionScore} from '../../netflow-stumpy/wlr-aba-direction.mjs';
 import {buildPolicy,POLICY_SPEC} from '../../netflow-stumpy/wlr-aba-policy.mjs';
-const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..'),out=path.join(root,'research/wlr-aba/output'),read=p=>JSON.parse(fs.readFileSync(p)),save=(name,value)=>{fs.mkdirSync(out,{recursive:true});fs.writeFileSync(path.join(out,name),JSON.stringify(value));};
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..'),out=path.join(root,'research/wlr-aba/output'),read=p=>JSON.parse(fs.readFileSync(p)),save=(name,value)=>{fs.mkdirSync(out,{recursive:true});fs.writeFileSync(path.join(out,name),JSON.stringify(name==='v3-policy-lock.json'?value:{...value,strengthVersion:COMPOSITE_STRENGTH_VERSION}));};
 if(!process.argv.includes('--finalize')){
  const dir=path.join(root,'netflow-stumpy/data/binance/m15'),manifest=read(path.join(dir,'manifest.json')),raw={SPYUSDT:[],QQQUSDT:[]};
  for(const month of manifest.months){const doc=read(path.join(dir,month+'.json'));for(const symbol of Object.keys(raw))raw[symbol].push(...doc[symbol].map(r=>{const [t,o,h,l,c,v,end,q,buy]=r;return {t,o,h,l,c,v,end,q,buy,net:2*buy-q,sell:q-buy,nf:q>0?100*(2*buy-q)/q:null,...sessionAt(t)};}));}
@@ -24,6 +25,8 @@ if(!process.argv.includes('--finalize')){
  console.log('WLR_ABA_FRAME '+JSON.stringify({asOf,sourceBars:raw.SPYUSDT.length,cases:cases.length,tasks:Object.keys(tasks).length,counts,validation:evaluations.filter(e=>e.split==='validation').length,test:evaluations.filter(e=>e.split==='test').length}));
 }else{
  const data=read(path.join(out,'tasks.json')),profiles=read(path.join(out,'profiles.json')),byId=new Map(data.cases.map(c=>[c.i,c])),records={selection:{},validation:{},test:{},pending:{}};
+ requireCompositeStrengthVersion(data);
+ requireCompositeStrengthVersion(profiles);
  for(const split of ['selection','validation','test','pending'])for(const model of MODELS)records[split][model]=[];
  for(const e of data.evaluations){
   const q=e.query,pool=e.candidateIds.map(i=>byId.get(i)),ranking={};
@@ -46,7 +49,7 @@ if(!process.argv.includes('--finalize')){
  const allByModel=Object.fromEntries(['CYCLE8','CYCLE16'].map(m=>[m,[...records.selection[m],...records.validation[m],...records.test[m],...records.pending[m]]]));
  const modelFiles=['netflow-stumpy/engine.mjs','netflow-stumpy/analogs-core.mjs','netflow-stumpy/analogs-features.mjs','netflow-stumpy/wlr-aba-core.mjs','netflow-stumpy/wlr-aba-direction.mjs','netflow-stumpy/wlr-aba-policy.mjs','netflow-stumpy/wlr-aba-policy-v3.mjs','netflow-stumpy/rth-structure.mjs','netflow-stumpy/market-calendar.mjs','research/wlr-aba/v3.mjs','research/wlr-aba/dataset.mjs'];
  const hash=createHash('sha256');for(const file of modelFiles)hash.update(file+'\0').update(fs.readFileSync(path.join(root,file)));
- const lockPath=path.join(root,'netflow-stumpy/data/wlr-aba/v3-policy-lock.json');
+ const lockPath=path.join(root,'netflow-stumpy/data/wlr-aba/v3-policy-lock-dcommon-v1.json');
  const v3=buildFrozenV3(allByModel,{lock:fs.existsSync(lockPath)?read(lockPath):null,sourceAsOf:data.asOf,modelCodeHash:hash.digest('hex')});
  report.v3=v3.report;report.activePolicyVersion=3;
  save('v3-policy-lock.json',v3.lock);

@@ -1,8 +1,9 @@
-import {forecastQuery,forecastCandidates,predictPath,projectPath,MODEL_NAMES} from './rth-forecast-core.mjs';
-import {shapeDistance} from './analogs-core.mjs';
-import {attachPivotStates} from './rth-pivot.mjs';
+import {COMPOSITE_STRENGTH_VERSION} from './engine.mjs?v=20261025-dcommon-all1';
+import {forecastQuery,forecastCandidates,predictPath,projectPath,MODEL_NAMES} from './rth-forecast-core.mjs?v=20261025-dcommon-all1';
+import {shapeDistance} from './analogs-core.mjs?v=20261025-dcommon-all1';
+import {attachPivotStates} from './rth-pivot.mjs?v=20261025-dcommon-all1';
 let libraryPromise=null;
-function library(){return libraryPromise??=Promise.all(['archive','report'].map(async name=>{const r=await fetch(`data/rth-forecast/${name}.json`,{cache:'no-cache'});if(!r.ok)throw Error('Chưa có thư viện đường RTH');return r.json();})).catch(e=>{libraryPromise=null;throw e;});}
+function library(){return libraryPromise??=Promise.all(['archive','report'].map(async name=>{const r=await fetch(`data/rth-forecast/${name}.json`,{cache:'no-cache'});if(!r.ok)throw Error('Chưa có thư viện đường RTH');const value=await r.json();if(value.strengthVersion!==COMPOSITE_STRENGTH_VERSION)throw Error('Đang xây lại thư viện RTH theo Composite D common');return value;})).catch(e=>{libraryPromise=null;throw e;});}
 self.onmessage=async({data:{id,features,now,mode='AUTO'}})=>{
  try{
   const [archive,report]=await library(),statistical=Object.keys(report.validation).filter(m=>m!=='FLAT').sort((a,b)=>(report.validation[a].pathMaePct??Infinity)-(report.validation[b].pathMaePct??Infinity))[0],model=mode==='STAT'?statistical:report.selectedModel;

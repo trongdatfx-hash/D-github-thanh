@@ -1,7 +1,7 @@
 // REV6 Pivot Zones: confirmed price pivots anchor the levels. Historical
 // retests and a shuffled-increment bridge set the band width; neither is a
 // calibrated probability that support or resistance will hold.
-import {causalAtr,confirmedPricePivots} from './geometry.mjs';
+import {causalAtr,confirmedPricePivots} from './geometry.mjs?v=20261025-dcommon-all1';
 
 export const PIVOT_ZONE_VERSION='REV6 Pivot Zones C×V';
 const clamp=(x,lo,hi)=>Math.max(lo,Math.min(hi,x));

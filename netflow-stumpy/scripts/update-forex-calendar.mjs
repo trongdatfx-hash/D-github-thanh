@@ -2,7 +2,7 @@ import {mkdir,readFile,rename,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import {fileURLToPath} from 'node:url';
-import {FOREX_FACTORY_FEED_URL,FOREX_FACTORY_READER_URL,normalizeCalendarFeed,parseForexFactoryMarkdown,mergeCalendarResults} from '../forex-calendar.mjs';
+import {FOREX_FACTORY_FEED_URL,FOREX_FACTORY_READER_URL,normalizeCalendarFeed,parseForexFactoryMarkdown,mergeCalendarResults} from '../forex-calendar.mjs?v=20261025-dcommon-all1';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const output=path.join(root,'data','forex-calendar.json');

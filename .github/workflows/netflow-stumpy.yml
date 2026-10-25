@@ -10,6 +10,7 @@ on:
       - 'netflow-stumpy/analogs-core.mjs'
       - 'netflow-stumpy/analogs-features.mjs'
       - 'netflow-stumpy/engine.mjs'
+      - 'netflow-stumpy/common-volume.mjs'
       - 'netflow-stumpy/requirements-analogs.txt'
       - 'netflow-stumpy/tests/**'
       - 'research/wlr-aba/**'
@@ -53,7 +54,7 @@ jobs:
         env:
           WLR_TASKS: research/wlr-aba/output/tasks.json
           WLR_PROFILES: research/wlr-aba/output/profiles.json
-        run: node --test research/wlr-aba/tests.mjs netflow-stumpy/tests/wlr-aba.test.mjs netflow-stumpy/tests/wlr-aba-status.test.mjs netflow-stumpy/tests/wlr-aba-v3.test.mjs netflow-stumpy/tests/wlr-aba-ui.test.mjs netflow-stumpy/tests/engine.test.mjs netflow-stumpy/tests/strength-sources.test.mjs netflow-stumpy/tests/pre-rth-wlr-trend.test.mjs
+        run: node --test research/wlr-aba/tests.mjs netflow-stumpy/tests/wlr-aba.test.mjs netflow-stumpy/tests/wlr-aba-status.test.mjs netflow-stumpy/tests/wlr-aba-v3.test.mjs netflow-stumpy/tests/wlr-aba-ui.test.mjs netflow-stumpy/tests/engine.test.mjs netflow-stumpy/tests/common-volume.test.mjs netflow-stumpy/tests/composite-dcommon.test.mjs netflow-stumpy/tests/strength-sources.test.mjs netflow-stumpy/tests/pre-rth-wlr-trend.test.mjs
       - name: Score frozen validation choice and publish compact ABA archive
         run: |
           node research/wlr-aba/dataset.mjs --finalize

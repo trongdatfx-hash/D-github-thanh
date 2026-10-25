@@ -1,5 +1,5 @@
-import {directionScore,sideOf} from './wlr-aba-direction.mjs';
-import {paired} from './wlr-aba-core.mjs';
+import {directionScore,sideOf} from './wlr-aba-direction.mjs?v=20261025-dcommon-all1';
+import {paired} from './wlr-aba-core.mjs?v=20261025-dcommon-all1';
 export const POLICY_SPEC=Object.freeze({version:2,selectionStart:'2026-06-01',calibrationStart:'2026-07-17',gateStart:'2026-08-07',testStart:'2026-08-21',forwardStart:'2026-10-22',minimumSelectionDays:15,minimumSelectionN:40,minimumCalibrationDays:8,minimumCalibrationN:40,minimumGateDays:5,minimumGateN:20,minimumGateCoverage:.3,ridge:.02,gaps:[0,.05,.10],bands:['any','whole']});
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x)),sigmoid=x=>1/(1+Math.exp(-clamp(x,-30,30))),logit=p=>Math.log(clamp(p,.001,.999)/(1-clamp(p,.001,.999))),mean=a=>a.length?a.reduce((s,v)=>s+v,0)/a.length:null;
 const inRange=(r,a,b)=>r.day>=a&&r.day<b;

@@ -34,7 +34,7 @@ def profiles(payload):
             total += weight * distance**2 / m
         ranked = [{'index': int(i), 'distance': float(math.sqrt(max(0, total[i])))} for i in indices if np.isfinite(total[i])]
         result[key] = sorted(ranked, key=lambda row: (row['distance'], row['index']))
-    return {'library': 'stumpy', 'libraryVersion': version('stumpy'), 'ranked': result}
+    return {'strengthVersion': payload.get('strengthVersion'), 'library': 'stumpy', 'libraryVersion': version('stumpy'), 'ranked': result}
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

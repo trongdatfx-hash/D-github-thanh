@@ -1,8 +1,8 @@
-import {trendSessionRows,trendSessionAt} from '../trend-session.mjs';
+import {trendSessionRows,trendSessionAt} from '../trend-session.mjs?v=20261025-dcommon-all1';
 import fs from 'node:fs';import path from 'node:path';import {fileURLToPath} from 'node:url';import assert from 'node:assert/strict';
-import {analyze,composite,calculateVolumeStrength,sessionAt} from '../engine.mjs';
-import {causalTrendChannels} from '../causal-trend-channel.mjs';
-import {preRthWlrTrend,formatPreRthWlrTrend} from '../pre-rth-wlr-trend.mjs';
+import {analyze,composite,calculateVolumeStrength,sessionAt} from '../engine.mjs?v=20261025-dcommon-all1';
+import {causalTrendChannels} from '../causal-trend-channel.mjs?v=20261025-dcommon-all1';
+import {preRthWlrTrend,formatPreRthWlrTrend} from '../pre-rth-wlr-trend.mjs?v=20261025-dcommon-all1';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),dir=path.join(root,'data/binance/m15'),manifest=JSON.parse(fs.readFileSync(path.join(dir,'manifest.json'))),raw={SPYUSDT:[],QQQUSDT:[]};
 for(const month of manifest.months){const doc=JSON.parse(fs.readFileSync(path.join(dir,month+'.json')));for(const symbol of Object.keys(raw))raw[symbol].push(...doc[symbol].map(([t,o,h,l,c,v,end,q,buy])=>({t,o,h,l,c,v,end,q,buy,sell:q-buy,net:2*buy-q,nf:q>0?100*(2*buy-q)/q:null,...sessionAt(t)})));}
 for(const symbol of Object.keys(raw))raw[symbol]=[...new Map(raw[symbol].map(r=>[r.t,r])).values()].sort((a,b)=>a.t-b.t);

@@ -1,10 +1,12 @@
+import {COMPOSITE_STRENGTH_VERSION,requireCompositeStrengthVersion} from '../engine.mjs?v=20261025-dcommon-all1';
 import fs from 'node:fs';import path from 'node:path';import {fileURLToPath} from 'node:url';
-import {macdFeatures,readyMacdWindow,MACD_SPEC,MACD_MODELS,pairedMacd} from '../macd-research.mjs';
-import {forecastPaths,pathLoss,evaluatePaths} from '../rth-forecast-core.mjs';
-import {selectCases} from '../rth-structure.mjs';
-const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),dir=path.join(root,'data/macd'),source=path.join(root,'data/rth-forecast'),read=file=>JSON.parse(fs.readFileSync(file)),save=(name,value)=>{fs.mkdirSync(dir,{recursive:true});fs.writeFileSync(path.join(dir,name),JSON.stringify(value));};
+import {macdFeatures,readyMacdWindow,MACD_SPEC,MACD_MODELS,pairedMacd} from '../macd-research.mjs?v=20261025-dcommon-all1';
+import {forecastPaths,pathLoss,evaluatePaths} from '../rth-forecast-core.mjs?v=20261025-dcommon-all1';
+import {selectCases} from '../rth-structure.mjs?v=20261025-dcommon-all1';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),dir=path.join(root,'data/macd'),source=path.join(root,'data/rth-forecast'),read=file=>JSON.parse(fs.readFileSync(file)),save=(name,value)=>{fs.mkdirSync(dir,{recursive:true});fs.writeFileSync(path.join(dir,name),JSON.stringify({...value,strengthVersion:COMPOSITE_STRENGTH_VERSION}));};
 if(!process.argv.includes('--finalize')){
  const data=read(path.join(source,'tasks.json')),rows=macdFeatures(data.rows.SPYUSDT),cases=data.cases.filter(c=>readyMacdWindow(rows,c)),allowed=new Set(cases.map(c=>c.startIndex)),tasks={},queries={},evaluations=[];
+ requireCompositeStrengthVersion(data);
  for(const e of data.evaluations){if(!readyMacdWindow(rows,e.query))continue;const candidateStarts=e.candidateStarts.filter(i=>allowed.has(i));if(candidateStarts.length<20)continue;
   for(const m of [8,16]){const key=e.keys[m];queries[key]=e.query.i;tasks[key]=candidateStarts.map(i=>i+(16-m));}evaluations.push({...e,candidateStarts});
  }
@@ -12,6 +14,9 @@ if(!process.argv.includes('--finalize')){
  console.log(JSON.stringify({macdCases:cases.length,macdQueries:Object.keys(tasks).length,excludedCases:data.cases.length-cases.length}));
 }else{
  const data=read(path.join(dir,'tasks.json')),profiles=read(path.join(dir,'profiles.json')),original=read(path.join(source,'profiles.json')),cases=new Map(data.cases.map(c=>[c.startIndex,c])),records={validation:{},test:{}};
+ requireCompositeStrengthVersion(data);
+ requireCompositeStrengthVersion(profiles);
+ requireCompositeStrengthVersion(original);
  for(const split of ['validation','test'])for(const model of MACD_MODELS)records[split][model]=[];
  for(const e of data.evaluations){const q=e.query,candidates=e.candidateStarts.map(i=>cases.get(i)),flatLoss=q.path.reduce((s,v)=>s+Math.abs(v),0)/8*q.atr/q.c0*100;
   for(const model of MACD_MODELS){let picked=candidates;const m=model.endsWith('16')?16:8,variant=model.replace(/\d+$/,'');

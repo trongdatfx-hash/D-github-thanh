@@ -1,3 +1,4 @@
+import {COMPOSITE_STRENGTH_VERSION} from '../engine.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {chartFresh,collectionState,usableSignal,policyKey,M15} from '../wlr-aba-status.mjs';
@@ -8,8 +9,8 @@ const close=Date.parse('2026-10-22T00:00:00Z'),now=close+23.62*3600000;
 const collection={source:'daily-archive',status:'delayed',checkedAt:now,lastTimeBySymbol:{SPYUSDT:close-M15,QQQUSDT:close-M15},lagHours:23.62};
 const identity={status:'READY',a:1,b:0};
 const policy={version:2,status:'READY',selectedModel:'CYCLE8',calibration:{model:identity,baseline:identity},gate:{band:'any',gap:0}};
-const report=()=>({schema:'wlr-aba-v2',snapshotId:'one',sourceAsOf:close,publishedAt:now,spec:SPEC,collection:structuredClone(collection),v2:structuredClone(policy),decision:'NOT_ESTABLISHED'});
-const archive=r=>({schema:r.schema,snapshotId:r.snapshotId,inputScope:SPEC.inputScope,sourceAsOf:r.sourceAsOf,collection:r.collection,cases:[],vectors:[]});
+const report=()=>({strengthVersion:COMPOSITE_STRENGTH_VERSION,schema:'wlr-aba-v2',snapshotId:'one',sourceAsOf:close,publishedAt:now,spec:SPEC,collection:structuredClone(collection),v2:structuredClone(policy),decision:'NOT_ESTABLISHED'});
+const archive=r=>({strengthVersion:COMPOSITE_STRENGTH_VERSION,schema:r.schema,snapshotId:r.snapshotId,inputScope:SPEC.inputScope,sourceAsOf:r.sourceAsOf,collection:r.collection,cases:[],vectors:[]});
 test('publish time never overrides source lag; age increases while the page stays open',()=>{
  const r=report();assert.equal(collectionState(r,now).status,'DELAYED');
  assert.ok(Math.abs(collectionState(r,now+3600000).lagHours-24.62)<1e-8);

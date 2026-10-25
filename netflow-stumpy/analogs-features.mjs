@@ -1,10 +1,10 @@
-import {analyze,composite,calculateVolumeStrength,parseKlines,STEPS,wlrTrendThickness,candleRegimeClusters} from './engine.mjs';
-import {eligibleMarketBar} from './market-calendar.mjs';
+import {COMPOSITE_STRENGTH_VERSION,analyze,composite,calculateVolumeStrength,parseKlines,STEPS,wlrTrendThickness,candleRegimeClusters} from './engine.mjs?v=20261025-dcommon-all1';
+import {eligibleMarketBar} from './market-calendar.mjs?v=20261025-dcommon-all1';
 export function featureRows(priceRows,compositeRows,volumeRows,{now=Date.now()}={}){
   const cMap=new Map(compositeRows.map(r=>[r.t,r])),vMap=new Map(volumeRows.map(r=>[r.t,r]));
   return priceRows.filter(r=>r.end<now).map(r=>{
     const c=cMap.get(r.t),v=vMap.get(r.t),x=[Math.log(r.c),c?.adjusted,v?.adjusted,Number.isFinite(c?.nf)?c.nf/100:null];
-    return {t:r.t,c:r.c,high:r.h,low:r.l,day:r.day,session:r.session,eligible:eligibleMarketBar(r),x:x.map(v=>Number.isFinite(v)?v:null)};
+    return {strengthVersion:COMPOSITE_STRENGTH_VERSION,t:r.t,c:r.c,high:r.h,low:r.l,day:r.day,session:r.session,eligible:eligibleMarketBar(r),x:x.map(v=>Number.isFinite(v)?v:null)};
   });
 }
 export function chartFeatureRows(priceRows,compositeRows,volumeRows,{now=Date.now()}={}){

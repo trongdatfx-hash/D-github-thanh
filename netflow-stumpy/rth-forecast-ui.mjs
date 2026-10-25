@@ -1,4 +1,4 @@
-import {MODEL_NAMES} from './rth-forecast-core.mjs';
+import {MODEL_NAMES} from './rth-forecast-core.mjs?v=20261025-dcommon-all1';
 export function createRthForecast({chart,price,host,actions,getContext,paneBounds}){
  const label=document.createElement('label');label.title='Đường tham chiếu 8 nến M15 RTH: chọn bằng validation lịch sử, kiểm tra riêng; không phải tín hiệu giao dịch';label.style.cssText='display:inline-flex;align-items:center;gap:5px;font-size:12px';
  const toggle=document.createElement('input');toggle.id='rth-forecast-toggle';toggle.type='checkbox';label.append(toggle,'Dự báo RTH +8 · thử nghiệm');actions.append(label);
@@ -27,7 +27,7 @@ export function createRthForecast({chart,price,host,actions,getContext,paneBound
   const c=getContext(),last=c.features?.at(-1);if(c.symbol!=='SPYUSDT'||c.interval!=='15m'){pending='';++request;clear('Chỉ hỗ trợ chart SPY M15');return;}
   if(!c.live||!last||last.t!==c.expectedTime){pending='';++request;clear('WAIT · chờ nến đóng mới và dữ liệu chart còn mới');return;}
   const key=last.t+'|'+c.symbol+'|'+c.interval+'|'+mode.value;if(key===pending){schedule();return;}pending=key;clear('Đang tính đường tham chiếu…');const id=++request;
-  if(!worker){worker=new Worker(new URL('./rth-forecast-worker.mjs?v=20261021-line2',import.meta.url),{type:'module'});worker.onmessage=({data})=>{
+  if(!worker){worker=new Worker(new URL('./rth-forecast-worker.mjs?v=20261025-dcommon-all1',import.meta.url),{type:'module'});worker.onmessage=({data})=>{
    if(data.id!==request||!toggle.checked)return;if(data.selection){showSelection(data.selection);return;}const context=getContext();if(!context.live||context.expectedTime!==lastTime(data.result)){if(data.error){clear(data.error);return;}pending='';clear('WAIT · mốc chart đã đổi');return;}
    if(data.error){clear(data.error);return;}active=data.result;canvas.dataset.status='READY';canvas.dataset.issuedAt=String(active.issuedAt);canvas.dataset.points='8';
    const test=active.test,edge=test.status==='PROMISING_REQUIRES_FORWARD_TEST'?'có tín hiệu lịch sử; cần kiểm tra tương lai':'chưa vượt nền được xác lập';

@@ -1,3 +1,4 @@
+import {COMPOSITE_STRENGTH_VERSION} from '../engine.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
 import {updateAba,liveGate} from '../wlr-aba-live.mjs';
 import {compactArchive} from '../wlr-aba-archive.mjs';
@@ -18,7 +19,7 @@ test('a third literal color breaks ABA; stale/night data never produces an activ
  const wait=updateAba({rows:rows.slice(0,23),archive,report,now:stamp(day,1215),previous:first.state});assert.equal(wait.status,'WAIT');assert.deepEqual(wait.state,first.state);
 });
 test('compact archive retains exact vectors and refuses mismatched source/report/input contracts',()=>{
- const c={i:15,label:{event:0}},data={asOf:1,spec:SPEC,source:{},rows:{SPYUSDT:Array.from({length:16},(_,i)=>({pv:Array(10).fill(i/13)}))},cases:[c],evaluations:[{split:'test'}]},r={sourceAsOf:1,spec:SPEC,test:{CURRENT_MEDIAN:{queries:1}}},out=compactArchive(data,r);assert.equal(out.archive.cases[0].window.length,16);assert.equal(out.archive.vectors[15][0],15/13);assert.equal(out.archive.inputScope,SPEC.inputScope);assert.equal(out.report.spec.inputScope,SPEC.inputScope);assert.equal(out.archive.schema,'wlr-aba-v2');assert.throws(()=>compactArchive(data,{...r,sourceAsOf:2}),/mismatch/);assert.throws(()=>compactArchive({...data,spec:{}},r),/input scope mismatch/);assert.throws(()=>compactArchive(data,{...r,spec:{}}),/input scope mismatch/);
+ const c={i:15,label:{event:0}},data={strengthVersion:COMPOSITE_STRENGTH_VERSION,asOf:1,spec:SPEC,source:{},rows:{SPYUSDT:Array.from({length:16},(_,i)=>({pv:Array(10).fill(i/13)}))},cases:[c],evaluations:[{split:'test'}]},r={strengthVersion:COMPOSITE_STRENGTH_VERSION,sourceAsOf:1,spec:SPEC,test:{CURRENT_MEDIAN:{queries:1}}},out=compactArchive(data,r);assert.equal(out.archive.cases[0].window.length,16);assert.equal(out.archive.vectors[15][0],15/13);assert.equal(out.archive.inputScope,SPEC.inputScope);assert.equal(out.report.spec.inputScope,SPEC.inputScope);assert.equal(out.archive.schema,'wlr-aba-v2');assert.throws(()=>compactArchive(data,{...r,sourceAsOf:2}),/mismatch/);assert.throws(()=>compactArchive({...data,spec:{}},r),/input scope mismatch/);assert.throws(()=>compactArchive(data,{...r,spec:{}}),/input scope mismatch/);
 });
 const opening=(date,color=1)=>Array.from({length:20},(_,i)=>({...rows[0],t:europeOpen(date)+(i-15)*STEP,mid:500+i,c:500+i,high:501+i,low:499+i,color:i<15?-1:color,pv:Array(10).fill(i/100)}));
 test('ABA excludes NY weekends and full market holidays in both live forecasts and historical cases',()=>{

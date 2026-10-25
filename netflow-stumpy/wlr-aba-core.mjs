@@ -1,8 +1,8 @@
-import {weightedPriceBands,strengthPhaseLineStyle} from './engine.mjs';
-import {percentile} from './analogs-core.mjs';
-import {ny,tradingDay,closeMinute,postEnd,stamp,STEP} from './rth-structure.mjs';
+import {weightedPriceBands,strengthPhaseLineStyle} from './engine.mjs?v=20261025-dcommon-all1';
+import {percentile} from './analogs-core.mjs?v=20261025-dcommon-all1';
+import {ny,tradingDay,closeMinute,postEnd,stamp,STEP} from './rth-structure.mjs?v=20261025-dcommon-all1';
 
-export const SPEC=Object.freeze({version:4,scope:'08:00 Europe/London through NY POST; all three literal WLR colors',inputScope:'closed-history-europe-post-v1',warmup:'Consecutive closed M15 history may include NIGHT before PRE; segment A begins at/after 08:00 Europe/London. European opening candle 0 is eligible at its close when history is ready.',decision:'first eligible closed-bar snapshot per color segment',m:[8,16],minimumMatches:12,maximumMatches:20,minimumValidationDays:10,minimumTestDays:30,contextWeight:.20,validationStart:'2026-07-17',testStart:'2026-08-21'});
+export const SPEC=Object.freeze({version:4,scope:'08:00 Europe/London through NY POST; all three literal WLR colors',inputScope:'closed-history-europe-post-dcommon-v1',warmup:'Consecutive closed M15 history may include NIGHT before PRE; segment A begins at/after 08:00 Europe/London. European opening candle 0 is eligible at its close when history is ready.',decision:'first eligible closed-bar snapshot per color segment',m:[8,16],minimumMatches:12,maximumMatches:20,minimumValidationDays:10,minimumTestDays:30,contextWeight:.20,validationStart:'2026-07-17',testStart:'2026-08-21'});
 const londonClock=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
 export function europeOpen(day){
  const utc=Date.parse(day+'T08:00:00Z'),p=Object.fromEntries(londonClock.formatToParts(utc).map(v=>[v.type,v.value]));

@@ -1,3 +1,5 @@
+export const COMPOSITE_STRENGTH_VERSION='dcommon-taker-70-30-v1';
+export function requireCompositeStrengthVersion(value){if(value?.strengthVersion!==COMPOSITE_STRENGTH_VERSION)throw Error('Composite Strength version mismatch; rebuild features and profiles');return value;}
 export const SYMBOLS=['SPYUSDT','QQQUSDT'];
 export const STEPS={'5m':300000,'15m':900000,'30m':1800000,'1h':3600000};
 const clock=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',weekday:'short',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
@@ -23,12 +25,15 @@ export function parseKlines(rows,now,step,{includeOpen=false}={}){
   }
   return [...map.values()].sort((a,b)=>a.t-b.t);
 }
-export function composite(a,b){
-  const other=new Map(b.map(x=>[x.t,x]));
+export function composite(a,b,step=null){
+  // Keep additive quote flows intact; only the Strength impulse changes.
+  step??=[...a,...b].map(r=>r.end-r.t+1).find(x=>Object.values(STEPS).includes(x))??STEPS['15m'];
+  const spyDelta=normalizedTakerVolumeDelta(a,step),qqqDelta=normalizedTakerVolumeDelta(b,step),deltaMap=new Map(qqqDelta.map(r=>[r.t,r.value])),spyMap=new Map(spyDelta.map(r=>[r.t,r.value])),other=new Map(b.map(x=>[x.t,x]));
   return a.flatMap(x=>{
     const y=other.get(x.t);if(!y)return [];
     const q=x.q+y.q,buy=x.buy+y.buy,sell=x.sell+y.sell,net=x.net+y.net;
-    return [{t:x.t,end:x.end,day:x.day,session:x.session,q,buy,sell,net,nf:q>0?100*net/q:null}];
+    const strengthImpulse=commonTakerDeltaValue(spyMap.get(x.t),deltaMap.get(x.t));
+    return [{t:x.t,end:x.end,day:x.day,session:x.session,q,buy,sell,net,nf:q>0?100*net/q:null,strengthImpulse,strengthVersion:COMPOSITE_STRENGTH_VERSION}];
   });
 }
 function thresholdSign(value,threshold){return value>threshold?1:value< -threshold?-1:0;}
@@ -104,8 +109,45 @@ export function normCDF(z){
 }
 // DVP Strength chain, with Binance taker NetFlowQ / quote volume replacing
 // TradingView up/down volume. Every state value uses the current and past bars only.
+export function normalizedTakerVolumeDelta(bars,step,{normLen=20}={}){
+  if(!Array.isArray(bars)||!Object.values(STEPS).includes(step)||!Number.isInteger(normLen)||normLen<1)throw Error('Tham số Taker Volume Delta không hợp lệ');
+  let quoteVolumes=[],previous=null;
+  return bars.map(bar=>{
+    if(previous!==null&&bar.t-previous!==step)quoteVolumes=[];previous=bar.t;
+    const net=Number.isFinite(bar.net)?bar.net:Number.isFinite(bar.q)&&Number.isFinite(bar.buy)?2*bar.buy-bar.q:NaN;
+    if(!Number.isFinite(bar.q)||bar.q<0||!Number.isFinite(net)||Math.abs(net)>bar.q+1e-8)throw Error('Thiếu taker quote volume Binance');
+    quoteVolumes.push(bar.q);if(quoteVolumes.length>normLen)quoteVolumes.shift();
+    const mean=quoteVolumes.reduce((sum,value)=>sum+value,0)/quoteVolumes.length;
+    return {t:bar.t,value:mean>0?net/mean:0,net,quoteVolume:bar.q,mean};
+  });
+}
+
+export function commonTakerDeltaValue(spyValue,qqqValue,{spyWeight=.7}={}){
+  if(!Number.isFinite(spyValue)||!Number.isFinite(qqqValue)||!Number.isFinite(spyWeight)||spyWeight<0||spyWeight>1)return null;
+  return spyWeight*Math.tanh(spyValue)+(1-spyWeight)*Math.tanh(qqqValue);
+}
+
+export function calculateDeltaVolumeStrength(deltas,step,{strLen=8,halfLife=2,lookback=500}={}){
+  if(!Array.isArray(deltas)||!Object.values(STEPS).includes(step)||![strLen,lookback].every(value=>Number.isInteger(value)&&value>0)||!Number.isFinite(halfLife)||halfLife<0)throw Error('Tham số Delta Volume Strength không hợp lệ');
+  let impulses=[],magnitudes=[],ew=null,previous=null;const alpha=halfLife>0?1-2**(-1/Math.max(1,halfLife)):1;
+  return deltas.map(delta=>{
+    if(!Number.isFinite(delta?.t)||!Number.isFinite(delta?.value))throw Error('Delta Volume Strength thiếu dữ liệu');
+    if(previous!==null&&delta.t-previous!==step){impulses=[];magnitudes=[];ew=null;}previous=delta.t;
+    impulses.push(delta.value);if(impulses.length>strLen)impulses.shift();if(impulses.length<strLen)return null;
+    const impulse=impulses.reduce((sum,value)=>sum+value,0);ew=ew===null?impulse:ew+alpha*(impulse-ew);const smoothed=halfLife>0?ew:impulse;
+    magnitudes.push(Math.abs(smoothed));if(magnitudes.length>lookback)magnitudes.shift();if(magnitudes.length<lookback)return null;
+    const sigma=magnitudes.reduce((sum,value)=>sum+value,0)/magnitudes.length*Math.sqrt(Math.PI/2);
+    return sigma>0?2*normCDF(smoothed/sigma)-1:0;
+  });
+}
+
+
 export function calculateStrength(bars,step,{normLen=20,strLen=8,halfLife=2,lookback=500}={}){
   if(!Object.values(STEPS).includes(step)||![normLen,strLen,lookback].every(x=>Number.isInteger(x)&&x>0)||!Number.isFinite(halfLife)||halfLife<0)throw Error('Tham số Strength không hợp lệ');
+  if(bars.some(b=>b.strengthVersion!==undefined)){
+    if(!bars.every(b=>b.strengthVersion===COMPOSITE_STRENGTH_VERSION&&Number.isFinite(b.strengthImpulse)))throw Error('Composite Strength schema mismatch');
+    return calculateDeltaVolumeStrength(bars.map(b=>({t:b.t,value:b.strengthImpulse})),step,{strLen,halfLife,lookback});
+  }
   let volumes=[],deltas=[],magnitudes=[],ew=null;
   const alpha=halfLife>0?1-2**(-1/Math.max(1,halfLife)):1;
   return bars.map(b=>{

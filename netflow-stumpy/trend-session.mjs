@@ -1,5 +1,5 @@
-import {europeOpen} from './wlr-aba-core.mjs?v=20261022-europe1';
-import {ny,tradingDay,closeMinute} from './rth-structure.mjs';
+import {europeOpen} from './wlr-aba-core.mjs?v=20261025-dcommon-all1';
+import {ny,tradingDay,closeMinute} from './rth-structure.mjs?v=20261025-dcommon-all1';
 
 export function trendSessionAt(t){
  const p=ny(t),active=tradingDay(p.day)&&t>=europeOpen(p.day)&&p.minute<closeMinute(p.day);
