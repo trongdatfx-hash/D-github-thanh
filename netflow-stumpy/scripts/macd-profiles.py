@@ -19,7 +19,7 @@ def profiles(data):
         common = .35*pieces[0]+.15*pieces[1]+.15*pieces[2]+.05*pieces[3]
         totals = {'PRICE':common/.7,'PAIR':common+.15*pieces[4]+.15*pieces[5], 'MACD':common+.15*pieces[6]+.15*pieces[7], 'COMBINED':common+.075*sum(pieces[4:8])}
         ranked[key] = {name:sorted([{'index':i,'distance':math.sqrt(max(0,float(total[i])))} for i in starts if np.isfinite(total[i])],key=lambda r:(r['distance'],r['index'])) for name,total in totals.items()}
-    return {'library':'stumpy','libraryVersion':version('stumpy'),'ranked':ranked}
+    return {'strengthVersion':data.get('strengthVersion'),'library':'stumpy','libraryVersion':version('stumpy'),'ranked':ranked}
 
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--input',required=True);p.add_argument('--output',required=True);args=p.parse_args()
