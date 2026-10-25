@@ -44,3 +44,9 @@ test('invalid and reversed thresholds are rejected',()=>{
  assert.throws(()=>run([[.2,.2]],{enter:.05,exit:.07}),/settings/);
  assert.throws(()=>run([[.2,.2]],{exit:-.01}),/settings/);
 });
+
+test('open-bar diagnostics name the prior closed inputs, not the opposite live inputs',()=>{
+ const r=run([[.3,.4],[-.6,-.7]],{closedBefore:step+100});
+ assert.equal(r[1].direction,1);assert.equal(r[1].referenceTime,0);assert.equal(r[1].referenceComposite,.3);assert.equal(r[1].referenceVolume,.4);assert.equal(r[1].reason,'live_hold');
+ const closed=run([[.3,.4],[-.6,-.7]]);assert.equal(closed[1].referenceTime,step);assert.equal(closed[1].direction,-1);
+});
