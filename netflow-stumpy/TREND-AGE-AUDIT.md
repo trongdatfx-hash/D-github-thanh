@@ -39,3 +39,21 @@ node netflow-stumpy/scripts/audit-trend-age.mjs
 77/77 kiểm tra đạt, không có test bỏ qua. Ca kiểm tra gồm: công thức rời rạc đối chiếu đếm trực tiếp, censor thiếu chân trời, median bằng 0 và vượt 48 nến, exit không trễ, confirmation tương lai, clip chiều dài, dữ liệu hở/cũ, fallback cohort, giữ nguyên chuỗi nhãn ảnh, không ảnh hưởng A–B–A và Strength. Script phát lại ba mốc PRE/RTH/kết thúc phiên từ kho Binance M15 thực đã đạt; kiểm tra tuổi bằng số nến của kênh đang mở và sửa dữ liệu tương lai không làm đổi kết quả hiện tại.
 
 Snapshot nguồn rà soát: `9223935348c53b0585d715ec37363e3a6ed5a44b`; 18.969 nến M15 SPY và QQQ trong kho. Báo cáo phát lại được lưu trong artifact `trend-age-label-audit` của workflow **Trend age label correctness**. Đây là kiểm tra tính đúng của mã, không phải bằng chứng tăng tỷ lệ thắng giao dịch.
+
+
+## Màu nến lịch sử · 25/10/2026
+
+Nút **Nến tuổi trend** áp dụng cho SPY M15 cả khi xem lịch sử hoặc ngoài phiên live. Mỗi nến đóng lấy nhãn riêng tại thời điểm đó; không lấy nhãn của trend hiện tại để tô lại cả leg. Chỉ bắt đầu màu từ nến xác nhận, không tô ngược các nến trước confirmation. UP xanh, DOWN đỏ khi cohort đủ mẫu và xác suất sống thêm ba nến đạt 55%; WAIT, ngoài phiên và nến chưa đóng màu xám.
+
+Phát lại dùng cùng thuật toán tuổi, ngưỡng, fallback cohort và Strength context với nhãn hiện tại. Cohort của mỗi ngày chỉ gồm các ngày trước; tuổi tại từng nến là số nến đã nhận đến lúc đó. Không dùng chiều dài cuối của leg để ấn định tuổi quá khứ. Bộ lọc live vẫn áp dụng riêng cho nhãn và đề xuất giao dịch hiện tại. Đây là phát lại mô tả, không phải xác thực live hoặc tỷ lệ thắng.
+
+Tính trong studies worker, chỉ trả trạng thái thuộc khoảng giá đang tải, nhưng giữ các ngày trước để huấn luyện cohort. Tooltip trên nến có nhãn, tuổi, xác suất sống thêm +3 nến và số leg mẫu.
+
+Kiểm tra: 25 ca tuổi trend và lịch sử, 26 ca kênh/màu WLR đạt. Phát lại kho 19.044 nến Binance: 160 nến trong phiên thuộc 500 nến cuối, 44 UP / 25 DOWN / 91 WAIT; kiểm tra các prefix so với bộ ước lượng hiện tại khớp. Số liệu này kiểm tra mã, không phải hiệu quả giao dịch.
+
+
+## Biên WLR ±2σ theo pha A–B–A
+
+Hai biên giữ nguyên công thức giá và σ. Chỉ đổi màu trên các đoạn thuộc track nghiên cứu hiện tại: A xanh, B đỏ, A kế tiếp xanh, độc lập với dấu tăng/giảm gốc của WLR. Các đoạn khác giữ xanh lam trung tính. Mẫu phải đồng bộ, live, snapshot xác minh, preview V3 emit, prediction ready, memberReady và pMembership ≥50%. Không gọi đó là tín hiệu đã được xác thực sử dụng; usableSignal và các khóa forward giữ nguyên.
+
+Chỉ tô các nến đã đóng đến lastTime của track. Đổi symbol/timeframe, mất live, thiếu context, mẫu bị phá hoặc chất lượng không đạt trả về trung tính. Bốn ca kiểm tra bổ sung đạt: chuỗi pha, khóa chất lượng, mẫu phá/gap và giá trị biên không đổi.

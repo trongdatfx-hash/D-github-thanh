@@ -4,7 +4,7 @@ import {analyze,composite,calculateVolumeStrength,STEPS,sessionAt} from './engin
 import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeometry} from './geometry.mjs?v=20261025-dcommon-all1';
 import {pivotZones} from './pivot-zones.mjs?v=20261025-dcommon-all1';
 import {causalTrendChannels} from './causal-trend-channel.mjs?v=20261025-dcommon-all1';
-import {preRthWlrTrend} from './pre-rth-wlr-trend.mjs?v=20261025-dcommon-all1';
+import {preRthWlrTrend,historicalTrendAgeStates} from './pre-rth-wlr-trend.mjs?v=20261025-trend-history1';
 import {chartFeatureRows} from './analogs-features.mjs?v=20261025-dcommon-all1';
 
 export function analyzeTrendSource(raw,now){
@@ -22,9 +22,10 @@ export function computeStudies({rows,volumeRows,symbol,interval,options,now,tren
   const tRows=trend?.rows[symbol]??[],closedTrend=trendSessionRows(tRows.filter(r=>(r.end??r.t)<now)),trendTimes=new Set(closedTrend.map(r=>r.t)),trendVolume=(trend?.volume??[]).filter(r=>trendTimes.has(r.t));
   const channelState=causalTrendChannels(closedTrend.map(r=>r.session==='EURO'?{...r,session:'PRE'}:r),{volumeRows:trendVolume,maxHistory:Infinity});
   const rev63=preRthWlrTrend({priceRows:tRows,strengthRows:trend?.rows.COMPOSITE??[],volumeRows:trendVolume,channelTrends:channelState.episodes??channelState.trends,requireChannel:true,now});
+  const trendAgeHistory=interval==='15m'&&symbol==='SPYUSDT'?historicalTrendAgeStates({priceRows:tRows,strengthRows:trend?.rows.COMPOSITE??[],volumeRows:trendVolume,channelTrends:channelState.episodes,now,fromTime:closedPrice[0]?.t??Infinity}):[];
   const historicalChannels=channelState.episodes.filter(c=>!trendSessionAt(now).active||new Date(c.startTime).toLocaleDateString('en-CA',{timeZone:'America/New_York'})!==new Date(now).toLocaleDateString('en-CA',{timeZone:'America/New_York'}));
   rev63.dataInfo={currentSession:trendSessionAt(now).session??'OFF',firstTime:closedTrend[0]?.t??null,lastTime:closedTrend.at(-1)?.t??null,bars:closedTrend.length,days:new Set(closedTrend.map(r=>r.day)).size,channels:historicalChannels.length,displayQualified:historicalChannels.filter(c=>c.displayQualified).length};
   const features=interval==='15m'?chartFeatureRows(model.rows[symbol]??[],model.rows.COMPOSITE??[],model.volume,{now}):[];
   const abaRows=interval==='15m'&&symbol==='SPYUSDT'?chartWlrRows(modelPrice,features):[];
-  return {geometry,channels,breakout,points,backtest,pivot,rev63,abaRows};
+  return {geometry,channels,breakout,points,backtest,pivot,rev63,abaRows,trendAgeHistory};
 }

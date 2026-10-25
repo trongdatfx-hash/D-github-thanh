@@ -1,9 +1,10 @@
+import {abaBandPhases,abaBandLineData} from './wlr-aba-band-colors.mjs?v=20261025-trend-history1';
 import {createStrategyBadge} from './strategy-badge.mjs?v=20261025-strategy2';
 import {wlrColorSegments} from './wlr-color-segments.mjs?v=20261025-wlr-colorfix1';
 import {wlrSlopeThickness,WLR_SLOPE_DEFAULTS} from './wlr-slope-thickness.mjs?v=20261025-wlr-slope1';
 import {wlrDisplayColors,WLR_COLOR_DEFAULTS} from './wlr-display-color.mjs?v=20261025-wlr-colorfix1';
 import {chartFresh} from './wlr-aba-status.mjs?v=20261025-dcommon-all1';
-import {createWlrAba} from './wlr-aba-ui.mjs?v=20261025-strategy1';
+import {createWlrAba} from './wlr-aba-ui.mjs?v=20261025-trend-history1';
 import {createSeriesWriter} from './chart-data-cache.mjs?v=20261025-dcommon-all1';
 import {COMPOSITE_STRENGTH_VERSION,STEPS,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,strengthPhaseLineStyle,directionalVolumeDelta,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,weightedPriceBands,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs?v=20261025-dcommon-all1';
 import {calculateCommonTakerVolumeStrength} from './common-volume.mjs?v=20261025-dcommon-all1';
@@ -16,6 +17,7 @@ const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleStri
 const L=window.LightweightCharts;
 let chart,price,series={},marks,strengthMarks,cache=null,rows={},volumeStrengthRows=[],modelRows={},modelVolumeStrengthRows=[],modelStamp=null,trendRows={},trendVolumeStrengthRows=[],trendStamp=null,trainingMeta=null,maps={},priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,pivotFlowFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},causalChannelState={trends:[],total:0},geometryStatePoints=[],geometryStatePointsKey='',breakoutState=null,geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
 const colors={SPYUSDT:'#5ba8ff',QQQUSDT:'#c194ff',COMPOSITE:'#38dfba'};
+let trendAgeCandleMap=new Map(),abaBandPhaseMap=new Map(),abaBandFrame=0;
 let commonVolumeStrengthMap=new Map(),wlrThicknessMap=new Map(),wlrColorMap=new Map();
 const flowTitles={SPYUSDT:'S Taker NF',QQQUSDT:'Q Taker NF',COMPOSITE:'C D common'};
 const flowColors={
@@ -128,7 +130,7 @@ function syncDisplayModeButtons(){
   const width=$('wlr-width-mode'),candle=$('candle-color-mode'),trendCandle=$('trend-age-candle-mode'),trendWidth=$('phase-width').checked,priceVolume=$('candle-agreement-color').checked,trendAgeColor=$('candle-trend-age-color')?.checked;
   if(width){width.textContent=`Độ dày WLR: ${trendWidth?'Dốc×R² + V×C':'C×V'}`;width.title=trendWidth?'Độ dày 2–10: 61% |dốc WLR13|×13/ATR14 có xét R² + 39% SPY V–Composite cùng chiều giá; σ quanh WLR13 giảm độ dày khi nhiễu, làm mượt α=0,35; màu C×V có vùng trễ: vào ±0,15, thoát ±0,07; xác nhận theo nến đóng':'Độ dày theo đồng thuận Composite × SPY V; màu C×V có vùng trễ: vào ±0,15, thoát ±0,07; xác nhận theo nến đóng';width.setAttribute('aria-pressed',String(trendWidth));}
   if(candle){candle.textContent=`Màu nến: ${priceVolume?'Cụm Giá×SPY V':'C×V'}`;candle.title=priceVolume?'Cụm causal từ WLR8, SPY V và thân giá/ATR; hai nến đối nghịch mới đổi cụm, nến ngược nhỏ chỉ giảm sáng':'Màu nến theo đồng thuận Strength Composite × SPY V';candle.setAttribute('aria-pressed',String(priceVolume));}
-  if(trendCandle){trendCandle.lastChild.textContent=`Nến tuổi trend: ${trendAgeColor?'BẬT':'TẮT'}`;trendCandle.title='Chỉ SPY M15: tô xanh/đỏ cho trend đang hoạt động khi dự báo tuổi trend đủ mẫu và còn live; WAIT hoặc ngoài trend để xám. Đây không phải backtest lịch sử.';trendCandle.setAttribute('aria-pressed',String(Boolean(trendAgeColor)));}
+  if(trendCandle){trendCandle.lastChild.textContent=`Nến tuổi trend: ${trendAgeColor?'BẬT':'TẮT'}`;trendCandle.title='SPY M15: tô từng nến lịch sử theo tuổi trend tại lúc đóng nến; chỉ dùng các ngày trước làm mẫu. Xanh/đỏ khi đủ mẫu và TREND CÒN ≥55%; WAIT, ngoài phiên hoặc nến chưa đóng để xám. Đây là phát lại lịch sử, không phải xác thực live.';trendCandle.setAttribute('aria-pressed',String(Boolean(trendAgeColor)));}
 }
 function restoreSavedSetup(){
   try{
@@ -171,11 +173,11 @@ function requestStudies(){
   const key=`${symbol}|${interval}|${$('days').value}|${closed[0]?.t}|${closed.at(-1)?.t}|${closed.length}|${options.minScore}|${options.maxLines}`;
   if(key===studyKey)return;studyKey=key;
   if(!studiesWorker){
-    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261025-dcommon-all1',import.meta.url),{type:'module'});
+    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261025-trend-history1',import.meta.url),{type:'module'});
     studiesWorker.onmessage=({data})=>{
       if(data.key!==studyKey)return;
       if(data.error){$('chart').dataset.studyStatus='error';$('chart').dataset.studyError=data.error;studyKey='';return;}
-      const r=data.result;geometryState=r.geometry;causalChannelState=r.channels;breakoutState=r.breakout;geometryStatePoints=r.points;geometryBacktest=r.backtest;pivotZoneState=r.pivot;rev63State=r.rev63;
+      const r=data.result;geometryState=r.geometry;causalChannelState=r.channels;breakoutState=r.breakout;geometryStatePoints=r.points;geometryBacktest=r.backtest;pivotZoneState=r.pivot;rev63State=r.rev63;trendAgeCandleMap=new Map((r.trendAgeHistory??[]).map(state=>[state.t,state]));
       researchFeatures=r.abaRows;studyResultKey=data.key;studyTimingMs=data.computeMs;trainingMeta=data.archive;
       $('chart').dataset.studyStatus='ready';$('chart').dataset.studyComputeMs=String(Math.round(studyTimingMs));
       const now=cache?.serverTime??Date.now();pivotFlowState=pivotFlowRealtime(pivotZoneState.flow,rows.SPYUSDT??[],rows.COMPOSITE??[],now,pivotFlowState?.volatility?.key);
@@ -318,17 +320,10 @@ function candleClusterPalette(x){
   if(x.counter){const muted=x.group>0?['#526f72','#80999b','#466064']:['#806972','#aa9099','#6e5961'];return {body:muted[0],wick:muted[1],border:x.transition?'#f6c85f':muted[2]};}
   return {body:colors[0],wick:colors[1],border:x.transition?'#f6c85f':colors[2]};
 }
-function currentTrendAgeCandleState(priceRows){
-  if($('symbol').value!=='SPYUSDT'||$('interval').value!=='15m')return null;
-  const now=Date.now()+serverOffsetMs,state=trendReadoutState(rev63State,{now,live:Boolean(lastSuccess&&Date.now()-lastSuccess<15000)}),closed=priceRows.filter(row=>(row.end??row.t)<(cache?.serverTime??now)),latest=closed.at(-1);
-  if(!latest)return {label:'WAIT',active:false};
-  const active=Boolean(state?.active&&Number.isInteger(state.currentBars)&&state.currentBars>0),sameDay=active?closed.filter(row=>row.day===latest.day):[],members=active?sameDay.slice(-state.currentBars):[];
-  return {label:['UP','DOWN'].includes(state?.label)?state.label:'WAIT',active,startTime:members[0]?.t??null,lastClosedTime:latest.t,forecastEnd:latest.t+(state?.horizon??3)*STEPS['15m'],continuation:state?.continuation,currentBars:state?.currentBars??0};
-}
 function trendAgeCandlePalette(row,state){
   const neutral={body:'#606d7d',wick:'#8491a1',border:'#707e90'};
-  if(!state?.active||!Number.isFinite(state.startTime)||row.t<state.startTime||row.t>state.forecastEnd||state.label==='WAIT')return neutral;
-  const up=state.label==='UP',target=up?[26,224,163]:[255,77,112],confidence=Number.isFinite(state.continuation)?Math.max(.55,Math.min(1,state.continuation)):.55,future=row.t>state.lastClosedTime,intensity=(future?.62:.72)+(.28*(confidence-.55)/.45);
+  if($('symbol').value!=='SPYUSDT'||$('interval').value!=='15m'||!state?.active||!['UP','DOWN'].includes(state.label))return neutral;
+  const target=state.label==='UP'?[26,224,163]:[255,77,112],confidence=Math.max(.55,Math.min(1,state.continuation??.55)),intensity=.72+.28*(confidence-.55)/.45;
   return {body:mixColor([82,96,113],target,intensity),wick:mixColor([116,130,147],target,Math.min(1,intensity+.10)),border:mixColor([70,84,101],target,Math.min(1,intensity+.14))};
 }
 function lineData(data,key){return data.map(x=>Number.isFinite(x[key])?{time:x.t/1000,value:x[key]}:{time:x.t/1000});}
@@ -339,6 +334,21 @@ function relativeData(data){
 }
 function volumeDeltaBandData(data,volumeStrengthMap){return data.map(x=>({time:x.t/1000,value:volumeDeltaStrengthValue(x.value),color:volumeDeltaStrengthColor(x.value,volumeStrengthMap.get(x.t)?.adjusted)}));}
 function commonVolumeStrengthData(data){return data.map(x=>Number.isFinite(x.adjusted)?{time:x.t/1000,value:x.adjusted,color:x.adjusted>=0?'#f6c85f':'#f3f6fb'}:{time:x.t/1000});}
+
+function scheduleAbaBandColors(){
+  if(abaBandFrame)return;
+  abaBandFrame=requestAnimationFrame(()=>{abaBandFrame=0;updateAbaBandColors();});
+}
+function updateAbaBandColors(){
+  if(!series.priceUpper||!series.priceLower)return;
+  const enabled=$('symbol').value==='SPYUSDT'&&$('interval').value==='15m'&&studyResultKey===studyKey;
+  const state=enabled?forecastLayer?.getStrategyState?.():null,result=abaBandPhases(researchFeatures,state??{});
+  abaBandPhaseMap=result.phases;
+  const bands=[...priceBandMap.values()],context=[$('symbol').value,$('interval').value,result.status,state?.track?.originStart,state?.lastTime].join('|');
+  for(const [name,field] of [['priceUpper','upper'],['priceLower','lower']])writeSeries(name,series[name],abaBandLineData(bands,field,abaBandPhaseMap),context);
+  $('chart').dataset.abaBandQuality=result.status;$('chart').dataset.abaBandColoredBars=String(abaBandPhaseMap.size);
+}
+
 function scheduleCvdSpectrum(){if(cvdFrame)return;cvdFrame=requestAnimationFrame(()=>{cvdFrame=requestAnimationFrame(()=>{cvdFrame=0;drawCvdSpectrum();forecastLayer?.schedule();});});}
 function scheduleDaySeparators(){if(dayFrame)return;dayFrame=requestAnimationFrame(()=>{dayFrame=requestAnimationFrame(()=>{dayFrame=0;drawDaySeparators();});});}
 function scheduleGeometryOverlay(){if(geometryFrame)return;geometryFrame=requestAnimationFrame(()=>{geometryFrame=requestAnimationFrame(()=>{geometryFrame=0;drawGeometryOverlay();});});}
@@ -507,7 +517,7 @@ function drawGeometryOverlay(){
 function render(fit=false){
   const renderStarted=performance.now(),range=chart.timeScale().getVisibleLogicalRange();
   const p=rows[$('symbol').value]??[],signalRows=rows[$('signal').value]??[],model=Object.keys(modelRows).length?modelRows:rows;
-  const trendAgeColor=$('candle-trend-age-color')?.checked,trendAgeState=trendAgeColor?currentTrendAgeCandleState(p):null,trendAgeKey=trendAgeState?[trendAgeState.label,trendAgeState.startTime,trendAgeState.lastClosedTime,trendAgeState.currentBars].join(':'):'off';
+  const trendAgeColor=$('candle-trend-age-color')?.checked,trendAgeKey=trendAgeColor?studyResultKey:'off';
   const seriesContext=[$('symbol').value,$('interval').value,$('signal').value,$('days').value,$('candle-agreement-color').checked,trendAgeColor,trendAgeKey,$('phase-width').checked].join('|');
   dayBoundaries=dayBoundaryTimes(p);
   const compositeCvd=$('symbol').value==='SPYUSDT',cvdBars=compositeCvd?projectNetFlowToPrice(p,rows.COMPOSITE??[]):p;
@@ -520,12 +530,12 @@ function render(fit=false){
   candleClusterMap=new Map(candleRegimeClusters(p,volumeStrengthRows,STEPS[$('interval').value]).map(x=>[x.t,x]));
   const clusterColors=$('candle-agreement-color').checked;
   price.applyOptions({priceFormat:$('symbol').value==='SPYUSDT'?{type:'price',precision:1,minMove:.1}:{type:'price',precision:2,minMove:.01}});
-  $('chart').dataset.candleTrendAgeColor=trendAgeColor?'active':'off';
-  writeSeries('price',price,p.map(x=>{const color=trendAgeColor&&trendAgeState?trendAgeCandlePalette(x,trendAgeState):clusterColors?candleClusterPalette(candleClusterMap.get(x.t)):candlePalette(candleColorMap.get(x.t));return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color:color.body,wickColor:color.wick,borderColor:color.border};}),seriesContext);
+  $('chart').dataset.candleTrendAgeColor=trendAgeColor?'historical':'off';$('chart').dataset.candleTrendAgeHistoryBars=String(trendAgeCandleMap.size);$('chart').dataset.candleTrendAgeColoredBars=String([...trendAgeCandleMap.values()].filter(x=>['UP','DOWN'].includes(x.label)).length);
+  writeSeries('price',price,p.map(x=>{const color=trendAgeColor?trendAgeCandlePalette(x,trendAgeCandleMap.get(x.t)):clusterColors?candleClusterPalette(candleClusterMap.get(x.t)):candlePalette(candleColorMap.get(x.t));return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color:color.body,wickColor:color.wick,borderColor:color.border};}),seriesContext);
   pivotFlowState=pivotFlowRealtime(pivotZoneState.flow,rows.SPYUSDT??[],rows.COMPOSITE??[],closedBefore,pivotFlowState?.volatility?.key);
   const priceBands=weightedPriceBands(p,STEPS[$('interval').value]),trendThickness=new Map(wlrSlopeThickness(p,maps.COMPOSITE??new Map(),volumeStrengthMap,{step:STEPS[$('interval').value],closedBefore}).map(x=>[x.t,x]));priceBandMap=new Map(priceBands.map(x=>[x.t,x]));wlrThicknessMap=trendThickness;const currentThickness=trendThickness.get(p.at(-1)?.t);$('chart').dataset.wlrThicknessModel='slope-r2-flow-noise';$('chart').dataset.wlrThicknessMax=String(WLR_SLOPE_DEFAULTS.maxWidth);$('chart').dataset.wlrThicknessTrendWeight=String(WLR_SLOPE_DEFAULTS.trendWeight);$('chart').dataset.wlrThicknessWindow=String(WLR_SLOPE_DEFAULTS.window);$('chart').dataset.wlrThicknessPairs=String(currentThickness?.pairs??0);
   updateRev63();
-  writeSeries('priceMid',series.priceMid,priceLineData(priceBands,maps.COMPOSITE??new Map(),volumeStrengthMap,trendThickness),seriesContext);for(const [name,field] of [['priceUpper','upper'],['priceLower','lower']])writeSeries(name,series[name],lineData(priceBands,field),seriesContext);
+  writeSeries('priceMid',series.priceMid,priceLineData(priceBands,maps.COMPOSITE??new Map(),volumeStrengthMap,trendThickness),seriesContext);updateAbaBandColors();
   for(const key of Object.keys(colors))writeSeries(key,series[key],flowData(rows[key]??[],key),seriesContext);
   writeSeries('relative',series.relative,relativeData(alignment),seriesContext);
   const step=STEPS[$('interval').value],spyVolumeDelta=directionalVolumeDelta(rows.SPYUSDT??[],step),commonStrengthRows=calculateCommonTakerVolumeStrength(rows.SPYUSDT??[],rows.QQQUSDT??[],step).rows;
@@ -609,7 +619,7 @@ function showTooltip(t){
   $('stat-pair-note').textContent=`NF% mượt · S ${signed(a.smoothSpyNf)} / Q ${signed(a.smoothQqqNf)}`;
   const regimeText=colorSignal?.direction?`Composite×Volume ${colorSignal.colorRegime}: Composite ${signed(colorSignal.compositeStrength)}, SPY Volume ${signed(colorSignal.volumeStrength)}; độ đậm theo min(|Composite|, |Volume|) = ${fmt(colorSignal.agreement)}.`:`Composite×Volume TRUNG TÍNH${colorSignal?.neutralReason?` (${colorSignal.neutralReason.toLowerCase()})`:''}: Composite ${signed(colorSignal?.compositeStrength)}, SPY Volume ${signed(colorSignal?.volumeStrength)}; trái dấu, bằng 0 hoặc thiếu dữ liệu đều dùng xám.`;
   const clusterName=clusterSignal?.group>0?'CỤM TĂNG':clusterSignal?.group<0?'CỤM GIẢM':'TRUNG TÍNH',colorText=$('candle-agreement-color').checked?`Màu nến Cụm Giá×SPY V ${clusterName} · ${clusterSignal?.level??'weak'}${clusterSignal?.counter?' · nến ngược nhỏ, giữ màu cụm':''}${clusterSignal?.transition?' · thử chuyển pha, viền vàng':''}${running?' · LIVE chỉ xem trước':''}. Điểm mượt ${signed(clusterSignal?.smooth)} = WLR8 45% + SPY V 35% + thân/ATR 20%; cần hai nến đối nghịch để đảo cụm.`:`Màu nến ${regimeText}`;
-  const trendColorState=currentTrendAgeCandleState(rows[$('symbol').value]??[]),displayedColorText=$('candle-trend-age-color')?.checked?`Màu nến Tuổi trend: ${trendColorState?.label??'không áp dụng'}${trendColorState?.label==='WAIT'?' · để xám vì chưa đủ độ tin cậy/live':' · chỉ tô trend đang hoạt động và tối đa 3 nến dự báo; không phải backtest lịch sử'}.`:colorText;
+  const trendColorState=trendAgeCandleMap.get(t),displayedColorText=$('candle-trend-age-color')?.checked?`Màu nến Tuổi trend tại đóng nến: ${trendColorState?.label??'WAIT'} · tuổi ${trendColorState?.currentBars??0} nến · TREND CÒN ${Number.isFinite(trendColorState?.continuation)?Math.round(trendColorState.continuation*100)+'%':'—'} / +${trendColorState?.horizon??3} nến · ${trendColorState?.sampleN??0} leg mẫu. ${trendColorState?.reason??'Ngoài phiên, nến chưa đóng hoặc chưa đủ dữ liệu'}. Phát lại lịch sử; không phải kết quả xác thực live.`:colorText;
   const text=[`${mode} · ${time} · ${state.session} · Giá ${sourceName($('symbol').value)}, Strength phân tích ${sourceName($('signal').value)}${running?' · Nến đang chạy: điểm tạm thời, lịch sử so sánh dùng nến đóng':''}`,
     $('phase-width').checked?(()=>{const x=wlrThicknessMap.get(t);return x?.ready?`Độ dày WLR ${fmt(x.width)}/${WLR_SLOPE_DEFAULTS.maxWidth} · trend 61% / V×C 39% · |dốc|×13/ATR14 ${fmt(x.normalizedSlope)}, R² ${fmt(x.r2)} · đồng thuận dòng tiền ${fmt(x.flowQuality)}${x.flowReady?'':' (thiếu Strength)'} · σ13/ATR14 ${fmt(x.atr>0?x.sigma/x.atr:0)} · hệ số giảm nhiễu ${fmt(x.noisePenalty)}.`:`Độ dày WLR: chờ đủ 14 nến trước đã đóng (${x?.pairs??0} nến).`;})():null,
     (()=>{const x=wlrColorMap.get(t);return x?`Màu WLR ${x.direction>0?'XANH':x.direction<0?'ĐỎ':'VÀNG TRUNG TÍNH'} theo Composite ${Number.isFinite(x.referenceComposite)?x.referenceComposite.toFixed(3):'—'} × SPY V ${Number.isFinite(x.referenceVolume)?x.referenceVolume.toFixed(3):'—'} · vào ±0,15 / thoát ±0,07${x.closed?' · đã xác nhận khi đóng nến':' · giữ màu nến đóng trước, chưa dùng Strength nến đang chạy'}. Màu thể hiện dòng tiền, không phải dấu độ dốc giá.`:null;})(),
@@ -704,7 +714,7 @@ if(init()){
   updateTrendMethodCopy();
   setupChartActions();
   strategyBadge=createStrategyBadge();
-  forecastLayer=createWlrAba({chart,wlr:series.priceMid,host:$('chart'),actions:document.querySelector('.chart-actions'),paneBounds,getCvdBounds:cvdSpectrumBounds,getContext:()=>({symbol:$('symbol').value,interval:$('interval').value,features:studyResultKey===studyKey?researchFeatures:[],expectedTime:(rows[$('symbol').value]??[]).filter(r=>r.end<(cache?.serverTime??0)).at(-1)?.t,displayRows:rows[$('symbol').value]??[],live:isChartLive(),now:Date.now()+serverOffsetMs})});
+  forecastLayer=createWlrAba({chart,wlr:series.priceMid,host:$('chart'),actions:document.querySelector('.chart-actions'),paneBounds,getCvdBounds:cvdSpectrumBounds,onStateChange:scheduleAbaBandColors,getContext:()=>({symbol:$('symbol').value,interval:$('interval').value,features:studyResultKey===studyKey?researchFeatures:[],expectedTime:(rows[$('symbol').value]??[]).filter(r=>r.end<(cache?.serverTime??0)).at(-1)?.t,displayRows:rows[$('symbol').value]??[],live:isChartLive(),now:Date.now()+serverOffsetMs})});
   restoreSavedSetup();
   ensureMobileDCommon();
   syncDisplayModeButtons();

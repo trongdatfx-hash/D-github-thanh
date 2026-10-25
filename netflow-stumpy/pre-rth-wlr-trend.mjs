@@ -248,3 +248,32 @@ export function trendReadoutState(state,{now=Date.now(),live=true,lastTime=state
   if(live&&inSession&&!stale)return state;
   return {...state,label:'WAIT',active:false,currentBars:0,expectedBars:null,remainingBars:null,agePercentile:null,continuation:null,reason:!inSession?'Ngoài Âu→RTH; không phát xác suất tuổi trend live':!live?'Mất dữ liệu live; chờ nến đã đóng còn mới':'Dữ liệu M15 đã đóng bị cũ; chờ đồng bộ'};
 }
+
+
+// Per-close replay for candle display. Each day's cohort contains only earlier
+// trading days, matching preRthWlrTrend. Never backfill pre-confirmation candles.
+export function historicalTrendAgeStates({priceRows=[],strengthRows=[],volumeRows=[],channelTrends=[],now=Date.now(),fromTime=-Infinity,window=PRE_RTH_WLR_WINDOW,horizon=PRE_RTH_WLR_HORIZON,minCohort=12}={}){
+  const marketRows=trendSessionRows(priceRows).filter(row=>(row.end??row.t+899999)<now&&[row.t,row.o,row.h,row.l,row.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t);
+  const channelMap=causalChannelMap(marketRows,channelTrends),strengthMap=new Map(strengthRows.map(row=>[row.t,row])),volumeMap=new Map(volumeRows.map(row=>[row.t,row])),days=new Map();
+  for(const row of marketRows){if(!days.has(row.day))days.set(row.day,[]);days.get(row.day).push(row);}
+  const historical=[],result=[],slopeHistory=[],scoreHistory=[],regressionStates={EURO:createRegressionState(),PRE:createRegressionState(),RTH:createRegressionState()};
+  for(const [day,rows] of days){
+    const signals=daySignals(rows,strengthMap,volumeMap,channelMap,true,slopeHistory,scoreHistory,regressionStates,window),memo=new Map();
+    for(const bar of signals){
+      if(bar.t<fromTime)continue;
+      const active=Boolean(bar.channelKey&&bar.t>=bar.channelConfirmationTime),currentBars=active?bar.channelAge:0;
+      if(!active){result.push({t:bar.t,label:'WAIT',active:false,currentBars:0,continuation:null,reason:'Chưa có trend đã xác nhận tại nến này'});continue;}
+      const start=channelMap.get(bar.t).key.split('|')[0],startRow=marketRows[lowerBoundTime(marketRows,Number(start))],current={direction:bar.direction,startSession:startRow.session,strengthContext:bar.strengthContext};
+      const cacheKey=[current.direction,current.startSession,current.strengthContext,currentBars].join('|');
+      let evaluation=memo.get(cacheKey);
+      if(!evaluation){
+        const cohort=chooseCohort(historical,current,currentBars,minCohort,Math.max(12,minCohort),horizon),stats=trendAgeStatistics(cohort.episodes,currentBars,horizon,minCohort,5);
+        evaluation={continuation:stats.continuation,reliable:stats.ready,horizonSupported:stats.horizonSupported,sampleN:stats.n,atRiskN:stats.atRiskN,cohort:cohort.key};memo.set(cacheKey,evaluation);
+      }
+      const label=evaluation.reliable&&evaluation.continuation>=.55?(bar.direction>0?'UP':'DOWN'):'WAIT';
+      result.push({t:bar.t,label,active:true,direction:bar.direction,currentBars,horizon,...evaluation,reason:label==='WAIT'?'Thiếu mẫu hoặc khả năng sống thêm dưới 55%':'Ước lượng tại thời điểm đóng nến; chỉ dùng cohort các ngày trước'});
+    }
+    historical.push(...detectChannelEpisodes(signals,day).completed);
+  }
+  return result;
+}
