@@ -117,7 +117,7 @@ function setupChartActions(){
   const half=document.createElement('button');half.id='chart-fit-half';half.type='button';half.title='Hiển thị các nến trong 0,5 ngày gần nhất';half.textContent='Fit 0.5 ngày';live.insertAdjacentElement('afterend',half);
   const save=document.createElement('button');save.id='chart-save';save.type='button';save.title='Lưu toàn bộ lựa chọn và vùng thời gian đang xem trên trình duyệt này';save.textContent='Lưu setup';save.setAttribute('aria-live','polite');half.insertAdjacentElement('afterend',save);
   const alignmentLabel=$('alignment')?.closest('label');if(alignmentLabel){alignmentLabel.lastChild.textContent='SPY V Δ nến';alignmentLabel.dataset.pane='strength-spy-v';alignmentLabel.title='Histogram chung thang −1…+1 với Strength SPY V. Biên độ tuyến tính Δ/2: volume bằng SMA20 đạt nửa biên, từ 2× SMA20 đạt toàn biên. Bốn màu: Δ+/V+ xanh lá, Δ−/V+ xanh dương, Δ+/V− hồng nhạt, Δ−/V− đỏ.';}
-  if(!$('common-volume-strength')){const input=document.createElement('input');input.id='common-volume-strength';input.type='checkbox';input.checked=false;const label=document.createElement('label');label.title='D common dùng true taker quote delta: Net Buy−Sell / SMA20 Quote Volume cho từng mã, trộn 70% SPY + 30% QQQ qua tanh, rồi chạy chuỗi causal của SPY V. Cùng công thức với Composite Strength, dùng chung cho các phần liên quan.';label.append(input,'D common ···');$('spy-volume-strength').closest('label').insertAdjacentElement('afterend',label);}
+  if(!$('common-volume-strength')){const input=document.createElement('input');input.id='common-volume-strength';input.type='checkbox';input.checked=window.matchMedia('(max-width: 650px), (pointer: coarse)').matches;const label=document.createElement('label');label.title='D common dùng true taker quote delta: Net Buy−Sell / SMA20 Quote Volume cho từng mã, trộn 70% SPY + 30% QQQ qua tanh, rồi chạy chuỗi causal của SPY V. Cùng công thức với Composite Strength, dùng chung cho các phần liên quan.';label.append(input,'D common ···');$('spy-volume-strength').closest('label').insertAdjacentElement('afterend',label);}
   const compositeLabel=$('composite')?.closest('label');if(compositeLabel)compositeLabel.title='C Taker NF chỉ hiển thị trong pane Strength SPY/QQQ/Composite, dùng scale overlay đối xứng quanh 0 và nhãn cố định.';
   const phaseLabel=$('phase-width')?.closest('label');if(phaseLabel){phaseLabel.hidden=true;const button=document.createElement('button');button.id='wlr-width-mode';button.type='button';button.className='display-mode-button';phaseLabel.insertAdjacentElement('afterend',button);}
   const candleLabel=$('candle-agreement-color')?.closest('label');if(candleLabel){candleLabel.hidden=true;const button=document.createElement('button');button.id='candle-color-mode';button.type='button';button.className='display-mode-button';candleLabel.insertAdjacentElement('afterend',button);}
@@ -221,6 +221,26 @@ function updateTrendMethodCopy(){
 }
 const isCompactChart=()=>matchMedia('(max-width: 760px)').matches;
 const isTouchChart=()=>matchMedia('(pointer: coarse)').matches||navigator.maxTouchPoints>0;
+let mobileDCommonInitialized=false;
+function ensureMobileDCommon(){
+ const input=$('common-volume-strength');
+ if(!input||!window.matchMedia('(max-width: 650px), (pointer: coarse)').matches)return;
+ if(!mobileDCommonInitialized){
+  mobileDCommonInitialized=true;
+  try{
+   const key='netflow:dcommon:mobile-pane:v1';
+   if(!localStorage.getItem(key)){
+    input.checked=true;
+    const saved=JSON.parse(localStorage.getItem(SETUP_STORAGE_KEY)||'null');
+    if(saved?.version===1&&saved.controls){saved.controls['common-volume-strength']=true;localStorage.setItem(SETUP_STORAGE_KEY,JSON.stringify(saved));}
+    localStorage.setItem(key,'enabled');
+   }
+  }catch{input.checked=true;}
+ }
+ if(series.commonVolumeStrength)series.commonVolumeStrength.applyOptions({visible:input.checked,lineWidth:3});
+ if($('chart')){$('chart').dataset.commonVolumePane='1';$('chart').dataset.commonVolumeScale='right-shared-spy-v';$('chart').dataset.commonVolumeVisible=String(input.checked);}
+}
+
 function applyResponsiveChartOptions(){
   if(!chart)return;
   const compact=isCompactChart(),touch=isTouchChart(),full=isFullChart();
@@ -232,6 +252,7 @@ function applyResponsiveChartOptions(){
     handleScale:{mouseWheel:true,pinch:true,axisPressedMouseMove:{time:true,price:true},axisDoubleClickReset:{time:true,price:true}},
     kineticScroll:{touch:true,mouse:false}
   });
+  ensureMobileDCommon();
   const host=$('chart');host.dataset.lwcVersion=L.version();host.dataset.touchProfile=touch?'touch':'pointer';host.dataset.compactProfile=String(compact);host.dataset.verticalTouchDrag=String(touch&&full);host.dataset.priceAxisMinWidth=String(compact?58:64);
 }
 function init(){
@@ -261,15 +282,16 @@ function init(){
   series.strength.priceScale().applyOptions({scaleMargins:{top:.08,bottom:.08}});
   const strengthUnitFormat=x=>`${x>0?'+':''}${x.toFixed(2)}`;
   series.alignment=chart.addSeries(L.HistogramSeries,{priceScaleId:'spy-volume-delta-overlay',base:0,color:'#68778a',title:'',priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},autoscaleInfoProvider:symmetricAutoscale},1);
-  series.commonVolumeStrength=chart.addSeries(L.LineSeries,{priceScaleId:'spy-volume-delta-overlay',color:'#f6c85f',lineWidth:2,lineStyle:L.LineStyle.Dotted,title:'',priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:3,priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},autoscaleInfoProvider:()=>({priceRange:{minValue:-1,maxValue:1}})},1);
   series.alignment.priceScale().applyOptions({scaleMargins:{top:.08,bottom:.08}});
   series.volumeStrength=chart.addSeries(L.BaselineSeries,{baseValue:{type:'price',price:0},topLineColor:'#f6c85f',topFillColor1:'rgba(246,200,95,.12)',topFillColor2:'rgba(246,200,95,0)',bottomLineColor:'#f3f6fb',bottomFillColor1:'rgba(243,246,251,0)',bottomFillColor2:'rgba(243,246,251,.09)',lineWidth:3,title:'',priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:4,autoscaleInfoProvider:()=>({priceRange:{minValue:-1,maxValue:1}})},1);
+  series.commonVolumeStrength=chart.addSeries(L.LineSeries,{priceScaleId:'right',color:'#f6c85f',lineWidth:window.matchMedia('(max-width: 650px), (pointer: coarse)').matches?3:2,lineStyle:L.LineStyle.Dotted,title:'',priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:3,priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},autoscaleInfoProvider:symmetricAutoscale},1);
   series.volumeStrength.createPriceLine({price:0,color:'#6f8299',lineWidth:1,lineStyle:L.LineStyle.Solid,axisLabelVisible:true,title:'0'});
   series.volumeStrength.priceScale().applyOptions({scaleMargins:{top:.08,bottom:.08}});
   for(const [id,label] of [['composite-flow-fixed','C Taker NF'],['spy-volume-fixed','SPY V']]){const node=document.createElement('div');node.id=id;node.className='pane-fixed-readout missing';node.textContent=`${label} —`;$('chart').append(node);}
   $('chart').dataset.compositeNetflowPane='removed';$('chart').dataset.netflowPane='removed';$('chart').dataset.takerFlowOverlay='spy-qqq-composite-relative';$('chart').dataset.compositeStrengthOverlay='pane-2-only-symmetric-zero';$('chart').dataset.compositeStrengthOverlayLabel='C Taker NF';$('chart').dataset.fixedReadoutSide='right-price-scale';$('chart').dataset.strengthLineWidth='1';$('chart').dataset.spyStrengthLinePane='2';$('chart').dataset.spyStrengthLineStyle='dotted';$('chart').dataset.spyStrengthLineColor='#5ba8ff';$('chart').dataset.spyVolumeDeltaPane='1';$('chart').dataset.spyVolumeDeltaScale='symmetric-overlay';$('chart').dataset.spyVolumeDeltaTitle='hidden';$('chart').dataset.commonVolumeStrength='spy-v-qqq-v-70-30-dotted-toggle';$('chart').dataset.spyVolumeStrengthLabel='fixed-right';$('chart').dataset.spyVolumeStrengthUnits='signed-2dp';$('chart').dataset.spyVolumeStrengthPositive='#f6c85f';$('chart').dataset.spyVolumeStrengthNegative='#f3f6fb';
   $('chart').dataset.wlrColorMode='hysteresis-closed-bars';$('chart').dataset.wlrColorEnter=String(WLR_COLOR_DEFAULTS.enter);$('chart').dataset.wlrColorExit=String(WLR_COLOR_DEFAULTS.exit);
   $('chart').dataset.compositeStrengthVersion=COMPOSITE_STRENGTH_VERSION;
+  $('chart').dataset.commonVolumePane='1';$('chart').dataset.commonVolumeScale='right-shared-spy-v';
   $('chart').dataset.commonVolumeInput='true-taker-quote-delta-70-30';
   chart.panes()[0].setStretchFactor(.55);chart.panes()[1].setStretchFactor(.18);chart.panes()[2].setStretchFactor(.27);
   marks=L.createSeriesMarkers(price,[]);
@@ -609,7 +631,7 @@ function toggle(){
   $('geometry-overlay').style.display=$('geometry-toggle').checked||$('causal-trend-channel').checked?'block':'none';scheduleGeometryOverlay();updateGeometryReadout();
   series.relative.applyOptions({visible:$('relative').checked});
   series.alignment.applyOptions({visible:$('alignment').checked});
-  series.commonVolumeStrength.applyOptions({visible:$('common-volume-strength').checked});
+  series.commonVolumeStrength.applyOptions({visible:$('common-volume-strength').checked});$('chart').dataset.commonVolumeVisible=String($('common-volume-strength').checked);
   for(const key of ['priceMid','priceUpper','priceLower'])series[key].applyOptions({visible:$('price-bands').checked});
   updatePivotZones();
   schedulePivotFlowOverlay();
@@ -684,6 +706,7 @@ if(init()){
   strategyBadge=createStrategyBadge();
   forecastLayer=createWlrAba({chart,wlr:series.priceMid,host:$('chart'),actions:document.querySelector('.chart-actions'),paneBounds,getCvdBounds:cvdSpectrumBounds,getContext:()=>({symbol:$('symbol').value,interval:$('interval').value,features:studyResultKey===studyKey?researchFeatures:[],expectedTime:(rows[$('symbol').value]??[]).filter(r=>r.end<(cache?.serverTime??0)).at(-1)?.t,displayRows:rows[$('symbol').value]??[],live:isChartLive(),now:Date.now()+serverOffsetMs})});
   restoreSavedSetup();
+  ensureMobileDCommon();
   syncDisplayModeButtons();
   $('refresh').onclick=()=>refresh();for(const id of ['interval','days'])$(id).onchange=()=>refresh(true);
   for(const id of ['symbol','signal'])$(id).onchange=()=>{resetStudies();render(false);};
