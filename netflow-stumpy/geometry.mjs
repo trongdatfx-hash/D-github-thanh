@@ -149,11 +149,59 @@ export function provisionalTrendlines(bars,pivots,options={}){
   return lines;
 }
 
+
+/** Paired boundaries use only the supplied prefix; never refit with breakout bars. */
+export function buildPatternStructures(bars,pivots,context,options={}){
+  const config={...GEOMETRY_DEFAULTS,...options},atr=options.atr??causalAtr(bars),end=bars.length-1,scale=atr[end],found=[];
+  if(end<23||!finite(scale)||scale<=0)return [];
+  for(const length of [24,36,50,72,96]){
+    const start=end-length+1;if(start<14)continue;
+    const highs=pivots.filter(p=>p.type==='high'&&p.index>=start&&p.confirmedIndex<=end),lows=pivots.filter(p=>p.type==='low'&&p.index>=start&&p.confirmedIndex<=end);
+    if(highs.length<2||lows.length<2||highs.at(-1).index-highs[0].index<6||lows.at(-1).index-lows[0].index<6)continue;
+    let upper=ols(highs),lower=ols(lows),u=i=>upper.intercept+upper.slope*i,l=i=>lower.intercept+lower.slope*i;
+    let firstWidth=u(start)-l(start),width=u(end)-l(end);
+    if(firstWidth<=0||width<.6*scale)continue;
+    const drift=Math.max(Math.abs(upper.slope),Math.abs(lower.slope))*length/scale,compression=1-width/firstWidth;
+    const before=Math.max(0,start-12),pole=(bars[start].c-bars[before].c)/scale,midSlope=(upper.slope+lower.slope)/2;
+    let type=null;
+    if(drift<=.75){
+      type='box';upper={slope:0,intercept:median(highs.map(p=>p.value))};lower={slope:0,intercept:median(lows.map(p=>p.value))};
+    }else if(compression>=.15&&compression<=.8&&upper.slope<lower.slope)type='wedge';
+    else if(Math.abs(upper.slope-lower.slope)*length/scale<=.65&&Math.abs(pole)>=2.5&&sign(midSlope)===-sign(pole))type='flag';
+    if(!type)continue;
+    firstWidth=u(start)-l(start);width=u(end)-l(end);
+    if(width<.6*scale||width>8*scale||firstWidth<=0)continue;
+    const inside=bars.slice(start).filter((b,j)=>b.c<=u(start+j)+.2*scale&&b.c>=l(start+j)-.2*scale).length/length;
+    const upperTouches=highs.filter(p=>Math.abs(p.value-u(p.index))<=.35*scale),lowerTouches=lows.filter(p=>Math.abs(p.value-l(p.index))<=.35*scale);
+    const residual=[...highs.map(p=>(p.value-u(p.index))/scale),...lows.map(p=>(p.value-l(p.index))/scale)],rmse=Math.sqrt(mean(residual.map(x=>x*x)));
+    if(inside<.9||upperTouches.length<2||lowerTouches.length<2||rmse>.65)continue;
+    const ctx=context.slice(start),votes=ctx.flatMap(c=>[finite(c.flow)?sign(c.flow,3):null,finite(c.volume)?sign(c.volume,.06):null]).filter(finite);
+    const bias=votes.length?mean(votes):0,phase=bias>.2?'accumulation':bias<-.2?'distribution':'neutral';
+    const score=Math.round(100*clamp(.4*inside+.25*Math.exp(-rmse*2)+.2*clamp((upperTouches.length+lowerTouches.length-2)/6)+.15*(type==='wedge'?clamp(compression*2):type==='flag'?clamp(Math.abs(pole)/5):1)));
+    if(score<config.minScore)continue;
+    const knownAt=Math.max(highs[1].confirmedAt,lows[1].confirmedAt,bars[end].t),id=type+':'+bars[start].t+':'+bars[end].t;
+    const name=type==='box'?'HỘP':type==='flag'?'CỜ':upper.slope>0?'NÊM TĂNG':lower.slope<0?'NÊM GIẢM':'NÊM HỘI TỤ';
+    const label=name+' · '+(phase==='accumulation'?'nghiêng tích lũy':phase==='distribution'?'nghiêng phân phối':'trung tính');
+    const rails=[['support',lower,lowerTouches],['resistance',upper,upperTouches]].map(([kind,fit,touches])=>({
+      kind,source:'pattern',patternId:id,patternType:type,patternLabel:label,phase,score,startIndex:start,startTime:bars[start].t,knownAt,endIndex:end,endTime:bars[end].t,
+      startValue:fit.intercept+fit.slope*start,endValue:fit.intercept+fit.slope*end,slope:fit.slope,slopeAtr:fit.slope/scale,rmseAtr:rmse,touches:touches.length,ageBars:length,confluence:Math.abs(bias),anchors:touches.slice(-3)
+    }));
+    found.push({id,type,label,phase,score,startIndex:start,endIndex:end,knownAt,compression,inside,rails});
+  }
+  // Overlapping windows describe one setup; retain the best rather than stack boxes.
+  const selected=[];
+  for(const p of found.sort((a,b)=>b.score-a.score)){
+    if(selected.some(q=>Math.min(q.endIndex,p.endIndex)-Math.max(q.startIndex,p.startIndex)>.65*Math.min(q.endIndex-q.startIndex,p.endIndex-p.startIndex)))continue;
+    selected.push(p);
+  }
+  return selected;
+}
+
 export function analyzeGeometry({price,spy=[],qqq=[],flow=[],volume=[]},options={}){
   if(!Array.isArray(price)||!Array.isArray(spy)||!Array.isArray(qqq)||!Array.isArray(flow)||!Array.isArray(volume))throw Error('Nguồn hình học không hợp lệ');
   if(!price.length)return {pivots:[],events:[],lines:[],summary:{support:0,resistance:0,divergences:0,rotations:0}};
-  const config={...GEOMETRY_DEFAULTS,...options},atr=causalAtr(price,{period:config.atrPeriod}),pivots=confirmedPricePivots(price,{...config,atr}),context=contextAt(price,spy,qqq,flow,volume),events=confirmedDivergences(pivots,context,config),lines=buildTrendlines(price,pivots,context,{...config,atr}),provisionalLines=provisionalTrendlines(price,pivots,{...config,atr});
-  return {pivots,events,lines,provisionalLines,summary:{support:lines.filter(line=>line.kind==='support').length,resistance:lines.filter(line=>line.kind==='resistance').length,divergences:events.filter(event=>event.type==='regular-divergence').length,rotations:events.filter(event=>event.detail?.pairSplit||event.pairSplit).length},atr};
+  const config={...GEOMETRY_DEFAULTS,...options,maxLines:Math.max(4,options.maxLines??GEOMETRY_DEFAULTS.maxLines)},atr=causalAtr(price,{period:config.atrPeriod}),pivots=confirmedPricePivots(price,{...config,atr}),context=contextAt(price,spy,qqq,flow,volume),events=confirmedDivergences(pivots,context,config),classicLines=buildTrendlines(price,pivots,context,{...config,atr}),patterns=buildPatternStructures(price,pivots,context,{...config,atr}),classicBudget=Math.ceil(config.maxLines/2),patternBudget=Math.floor(config.maxLines/2),selectedPatterns=patterns.slice(0,Math.floor(patternBudget/2)),lines=[...classicLines.slice(0,classicBudget),...selectedPatterns.flatMap(p=>p.rails)],provisionalLines=provisionalTrendlines(price,pivots,{...config,atr});
+  return {pivots,events,lines,provisionalLines,patterns:selectedPatterns,referenceLines:[...classicLines,...selectedPatterns.flatMap(p=>p.rails)],selectionBudget:{classic:classicBudget,pattern:patternBudget},summary:{support:lines.filter(line=>line.kind==='support').length,resistance:lines.filter(line=>line.kind==='resistance').length,divergences:events.filter(event=>event.type==='regular-divergence').length,rotations:events.filter(event=>event.detail?.pairSplit||event.pairSplit).length},atr};
 }
 
 const lineAt=(line,index)=>line.startValue+line.slope*(index-line.startIndex);
@@ -172,13 +220,18 @@ export function classifyBreakoutRetest(price,lines,{strengthDirection=0,flowDire
     const reclaimed=isSupport?current.c>=currentLine-.08*scale:current.c<=currentLine+.08*scale;
     const touched=isSupport?current.l<=currentLine+touchToleranceAtr*scale&&current.h>=currentLine-touchToleranceAtr*scale:current.h>=currentLine-touchToleranceAtr*scale&&current.l<=currentLine+touchToleranceAtr*scale;
     const held=touched&&(isSupport?current.c>=currentLine:current.c<=currentLine),flowAligned=sign(strengthDirection)===breakDirection&&sign(flowDirection)===breakDirection&&sign(volumeDirection)===breakDirection;
+
+    const baseline=price.slice(Math.max(0,currentIndex-20),currentIndex).map(b=>b.v).filter(v=>finite(v)&&v>0),relativeVolume=finite(current.v)&&baseline.length>=10?current.v/mean(baseline):null;
+    const body=Math.abs(current.c-current.o),range=current.h-current.l,closePosition=range>0?(breakDirection>0?(current.c-current.l)/range:(current.h-current.c)/range):0;
+    const strongBreak=line.source==='pattern'&&!previousBeyond&&currentBeyond&&flowAligned&&relativeVolume>=1.5&&range>=1.2*previousScale&&body>=.6*previousScale&&closePosition>=.75;
     let key=null,direction=0,priority=0;
-    if(previousBeyond&&reclaimed){key='false_break';direction=holdDirection;priority=3;}
+    if(strongBreak){key='strong_break';direction=breakDirection;priority=4;}
+    else if(previousBeyond&&reclaimed){key='false_break';direction=holdDirection;priority=3;}
     else if(previousBeyond&&currentBeyond&&flowAligned){key='true_break';direction=breakDirection;priority=2;}
     else if(held){key=isSupport?'hold_support':'hold_resistance';direction=holdDirection;priority=1;}
     if(!key)continue;
-    const distanceAtr=Math.abs(current.c-currentLine)/scale,structure=Math.max(.45,Math.min(1,(line.score??64)/100)),confirmation=key==='true_break'?1:key==='false_break' ? .88 : .65;
-    candidates.push({key,label:key==='hold_support'?'Giữ hỗ trợ':key==='hold_resistance'?'Giữ kháng cự':key==='true_break'?'Phá thật':'Phá giả',direction,breakDirection,at:current.t,index:currentIndex,lineKind:line.kind,lineScore:line.score??null,lineValue:currentLine,distanceAtr,flowAligned,confidence:clamp(structure*confirmation),priority,line});
+    const distanceAtr=Math.abs(current.c-currentLine)/scale,structure=Math.max(.45,Math.min(1,(line.score??64)/100)),confirmation=['true_break','strong_break'].includes(key)?1:key==='false_break' ? .88 : .65;
+    candidates.push({key,strongBreak,relativeVolume,patternLabel:line.patternLabel??null,label:key==='strong_break'?'Breakout mạnh':key==='hold_support'?'Giữ hỗ trợ':key==='hold_resistance'?'Giữ kháng cự':key==='true_break'?'Phá thật':'Phá giả',direction,breakDirection,at:current.t,index:currentIndex,lineKind:line.kind,lineScore:line.score??null,lineValue:currentLine,distanceAtr,flowAligned,confidence:clamp(structure*confirmation),priority,line});
   }
   return candidates.sort((a,b)=>b.priority-a.priority||b.confidence-a.confidence||a.distanceAtr-b.distanceAtr)[0]??null;
 }
@@ -187,7 +240,7 @@ export function analyzeBreakoutRetest({price,spy=[],qqq=[],flow=[],volume=[]},op
   if(!Array.isArray(price)||price.length<18)return null;
   const referenceLength=price.length-2,prefix={price:price.slice(0,referenceLength),spy:spy.filter(row=>row.t<=price[referenceLength-1].t),qqq:qqq.filter(row=>row.t<=price[referenceLength-1].t),flow:flow.filter(row=>row.t<=price[referenceLength-1].t),volume:volume.filter(row=>row.t<=price[referenceLength-1].t)};
   const geometry=analyzeGeometry(prefix,options),latest=price.at(-1),strength=rowAt(flow,latest.t)?.adjusted,netFlow=rowAt(flow,latest.t)?.nf,volumeStrength=rowAt(volume,latest.t)?.adjusted;
-  return classifyBreakoutRetest(price,geometry.lines,{strengthDirection:sign(strength??0),flowDirection:sign(netFlow??0),volumeDirection:sign(volumeStrength??0),touchToleranceAtr:options.touchToleranceAtr??GEOMETRY_DEFAULTS.touchToleranceAtr,breakToleranceAtr:options.breakoutToleranceAtr??.35});
+  return classifyBreakoutRetest(price,geometry.referenceLines??geometry.lines,{strengthDirection:sign(strength??0),flowDirection:sign(netFlow??0),volumeDirection:sign(volumeStrength??0),touchToleranceAtr:options.touchToleranceAtr??GEOMETRY_DEFAULTS.touchToleranceAtr,breakToleranceAtr:options.breakoutToleranceAtr??.35});
 }
 
 export function recentCausalLineStates({price,spy=[],qqq=[],flow=[],volume=[]},options={},limit=4){
@@ -195,8 +248,8 @@ export function recentCausalLineStates({price,spy=[],qqq=[],flow=[],volume=[]},o
   const found=[],lookback=Math.max(limit,Math.min(price.length,Number.isInteger(options.stateLookbackBars)?options.stateLookbackBars:600)),first=Math.max(18,price.length-lookback+1);
   for(let end=price.length;end>=first&&found.length<limit;end--){
     const at=price[end-1].t,prefix={price:price.slice(0,end),spy:spy.filter(row=>row?.t<=at),qqq:qqq.filter(row=>row?.t<=at),flow:flow.filter(row=>row?.t<=at),volume:volume.filter(row=>row?.t<=at)},state=analyzeBreakoutRetest(prefix,options);
-    if(!state||!['true_break','false_break'].includes(state.key))continue;
-    found.push({at,index:end-1,key:state.key,label:state.label,direction:state.direction,breakDirection:state.breakDirection,lineValue:state.lineValue,lineKind:state.lineKind,lineScore:state.lineScore,distanceAtr:state.distanceAtr});
+    if(!state||!['true_break','false_break','strong_break'].includes(state.key))continue;
+    found.push({strongBreak:state.strongBreak,relativeVolume:state.relativeVolume,patternLabel:state.patternLabel,at,index:end-1,key:state.key,label:state.label,direction:state.direction,breakDirection:state.breakDirection,lineValue:state.lineValue,lineKind:state.lineKind,lineScore:state.lineScore,distanceAtr:state.distanceAtr});
   }
   return found.reverse();
 }

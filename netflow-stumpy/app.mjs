@@ -167,7 +167,7 @@ function requestStudies(){
   const key=`${symbol}|${interval}|${$('days').value}|${closed[0]?.t}|${closed.at(-1)?.t}|${closed.length}|${options.minScore}|${options.maxLines}`;
   if(key===studyKey)return;studyKey=key;
   if(!studiesWorker){
-    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261022-trend-europe1',import.meta.url),{type:'module'});
+    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261025-pattern50',import.meta.url),{type:'module'});
     studiesWorker.onmessage=({data})=>{
       if(data.key!==studyKey)return;
       if(data.error){$('chart').dataset.studyStatus='error';$('chart').dataset.studyError=data.error;studyKey='';return;}
@@ -403,7 +403,7 @@ function drawDaySeparators(){
 }
 function geometryLineText(line){
   const name=line.kind==='support'?'Hỗ trợ':'Kháng cự',slope=`${line.slopeAtr>=0?'+':''}${fmt(line.slopeAtr)} ATR/nến`;
-  return `${name} ${line.score}/100 · ${line.touches} chạm · tuổi ${line.ageBars} · dốc ${slope} · lệch ${fmt(line.rmseAtr)} ATR · hợp lưu ${Math.round(line.confluence*100)}%`;
+  return `${line.patternLabel??name} ${line.score}/100 · ${line.touches} chạm · tuổi ${line.ageBars} · dốc ${slope} · lệch ${fmt(line.rmseAtr)} ATR · hợp lưu ${Math.round(line.confluence*100)}%`;
 }
 function updateGeometryReadout(){
   const state=trendReadoutState(rev63State,{now:Date.now()+serverOffsetMs,live:Boolean(lastSuccess&&Date.now()-lastSuccess<15000)});
@@ -434,6 +434,13 @@ function drawGeometryOverlay(){
     }
   }
   if(!showGeometry){context.restore();return;}
+  for(const setup of geometryState.patterns??[]){
+    const [lower,upper]=setup.rails,x1=chart.timeScale().timeToCoordinate(lower.startTime/1000),x2=chart.timeScale().timeToCoordinate(lower.endTime/1000);
+    const ys=[upper.startValue,upper.endValue,lower.endValue,lower.startValue].map(v=>price.priceToCoordinate(v));
+    if(![x1,x2,...ys].every(Number.isFinite))continue;
+    context.fillStyle=setup.phase==='accumulation'?'rgba(54,221,189,.07)':setup.phase==='distribution'?'rgba(255,99,131,.07)':'rgba(154,140,255,.07)';
+    context.beginPath();context.moveTo(x1,ys[0]);context.lineTo(x2,ys[1]);context.lineTo(x2,ys[2]);context.lineTo(x1,ys[3]);context.closePath();context.fill();
+  }
   if(showGeometryProvisional)for(const line of geometryState.provisionalLines??[]){
     const x1=chart.timeScale().timeToCoordinate(line.startTime/1000),x2=chart.timeScale().timeToCoordinate(line.endTime/1000),y1=price.priceToCoordinate(line.startValue),y2=price.priceToCoordinate(line.endValue);
     if(![x1,x2,y1,y2].every(Number.isFinite)||Math.max(x1,x2)<0||Math.min(x1,x2)>right||Math.max(y1,y2)<0||Math.min(y1,y2)>paneHeight)continue;
@@ -443,12 +450,17 @@ function drawGeometryOverlay(){
   for(const line of [...geometryState.lines].reverse()){
     const x1=chart.timeScale().timeToCoordinate(line.startTime/1000),x2=chart.timeScale().timeToCoordinate(line.endTime/1000),y1=price.priceToCoordinate(line.startValue),y2=price.priceToCoordinate(line.endValue);
     if(![x1,x2,y1,y2].every(Number.isFinite)||Math.max(x1,x2)<0||Math.min(x1,x2)>right||Math.max(y1,y2)<0||Math.min(y1,y2)>paneHeight)continue;
-    const alpha=.48+.45*Math.max(0,Math.min(1,(line.score-55)/35));context.strokeStyle=line.kind==='support'?`rgba(54,221,189,${alpha})`:`rgba(255,180,84,${alpha})`;context.lineWidth=1.2+2*Math.max(0,Math.min(1,(line.score-55)/35));context.setLineDash(line.score>=75?[]:[6,4]);context.beginPath();context.moveTo(x1,y1);context.lineTo(x2,y2);context.stroke();
-    if(width>=650&&x2>70&&x2<right-6&&y2>10&&y2<paneHeight-8){context.setLineDash([]);context.font='700 9px Inter,system-ui,sans-serif';context.textAlign='right';context.textBaseline='bottom';context.fillStyle=line.kind==='support'?'#7dffd9':'#ffd092';context.fillText(`${line.kind==='support'?'HT':'KC'} ${line.score} · ${line.touches}x`,x2-4,y2-3);}
+    const alpha=.48+.45*Math.max(0,Math.min(1,(line.score-55)/35));context.strokeStyle=line.kind==='support'?`rgba(54,221,189,${alpha})`:`rgba(255,180,84,${alpha})`;context.lineWidth=1.2+2*Math.max(0,Math.min(1,(line.score-55)/35));context.setLineDash(line.source==='pattern'?[10,3]:line.score>=75?[]:[6,4]);context.beginPath();context.moveTo(x1,y1);context.lineTo(x2,y2);context.stroke();
+    if(width>=650&&x2>70&&x2<right-6&&y2>10&&y2<paneHeight-8){context.setLineDash([]);context.font='700 9px Inter,system-ui,sans-serif';context.textAlign='right';context.textBaseline='bottom';context.fillStyle=line.kind==='support'?'#7dffd9':'#ffd092';context.fillText(`${line.patternLabel??(line.kind==='support'?'HT':'KC')} ${line.score} · ${line.touches}x`,x2-4,y2-3);}
   }
   context.setLineDash([]);for(const point of geometryStatePoints){
     const x=chart.timeScale().timeToCoordinate(point.at/1000),y=price.priceToCoordinate(point.lineValue);if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||x>right||y<0||y>paneHeight)continue;
-    const color=point.breakDirection>0?'#1ae0a3':'#ff6383',trueBreak=point.key==='true_break';context.fillStyle=trueBreak?color:'rgba(9,18,31,.96)';context.strokeStyle=color;context.lineWidth=trueBreak?1.4:2.4;context.beginPath();context.arc(x,y,5,0,Math.PI*2);context.fill();context.stroke();context.font='900 8px Inter,system-ui,sans-serif';context.textAlign='center';context.textBaseline='middle';context.fillStyle=trueBreak?'#07131f':color;context.fillText(point.breakDirection>0?'↑':'↓',x,y+.3);
+    const color=point.breakDirection>0?'#1ae0a3':'#ff6383',trueBreak=['true_break','strong_break'].includes(point.key);context.fillStyle=trueBreak?color:'rgba(9,18,31,.96)';context.strokeStyle=color;context.lineWidth=trueBreak?1.4:2.4;context.beginPath();context.arc(x,y,point.strongBreak?8:5,0,Math.PI*2);context.fill();context.stroke();context.font='900 8px Inter,system-ui,sans-serif';context.textAlign='center';context.textBaseline='middle';context.fillStyle=trueBreak?'#07131f':color;context.fillText(point.breakDirection>0?'↑':'↓',x,y+.3);
+  }
+  for(const point of geometryStatePoints.filter(p=>p.strongBreak)){
+    const x=chart.timeScale().timeToCoordinate(point.at/1000),y=price.priceToCoordinate(point.lineValue);
+    if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||x>right||y<0||y>paneHeight)continue;
+    context.fillStyle=point.breakDirection>0?'#1ae0a3':'#ff6383';context.font='800 10px Inter,system-ui,sans-serif';context.textAlign='left';context.fillText('BREAK MẠNH '+(point.breakDirection>0?'↑':'↓')+' · RVOL '+fmt(point.relativeVolume),x+11,y-12);
   }
   if($('geometry-pivots').checked){
     context.setLineDash([]);for(const pivot of geometryState.pivots.slice(-60)){
@@ -551,7 +563,7 @@ function updatePivotZones(){
   node.style.display='none';node.setAttribute('aria-hidden','true');node.replaceChildren();
 }
 function showTooltip(t){
-  const p=maps[$('symbol').value]?.get(t),record=statsMap.get(t),state=record?.state,colorSignal=candleColorMap.get(t),clusterSignal=candleClusterMap.get(t),geometryEvent=geometryState.events?.find(event=>event.at===t),breakoutEvent=geometryStatePoints.find(event=>event.at===t)??(breakoutState&&breakoutState.at===t&&['true_break','false_break'].includes(breakoutState.key)?breakoutState:null),geometryLine=inspectedTime===null?geometryState.lines?.[0]:null;
+  const p=maps[$('symbol').value]?.get(t),record=statsMap.get(t),state=record?.state,colorSignal=candleColorMap.get(t),clusterSignal=candleClusterMap.get(t),geometryEvent=geometryState.events?.find(event=>event.at===t),breakoutEvent=geometryStatePoints.find(event=>event.at===t)??(breakoutState&&breakoutState.at===t&&['true_break','false_break','strong_break'].includes(breakoutState.key)?breakoutState:null),geometryLine=inspectedTime===null?geometryState.lines?.[0]:null;
   const time=p?new Date(t).toLocaleString('vi-VN',{timeZone:'America/New_York'})+' ET':'Chưa có dữ liệu';
   const running=p&&p.end>=(cache?.serverTime??Infinity),mode=inspectedTime!==null?'NẾN ĐANG XEM':'MỚI NHẤT';
   if(!state){
@@ -571,7 +583,7 @@ function showTooltip(t){
   const trendColorState=currentTrendAgeCandleState(rows[$('symbol').value]??[]),displayedColorText=$('candle-trend-age-color')?.checked?`Màu nến Tuổi trend: ${trendColorState?.label??'không áp dụng'}${trendColorState?.label==='WAIT'?' · để xám vì chưa đủ độ tin cậy/live':' · chỉ tô trend đang hoạt động và tối đa 3 nến dự báo; không phải backtest lịch sử'}.`:colorText;
   const text=[`${mode} · ${time} · ${state.session} · Giá ${sourceName($('symbol').value)}, Strength phân tích ${sourceName($('signal').value)}${running?' · Nến đang chạy: điểm tạm thời, lịch sử so sánh dùng nến đóng':''}`,
     geometryLine?`GEO hiện tại: ${geometryLineText(geometryLine)}. Line chỉ xuất hiện từ ${new Date(geometryLine.knownAt).toLocaleString('vi-VN',{timeZone:'America/New_York'})} ET, sau khi pivot thứ hai được xác nhận; không dùng nến đang chạy.`:null,
-    breakoutEvent?`Thông báo cắt Trendline causal: ${breakoutEvent.label} ${breakoutEvent.breakDirection>0?'lên ↑':'xuống ↓'} tại ${breakoutEvent.lineKind==='support'?'hỗ trợ':'kháng cự'} ${fmt(breakoutEvent.lineValue)} · line ${breakoutEvent.lineScore}/100 · cách ${fmt(breakoutEvent.distanceAtr)} ATR${breakoutEvent.key==='true_break'?' · Strength Composite, SPY V và NetFlow cùng xác nhận hướng phá':' · giá đã giành lại phía cũ của line'}. Line tham chiếu đã tồn tại và được khóa trước hai nến xác nhận.`:null,
+    breakoutEvent?`Thông báo cắt Trendline causal: ${breakoutEvent.label} ${breakoutEvent.breakDirection>0?'lên ↑':'xuống ↓'} tại ${breakoutEvent.lineKind==='support'?'hỗ trợ':'kháng cự'} ${fmt(breakoutEvent.lineValue)} · line ${breakoutEvent.lineScore}/100 · cách ${fmt(breakoutEvent.distanceAtr)} ATR${['true_break','strong_break'].includes(breakoutEvent.key)?' · Strength Composite, SPY V và NetFlow cùng xác nhận hướng phá':' · giá đã giành lại phía cũ của line'}. Line tham chiếu đã tồn tại và được khóa trước hai nến xác nhận.`:null,
     geometryEvent?`Dị biệt được xác nhận tại nến này: ${geometryEvent.direction==='bullish'?'phân kỳ tăng':geometryEvent.direction==='bearish'?'phân kỳ giảm':'SPY/QQQ luân phiên dẫn dắt'} · điểm ${geometryEvent.score}/100 · ΔStrength SPY ${signed(geometryEvent.spyDelta)} / QQQ ${signed(geometryEvent.qqqDelta)} / SPY V ${signed(geometryEvent.volumeDelta)} · ΔNetFlow ${signed(geometryEvent.flowDelta)}${geometryEvent.pairSplit?` · Strength SPY và QQQ ngược nhau, giá đang gần nhịp ${geometryEvent.leader==='SPY'?'SPY':geometryEvent.leader==='QQQ'?'QQQ':'hỗn hợp'}`:''}. Đây là mô tả hợp lưu tại thời điểm xác nhận, không phải dự báo chắc chắn.`:null,
     `D common ${signed(commonVolumeStrengthMap.get(t)?.adjusted)} dùng true taker delta riêng từng mã: (Buy−Sell quote)/SMA20 quote volume, trộn 70% SPY + 30% QQQ qua tanh rồi chạy chuỗi causal của SPY V. Line chỉ hiển thị; không cấp dữ liệu cho V3, forward hoặc tuổi trend.`,
     `Màu SPY−QQQ tương đối dùng dấu NetFlow cùng nến: ${a.state} · SPY ${signed(a.spyNet)} / QQQ ${signed(a.qqqNet)}. Chiều cao vẫn là Relative NetFlow mượt, không dùng dữ liệu sổ lệnh.`,
