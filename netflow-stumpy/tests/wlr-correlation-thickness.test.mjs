@@ -13,16 +13,16 @@ test('Pearson returns signed scale-independent correlation and treats constant d
  assert.equal(pearsonCorrelation([1,1,1],[2,3,4]),null);assert.equal(pearsonCorrelation([1,NaN],[1,2]),null);
 });
 test('coherent bullish and bearish three-way relations produce the same thick line',()=>{
- for(const bear of [false,true]){const result=run(source({bear}));assert(result.at(-1).width>7.99);assert.equal(result[19].ready,false);assert.equal(result[20].ready,true);assert.equal(result.at(-1).pairs,34);}
+ for(const bear of [false,true]){const result=run(source({bear}));assert(result.at(-1).width>9.99);assert.equal(result[19].ready,false);assert.equal(result[20].ready,true);assert.equal(result.at(-1).pairs,34);}
 });
 test('inverse sigma association counts when both Strength amplitudes share it',()=>{
- const result=run(source({inverse:true})).at(-1);assert.equal(result.sigmaRelation,'inverse');assert(result.width>7.99);
+ const result=run(source({inverse:true})).at(-1);assert.equal(result.sigmaRelation,'inverse');assert(result.width>9.99);
 });
 test('opposed Strength signs and negative inter-Strength correlation remain thin',()=>{
- const result=run(source({opposed:true})).at(-1);assert.equal(result.corrVolumeComposite,-1);assert.equal(result.quality,0);assert.equal(result.width,1);
+ const result=run(source({opposed:true})).at(-1);assert.equal(result.corrVolumeComposite,-1);assert.equal(result.quality,0);assert.equal(result.width,2);
 });
 test('flat sigma and missing sources never fabricate a perfect correlation',()=>{
- const f=source({flat:true});assert(run(f).every(x=>!x.ready&&x.width===1));
+ const f=source({flat:true});assert(run(f).every(x=>!x.ready&&x.width===2));
  const g=source();g.volume.delete(40*step);const result=run(g);assert.equal(result[41].ready,false);assert.equal(result[41].pairs,0);assert(result.every(x=>Number.isFinite(x.width)));
 });
 test('prefix results are causal and a current live candle cannot alter its width',()=>{
@@ -34,7 +34,7 @@ test('a gap resets the correlation window and width rather than joining sessions
  const f=source();for(let i=50;i<f.rows.length;i++){const old=f.rows[i].t,next=old+step;f.rows[i].t=next;f.rows[i].old=old;}
  // Rebuild strength maps on the new observed timestamps.
  f.volume=new Map(f.rows.map((r,i)=>[r.t,{adjusted:.2+i*.01}]));f.composite=new Map(f.rows.map((r,i)=>[r.t,{adjusted:.3+i*.015}]));
- const result=run(f);assert.equal(result[50].pairs,0);assert.equal(result[50].width,1);assert.equal(result[69].ready,false);assert.equal(result[70].ready,true);
+ const result=run(f);assert.equal(result[50].pairs,0);assert.equal(result[50].width,2);assert.equal(result[69].ready,false);assert.equal(result[70].ready,true);
 });
 test('price-unit changes do not change thickness and input prices remain untouched',()=>{
  const f=source(),before=structuredClone(f.rows),a=run(f),g={...f,rows:f.rows.map(r=>({...r,mid:r.mid*100,sigma:r.sigma*100}))},b=run(g);
@@ -44,8 +44,8 @@ test('invalid window and smoothing settings are rejected',()=>{
  assert.throws(()=>run(source(),{minPairs:40,window:34}),/settings/);assert.throws(()=>run(source(),{alpha:0}),/settings/);
 });
 
-test('sigma relationships carry 61 percent of the weighting and the maximum width is eight',()=>{
- assert.equal(WLR_CORRELATION_DEFAULTS.maxWidth,8);
+test('sigma relationships carry 61 percent of the weighting and the maximum width is ten',()=>{
+ assert.equal(WLR_CORRELATION_DEFAULTS.maxWidth,10);
  assert.equal(WLR_CORRELATION_DEFAULTS.sigmaVolumeWeight+WLR_CORRELATION_DEFAULTS.sigmaCompositeWeight,.61);
  assert.equal(WLR_CORRELATION_DEFAULTS.flowWeight,.39);
  const n=34,rows=Array.from({length:n+1},(_,i)=>({t:i*step,mid:100,sigma:2+Math.cos(2*Math.PI*i/n)}));
@@ -54,7 +54,7 @@ test('sigma relationships carry 61 percent of the weighting and the maximum widt
  const last=run({rows,volume,composite},{alpha:1}).at(-1);
  // Orthogonal sine/cosine samples give rho(sigma,V)=1 and the other two rhos=1/2.
  assert(Math.abs(last.quality-2**(-.695))<1e-12);
- assert(Math.abs(last.width-(1+7*2**(-.695)))<1e-12);
- assert(run(source()).every(x=>x.width>=1&&x.width<=8));
+ assert(Math.abs(last.width-(2+8*2**(-.695)))<1e-12);
+ assert(run(source()).every(x=>x.width>=2&&x.width<=10));
  assert.throws(()=>run(source(),{flowWeight:.4}),/settings/);
 });

@@ -1,4 +1,4 @@
-import {wlrCorrelationThickness,WLR_CORRELATION_DEFAULTS} from './wlr-correlation-thickness.mjs?v=20261025-wlr-corr4';
+import {wlrCorrelationThickness,WLR_CORRELATION_DEFAULTS} from './wlr-correlation-thickness.mjs?v=20261025-wlr-bold1';
 import {wlrDisplayColors,WLR_COLOR_DEFAULTS} from './wlr-display-color.mjs?v=20261025-wlr-color1';
 import {chartFresh} from './wlr-aba-status.mjs?v=20261025-dcommon-all1';
 import {createWlrAba} from './wlr-aba-ui.mjs?v=20261025-dcommon-all1';
@@ -124,7 +124,7 @@ function setupChartActions(){
 }
 function syncDisplayModeButtons(){
   const width=$('wlr-width-mode'),candle=$('candle-color-mode'),trendCandle=$('trend-age-candle-mode'),trendWidth=$('phase-width').checked,priceVolume=$('candle-agreement-color').checked,trendAgeColor=$('candle-trend-age-color')?.checked;
-  if(width){width.textContent=`Độ dày WLR: ${trendWidth?'Tương quan σ×V×C':'C×V'}`;width.title=trendWidth?'Độ dày 1–8 theo tương quan 34 nến, trọng số σ 61% / V×C 39%: σ giá WLR50 với |SPY V|, |Composite| và SPY V với Composite; cùng hướng làm dày, làm mượt α=0,35; màu C×V có vùng trễ: vào ±0,15, thoát ±0,07; xác nhận theo nến đóng':'Độ dày theo đồng thuận Composite × SPY V; màu C×V có vùng trễ: vào ±0,15, thoát ±0,07; xác nhận theo nến đóng';width.setAttribute('aria-pressed',String(trendWidth));}
+  if(width){width.textContent=`Độ dày WLR: ${trendWidth?'Tương quan σ×V×C':'C×V'}`;width.title=trendWidth?'Độ dày 2–10 theo tương quan 34 nến, trọng số σ 61% / V×C 39%: σ giá WLR50 với |SPY V|, |Composite| và SPY V với Composite; cùng hướng làm dày, làm mượt α=0,35; màu C×V có vùng trễ: vào ±0,15, thoát ±0,07; xác nhận theo nến đóng':'Độ dày theo đồng thuận Composite × SPY V; màu C×V có vùng trễ: vào ±0,15, thoát ±0,07; xác nhận theo nến đóng';width.setAttribute('aria-pressed',String(trendWidth));}
   if(candle){candle.textContent=`Màu nến: ${priceVolume?'Cụm Giá×SPY V':'C×V'}`;candle.title=priceVolume?'Cụm causal từ WLR8, SPY V và thân giá/ATR; hai nến đối nghịch mới đổi cụm, nến ngược nhỏ chỉ giảm sáng':'Màu nến theo đồng thuận Strength Composite × SPY V';candle.setAttribute('aria-pressed',String(priceVolume));}
   if(trendCandle){trendCandle.lastChild.textContent=`Nến tuổi trend: ${trendAgeColor?'BẬT':'TẮT'}`;trendCandle.title='Chỉ SPY M15: tô xanh/đỏ cho trend đang hoạt động khi dự báo tuổi trend đủ mẫu và còn live; WAIT hoặc ngoài trend để xám. Đây không phải backtest lịch sử.';trendCandle.setAttribute('aria-pressed',String(Boolean(trendAgeColor)));}
 }
@@ -308,7 +308,7 @@ function trendAgeCandlePalette(row,state){
   return {body:mixColor([82,96,113],target,intensity),wick:mixColor([116,130,147],target,Math.min(1,intensity+.10)),border:mixColor([70,84,101],target,Math.min(1,intensity+.14))};
 }
 function lineData(data,key){return data.map(x=>Number.isFinite(x[key])?{time:x.t/1000,value:x[key]}:{time:x.t/1000});}
-function priceLineData(data,compositeStrength,volumeStrength,trendThickness){const trendMode=$('phase-width').checked,displayColors=wlrDisplayColors(data,compositeStrength,volumeStrength,{step:STEPS[$('interval').value],closedBefore:cache?.serverTime??Infinity});return data.map((x,i)=>{if(!Number.isFinite(x.mid))return {time:x.t/1000};const phase=strengthPhaseLineStyle(compositeStrength.get(x.t),volumeStrength.get(x.t),{thick:WLR_CORRELATION_DEFAULTS.maxWidth}),trend=trendThickness.get(x.t);return {time:x.t/1000,value:x.mid,width:trendMode&&Number.isFinite(trend?.width)?trend.width:phase.width,phaseColor:displayColors[i].color};});}
+function priceLineData(data,compositeStrength,volumeStrength,trendThickness){const trendMode=$('phase-width').checked,displayColors=wlrDisplayColors(data,compositeStrength,volumeStrength,{step:STEPS[$('interval').value],closedBefore:cache?.serverTime??Infinity});return data.map((x,i)=>{if(!Number.isFinite(x.mid))return {time:x.t/1000};const phase=strengthPhaseLineStyle(compositeStrength.get(x.t),volumeStrength.get(x.t),{thin:WLR_CORRELATION_DEFAULTS.minWidth,neutral:3,thick:WLR_CORRELATION_DEFAULTS.maxWidth}),trend=trendThickness.get(x.t);return {time:x.t/1000,value:x.mid,width:trendMode&&Number.isFinite(trend?.width)?trend.width:phase.width,phaseColor:displayColors[i].color};});}
 function flowData(data,key){const palette=flowColors[key];return data.map(x=>Number.isFinite(x.net)?{time:x.t/1000,value:x.net,color:x.net>=0?palette.up:palette.down}:{time:x.t/1000});}
 function relativeData(data){
   return data.map(x=>Number.isFinite(x.relative)?{time:x.t/1000,value:x.relative,color:relativeFlowColor(x)}:{time:x.t/1000});

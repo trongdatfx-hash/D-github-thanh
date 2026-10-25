@@ -1,5 +1,5 @@
 // Descriptive display metric; independent of model features and frozen policies.
-export const WLR_CORRELATION_DEFAULTS=Object.freeze({window:34,minPairs:20,alignmentWindow:8,deadband:.07,minWidth:1,maxWidth:8,alpha:.35,flowWeight:.39,sigmaVolumeWeight:.305,sigmaCompositeWeight:.305});
+export const WLR_CORRELATION_DEFAULTS=Object.freeze({window:34,minPairs:20,alignmentWindow:8,deadband:.07,minWidth:2,maxWidth:10,alpha:.35,flowWeight:.39,sigmaVolumeWeight:.305,sigmaCompositeWeight:.305});
 const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
 export function pearsonCorrelation(a,b){
   if(a.length!==b.length||a.length<2||!a.every(Number.isFinite)||!b.every(Number.isFinite))return null;
