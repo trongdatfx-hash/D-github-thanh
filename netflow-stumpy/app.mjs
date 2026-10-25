@@ -279,12 +279,13 @@ function init(){
     ['pivotResistanceLow','rgba(255,180,84,.55)',1,L.LineStyle.Dashed,false,''],['pivotResistanceHigh','rgba(255,180,84,.55)',1,L.LineStyle.Dashed,false,''],['pivotResistanceMid','#ffb454',3,L.LineStyle.Solid,true,'REV6 Pivot KC'],
     ['pivotSupportLow','rgba(91,200,255,.55)',1,L.LineStyle.Dashed,false,''],['pivotSupportHigh','rgba(91,200,255,.55)',1,L.LineStyle.Dashed,false,''],['pivotSupportMid','#5bc8ff',3,L.LineStyle.Solid,true,'REV6 Pivot HT']
   ])series[key]=chart.addSeries(L.LineSeries,{color,lineWidth:width,lineStyle:style,priceLineVisible:false,lastValueVisible:last,crosshairMarkerVisible:false,title},0);
-  for(const key of ['SPYUSDT','QQQUSDT'])series[key]=chart.addSeries(L.HistogramSeries,{priceScaleId:'taker-flow-strength-overlay',base:0,color:flowColors[key].up,title:'',priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',formatter:fmtK},autoscaleInfoProvider:symmetricAutoscale},2);
+  for(const key of ['QQQUSDT'])series[key]=chart.addSeries(L.HistogramSeries,{priceScaleId:'taker-flow-strength-overlay',base:0,color:flowColors[key].up,title:'',priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',formatter:fmtK},autoscaleInfoProvider:symmetricAutoscale},2);
   series.relative=chart.addSeries(L.HistogramSeries,{priceScaleId:'relative-strength-overlay',base:0,color:'rgba(112,126,145,.3)',title:'',priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',formatter:x=>`${fmt(x)}%`},autoscaleInfoProvider:symmetricAutoscale},2);
   series.relative.priceScale().applyOptions({scaleMargins:{top:.08,bottom:.08}});
   series.relative.createPriceLine({price:0,color:'#65768b',lineWidth:1,lineStyle:L.LineStyle.Dotted,axisLabelVisible:false});
   series.COMPOSITE=chart.addSeries(L.HistogramSeries,{priceScaleId:'taker-flow-strength-overlay',base:0,color:flowColors.COMPOSITE.up,title:'',priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',formatter:fmtK},autoscaleInfoProvider:symmetricAutoscale},2);
   series.COMPOSITE.priceScale().applyOptions({scaleMargins:{top:.08,bottom:.08}});
+  series.SPYUSDT=chart.addSeries(L.HistogramSeries,{priceScaleId:'taker-flow-strength-overlay',base:0,color:flowColors.SPYUSDT.up,title:'',priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',formatter:fmtK},autoscaleInfoProvider:symmetricAutoscale},2);
   series.strength=chart.addSeries(L.BaselineSeries,{baseValue:{type:'price',price:0},topLineColor:'#1ae0a3',topFillColor1:'rgba(26,224,163,0)',topFillColor2:'rgba(26,224,163,0)',bottomLineColor:'#ff4d70',bottomFillColor1:'rgba(255,77,112,0)',bottomFillColor2:'rgba(255,77,112,0)',lineWidth:1,title:'',priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:4,autoscaleInfoProvider:symmetricAutoscale},2);
   series.spyStrength=chart.addSeries(L.LineSeries,{color:'#5ba8ff',lineWidth:2,lineStyle:L.LineStyle.Dotted,title:'',priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:3,autoscaleInfoProvider:symmetricAutoscale},2);
   for(const key of ['mid','upper','lower'])series[key]=chart.addSeries(L.LineSeries,{color:key==='mid'?'#9db5d1':'#8596ad',lineWidth:key==='mid'?2:1,lineStyle:key==='mid'?L.LineStyle.Dotted:L.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,title:'',autoscaleInfoProvider:symmetricAutoscale},2);
@@ -645,6 +646,7 @@ function showTooltip(t){
 }
 function toggle(){
   for(const [id,key] of [['spy','SPYUSDT'],['qqq','QQQUSDT'],['composite','COMPOSITE'],['show-strength','strength'],['spy-strength-line','spyStrength'],['spy-volume-strength','volumeStrength']])series[key].applyOptions({visible:$(id).checked});
+  const strengthPane=series.strength.getPane().paneIndex();if(series.SPYUSDT.getPane().paneIndex()!==strengthPane)series.SPYUSDT.moveToPane(strengthPane);$('chart').dataset.spyTakerNetflowPane=String(strengthPane);$('chart').dataset.spyTakerNetflowVisible=String($('spy').checked);
   strengthMarks.applyOptions({visible:$('show-strength').checked});
   $('cvd-spectrum').style.display=$('cvd-spectrum-toggle').checked?'block':'none';scheduleCvdSpectrum();
   $('day-separators').style.display=$('markers').checked?'block':'none';scheduleDaySeparators();
@@ -726,6 +728,8 @@ if(init()){
   strategyBadge=createStrategyBadge();
   forecastLayer=createWlrAba({chart,wlr:series.priceMid,host:$('chart'),actions:document.querySelector('.chart-actions'),paneBounds,getCvdBounds:cvdSpectrumBounds,onStateChange:scheduleAbaBandColors,getContext:()=>({symbol:$('symbol').value,interval:$('interval').value,features:studyResultKey===studyKey?researchFeatures:[],expectedTime:(rows[$('symbol').value]??[]).filter(r=>r.end<(cache?.serverTime??0)).at(-1)?.t,displayRows:rows[$('symbol').value]??[],live:isChartLive(),now:Date.now()+serverOffsetMs})});
   restoreSavedSetup();
+  try{const key='netflow:spy-taker:strength-pane:v1';if(!localStorage.getItem(key)){$('spy').checked=true;const saved=JSON.parse(localStorage.getItem(SETUP_STORAGE_KEY)||'null');if(saved?.version===1&&saved.controls){saved.controls.spy=true;localStorage.setItem(SETUP_STORAGE_KEY,JSON.stringify(saved));}localStorage.setItem(key,'enabled');}}catch{$('spy').checked=true;}
+  $('spy').closest('label').title='SPY Taker NetFlow trong pane Composite Strength phía dưới; histogram dùng thang USDT riêng đối xứng quanh 0.';
   ensureMobileDCommon();
   syncDisplayModeButtons();
   $('refresh').onclick=()=>refresh();for(const id of ['interval','days'])$(id).onchange=()=>refresh(true);
