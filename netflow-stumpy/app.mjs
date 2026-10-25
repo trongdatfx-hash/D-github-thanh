@@ -1,8 +1,9 @@
+import {createStrategyBadge} from './strategy-badge.mjs?v=20261025-strategy1';
 import {wlrColorSegments} from './wlr-color-segments.mjs?v=20261025-wlr-colorfix1';
 import {wlrSlopeThickness,WLR_SLOPE_DEFAULTS} from './wlr-slope-thickness.mjs?v=20261025-wlr-slope1';
 import {wlrDisplayColors,WLR_COLOR_DEFAULTS} from './wlr-display-color.mjs?v=20261025-wlr-colorfix1';
 import {chartFresh} from './wlr-aba-status.mjs?v=20261025-dcommon-all1';
-import {createWlrAba} from './wlr-aba-ui.mjs?v=20261025-dcommon-all1';
+import {createWlrAba} from './wlr-aba-ui.mjs?v=20261025-strategy1';
 import {createSeriesWriter} from './chart-data-cache.mjs?v=20261025-dcommon-all1';
 import {COMPOSITE_STRENGTH_VERSION,STEPS,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,strengthPhaseLineStyle,directionalVolumeDelta,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,weightedPriceBands,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs?v=20261025-dcommon-all1';
 import {calculateCommonTakerVolumeStrength} from './common-volume.mjs?v=20261025-dcommon-all1';
@@ -31,7 +32,7 @@ const SETUP_STORAGE_KEY='netflow-rth-lite:chart-setup:v1';
 const SETUP_CONTROL_IDS=['symbol','interval','days','signal','spy','qqq','composite','relative','alignment','common-volume-strength','price-bands','pivot-zones','phase-width','candle-agreement-color','candle-trend-age-color','cvd-spectrum-toggle','show-strength','spy-strength-line','spy-volume-strength','bands','markers','double-tap-full','geometry-toggle','geometry-provisional','causal-trend-channel','causal-trend-channel-provisional','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','wlr-aba-toggle'];
 let statsMap=new Map(),candleColorMap=new Map(),candleClusterMap=new Map(),rev63State=null,pivotZoneState={ready:false,reason:'history',support:null,resistance:null},pivotFlowState=null,pivotZoneKey='',inspectedTime=null;
 let calendarState={events:[],updatedAt:null,loading:false};
-let pendingSavedTimeRange=null,saveSetupTimer=null,forecastLayer=null;
+let pendingSavedTimeRange=null,saveSetupTimer=null,forecastLayer=null,strategyBadge=null;
 const sourceName=key=>({SPYUSDT:'SPY',QQQUSDT:'QQQ',COMPOSITE:'Composite'}[key]);
 const signed=x=>Number.isFinite(x)?`${x>0?'+':''}${fmt(x)}`:'—';
 const signLabel=x=>x>0?'+':x<0?'−':'0';
@@ -412,6 +413,7 @@ function geometryLineText(line){
 }
 function updateGeometryReadout(){
   const state=trendReadoutState(rev63State,{now:Date.now()+serverOffsetMs,live:Boolean(lastSuccess&&Date.now()-lastSuccess<15000)});
+  strategyBadge?.update({aba:forecastLayer?.getStrategyState?.(),trend:state,symbol:$('symbol').value,interval:$('interval').value,live:isChartLive()});
   const node=$('geometry-readout');if(!node)return;node.style.display='block';
   node.textContent=formatPreRthWlrTrend(state);
   node.className=`forecast ${(state?.label??'WAIT').toLowerCase()}`;
@@ -679,6 +681,7 @@ function bindChartGestures(){
 if(init()){
   updateTrendMethodCopy();
   setupChartActions();
+  strategyBadge=createStrategyBadge();
   forecastLayer=createWlrAba({chart,wlr:series.priceMid,host:$('chart'),actions:document.querySelector('.chart-actions'),paneBounds,getCvdBounds:cvdSpectrumBounds,getContext:()=>({symbol:$('symbol').value,interval:$('interval').value,features:studyResultKey===studyKey?researchFeatures:[],expectedTime:(rows[$('symbol').value]??[]).filter(r=>r.end<(cache?.serverTime??0)).at(-1)?.t,displayRows:rows[$('symbol').value]??[],live:isChartLive(),now:Date.now()+serverOffsetMs})});
   restoreSavedSetup();
   syncDisplayModeButtons();

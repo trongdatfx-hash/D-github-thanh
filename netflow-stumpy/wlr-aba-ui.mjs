@@ -188,5 +188,9 @@ export function createWlrAba({chart,wlr,host,actions,getContext,paneBounds,getCv
  setInterval(()=>{renderHealth();if(toggle.checked)update();},3000);
  document.addEventListener('visibilitychange',()=>{if(!document.hidden){refreshSnapshot();update();}});
 
- return {update,schedule,toggle};
+ function getStrategyState(){
+  const c=getContext(),verified=snapshotIsVerified(),track=active?.track,policy=activePolicy(snapshotReport);
+  return {enabled:toggle.checked,live:c.live,verified,version:policy?.version,synced:active?.status==='READY'&&active.lastTime===c.expectedTime&&syncStartedAt===null,track,preview:researchPreviewSignal(track,snapshotReport,{verified,live:c.live}),usage:usableSignal(track,snapshotReport,c.now,{verified,live:c.live})};
+ }
+ return {update,schedule,toggle,getStrategyState};
 }
