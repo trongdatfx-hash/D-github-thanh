@@ -27,20 +27,20 @@
       {
         "maxPrice": "20000",
         "filterType": "PRICE_FILTER",
-        "minPrice": "0.01000",
-        "tickSize": "0.01000"
+        "tickSize": "0.01000",
+        "minPrice": "0.01000"
       },
       {
+        "stepSize": "0.01",
         "filterType": "LOT_SIZE",
-        "maxQty": "20000",
-        "stepSize": "0.01",
-        "minQty": "0.01"
+        "minQty": "0.01",
+        "maxQty": "20000"
       },
       {
-        "maxQty": "2000",
         "filterType": "MARKET_LOT_SIZE",
-        "stepSize": "0.01",
-        "minQty": "0.01"
+        "maxQty": "2000",
+        "minQty": "0.01",
+        "stepSize": "0.01"
       },
       {
         "filterType": "MAX_NUM_ORDERS",
@@ -51,10 +51,10 @@
         "filterType": "MIN_NOTIONAL"
       },
       {
-        "multiplierDown": "0.9700",
-        "filterType": "PERCENT_PRICE",
         "multiplierDecimal": "4",
-        "multiplierUp": "1.0300"
+        "filterType": "PERCENT_PRICE",
+        "multiplierUp": "1.0300",
+        "multiplierDown": "0.9700"
       },
       {
         "filterType": "POSITION_RISK_CONTROL",
@@ -111,40 +111,40 @@
     "maxMoveOrderLimit": 10000,
     "filters": [
       {
-        "filterType": "PRICE_FILTER",
-        "minPrice": "0.01000",
         "maxPrice": "20000",
-        "tickSize": "0.01000"
+        "filterType": "PRICE_FILTER",
+        "tickSize": "0.01000",
+        "minPrice": "0.01000"
+      },
+      {
+        "maxQty": "20000",
+        "stepSize": "0.01",
+        "minQty": "0.01",
+        "filterType": "LOT_SIZE"
       },
       {
         "minQty": "0.01",
+        "filterType": "MARKET_LOT_SIZE",
         "stepSize": "0.01",
-        "filterType": "LOT_SIZE",
-        "maxQty": "20000"
-      },
-      {
-        "maxQty": "2000",
-        "stepSize": "0.01",
-        "minQty": "0.01",
-        "filterType": "MARKET_LOT_SIZE"
+        "maxQty": "2000"
       },
       {
         "filterType": "MAX_NUM_ORDERS",
         "limit": 200
       },
       {
-        "notional": "5",
-        "filterType": "MIN_NOTIONAL"
+        "filterType": "MIN_NOTIONAL",
+        "notional": "5"
       },
       {
         "multiplierUp": "1.0300",
-        "multiplierDown": "0.9700",
+        "multiplierDecimal": "4",
         "filterType": "PERCENT_PRICE",
-        "multiplierDecimal": "4"
+        "multiplierDown": "0.9700"
       },
       {
-        "positionControlSide": "NONE",
-        "filterType": "POSITION_RISK_CONTROL"
+        "filterType": "POSITION_RISK_CONTROL",
+        "positionControlSide": "NONE"
       }
     ],
     "orderTypes": [
