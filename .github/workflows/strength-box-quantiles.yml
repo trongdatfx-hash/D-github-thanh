@@ -1,0 +1,52 @@
+name: DVP strength boxes and price quantiles
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/strength-box-quantiles.yml'
+      - 'netflow-stumpy/strength-box-*.mjs'
+      - 'netflow-stumpy/quantile-price-*.mjs'
+      - 'netflow-stumpy/market-clock.mjs'
+      - 'netflow-stumpy/requirements-quantiles.txt'
+      - 'netflow-stumpy/tests/strength-box.test.mjs'
+      - 'netflow-stumpy/tests/quantile-price.test.mjs'
+      - 'research/quantile-price/**'
+  schedule:
+    - cron: '17,47 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: strength-box-quantiles
+  cancel-in-progress: false
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r netflow-stumpy/requirements-quantiles.txt
+      - name: Collect closed history
+        run: python netflow-stumpy/collect-history.py
+      - name: Fit direct box-anchored quantiles and replay only earlier training days
+        run: python research/quantile-price/train.py
+      - name: Verify boxes, forecasts, causal trend and retained engine
+        run: node --test netflow-stumpy/tests/*.test.mjs
+      - name: Publish owned model and history paths
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add netflow-stumpy/data/quantile-price/report.json netflow-stumpy/data/binance/m15
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'data: refresh box-anchored price quantiles and closed history'
+          git pull --rebase origin main
+          git push origin HEAD:main

@@ -32,7 +32,7 @@ Nhãn tuổi này dùng PRE→RTH và dừng live lúc hết RTH theo lịch phi
 ## Kiểm tra
 
 ```sh
-node --test netflow-stumpy/tests/pre-rth-wlr-trend.test.mjs netflow-stumpy/tests/causal-trend-channel.test.mjs netflow-stumpy/tests/wlr-aba.test.mjs netflow-stumpy/tests/engine.test.mjs netflow-stumpy/tests/strength-sources.test.mjs
+node --test netflow-stumpy/tests/pre-rth-wlr-trend.test.mjs netflow-stumpy/tests/causal-trend-channel.test.mjs netflow-stumpy/tests/strength-box.test.mjs netflow-stumpy/tests/quantile-price.test.mjs netflow-stumpy/tests/engine.test.mjs netflow-stumpy/tests/strength-sources.test.mjs
 node netflow-stumpy/scripts/audit-trend-age.mjs
 ```
 
@@ -57,3 +57,5 @@ Kiểm tra: 25 ca tuổi trend và lịch sử, 26 ca kênh/màu WLR đạt. Ph�
 Hai biên giữ nguyên công thức giá và σ. Chỉ đổi màu trên các đoạn thuộc track nghiên cứu hiện tại: A xanh, B đỏ, A kế tiếp xanh, độc lập với dấu tăng/giảm gốc của WLR. Các đoạn khác giữ xanh lam trung tính. Mẫu phải đồng bộ, live, snapshot xác minh, preview V3 emit, prediction ready, memberReady và pMembership ≥50%. Không gọi đó là tín hiệu đã được xác thực sử dụng; usableSignal và các khóa forward giữ nguyên.
 
 Chỉ tô các nến đã đóng đến lastTime của track. Đổi symbol/timeframe, mất live, thiếu context, mẫu bị phá hoặc chất lượng không đạt trả về trung tính. Bốn ca kiểm tra bổ sung đạt: chuỗi pha, khóa chất lượng, mẫu phá/gap và giá trị biên không đổi.
+
+Cập nhật 26/10/2026: dự báo WLR A–B–A V2/V3 đã được gỡ. Phân vị giá hiện neo hộp DVP; xem BOX-QUANTILES.md. Các kết quả 77/77 ở trên ghi nhận đợt kiểm tra tuổi trend trước thay đổi này.

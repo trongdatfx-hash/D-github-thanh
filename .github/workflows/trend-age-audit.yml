@@ -22,8 +22,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Verify trend age, channel lifecycle and unchanged ABA
-        run: node --test netflow-stumpy/tests/pre-rth-wlr-trend.test.mjs netflow-stumpy/tests/causal-trend-channel.test.mjs netflow-stumpy/tests/wlr-aba.test.mjs netflow-stumpy/tests/engine.test.mjs netflow-stumpy/tests/strength-sources.test.mjs
+      - name: Verify trend age, channel lifecycle
+        run: node --test netflow-stumpy/tests/pre-rth-wlr-trend.test.mjs netflow-stumpy/tests/causal-trend-channel.test.mjs netflow-stumpy/tests/engine.test.mjs netflow-stumpy/tests/strength-sources.test.mjs
       - name: Replay PRE, RTH and session-end labels from real stored M15 history
         run: node netflow-stumpy/scripts/audit-trend-age.mjs > trend-age-audit.json
       - uses: actions/upload-artifact@v4

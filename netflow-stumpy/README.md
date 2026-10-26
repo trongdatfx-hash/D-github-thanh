@@ -1,4 +1,6 @@
-# NetFlow RTH Lite · V2
+Xem [Hộp DVP & phân vị](BOX-QUANTILES.md) cho công thức mới. Dự báo A–B–A V2/V3 đã được gỡ.
+
+# NetFlow · Hộp sức mạnh DVP
 
 Trang độc lập: https://trongdatfx-hash.github.io/D-github-thanh/netflow-rth-lite/
 Chỉ thêm thư mục này; không sửa các trang/workflow hiện có. Chạy qua hosting HTTP tĩnh (ES modules), không mở file://.

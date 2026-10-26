@@ -1,4 +1,4 @@
-import {europeOpen} from './wlr-aba-core.mjs?v=20261025-dcommon-all1';
+import {europeOpen} from './market-clock.mjs?v=20261026-boxqr1';
 import {ny,tradingDay,closeMinute} from './rth-structure.mjs?v=20261025-dcommon-all1';
 
 export function trendSessionAt(t){

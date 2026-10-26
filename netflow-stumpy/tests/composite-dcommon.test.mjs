@@ -3,8 +3,6 @@ import {STEPS,parseKlines,analyze,composite,calculateStrength,calculateVolumeStr
 import {calculateCommonTakerVolumeStrength} from '../common-volume.mjs';
 import {prepareRaw} from '../analogs-features.mjs';
 import {analyzeTrendSource} from '../studies-core.mjs';
-import {validateSnapshot} from '../wlr-aba-snapshot.mjs';
-import {SPEC} from '../wlr-aba-core.mjs';
 const step=STEPS['15m'];
 function sample(n=800){return Object.fromEntries(['SPYUSDT','QQQUSDT'].map((s,k)=>[s,Array.from({length:n},(_,i)=>{const q=(k?700:130)*((i%13)+1),net=q*Math.sin(i/(k?5:7))*.8,t=i*step;return {t,end:t+step-1,o:100,c:100+Math.sin(i/6),h:102,l:98,v:20,q,net,buy:(q+net)/2,sell:(q-net)/2,nf:100*net/q,session:'RTH',day:'2026-10-20'};})]));}
 test('all Composite raw and adjusted strengths equal D common on every timestamp',()=>{
@@ -35,8 +33,6 @@ test('real Binance M15 fixtures retain exact D common parity',()=>{
 });
 test('old or mixed feature artifacts are rejected instead of relabeled as D common',()=>{
  assert.throws(()=>requireCompositeStrengthVersion({strengthVersion:'old'}),/version/);
- const a={schema:'wlr-aba-v2',inputScope:SPEC.inputScope,sourceAsOf:1,strengthVersion:COMPOSITE_STRENGTH_VERSION},r={schema:a.schema,sourceAsOf:1,spec:SPEC,v2:{version:2},strengthVersion:COMPOSITE_STRENGTH_VERSION};
- assert.doesNotThrow(()=>validateSnapshot(a,r));assert.throws(()=>validateSnapshot({...a,strengthVersion:'old'},r),/D common/);assert.throws(()=>validateSnapshot(a,{...r,strengthVersion:undefined}),/D common/);
 });
 
 test('M5 M30 H1 infer the kline step and preserve the D common gap reset',()=>{

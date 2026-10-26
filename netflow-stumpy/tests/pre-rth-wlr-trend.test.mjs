@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {sessionAt} from '../engine.mjs';
 import {isUsMarketTradingDay} from '../market-calendar.mjs';
 import {trendSessionAt,trendSessionRows} from '../trend-session.mjs';
-import {europeOpen} from '../wlr-aba-core.mjs';
+import {europeOpen} from '../market-clock.mjs';
 import {stamp} from '../rth-structure.mjs';
 
 test('age window follows London DST and US RTH close, excluding weekends and US holidays',()=>{

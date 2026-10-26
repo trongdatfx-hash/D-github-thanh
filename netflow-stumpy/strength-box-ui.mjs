@@ -1,0 +1,37 @@
+import {strengthBoxes} from './strength-box-core.mjs?v=20261026-box1';
+export function createStrengthBoxLayer({chart,host,actions,getContext,onChange=()=>{}}){
+ const label=document.createElement('label'),toggle=document.createElement('input');toggle.id='strength-box-toggle';toggle.type='checkbox';toggle.checked=true;label.append(toggle,'Hộp sức mạnh DVP');actions.append(label);
+ const modeLabel=document.createElement('label'),mode=document.createElement('select');mode.id='strength-box-shape';for(const [value,text] of [['flat','Hộp ngang'],['ols','Hộp + ray OLS']]){const option=document.createElement('option');option.value=value;option.textContent=text;mode.append(option);}modeLabel.append(mode);actions.append(modeLabel);
+ const compositeLabel=document.createElement('label'),compositeMode=document.createElement('select');compositeMode.id='strength-box-composite';for(const [value,text] of [['off','DVP gốc'],['annotate','DVP + Composite xác nhận'],['filter','DVP + lọc Composite']]){const o=document.createElement('option');o.value=value;o.textContent=text;compositeMode.append(o);}compositeMode.value='annotate';compositeLabel.append(compositeMode);actions.append(compositeLabel);
+ const gateLabel=document.createElement('label'),gate=document.createElement('select');gate.id='strength-box-composite-threshold';for(const v of [.15,.3,.5]){const o=document.createElement('option');o.value=String(v);o.textContent='|Composite| ≥ '+v;gate.append(o);}gateLabel.append(gate);actions.append(gateLabel);
+ const canvas=document.createElement('canvas');canvas.id='strength-box-overlay';canvas.setAttribute('aria-label','Hộp vùng Sức mạnh DVP: NÉN / ĐÃ TRẢ / trung tính');canvas.style.cssText='position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:6';host.append(canvas);
+ const labels=document.createElement('div');labels.id='strength-box-labels';labels.style.cssText='position:absolute;inset:0;pointer-events:none;z-index:10;overflow:hidden';host.append(labels);
+ const status=document.createElement('p');status.id='strength-box-status';status.style.cssText='font-size:12px;line-height:1.6;color:#9db5cd;margin:8px 0';host.closest('.chart-card').append(status);
+ let key='',state={boxes:[],snapshots:new Map()},frame=0;
+ const format=x=>Number.isFinite(x)?x.toFixed(2):'—';
+ function update(){
+  const c=getContext(),closed=(c.rows??[]).filter(r=>r.end<c.now),stamp=[c.symbol,c.interval,closed[0]?.t,closed.at(-1)?.t,closed.length,compositeMode.value,gate.value,c.compositeRevision].join('|');
+  if(stamp!==key){state=strengthBoxes(closed,{step:c.step,now:c.now,compositeRows:c.composite??new Map(),compositeMode:compositeMode.value,compositeThreshold:+gate.value});key=stamp;}
+  const latest=state.latest;status.textContent=toggle.checked?`Hộp DVP · ${c.symbol} Taker Strength gốc, chưa hiệu chỉnh phiên · |S| ≥0,95 · lùi 8 nến · chuẩn Hiệu suất RW. ${state.boxes.length} hộp · ${compositeMode.options[compositeMode.selectedIndex].text}; mới nhất: ${latest?.label??'chưa đủ 507 nến chuẩn hóa hoặc chưa chạm ngưỡng'}. NÉN vàng / ĐÃ TRẢ xám / trung tính theo dấu S; ⤬ thoát biên, ⌛ hết hạn. p là phân vị bề rộng theo chuẩn mô phỏng DVP, không phải xác suất giá tăng/giảm. Gốc hộp được vẽ lùi, chỉ biết hộp từ nến chạm ngưỡng.`:'Đã tắt lớp hộp DVP; mô hình phân vị vẫn dùng snapshot hộp theo nến đóng.';
+  host.dataset.strengthBoxCount=String(state.boxes.length);host.dataset.strengthBoxSource='selected-symbol-taker-quote-delta-raw-dvp';schedule();return state;
+ }
+ function schedule(){if(!frame)frame=requestAnimationFrame(()=>{frame=0;draw();});}
+ function draw(){
+  const w=host.clientWidth,h=host.clientHeight,dpr=window.devicePixelRatio||1;if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);}
+  const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);labels.replaceChildren();if(!toggle.checked)return;
+  const paneHeight=chart.panes()[0].getHeight(),right=w-chart.priceScale('right',0).width(),price=getContext().price;
+  ctx.save();ctx.beginPath();ctx.rect(0,0,right,paneHeight);ctx.clip();
+  const range=chart.timeScale().getVisibleRange();
+  for(const box of state.boxes){
+   const left=chart.timeScale().timeToCoordinate(box.start/1000),end=chart.timeScale().timeToCoordinate(box.right/1000),top=price.priceToCoordinate(box.top),bottom=price.priceToCoordinate(box.bottom);
+   if(![left,end,top,bottom].every(Number.isFinite)||Math.max(left,end)<0||Math.min(left,end)>right||bottom<0||top>paneHeight)continue;
+   const x=Math.max(-2,left),x2=Math.min(right,end),bw=Math.max(2,x2-x),bh=Math.max(1,bottom-top);
+   ctx.fillStyle=box.color+'1f';ctx.fillRect(x,top,bw,bh);ctx.strokeStyle=box.color+'b3';ctx.lineWidth=1;ctx.setLineDash(box.freeze==='breakout'?[6,4]:box.freeze==='timeout'?[1,4]:[]);ctx.strokeRect(x,top,bw,bh);
+   if(mode.value==='ols'&&box.ols){const o=box.ols,y1=o.intercept,y2=y1+o.slope*(box.rightIndex-box.startIndex);ctx.setLineDash([]);for(const side of [-1,1]){ctx.beginPath();ctx.moveTo(left,price.priceToCoordinate(y1+side*o.offset));ctx.lineTo(end,price.priceToCoordinate(y2+side*o.offset));ctx.stroke();}}
+   const node=document.createElement('span');node.textContent=box.label;node.title=`${box.type==='NEUTRAL'?'TRUNG TÍNH · ':''}Hộp DVP · hình thành tại ${new Date(box.issuedAt).toISOString()} · ${box.n} nến tạo bề rộng (gồm lùi 8) · |S|max ${format(box.maxStrength)} · W/√ΣTR² ${format(box.efficiency)} · W/(ATR√n) ${format(box.magnitude)} · ${format(box.width/box.atr)} ATR · ${box.freeze==='breakout'?'Close thoát biên quá 0,5 ATR':box.freeze==='timeout'?'Hết 60 nến nới phải':box.replaced?'Bị hộp mới thay khi còn mở':box.live?'S còn trong vùng mạnh':'Đang nới phải'} · Composite ${format(box.compositeStrength)} / ${box.compositeAlignment??"không dùng"} · Hộp là ngữ cảnh, không phải tín hiệu vào lệnh. Nguồn Binance khác delta TradingView.`;node.style.cssText=`position:absolute;left:${Math.max(0,Math.min(right-160,end-145))}px;top:${Math.max(2,Math.min(paneHeight-22,top-21))}px;padding:2px 5px;border-radius:3px;background:${box.color}d9;color:white;font:11px/1.3 system-ui;pointer-events:auto;white-space:nowrap`;labels.append(node);
+  }
+  ctx.restore();
+ }
+ toggle.onchange=update;mode.onchange=schedule;compositeMode.onchange=gate.onchange=()=>{key='';update();onChange();};chart.timeScale().subscribeVisibleLogicalRangeChange(schedule);window.addEventListener('resize',schedule);host.addEventListener('wheel',schedule,{passive:true});host.addEventListener('pointermove',schedule,{passive:true});
+ return {update,schedule,getState:()=>state};
+}
