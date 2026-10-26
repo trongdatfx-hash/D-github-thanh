@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-10-26T16:42:59.469Z",
+  "updatedAt": "2026-10-26T21:12:43.508Z",
   "events": [
     {
       "title": "Bank Holiday",
@@ -80,7 +80,7 @@
       "timestamp": 1793088000000,
       "impact": "Low",
       "actual": "",
-      "forecast": "9.8%",
+      "forecast": "9.9%",
       "previous": "9.9%"
     },
     {
@@ -90,7 +90,7 @@
       "timestamp": 1793091600000,
       "impact": "Low",
       "actual": "",
-      "forecast": "3.6%",
+      "forecast": "3.5%",
       "previous": "3.5%"
     },
     {
@@ -130,7 +130,7 @@
       "timestamp": 1793104200000,
       "impact": "Low",
       "actual": "",
-      "forecast": "1.8%",
+      "forecast": "2.0%",
       "previous": "-0.1%"
     },
     {
@@ -140,7 +140,7 @@
       "timestamp": 1793106000000,
       "impact": "Low",
       "actual": "",
-      "forecast": "0.1%",
+      "forecast": "0.2%",
       "previous": "0.3%"
     },
     {
@@ -150,7 +150,7 @@
       "timestamp": 1793106000000,
       "impact": "Low",
       "actual": "",
-      "forecast": "2.7%",
+      "forecast": "2.6%",
       "previous": "2.5%"
     },
     {
@@ -160,7 +160,7 @@
       "timestamp": 1793109600000,
       "impact": "Medium",
       "actual": "",
-      "forecast": "80.7",
+      "forecast": "81.2",
       "previous": "81.9"
     },
     {
@@ -170,7 +170,7 @@
       "timestamp": 1793109600000,
       "impact": "Low",
       "actual": "",
-      "forecast": "649K",
+      "forecast": "651K",
       "previous": "684K"
     },
     {
@@ -180,7 +180,7 @@
       "timestamp": 1793109600000,
       "impact": "Low",
       "actual": "",
-      "forecast": "1",
+      "forecast": "0",
       "previous": "-2"
     },
     {
@@ -270,7 +270,7 @@
       "timestamp": 1793170800000,
       "impact": "Low",
       "actual": "",
-      "forecast": "-30.0",
+      "forecast": "-30.1",
       "previous": "-30.6"
     },
     {
@@ -320,7 +320,7 @@
       "timestamp": 1793190600000,
       "impact": "Low",
       "actual": "",
-      "forecast": "-130.8B",
+      "forecast": "-130.4B",
       "previous": "-132.1B"
     },
     {
@@ -330,7 +330,7 @@
       "timestamp": 1793190600000,
       "impact": "Low",
       "actual": "",
-      "forecast": "0.4%",
+      "forecast": "0.5%",
       "previous": "0.5%"
     },
     {
@@ -440,7 +440,7 @@
       "timestamp": 1793233800000,
       "impact": "Low",
       "actual": "",
-      "forecast": "1.8%",
+      "forecast": "1.3%",
       "previous": "5.7%"
     },
     {
@@ -501,7 +501,7 @@
       "impact": "Low",
       "actual": "",
       "forecast": "",
-      "previous": ""
+      "previous": "4.58"
     },
     {
       "title": "Advance GDP Price Index q/q",
@@ -510,7 +510,7 @@
       "timestamp": 1793277000000,
       "impact": "Medium",
       "actual": "",
-      "forecast": "3.5%",
+      "forecast": "3.3%",
       "previous": "6.1%"
     },
     {
@@ -660,7 +660,7 @@
       "timestamp": 1793317800000,
       "impact": "Low",
       "actual": "",
-      "forecast": "1.3%",
+      "forecast": "1.2%",
       "previous": "-2.4%"
     },
     {
@@ -670,7 +670,7 @@
       "timestamp": 1793317800000,
       "impact": "Low",
       "actual": "",
-      "forecast": "3.4%",
+      "forecast": "3.3%",
       "previous": "2.9%"
     },
     {
@@ -730,7 +730,7 @@
       "timestamp": 1793336400000,
       "impact": "Low",
       "actual": "",
-      "forecast": "2.5%",
+      "forecast": "2.7%",
       "previous": "6.1%"
     },
     {
@@ -744,23 +744,13 @@
       "previous": ""
     },
     {
-      "title": "German Prelim CPI m/m",
-      "country": "EUR",
-      "date": "2026-10-30T06:29:00.000Z",
-      "timestamp": 1793341740000,
-      "impact": "Medium",
-      "actual": "",
-      "forecast": "0.1%",
-      "previous": "0.6%"
-    },
-    {
       "title": "French Consumer Spending m/m",
       "country": "EUR",
       "date": "2026-10-30T06:30:00.000Z",
       "timestamp": 1793341800000,
       "impact": "Low",
       "actual": "",
-      "forecast": "0.2%",
+      "forecast": "0.1%",
       "previous": "-0.5%"
     },
     {
@@ -790,8 +780,18 @@
       "timestamp": 1793343600000,
       "impact": "Low",
       "actual": "",
-      "forecast": "-0.2%",
+      "forecast": "-0.1%",
       "previous": "-0.2%"
+    },
+    {
+      "title": "German Prelim CPI m/m",
+      "country": "EUR",
+      "date": "2026-10-30T07:29:00.000Z",
+      "timestamp": 1793345340000,
+      "impact": "Medium",
+      "actual": "",
+      "forecast": "0.1%",
+      "previous": "0.6%"
     },
     {
       "title": "French Prelim CPI m/m",
@@ -820,7 +820,7 @@
       "timestamp": 1793347200000,
       "impact": "Low",
       "actual": "",
-      "forecast": "108.0",
+      "forecast": "108.1",
       "previous": "109.1"
     },
     {
@@ -880,7 +880,7 @@
       "timestamp": 1793354400000,
       "impact": "Low",
       "actual": "",
-      "forecast": "0.0%",
+      "forecast": "0.1%",
       "previous": "0.7%"
     },
     {
@@ -930,7 +930,7 @@
       "timestamp": 1793367900000,
       "impact": "Low",
       "actual": "",
-      "forecast": "54.8",
+      "forecast": "55.8",
       "previous": "58.8"
     },
     {
@@ -960,7 +960,7 @@
       "timestamp": 1793410200000,
       "impact": "Low",
       "actual": "",
-      "forecast": "50.1",
+      "forecast": "49.9",
       "previous": "50.1"
     },
     {
@@ -970,7 +970,7 @@
       "timestamp": 1793410200000,
       "impact": "Low",
       "actual": "",
-      "forecast": "50.5",
+      "forecast": "50.0",
       "previous": "50.2"
     }
   ]
