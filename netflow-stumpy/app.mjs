@@ -13,7 +13,7 @@ import {load} from './data.mjs?v=20261025-dcommon-all1';
 import {pivotFlowRealtime} from './pivot-zones.mjs?v=20261025-dcommon-all1';
 import {pivotFlowLayout,pivotFlowZeroCoordinate} from './pivot-flow-layout.mjs?v=20261025-dcommon-all1';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261025-dcommon-all1';
-import {preRthWlrTrend,formatPreRthWlrTrend,trendReadoutState} from './pre-rth-wlr-trend.mjs?v=20261025-dcommon-all1';
+import {preRthWlrTrend,formatPreRthWlrTrend,trendReadoutState} from './pre-rth-wlr-trend.mjs?v=20261026-flow-age1';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
 let chart,price,series={},marks,strengthMarks,cache=null,rows={},volumeStrengthRows=[],modelRows={},modelVolumeStrengthRows=[],modelStamp=null,trendRows={},trendVolumeStrengthRows=[],trendStamp=null,trainingMeta=null,maps={},priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,pivotFlowFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},causalChannelState={trends:[],total:0},geometryStatePoints=[],geometryStatePointsKey='',breakoutState=null,geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
@@ -143,6 +143,7 @@ function setupChartActions(){
     const status=document.createElement('span');status.id='aba-band-color-status';status.setAttribute('role','status');status.style.cssText='font-size:11px;color:#9badc2;flex-basis:100%;line-height:1.45';button.insertAdjacentElement('afterend',status);
     const history=document.createElement('button');history.id='aba-band-history';history.type='button';history.textContent='Xem lịch sử kênh';history.disabled=true;status.insertAdjacentElement('afterend',history);history.onclick=()=>{const times=[...abaBandPhaseMap.keys()].sort((a,b)=>a-b);if(!times.length)return;const last=times.at(-1),first=times.find(t=>t>=last-36*3600000)??times[0];chart.timeScale().setVisibleRange({from:(first-3600000)/1000,to:(last+3600000)/1000});};
   }
+  const earlyHint=document.querySelector('.hint');if(earlyHint)earlyHint.textContent+=' Nến tuổi trend SỚM dùng chung màu UP/DOWN, viền sáng: cụm 4 nến giá, volume theo thân nến và taker NF cùng hướng và mạnh lên; chưa có xác suất tuổi trend. Chỉ tô từ nến đóng phát hiện, không tô lùi các nến trước.';
   const hint=document.querySelector('.hint');if(hint){hint.textContent=hint.textContent.replace('Histogram C NF sát trục giá SPY cộng Composite Taker NetFlow từ pivot đầu đã xác nhận tới nến hiện tại; khi chưa có cặp pivot, dùng 96 nến gần nhất. Cập nhật khoảng 3 giây khi trang mở. Cột cuối viền vàng là nến chưa đóng và có thể thay đổi.','Histogram C NF sát trục giá SPY chỉ vẽ 5 nến M15 gần nhất. Tiêu đề VOL phân loại biến động 5 nến thành thấp, trung bình hoặc cao theo phân vị causal của biên độ giá, realized volatility, quote volume và taker imbalance. Số % phía dưới vẫn là C NF dùng EWMA half-life 32 trên nhóm pivot hoặc 96 nến khi chưa có pivot; cả hai cập nhật theo nến live. Cột cuối viền vàng là nến chưa đóng và có thể thay đổi.');hint.textContent+=' Kênh trend causal dùng setup Flow-Leg: nguồn SPY V phân vị, dead-band ±0,15, tối thiểu 8 nến, R² hiển thị 0,20 và giữ 12 leg. Khi có break, đường lùi tối đa 4 nến M15 liền trước cùng ngày và cùng dấu SPY V làm gốc. Phá ±2σ theo hướng trend vẫn hợp lệ; nến SPY V trung tính hoặc một nến trái dấu vẫn được giữ. Giá phá biên bất lợi hoặc SPY V vượt dead-band đối nghịch phải kéo dài hai nến liên tiếp mới đóng leg; nến phá giá đầu được nhận để tái khớp OLS và ±2σ. Hai rail dùng một OLS cuối nên luôn thẳng. Trendline causal chưa đủ pivot xác nhận được giữ hiện bằng nét chấm trong cửa sổ sớm 8 nến, có nhãn HT SỚM hoặc KC SỚM; chúng chưa tham gia thống kê nhóm trend.';}
 }
 function syncDisplayModeButtons(){
@@ -193,7 +194,7 @@ function requestStudies(){
   const key=`${symbol}|${interval}|${$('days').value}|${closed[0]?.t}|${closed.at(-1)?.t}|${closed.length}|${options.minScore}|${options.maxLines}`;
   if(key===studyKey)return;studyKey=key;
   if(!studiesWorker){
-    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261026-early-box1',import.meta.url),{type:'module'});
+    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261026-flow-age1',import.meta.url),{type:'module'});
     studiesWorker.onmessage=({data})=>{
       if(data.key!==studyKey)return;
       if(data.error){$('chart').dataset.studyStatus='error';$('chart').dataset.studyError=data.error;studyKey='';return;}
@@ -235,6 +236,7 @@ function renderTrendCohorts(){
 
 }
 function updateTrendMethodCopy(){
+  const earlyHint=document.querySelector('.hint');if(earlyHint)earlyHint.textContent+=' Nến tuổi trend SỚM dùng chung màu UP/DOWN, viền sáng: cụm 4 nến giá, volume theo thân nến và taker NF cùng hướng và mạnh lên; chưa có xác suất tuổi trend. Chỉ tô từ nến đóng phát hiện, không tô lùi các nến trước.';
   const hint=document.querySelector('.hint');if(hint)hint.textContent=hint.textContent.replace('WLR 8 nến chỉ khởi tạo khi đồng pha với Strength Composite và SPY V','WLR giá 8 nến chỉ tính tuổi khi dấu SPY V cùng chiều slope; một nến lệch dấu không cộng tuổi, hai nến liên tiếp kết thúc trend; Composite chỉ góp 5% điểm');
   const paragraph=[...document.querySelectorAll('details p')].find(node=>node.textContent.startsWith('Âu→RTH WLR dùng cửa sổ 8 nến M15'));
   if(paragraph)paragraph.textContent='Âu→RTH WLR dùng cửa sổ 8 nến M15 với trọng số tăng dần. Điểm causal gồm 38% phân vị độ dốc/ATR, 28% R² giá, 18% hiệu suất đường giá, 11% độ bền hướng thân nến và chỉ 5% dấu Strength Composite. SPY Volume Strength mở leg bằng dấu và slope; sau đó nến trung tính hoặc một nến trái dấu vẫn nằm trong leg. Giá hoặc SPY V phải bất lợi hai nến liên tiếp mới đóng leg. Nến giá phá biên đầu tiên vẫn được nhận để tái khớp OLS và ±2σ; nếu nến sau trở lại kênh thì bộ đếm được xóa. Số nến đã nhận được phân loại thành MỚI 1–4, PHÁT TRIỂN 5–8, BỀN 9–12 hoặc KÉO DÀI ≥13. Kaplan–Meier tính theo số nến đã nhận: sống thêm h nến là P(T≥n+h | T≥n), không phân nhóm bằng độ dài cuối tương lai. Nến đang chạy không tham gia.';
@@ -338,6 +340,7 @@ function candleClusterPalette(x){
 }
 function trendAgeCandlePalette(row,state){
   const neutral={body:'#606d7d',wick:'#8491a1',border:'#707e90'};
+  if($('symbol').value==='SPYUSDT'&&$('interval').value==='15m'&&state?.early)return {body:state.direction>0?'#1ae0a3':'#ff4d70',wick:state.direction>0?'#5be9bd':'#ff8ba2',border:'#e5eef7'};
   if($('symbol').value!=='SPYUSDT'||$('interval').value!=='15m'||!state?.active||!['UP','DOWN'].includes(state.label))return neutral;
   const target=state.label==='UP'?[26,224,163]:[255,77,112],confidence=Math.max(.55,Math.min(1,state.continuation??.55)),intensity=.72+.28*(confidence-.55)/.45;
   return {body:mixColor([82,96,113],target,intensity),wick:mixColor([116,130,147],target,Math.min(1,intensity+.10)),border:mixColor([70,84,101],target,Math.min(1,intensity+.14))};
@@ -461,8 +464,10 @@ function updateGeometryReadout(){
   const state=trendReadoutState(rev63State,{now:Date.now()+serverOffsetMs,live:Boolean(lastSuccess&&Date.now()-lastSuccess<15000)});
   const node=$('geometry-readout');if(!node)return;node.style.display='block';
   node.textContent=formatPreRthWlrTrend(state);
+  node.dataset.early=String(Boolean(state?.early));
   node.className=`forecast ${(state?.label??'WAIT').toLowerCase()}`;
   const ridge=state?.strengthRegression;node.title=`Âu→RTH WLR M15 · ${state?.reason??'Chờ dữ liệu M15 đã đóng'}. Tuổi hiện tại / trung vị tổng độ dài leg. TUỔI P là phân vị tuổi, không phải phân vị giá WLR. CÒN ~ là trung vị số nến còn lại có điều kiện, không phải trung vị tổng trừ tuổi hiện tại. TREND CÒN là khả năng sống thêm ${state?.horizon??3} nến đã nhận, không phải xác suất giá tăng hoặc tỷ lệ đúng A–B–A. Kaplan–Meier dùng vị trí nến thất bại sau nến đã nhận cuối, có kiểm duyệt phải và kiểm tra đủ thời gian theo dõi. ${state?.active?`Nhóm tuổi ${state.ageGroup?.label??'—'} · điểm ${state.trendScore}/100 · R² giá ${fmt(state.r2)} · độ bền hướng giá ${Math.round((state.persistence??0)*100)}% · SPY V cùng dấu từng nến ${Math.round((state.volumeAlignment??0)*100)}% (chỉ tham khảo) · nến đã nhận vào Flow-Leg ±2σ ${Math.round((state.channelAlignment??0)*100)}% (${state.currentBars}/${state.elapsedBars??state.currentBars} nến được tính) · Composite góp ${Math.round((state.compositeScore??.5)*5)}/5 điểm · Strength ${state.strengthContext??'—'} · Ridge OOS R² ${fmt(ridge?.r2)}, partial C ${fmt(ridge?.partialComposite)}, V ${fmt(ridge?.partialVolume)}, n OOS ${ridge?.oosN??0} · mẫu ${state.sampleN} leg / ${state.uniqueDays??'—'} ngày, còn rủi ro ${state.atRiskN}, kết quả thêm ${state.horizon} nến đã biết ${state.resolvedHorizonN??'—'}, kiểm duyệt phải ${state.censoredN??0}. `:''}SPY V xác nhận dấu+slope ở cấp trend. Phá ±2σ cùng hướng, nến trung tính, một nến SPY V trái dấu hoặc một nến giá ngoài biên bất lợi vẫn thuộc leg và được tái khớp. Chỉ hai nến bất lợi liên tiếp mới kết thúc. Composite chỉ góp 5% điểm trend; Ridge OOS vẫn là lớp mô tả riêng. Nến đang chạy không được tính; trend còn chạy lúc đóng RTH được xem là kiểm duyệt phải.`;
+  if(state?.early)node.title='SỚM: cụm 4 nến giá, volume theo thân nến và taker NF cùng hướng, mạnh hơn cụm trước và trung bình 3 cụm trước. Chỉ biết từ nến đóng phát hiện, không tô lùi ba nến trước. UP/DOWN có dấu SỚM là nhận diện từ cụm 4 nến; chưa có xác suất Kaplan–Meier cho cách khởi tạo này.';
   requestAnimationFrame(positionForecastReadout);
 }
 function drawGeometryOverlay(){

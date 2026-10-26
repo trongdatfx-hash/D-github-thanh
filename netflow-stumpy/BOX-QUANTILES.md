@@ -83,3 +83,9 @@ Each displayed channel box includes a versioned numeric encoding with feature na
 The unchanged price-quantile model is disabled for channel boxes and for original DVP backtracking other than eight bars. Early formation previews and price quantiles are separate outputs.
 
 The collapsed “Mã hộp · thời gian nhận dạng” table exposes the categorical code, signal time in New York, channel age versus age of the encoded event, observed candle spacing / elapsed minutes, and the non-probabilistic rule score.
+
+## Four-bar early trend-age preview
+
+A trailing four-bar block must have net price, body-signed base volume and taker quote NF all aligned and stronger than the preceding block and mean of three preceding blocks. Only closed contiguous M15 bars in the same Europe-through-RTH day are used. The first three candles are never back-colored. At the user's request, SỚM joins the same UP/DOWN stream and colors (bright border), with null continuation and remaining-duration statistics. Early candles replace only WAIT labels; confirmed labels win. Two consecutive adverse price/NF bars cancel the candidate; it expires after eight bars from its origin. The preview has no KM probability/remaining median and clears offline.
+
+Exploratory display-timing replay: 263 events after original forecasts become available. 212 have sufficient follow-up: 85 reach an original confirmed label of the same direction within eight bars, 127 do not. The other 51 lack complete follow-up. Among 85 matches, median lead is three bars, mean 3.32; 34 lead by at least four bars. This is not independent live validation or a trading win rate. Existing confirmed age estimation and training cohorts are unchanged.

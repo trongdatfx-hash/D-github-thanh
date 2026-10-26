@@ -237,12 +237,14 @@ export function preRthWlrTrend({priceRows=[],strengthRows=[],volumeRows=[],chann
 }
 
 export function formatPreRthWlrTrend(state){
+  if(state?.early)return `${state.early.direction>0?'↑ UP':'↓ DOWN'} · SỚM · ${state.early.currentBars} NẾN · 4 NẾN CÙNG HƯỚNG + MẠNH LÊN · CHỜ XÁC NHẬN`;
   if(!state)return 'WAIT · 0/— NẾN · TUỔI P— · CÒN ~— NẾN · TREND CÒN —%';
   const arrow=state.label==='UP'?'↑ ':state.label==='DOWN'?'↓ ':'',expected=state.expectedBars??'—',remaining=state.remainingBars??'—',age=state.agePercentile??'—',continuation=Number.isFinite(state.continuation)?Math.round(state.continuation*100):'—';
   return `${arrow}${state.label} · ${state.currentBars}/${expected} NẾN · TUỔI P${age} · CÒN ~${remaining} NẾN · TREND CÒN ${continuation}%`;
 }
 
 export function trendReadoutState(state,{now=Date.now(),live=true,lastTime=state?.dataInfo?.lastTime}={}){
+  if(state?.early&&(!live||!trendSessionAt(now).active||now-state.early.t-900000>915000))state={...state,early:null};
   if(!state?.active)return state;
   const clock=trendSessionAt(now),inSession=clock.active,stale=Number.isFinite(lastTime)&&(sessionAt(lastTime).day!==clock.day||now-lastTime-900000>915000);
   if(live&&inSession&&!stale)return state;
