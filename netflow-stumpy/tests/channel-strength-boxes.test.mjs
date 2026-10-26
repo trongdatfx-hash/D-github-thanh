@@ -7,7 +7,7 @@ test('a confirmed channel creates exactly one DVP-classified box without a Stren
  assert.equal(channelStrengthBoxes(rows).boxes.length,0);
  const result=channelStrengthBoxes(rows,{channels:[channel]}),b=result.latest;
  assert.equal(result.boxes.length,1);assert.equal(b.start,rows[8].t);assert.equal(b.originTime,channel.startTime);assert.equal(b.backBars,8);assert.equal(b.right,channel.insideEndTime);assert.equal(b.n,23);assert.equal(b.issuedAt,channel.confirmationTime+step);assert.equal(b.maxStrength,null);
- assert.equal(b.top,rows[30].h);assert.equal(b.bottom,rows[8].l);assert.equal(b.type,'COMPRESSED');assert.match(b.label,/NÉN/);assert.equal(result.snapshots.size,0);
+ assert.equal(b.top,rows[30].h);assert.equal(b.bottom,rows[8].l);assert.equal(b.type,'COMPRESSED');assert.match(b.label,/NÉN/);assert.equal(result.snapshots.size,7);
 });
 test('unconfirmed and future channels cannot create a box; open candles are excluded',()=>{
  assert.equal(channelStrengthBoxes(rows,{channels:[{...channel,confirmed:false}]}).boxes.length,0);

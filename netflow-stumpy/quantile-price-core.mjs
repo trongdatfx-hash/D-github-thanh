@@ -37,7 +37,7 @@ export function quantileDataset(spy,qqq,now=Infinity,{source='strength'}={}){
 }
 export function forecastQuantiles(feature,report,horizon,source=feature?.source??'strength'){
  if(!feature||report?.version!==QR_VERSION||JSON.stringify(report.features)!==JSON.stringify(QR_FEATURES))return {status:'WAIT_MODEL'};
- const m=source==='strength'?(report.models?.[horizon]??report.sources?.strength?.models?.[horizon]):report.sources?.[source]?.models?.[horizon];if(!m||!Number.isFinite(m.trainEnd)||m.trainEnd>=feature.issuedAt)return {status:'WAIT_TRAINING_CUTOFF'};
+ const m=source==='strength'?(report.models?.[horizon]??report.sources?.strength?.models?.[horizon]):report.sources?.[source]?.models?.[horizon];if(!m)return {status:'WAIT_MODEL'};if(!Number.isFinite(m.trainEnd)||m.trainEnd>=feature.issuedAt)return {status:'WAIT_TRAINING_CUTOFF'};
  if(feature.issuedAt-m.trainEnd>10*86400000)return {status:'WAIT_MODEL_STALE'};
  const target=feature.t+horizon*QR_STEP,frame=quantileFrame(target);if(!frame.eligible||frame.day!==feature.day)return {status:'WAIT_SESSION_END'};
  if(!Array.isArray(m.coefficients)||m.coefficients.length!==3||m.coefficients.some(b=>b.length!==QR_FEATURES.length||!b.every(Number.isFinite)))return {status:'WAIT_MODEL'};
