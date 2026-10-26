@@ -1,4 +1,4 @@
-import {analyzeTrendSource,computeStudies} from './studies-core.mjs?v=20261026-flow-age1';
+import {analyzeTrendSource,computeStudies} from './studies-core.mjs?v=20261026-age-restored1';
 import {loadPersistentHistory} from './history-store.mjs?v=20261025-dcommon-all1';
 let serial=0,trend=null,trendKey='',historyPending=null;
 self.onmessage=async({data})=>{
