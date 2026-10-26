@@ -4,7 +4,7 @@ export let BASE=BASES[0];
 let activeBaseIndex=0;
 const PAGE_LIMIT=1000,PARALLEL_PAGES=3,INFO_TTL=15*60000;
 let infoCache=null,infoCachedAt=0;
-const HISTORY_KEY='netflow:xauusdt-history:v2',HISTORY_TTL=24*60*60000;
+const HISTORY_KEY='netflow:xauusdt-history:v3',HISTORY_TTL=24*60*60000;
 let historySavedAt=0,historySavedKey='';
 function browserStorage(){try{return globalThis.localStorage;}catch{return null;}}
 function readHistory(storage,interval,days,serverTime){
@@ -39,7 +39,7 @@ export async function getJSON(path,signal){
   const errors=[];
   for(const i of order){
     try{
-      const response=await fetch(BASES[i]+path,{signal:AbortSignal.any([signal,AbortSignal.timeout(10000)].filter(Boolean)),cache:'no-store'});
+      const response=await fetch(BASES[i]+path,{signal:AbortSignal.any([signal,AbortSignal.timeout(4000)].filter(Boolean)),cache:'no-store'});
       const text=await response.text();
       if(!response.ok){errors.push(`${new URL(BASES[i]).hostname} HTTP ${response.status}`);if([403,418,429,451].includes(response.status)||response.status>=500)continue;throw Error(`Binance HTTP ${response.status}`);}
       const json=JSON.parse(text);if(json?.code<0)throw Error(`Binance ${json.code}: ${json.msg}`);
@@ -68,26 +68,13 @@ async function fetchRange(symbol,interval,start,end,step,get,signal){
 }
 export async function load(interval,days,{signal,get=getJSON,previous=null,storage=browserStorage()}={}){
   const step=STEPS[interval];if(!step||![7,14,30].includes(days))throw Error('Khung thời gian/lịch sử không hợp lệ');
-  const canCacheInfo=get===getJSON&&infoCache&&Date.now()-infoCachedAt<INFO_TTL;
-  // Contract validation and candle loading are independent. Never publish data
-  // until BOTH succeed, but do not hold back klines on a slow exchangeInfo.
-  const contractsTask=(async()=>{
-    try{
-      const info=canCacheInfo?infoCache:await get('/fapi/v1/exchangeInfo',signal);
-      const contracts=SYMBOLS.map(s=>validateSymbol(info,s));
-      if(get===getJSON&&!canCacheInfo){infoCache=info;infoCachedAt=Date.now();}
-      return contracts;
-    }catch(error){
-      if(signal?.aborted)throw error;
-      // exchangeInfo can be geo/WAF-blocked while public XAU klines still work.
-      return SYMBOLS.map(chartAlias=>({symbol:DATA_SYMBOL,chartAlias,sourceSymbol:DATA_SYMBOL,status:'TRADING',quoteAsset:'USDT',contractType:'PERPETUAL',validationFallback:true}));
-    }
-  })();
+  // XAUUSDT is fixed for this page. Do not block candle loading on exchangeInfo,
+  // because Binance may geo/WAF-block metadata while public klines remain available.
+  const contractsTask=Promise.resolve(SYMBOLS.map(chartAlias=>({symbol:DATA_SYMBOL,chartAlias,sourceSymbol:DATA_SYMBOL,status:'TRADING',quoteAsset:'USDT',contractType:'PERPETUAL',validationFallback:true})));
   const candlesTask=(async()=>{
-    let serverTime;
-    try{({serverTime}=await get('/fapi/v1/time',signal));}
-    catch(error){if(signal?.aborted)throw error;serverTime=Date.now();}
-    if(!Number.isFinite(serverTime))serverTime=Date.now();
+    // Browser time is sufficient for public kline boundaries and avoids a
+    // second Binance endpoint that can be blocked independently.
+    const serverTime=Date.now();
     const start=Math.floor((serverTime-days*86400000)/step)*step;
     const compatible=previous&&!previous.historical&&previous.interval===interval&&previous.days===days&&previous.serverTime<=serverTime;
     const source=compatible?previous:readHistory(storage,interval,days,serverTime);
