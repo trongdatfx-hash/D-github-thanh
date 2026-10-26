@@ -61,17 +61,12 @@ export function flowAlignment(spy,qqq,{halfLife=2,step=null,neutralThreshold=5,v
     const valid=Number.isFinite(a.nf)&&Number.isFinite(b.nf);
     if(valid){smoothSpy=smoothSpy===null?a.nf:smoothSpy+alpha*(a.nf-smoothSpy);smoothQqq=smoothQqq===null?b.nf:smoothQqq+alpha*(b.nf-smoothQqq);}else{smoothSpy=null;smoothQqq=null;}
     const totalQ=(a.q??0)+(b.q??0),commonNf=totalQ>0?100*((a.net??0)+(b.net??0))/totalQ:null;
-    const relative=valid?(smoothSpy-smoothQqq)/2:null;
     const opposition=valid?Math.min(1,Math.sqrt(Math.max(0,-smoothSpy*smoothQqq))/50):0;
     const agreement=valid?Math.min(1,Math.sqrt(Math.max(0,smoothSpy*smoothQqq))/50):0;
     const volumeConfidence=Math.min(causalPercentile(spyVolumes,a.q??0),causalPercentile(qqqVolumes,b.q??0));
     spyVolumes.push(a.q??0);qqqVolumes.push(b.q??0);if(spyVolumes.length>volumeWindow)spyVolumes.shift();if(qqqVolumes.length>volumeWindow)qqqVolumes.shift();
-    return [{t:a.t,state,score,intensity,detailState:valid?detailedFlowState(smoothSpy,smoothQqq,neutralThreshold):'TRUNG TÍNH',smoothSpyNf:smoothSpy,smoothQqqNf:smoothQqq,commonNf,relative,opposition,agreement,volumeConfidence,spyNet:a.net,qqqNet:b.net,spyNf:a.nf,qqqNf:b.nf}];
+    return [{t:a.t,state,score,intensity,detailState:valid?detailedFlowState(smoothSpy,smoothQqq,neutralThreshold):'TRUNG TÍNH',smoothSpyNf:smoothSpy,smoothQqqNf:smoothQqq,commonNf,opposition,agreement,volumeConfidence,spyNet:a.net,qqqNet:b.net,spyNf:a.nf,qqqNf:b.nf}];
   });
-}
-export function relativeFlowColor(row){
-  const alpha=.36+.5*Math.min(1,Math.min(Math.abs(row?.spyNf??0),Math.abs(row?.qqqNf??0))/50);
-  return row?.spyNet>0&&row?.qqqNet>0?`rgba(26,224,163,${alpha})`:row?.spyNet<0&&row?.qqqNet<0?`rgba(255,77,112,${alpha})`:(row?.spyNet??0)*(row?.qqqNet??0)<0?`rgba(245,166,35,${alpha})`:'rgba(112,126,145,.30)';
 }
 export function strengthAgreementCandleSignal(compositeBar,volumeBar){
   const compositeStrength=compositeBar?.adjusted,volumeStrength=volumeBar?.adjusted;

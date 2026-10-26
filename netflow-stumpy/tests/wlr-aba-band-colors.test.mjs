@@ -25,16 +25,12 @@ test('does not color open/future bars or unrelated history, leaves missing band 
  const data=abaBandLineData([{t:start-900000,upper:99},{t:start,upper:101},{t:start+900000}], 'upper',result.phases);
  assert.equal(data[0].color,ABA_BAND_COLORS.neutral);assert.equal(data[1].color,ABA_BAND_COLORS.A);assert.deepEqual(data[2],{time:(start+900000)/1000});
 });
-test('completed qualified history is colored even when the live preview is unavailable',()=>{
+
+test('qualified history paints chart bars without live features, freshness or synchronization',()=>{
  const historyBands=[{aStart:start,bStart:start+2*900000,nextStart:start+4*900000,end:start+6*900000}];
- const result=abaBandPhases(features,{historyBands});
+ const result=abaBandPhases([],{historyBands,enabled:false,live:false,synced:false},features);
  assert.equal(result.status,'QUALIFIED_HISTORY');assert.equal(result.historical,6);
  assert.deepEqual([...result.phases.values()],['A','A','B','B','A','A']);
+ const partial=abaBandPhases([],{historyBands},features.slice(2,5));assert.equal(partial.historical,3);
+ assert.equal(abaBandPhases([],{historyBands:[{...historyBands[0],bStart:NaN}]},features).phases.size,0);
 });
-test('historical ranges must be ordered and only color timestamps present on the chart',()=>{
- const invalid={aStart:start,bStart:start,nextStart:start+900000,end:start+2*900000};
- const valid={aStart:start-900000,bStart:start+900000,nextStart:start+3*900000,end:start+7*900000};
- const result=abaBandPhases(features,{historyBands:[invalid,valid]});
- assert.deepEqual([...result.phases.values()],['A','B','B','A','A','A']);
-});
-

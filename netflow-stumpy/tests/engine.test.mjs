@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
-import {STEPS,parseKlines,composite,flowAlignment,relativeFlowColor,strengthAgreementCandleSignal,priceVolumeCandleSignal,strengthPhaseLineWidth,strengthPhaseLineStyle,calculateStrength,directionalVolumeDelta,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,regression,weightedPriceBands,wlrTrendThickness,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
+import {STEPS,parseKlines,composite,flowAlignment,strengthAgreementCandleSignal,priceVolumeCandleSignal,strengthPhaseLineWidth,strengthPhaseLineStyle,calculateStrength,directionalVolumeDelta,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,regression,weightedPriceBands,wlrTrendThickness,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes,sessionAt,validateSymbol,modelStatus} from '../engine.mjs';
 import {load} from '../data.mjs';
 import {isUsMarketHoliday,isUsMarketTradingDay} from '../market-calendar.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL(p,import.meta.url),'utf8').replace(/^\uFEFF/,''));
@@ -18,18 +18,10 @@ test('composite sums quote volumes at intersection only',()=>{
 });
 test('SPY/QQQ alignment distinguishes agreement and divergence',()=>{
   const x={t:1,net:10,nf:20,q:50},y={t:1,net:5,nf:10,q:50},aligned=flowAlignment([x],[y])[0],same=flowAlignment([x],[x])[0];
-  assert.equal(aligned.state,'THUẬN MUA');assert.equal(aligned.detailState,'THUẬN MUA');assert.equal(aligned.commonNf,15);assert.equal(aligned.relative,5);assert.equal(same.opposition,0);assert.equal(same.agreement,.4);
+  assert.equal(aligned.state,'THUẬN MUA');assert.equal(aligned.detailState,'THUẬN MUA');assert.equal(aligned.commonNf,15);assert.equal(same.opposition,0);assert.equal(same.agreement,.4);
   const opposite=flowAlignment([{...x,net:-10,nf:-20}],[y])[0];assert.equal(opposite.state,'NGHỊCH · SPY bán / QQQ mua');assert.equal(opposite.detailState,'NGHỊCH · SPY bán / QQQ mua');assert(Math.abs(opposite.opposition-Math.sqrt(200)/50)<1e-12);assert.equal(opposite.intensity,.2);
   const leader=flowAlignment([x],[{...y,net:0,nf:0}])[0];assert.equal(leader.detailState,'SPY DẪN MUA');assert.equal(leader.opposition,0);
   assert.equal(flowAlignment([x],[{...y,net:-5,nf:-10}])[0].score,.45);assert.equal(flowAlignment([x],[{...y,t:2}]).length,0);
-});
-test('relative NF color follows same-candle taker signs without GEO impact',()=>{
-  const row={spyNf:20,qqqNf:10,spyNet:10,qqqNet:5};
-  assert.match(relativeFlowColor(row),/^rgba\(26,224,163,/);
-  assert.match(relativeFlowColor({...row,spyNet:-10,qqqNet:-5}),/^rgba\(255,77,112,/);
-  assert.match(relativeFlowColor({...row,qqqNet:-5}),/^rgba\(245,166,35,/);
-  assert.equal(relativeFlowColor({...row,qqqNet:0}),'rgba(112,126,145,.30)');
-  assert.equal(relativeFlowColor(null),'rgba(112,126,145,.30)');
 });
 test('SPY volume delta histogram exposes four delta × Strength colors',()=>{
   assert.match(volumeDeltaStrengthColor(1,.4),/^rgba\(26,224,163,/);
@@ -82,7 +74,7 @@ test('WLR thick phase uses the resonance direction color only',()=>{
   assert.deepEqual(strengthPhaseLineStyle({adjusted:.4},{adjusted:-.1}),{width:1,direction:0,color:'#f6c85f'});
   assert.deepEqual(strengthPhaseLineStyle(null,{adjusted:.1}),{width:2,direction:0,color:'#f6c85f'});
 });
-test('relative flow smoothing and volume confidence are prefix-causal',()=>{
+test('flow smoothing and volume confidence are prefix-causal',()=>{
   const s=Array.from({length:40},(_,i)=>({t:i,net:i%3?10:-8,nf:i%3?20:-16,q:50+i}));
   const q=Array.from({length:40},(_,i)=>({t:i,net:i%4?-5:7,nf:i%4?-10:14,q:70+i*2}));
   const full=flowAlignment(s,q,{step:1});assert.deepEqual(flowAlignment(s.slice(0,25),q.slice(0,25),{step:1}),full.slice(0,25));
