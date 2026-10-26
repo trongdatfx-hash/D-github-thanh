@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {abaBandPhases,abaBandLineData,ABA_BAND_COLORS} from '../wlr-aba-band-colors.mjs';
+import {abaBandPhases,abaBandLineData,abaBandMarkers,ABA_BAND_COLORS} from '../wlr-aba-band-colors.mjs';
 const start=Date.parse('2026-10-20T09:00:00Z'),features=[-1,-1,0,0,-1,-1].map((color,i)=>({t:start+i*900000,mid:100+i,color}));
 const state={enabled:true,live:true,verified:true,synced:true,version:3,preview:{emit:true},lastTime:features.at(-1).t,track:{day:'2026-10-20',originStart:start,q:{color:-1},prediction:{ready:true,memberReady:true,pMembership:.7}}};
-test('qualified research colors phase A green, B red, next A green independent of WLR direction',()=>{
- const result=abaBandPhases(features,state);assert.equal(result.status,'QUALIFIED_RESEARCH');assert.deepEqual([...result.phases.values()],['A','A','B','B','A','A']);
+test('qualified rails match WLR colors independently of ABA position',()=>{
+ const result=abaBandPhases(features,state);assert.equal(result.status,'QUALIFIED_RESEARCH');assert.deepEqual([...result.phases.values()],['A1','A1','B','B','A2','A2']);
  const bands=features.map(x=>({...x,upper:x.mid+2,lower:x.mid-2}));
- for(const field of ['upper','lower']){const data=abaBandLineData(bands,field,result.phases);assert.deepEqual(data.map(x=>x.value),bands.map(x=>x[field]));assert.deepEqual(data.map(x=>x.color),['A','A','B','B','A','A'].map(x=>ABA_BAND_COLORS[x]));}
+ for(const field of ['upper','lower']){const colors=new Map(bands.map((x,i)=>[x.t,{color:i<2?'#ff4d70':i<4?'#1ae0a3':'#f6c85f'}]));const data=abaBandLineData(bands,field,result.phases,colors);assert.deepEqual(data.map(x=>x.value),bands.map(x=>x[field]));assert.deepEqual(data.map(x=>x.color),bands.map(x=>colors.get(x.t).color));}
 });
 test('missing, stale, disabled, unsynced or blocked quality stays neutral',()=>{
  for(const change of [{enabled:false},{live:false},{verified:false},{synced:false},{version:2},{preview:{emit:false}},{track:{...state.track,prediction:{ready:false}}},{track:{...state.track,prediction:{ready:true,memberReady:false,pMembership:.8}}},{track:{...state.track,prediction:{ready:true,memberReady:true,pMembership:.49}}}]){
@@ -23,14 +23,25 @@ test('broken pattern, gaps and missing origins do not imply an A B A',()=>{
 test('does not color open/future bars or unrelated history, leaves missing band gaps intact',()=>{
  const result=abaBandPhases(features,{...state,lastTime:features[3].t});assert.equal(result.phases.size,4);
  const data=abaBandLineData([{t:start-900000,upper:99},{t:start,upper:101},{t:start+900000}], 'upper',result.phases);
- assert.equal(data[0].color,ABA_BAND_COLORS.neutral);assert.equal(data[1].color,ABA_BAND_COLORS.A);assert.deepEqual(data[2],{time:(start+900000)/1000});
+ assert.equal(data[0].color,ABA_BAND_COLORS.neutral);assert.equal(data[1].color,ABA_BAND_COLORS.neutral);assert.deepEqual(data[2],{time:(start+900000)/1000});
 });
 
 test('qualified history paints chart bars without live features, freshness or synchronization',()=>{
  const historyBands=[{aStart:start,bStart:start+2*900000,nextStart:start+4*900000,end:start+6*900000}];
  const result=abaBandPhases([],{historyBands,enabled:false,live:false,synced:false},features);
  assert.equal(result.status,'QUALIFIED_HISTORY');assert.equal(result.historical,6);
- assert.deepEqual([...result.phases.values()],['A','A','B','B','A','A']);
+ assert.deepEqual([...result.phases.values()],['A1','A1','B','B','A2','A2']);
  const partial=abaBandPhases([],{historyBands},features.slice(2,5));assert.equal(partial.historical,3);
  assert.equal(abaBandPhases([],{historyBands:[{...historyBands[0],bStart:NaN}]},features).phases.size,0);
 });
+
+ test('phase labels distinguish A1 B A2 and never color unqualified bands',()=>{
+ const bands=features.map(x=>({...x,upper:x.mid+2})),phases=abaBandPhases(features,state).phases;
+ const colors=new Map(bands.map(x=>[x.t,{color:'#ff4d70'}]));
+ const markers=abaBandMarkers(bands,phases,colors);
+ assert.deepEqual(markers.map(x=>x.text),['A\u2081','B','A\u2082']);
+ assert.deepEqual(markers.map(x=>x.time),[start,start+1800000,start+3600000].map(x=>x/1000));
+ assert(markers.every(x=>x.color==='#ff4d70'));
+ assert(abaBandLineData(bands,'upper',new Map(),colors).every(x=>x.color===ABA_BAND_COLORS.neutral));
+ assert.deepEqual(abaBandMarkers(bands,new Map(),colors),[]);
+ });
