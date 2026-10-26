@@ -7,7 +7,7 @@ export function normalCDF(z){z=Math.max(-8,Math.min(8,z));const a=Math.abs(z),t=
 const mean=a=>a.reduce((s,x)=>s+x,0)/a.length;
 function rolling(a,v,n){a.push(v);if(a.length>n)a.shift();}
 export function strengthBoxLabel(b){return `${Number.isFinite(b.percentile)?'p'+Math.round(100*b.percentile):Number.isFinite(b.ratio)?b.ratio.toFixed(2)+'×':'—'}${b.type==='COMPRESSED'?' NÉN':b.type==='PAID'?' ĐÃ TRẢ':''} · ${b.phase}${b.freeze==='breakout'?' ⤬':b.freeze==='timeout'?' ⌛':''}${b.compositeMode&&b.compositeMode!=='off'?' · C '+({aligned:'thuận',opposed:'nghịch',neutral:'0',missing:'—'})[b.compositeAlignment]:''}`;}
-function summarize(b,atr,reference,cfg){
+export function summarizeStrengthBox(b,atr,reference,cfg){
  const width=b.top-b.bottom,efficiency=b.tr2>0?width/Math.sqrt(b.tr2):null,magnitude=atr>0?width/atr/Math.sqrt(b.n):null,legacy=atr>0&&reference>0?width/atr/reference:null;
  const ratio=cfg.mode==='efficiency'?efficiency:cfg.mode==='magnitude'?magnitude:legacy;
  const percentile=ratio>0&&cfg.mode!=='legacy'?normalCDF((Math.log(ratio)-(cfg.mode==='efficiency'?.0093:.057))/(cfg.mode==='efficiency'?.2727:.281)):null;
@@ -44,7 +44,7 @@ export function strengthBoxes(rows,{now=Infinity,step=900000,strengthRows=null,c
   if(active&&(active.live||active.open||froze)){
    active.compositeMode=compositeMode;active.compositeStrength=Number.isFinite(c)?c:null;active.compositeAlignment=!Number.isFinite(c)?'missing':c*active.direction>=compositeThreshold?'aligned':c*active.direction<=-compositeThreshold?'opposed':'neutral';
    if(active.live||active.open){active.right=row.t;active.rightIndex=index;}
-   rendered=summarize(active,rma,reference,cfg);rendered.asOf=row.t;rendered.label=strengthBoxLabel(rendered);
+   rendered=summarizeStrengthBox(active,rma,reference,cfg);rendered.asOf=row.t;rendered.label=strengthBoxLabel(rendered);
    // This is the box AS KNOWN on this close, never the eventual final box.
    if(active.live||active.open)snapshots.set(row.t,{...rendered});
   }

@@ -33,6 +33,16 @@ const root=path.resolve(__dirname,'../..'),read=p=>JSON.parse(fs.readFileSync(pa
   });
   await page.goto('http://netflow.test/');
   await page.waitForFunction(()=>document.querySelector('#chart')?.dataset.chartReady==='true',{},{timeout:120000});
+  await page.waitForFunction(()=>document.querySelector('#chart')?.dataset.studyStatus==='ready'&&Number(document.querySelector('#chart')?.dataset.strengthBoxCount)>0,{},{timeout:120000});
+  assert.equal(await page.locator('#strong-a1').count(),0);
+  assert.equal(await page.locator('#strength-box-trigger').inputValue(),'causal-channel');
+  assert.match(await page.locator('#quantile-price-status').innerText(),/kênh trend causal/);
+  await page.locator('#strength-box-view').click();
+  await page.waitForFunction(()=>document.querySelectorAll('#strength-box-labels span').length>0);
+  await page.locator('#causal-trend-channel').uncheck();
+  await page.waitForFunction(()=>document.querySelector('#chart')?.dataset.strengthBoxCount==='0');
+  await page.locator('#causal-trend-channel').check();
+  await page.locator('#strength-box-trigger').selectOption('strength');
   await page.waitForFunction(()=>document.querySelector('#quantile-price-panel')?.dataset.state==='RESEARCH',{},{timeout:120000});
   assert.equal(await page.locator('#live-indicator').getAttribute('class'),'live');
   await page.locator('#quantile-price-view').click();
@@ -71,6 +81,6 @@ const root=path.resolve(__dirname,'../..'),read=p=>JSON.parse(fs.readFileSync(pa
   await page.waitForFunction(()=>!document.querySelector('#refresh').disabled);
   assert.equal(await page.locator('#chart').getAttribute('data-chart-ready'),'true');
   assert.deepEqual(oldRequests,[]);assert.deepEqual(errors,[]);
-  console.log(JSON.stringify({status:'PASS',fixtureTime:new Date(now).toISOString(),checks:'chart, LIVE, boxes and pixel rendering, P10/P50/P90, composite annotation/filter, horizon, symbol, toggle, mobile, offline history fallback, no old model requests or JS errors'}));
+  console.log(JSON.stringify({status:'PASS',fixtureTime:new Date(now).toISOString(),checks:'chart, LIVE, boxes and pixel rendering, P10/P50/P90, composite annotation/filter, horizon, symbol, toggle, mobile, offline history fallback, channel-triggered boxes, no A1 labels, no old model requests or JS errors'}));
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

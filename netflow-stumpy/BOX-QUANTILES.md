@@ -65,3 +65,9 @@ The workflow maintains closed M15 data and a model report. The browser
 only performs a few dot products and redraws on a new closed bar/model.
 
 If Binance fails at startup, M15 can display the saved closed history with an explicit last-close timestamp and KHÔNG LIVE banner. The fallback does not set a live success timestamp, does not issue forecasts, and retries the live API normally. Other timeframes do not synthesize candles from M15.
+
+## Channel-triggered display (26 October 2026)
+
+The default display now creates one strength box per confirmed causal trend channel shown on the chart. The box starts at the channel's drawn origin, becomes known at its confirmation close, expands over the channel's accepted closed bars, and stops at its inside-end bar. This replaces A1/B/A2 chart labels. The 0.95 strength entry threshold, back-eight seed and 60-bar extension belong only to the optional original DVP trigger. Width classification and RW percentiles remain DVP formulas. Composite filtering checks the channel confirmation close. Hiding channels hides their boxes.
+
+These boxes are geometric annotations of the currently displayed channels; completed-channel R² qualification is retrospective. They intentionally provide no forecast training snapshots. The existing quantile report was fit to original DVP entry events, so forecasts stay WAIT in channel-trigger mode. Selecting the original DVP trigger retains the separately labeled quantile research.
