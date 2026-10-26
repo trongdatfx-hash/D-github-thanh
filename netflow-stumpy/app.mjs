@@ -638,7 +638,7 @@ function showTooltip(t){
   $('tooltip').replaceChildren(...nodes);
 }
 function toggle(){
-  for(const [id,key] of [['spy','SPYUSDT'],['qqq','QQQUSDT'],['composite','COMPOSITE'],['show-strength','strength'],['spyStrength'],['spy-volume-strength','volumeStrength']])setOptions(series[key],{visible:$(id).checked});
+  for(const [id,key] of [['spy','SPYUSDT'],['qqq','QQQUSDT'],['composite','COMPOSITE'],['show-strength','strength'],['spy-volume-strength','volumeStrength']])setOptions(series[key],{visible:$(id).checked});
   const strengthPane=series.strength.getPane().paneIndex();if(series.SPYUSDT.getPane().paneIndex()!==strengthPane)series.SPYUSDT.moveToPane(strengthPane);$('chart').dataset.spyTakerNetflowPane=String(strengthPane);$('chart').dataset.spyTakerNetflowVisible=String($('spy').checked);
   setOptions(strengthMarks,{visible:$('show-strength').checked});
   $('cvd-spectrum').style.display=$('cvd-spectrum-toggle').checked?'block':'none';scheduleCvdSpectrum();
