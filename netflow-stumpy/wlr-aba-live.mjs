@@ -1,4 +1,4 @@
-import {policyKey,activePolicy} from './wlr-aba-status.mjs?v=20261025-dcommon-all1';
+import {policyKey,activePolicy,YELLOW_PREVIEW_MIN_N,YELLOW_PREVIEW_MIN_CONFIDENCE} from './wlr-aba-status.mjs?v=20261025-dcommon-all1';
 import {segmentWlr,knownQuery,abaStartMinute,candidatePool,predict,cycleDistance,median} from './wlr-aba-core.mjs?v=20261025-dcommon-all1';
 import {shapeDistance} from './analogs-core.mjs?v=20261025-dcommon-all1';
 import {ny,tradingDay,postEnd,STEP} from './rth-structure.mjs?v=20261025-dcommon-all1';
@@ -31,6 +31,27 @@ export function startTrack(frame,archive,report,now){
   return {case:c,distance:cycleDistance(base,q,c)};
  }).sort((a,b)=>a.distance-b.distance||a.case.i-b.case.i),prediction=predict(q,pool,ranked,model),baseline=predict(q,pool,null,'COLOR_PRIOR'),direction=forecastFromWlr(q,prediction,pool,ranked,model);
  return withPolicy({day:q.day,originStart:current.startTime,q,prediction,baseline,direction,model,computedAt:now,sourceAsOf:archive.sourceAsOf},policy);
+}
+export function historicalAbaBandRanges(archive,report){
+ const policy=activePolicy(report),model=policy?.selectedModel;
+ if(policy?.version!==3||policy.status!=='READY'||!policy.gate||policy.freeze?.status!=='FROZEN'||policy.freeze.id!==policy.policyId||!['CYCLE8','CYCLE16'].includes(model))return [];
+ const m=model.endsWith('16')?16:8,from=policy.spec?.testStart??report.spec?.testStart??'',seen=new Set(),ranges=[];
+ for(const q of archive?.cases??[]){
+  const target=q.label?.target;if(q.day<from||q.label?.status!=='COMPLETE_ABA'||!target)continue;
+  const pool=candidatePool(archive.cases,q),query=q.window.slice(-m).map(i=>({pv:archive.vectors[i]}));
+  if(query.length!==m||query.some(row=>row.pv?.length!==10||!row.pv.every(Number.isFinite)))continue;
+  const ranked=pool.map(c=>{
+   const window=c.window.slice(-m).map(i=>({pv:archive.vectors[i]})),base=shapeDistance(query,window,{technique:'price-volume'});
+   return {case:c,distance:cycleDistance(base,q,c)};
+  }).sort((a,b)=>a.distance-b.distance||a.case.i-b.case.i),prediction=predict(q,pool,ranked,model),baseline=predict(q,pool,null,'COLOR_PRIOR'),direction=forecastFromWlr(q,prediction,pool,ranked,model),track=withPolicy({day:q.day,originStart:q.issuedAt-q.knownBars*STEP,q,prediction,baseline,direction,model,computedAt:q.issuedAt,sourceAsOf:archive.sourceAsOf},policy),gate=track.signal;
+  if(gate?.emit!==true||!prediction.ready||!prediction.memberReady||!Number.isFinite(prediction.pMembership)||prediction.pMembership<.5)continue;
+  const sampleN=Number.isFinite(track.direction?.n)?track.direction.n:0,confidence=gate.confidence;
+  if(q.color===0&&(sampleN<YELLOW_PREVIEW_MIN_N||!Number.isFinite(confidence)||confidence<YELLOW_PREVIEW_MIN_CONFIDENCE))continue;
+  const aStart=q.issuedAt-q.knownBars*STEP,nextStart=target.start,bStart=nextStart-target.betweenBars*STEP,end=target.end,key=[aStart,bStart,nextStart,end].join('|');
+  if(![aStart,bStart,nextStart,end].every(Number.isFinite)||!(aStart<bStart&&bStart<nextStart&&nextStart<end)||seen.has(key))continue;
+  seen.add(key);ranges.push({day:q.day,issuedAt:q.issuedAt,aStart,bStart,nextStart,end,pMembership:prediction.pMembership,sampleN,confidence});
+ }
+ return ranges.sort((a,b)=>a.aStart-b.aStart||a.issuedAt-b.issuedAt);
 }
 export function followTrack(frame,track){
  const a=frame.segments.find(s=>s.day===track.day&&s.startTime===track.originStart);if(!a)return {stage:'LOST_CONTEXT'};
@@ -65,3 +86,4 @@ export function updateAba({rows,archive,report,now,previous=null,reset=false}){
  const prediction=track.prediction,changePct=prediction.ready?100*(prediction.value/track.q.currentWlr-1):null;
  return {status:'READY',track,progress,changePct,lastTime:rows.at(-1).t,state:{track,history:history.slice(-8)},report:{sourceAsOf:report.sourceAsOf,selectedTrial:activePolicy(report)?.selectedModel??report.selectedTrial,test:report.test[track.model],reference:report.test.CURRENT_MEDIAN,decision:report.decision}};
 }
+
