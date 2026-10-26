@@ -1,8 +1,10 @@
 import {DATA_SYMBOL,SYMBOLS,STEPS,validateSymbol,parseKlines} from './engine.mjs?v=20261026-history-perf3';
-export const BASE='https://fapi.binance.com';
+export const BASES=['https://fapi.binance.com','https://fapi1.binance.com','https://fapi2.binance.com','https://fapi3.binance.com'];
+export let BASE=BASES[0];
+let activeBaseIndex=0;
 const PAGE_LIMIT=1000,PARALLEL_PAGES=3,INFO_TTL=15*60000;
 let infoCache=null,infoCachedAt=0;
-const HISTORY_KEY='netflow:xauusdt-history:v1',HISTORY_TTL=24*60*60000;
+const HISTORY_KEY='netflow:xauusdt-history:v2',HISTORY_TTL=24*60*60000;
 let historySavedAt=0,historySavedKey='';
 function browserStorage(){try{return globalThis.localStorage;}catch{return null;}}
 function readHistory(storage,interval,days,serverTime){
@@ -33,9 +35,21 @@ function saveHistory(storage,data){
   }catch{/* Storage disabled/full: live loading remains available. */}
 }
 export async function getJSON(path,signal){
-  const response=await fetch(BASE+path,{signal:AbortSignal.any([signal,AbortSignal.timeout(20000)].filter(Boolean)),cache:'no-store'});
-  if(!response.ok)throw Error(`Binance HTTP ${response.status}`);
-  const json=await response.json();if(json?.code<0)throw Error(`Binance ${json.code}: ${json.msg}`);return json;
+  const order=[activeBaseIndex,...BASES.map((_,i)=>i).filter(i=>i!==activeBaseIndex)];
+  const errors=[];
+  for(const i of order){
+    try{
+      const response=await fetch(BASES[i]+path,{signal:AbortSignal.any([signal,AbortSignal.timeout(10000)].filter(Boolean)),cache:'no-store'});
+      const text=await response.text();
+      if(!response.ok){errors.push(`${new URL(BASES[i]).hostname} HTTP ${response.status}`);if([403,418,429,451].includes(response.status)||response.status>=500)continue;throw Error(`Binance HTTP ${response.status}`);}
+      const json=JSON.parse(text);if(json?.code<0)throw Error(`Binance ${json.code}: ${json.msg}`);
+      activeBaseIndex=i;BASE=BASES[i];return json;
+    }catch(error){
+      if(signal?.aborted)throw error;
+      errors.push(`${new URL(BASES[i]).hostname}: ${error.message}`);
+    }
+  }
+  throw Error(`Không kết nối được Binance Futures (${[...new Set(errors)].join(' · ')})`);
 }
 async function mapLimited(items,limit,worker){
   const output=new Array(items.length),next={value:0};
@@ -58,14 +72,22 @@ export async function load(interval,days,{signal,get=getJSON,previous=null,stora
   // Contract validation and candle loading are independent. Never publish data
   // until BOTH succeed, but do not hold back klines on a slow exchangeInfo.
   const contractsTask=(async()=>{
-    const info=canCacheInfo?infoCache:await get('/fapi/v1/exchangeInfo',signal);
-    const contracts=SYMBOLS.map(s=>validateSymbol(info,s));
-    if(get===getJSON&&!canCacheInfo){infoCache=info;infoCachedAt=Date.now();}
-    return contracts;
+    try{
+      const info=canCacheInfo?infoCache:await get('/fapi/v1/exchangeInfo',signal);
+      const contracts=SYMBOLS.map(s=>validateSymbol(info,s));
+      if(get===getJSON&&!canCacheInfo){infoCache=info;infoCachedAt=Date.now();}
+      return contracts;
+    }catch(error){
+      if(signal?.aborted)throw error;
+      // exchangeInfo can be geo/WAF-blocked while public XAU klines still work.
+      return SYMBOLS.map(chartAlias=>({symbol:DATA_SYMBOL,chartAlias,sourceSymbol:DATA_SYMBOL,status:'TRADING',quoteAsset:'USDT',contractType:'PERPETUAL',validationFallback:true}));
+    }
   })();
   const candlesTask=(async()=>{
-    const {serverTime}=await get('/fapi/v1/time',signal);
-    if(!Number.isFinite(serverTime))throw Error('Thời gian server không hợp lệ');
+    let serverTime;
+    try{({serverTime}=await get('/fapi/v1/time',signal));}
+    catch(error){if(signal?.aborted)throw error;serverTime=Date.now();}
+    if(!Number.isFinite(serverTime))serverTime=Date.now();
     const start=Math.floor((serverTime-days*86400000)/step)*step;
     const compatible=previous&&!previous.historical&&previous.interval===interval&&previous.days===days&&previous.serverTime<=serverTime;
     const source=compatible?previous:readHistory(storage,interval,days,serverTime);
