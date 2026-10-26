@@ -1,9 +1,7 @@
-<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>XAU NetFlow • Hộp sức mạnh DVP</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 40 40%27%3E%3Crect width=%2740%27 height=%2740%27 rx=%278%27 fill=%27%2338dfba%27 font-size=%2722%27%3ENF%3C/text%3E%3C/svg%3E"><link rel="stylesheet" href="style.css?v=20261018-7"><link rel="stylesheet" href="layout.css?v=20261026-age-soft-palette1"><link rel="stylesheet" href="stats.css?v=20261018-1"><link rel="preconnect" href="https://fapi.binance.com" crossorigin><script defer src="vendor/lightweight-charts.js?v=5.2.1"></script><script type="module">
-import('./app.mjs?v=20261027-xau-live4').catch(error=>{
-  const show=()=>{const node=document.getElementById('status');if(!node)return;node.hidden=false;node.className='error';node.textContent='LỖI KHỞI ĐỘNG JAVASCRIPT · '+(error?.message||String(error));};
-  document.readyState==='loading'?addEventListener('DOMContentLoaded',show,{once:true}):show();
-});
-</script><script>
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>XAU NetFlow • Hộp sức mạnh DVP</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 40 40%27%3E%3Crect width=%2740%27 height=%2740%27 rx=%278%27 fill=%27%2338dfba%27 font-size=%2722%27%3ENF%3C/text%3E%3C/svg%3E"><link rel="stylesheet" href="style.css?v=20261018-7"><link rel="stylesheet" href="layout.css?v=20261026-age-soft-palette1"><link rel="stylesheet" href="stats.css?v=20261018-1"><link rel="preconnect" href="https://fapi.binance.com" crossorigin><script defer src="vendor/lightweight-charts.js?v=5.2.1"></script><script>
+addEventListener('error',event=>{const show=()=>{const node=document.getElementById('status');if(!node)return;node.hidden=false;node.className='error';node.textContent='LỖI JAVASCRIPT · '+(event.message||event.error?.message||'Không nạp được tệp ứng dụng');};document.readyState==='loading'?addEventListener('DOMContentLoaded',show,{once:true}):show();});
+addEventListener('unhandledrejection',event=>{const node=document.getElementById('status');if(!node)return;node.hidden=false;node.className='error';node.textContent='LỖI ỨNG DỤNG · '+(event.reason?.message||String(event.reason));});
+</script><script type="module" src="app.mjs?v=20261027-xau-live5"></script><script>
 (()=>{const rename=s=>String(s)
  .replace(/SPYUSDT|QQQUSDT/g,'XAUUSDT')
  .replace(/SPY\s*[↔/×+]\s*QQQ|SPY\/QQQ/g,'XAU')
