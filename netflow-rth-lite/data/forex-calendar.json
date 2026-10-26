@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-10-26T10:00:22.729Z",
+  "updatedAt": "2026-10-26T16:42:59.469Z",
   "events": [
     {
       "title": "Bank Holiday",
@@ -39,7 +39,7 @@
       "date": "2026-10-26T11:00:00.000Z",
       "timestamp": 1793012400000,
       "impact": "Low",
-      "actual": "",
+      "actual": "-10",
       "forecast": "-47",
       "previous": "-55"
     },
@@ -80,7 +80,7 @@
       "timestamp": 1793088000000,
       "impact": "Low",
       "actual": "",
-      "forecast": "",
+      "forecast": "9.8%",
       "previous": "9.9%"
     },
     {
@@ -160,7 +160,7 @@
       "timestamp": 1793109600000,
       "impact": "Medium",
       "actual": "",
-      "forecast": "80.5",
+      "forecast": "80.7",
       "previous": "81.9"
     },
     {
@@ -564,6 +564,16 @@
       "previous": "194K"
     },
     {
+      "title": "Gov Council Member Gravelle Speaks",
+      "country": "CAD",
+      "date": "2026-10-29T12:50:00.000Z",
+      "timestamp": 1793278200000,
+      "impact": "Low",
+      "actual": "",
+      "forecast": "",
+      "previous": ""
+    },
+    {
       "title": "Main Refinancing Rate",
       "country": "EUR",
       "date": "2026-10-29T13:15:00.000Z",
@@ -606,8 +616,8 @@
     {
       "title": "Gov Council Member Vincent Speaks",
       "country": "CAD",
-      "date": "2026-10-29T14:50:00.000Z",
-      "timestamp": 1793285400000,
+      "date": "2026-10-29T15:30:00.000Z",
+      "timestamp": 1793287800000,
       "impact": "Low",
       "actual": "",
       "forecast": "",
