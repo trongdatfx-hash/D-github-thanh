@@ -1,0 +1,40 @@
+name: XAU live diagnostic
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/xau-live-diagnostic.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Binance XAUUSDT market endpoints
+        shell: bash
+        run: |
+          node <<'NODE'
+          const base='https://fapi.binance.com';
+          async function get(path){
+            const response=await fetch(base+path,{headers:{'user-agent':'D-github-thanh-xau-live-diagnostic'}});
+            const text=await response.text();
+            console.log(path,'HTTP',response.status,'ACAO',response.headers.get('access-control-allow-origin'));
+            if(!response.ok)throw new Error(text.slice(0,500));
+            return JSON.parse(text);
+          }
+          const info=await get('/fapi/v1/exchangeInfo');
+          const symbol=info.symbols?.find(x=>x.symbol==='XAUUSDT');
+          console.log('SYMBOL',JSON.stringify(symbol&&{
+            symbol:symbol.symbol,status:symbol.status,contractType:symbol.contractType,
+            quoteAsset:symbol.quoteAsset,baseAsset:symbol.baseAsset,onboardDate:symbol.onboardDate
+          }));
+          const time=await get('/fapi/v1/time');
+          console.log('TIME',JSON.stringify(time));
+          const klines=await get('/fapi/v1/klines?symbol=XAUUSDT&interval=15m&limit=3');
+          console.log('KLINES',klines.length,JSON.stringify(klines.at(-1)));
+          if(!symbol||symbol.status!=='TRADING'||symbol.quoteAsset!=='USDT')process.exitCode=2;
+          if(!Array.isArray(klines)||!klines.length)process.exitCode=3;
+          NODE
