@@ -8,7 +8,7 @@ const root=path.resolve(__dirname,'../..'),read=p=>JSON.parse(fs.readFileSync(pa
  const manifest=read('netflow-stumpy/data/binance/m15/manifest.json'),raw={SPYUSDT:[],QQQUSDT:[]};
  for(const m of manifest.months){const doc=read(`netflow-stumpy/data/binance/m15/${m}.json`);for(const s of Object.keys(raw))raw[s].push(...doc[s].map(([t,o,h,l,c,v,end,q,buy])=>({t,o,h,l,c,v,end,q,buy})));}
  const sample=quantileDataset(raw.SPYUSDT,raw.QQQUSDT).filter(r=>r.targets[6]).at(-1);assert(sample,'Recorded box fixture');
- const now=sample.issuedAt+60000,report=read('netflow-stumpy/data/quantile-price/report.json');
+ const now=Number(process.env.NETFLOW_TEST_NOW)||sample.issuedAt+60000,report=read('netflow-stumpy/data/quantile-price/report.json');
  // UI fixture only: allow a historical clock with a model. No replay result uses this object.
  for(const m of Object.values(report.models))m.trainEnd=now-86400000;
  let browserArgs=['--no-sandbox'];
@@ -34,11 +34,30 @@ const root=path.resolve(__dirname,'../..'),read=p=>JSON.parse(fs.readFileSync(pa
   await page.goto('http://netflow.test/');
   await page.waitForFunction(()=>document.querySelector('#chart')?.dataset.chartReady==='true',{},{timeout:120000});
   await page.waitForFunction(()=>document.querySelector('#chart')?.dataset.studyStatus==='ready'&&Number(document.querySelector('#chart')?.dataset.strengthBoxCount)>0,{},{timeout:120000});
+  if(process.env.NETFLOW_TEST_EARLY){
+   await page.waitForFunction(()=>Number(document.querySelector('#chart')?.dataset.strengthBoxEarlyCount)>0);
+   await page.locator('#strength-box-view').click();
+   await page.waitForFunction(()=>document.querySelector('#strength-box-labels [data-stage="EARLY"]'));
+   assert.match(await page.locator('#strength-box-labels [data-stage="EARLY"]').innerText(),/SỚM 4\/8/);
+   assert.match(await page.locator('#strength-box-labels [data-stage="EARLY"]').getAttribute('data-code'),/SB1-.*-E-RTH-1230/);
+   assert(await page.locator('#strength-box-codes tbody tr').count()>0);
+   await page.locator('#strength-box-early').uncheck();
+   await page.waitForFunction(()=>document.querySelector('#chart')?.dataset.strengthBoxEarlyCount==='0');
+   await page.locator('#strength-box-early').check();
+   await page.waitForFunction(()=>Number(document.querySelector('#chart')?.dataset.strengthBoxEarlyCount)>0);
+   assert.deepEqual(errors,[]);console.log(JSON.stringify({status:'PASS',fixtureTime:new Date(now).toISOString(),checks:'real recorded 4/8 early candidate, encoded NY 12:30 appearance, code table, preview toggle, no JS errors'}));return;
+  }
   assert.equal(await page.locator('#strong-a1').count(),0);
   assert.equal(await page.locator('#strength-box-trigger').inputValue(),'causal-channel');
   assert.match(await page.locator('#quantile-price-status').innerText(),/kênh trend causal/);
   await page.locator('#strength-box-view').click();
   await page.waitForFunction(()=>document.querySelectorAll('#strength-box-labels span').length>0);
+  assert.equal(await page.locator('#strength-box-back').inputValue(),'8');
+  const before=await page.locator('#strength-box-labels span').first().getAttribute('data-code');assert.match(before,/^SB1-/);
+  await page.locator('#strength-box-back').selectOption('12');
+  await page.waitForFunction(()=>[...document.querySelectorAll('#strength-box-labels span')].some(x=>x.dataset.backBars==='12'));
+  await page.locator('#strength-box-back').selectOption('8');
+  await page.locator('#strength-box-early').uncheck();await page.locator('#strength-box-early').check();
   await page.locator('#causal-trend-channel').uncheck();
   await page.waitForFunction(()=>document.querySelector('#chart')?.dataset.strengthBoxCount==='0');
   await page.locator('#causal-trend-channel').check();

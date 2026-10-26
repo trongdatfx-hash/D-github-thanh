@@ -6,8 +6,8 @@ const channel={direction:1,confirmed:true,volumeQualified:true,displayQualified:
 test('a confirmed channel creates exactly one DVP-classified box without a Strength threshold',()=>{
  assert.equal(channelStrengthBoxes(rows).boxes.length,0);
  const result=channelStrengthBoxes(rows,{channels:[channel]}),b=result.latest;
- assert.equal(result.boxes.length,1);assert.equal(b.start,channel.startTime);assert.equal(b.right,channel.insideEndTime);assert.equal(b.n,15);assert.equal(b.issuedAt,channel.confirmationTime+step);assert.equal(b.maxStrength,null);
- assert.equal(b.top,rows[30].h);assert.equal(b.bottom,rows[16].l);assert.equal(b.type,'COMPRESSED');assert.match(b.label,/NÉN/);assert.equal(result.snapshots.size,0);
+ assert.equal(result.boxes.length,1);assert.equal(b.start,rows[8].t);assert.equal(b.originTime,channel.startTime);assert.equal(b.backBars,8);assert.equal(b.right,channel.insideEndTime);assert.equal(b.n,23);assert.equal(b.issuedAt,channel.confirmationTime+step);assert.equal(b.maxStrength,null);
+ assert.equal(b.top,rows[30].h);assert.equal(b.bottom,rows[8].l);assert.equal(b.type,'COMPRESSED');assert.match(b.label,/NÉN/);assert.equal(result.snapshots.size,0);
 });
 test('unconfirmed and future channels cannot create a box; open candles are excluded',()=>{
  assert.equal(channelStrengthBoxes(rows,{channels:[{...channel,confirmed:false}]}).boxes.length,0);
@@ -16,7 +16,7 @@ test('unconfirmed and future channels cannot create a box; open candles are excl
 });
 test('every displayed channel receives a box, including channels before the last seven',()=>{
  const channels=Array.from({length:12},(_,i)=>({...channel,startTime:rows[16+i].t,confirmationTime:rows[24+i].t,insideEndTime:rows[30+i].t}));
- const result=channelStrengthBoxes(rows,{channels});assert.equal(result.boxes.length,12);assert.equal(result.boxes[0].start,channels[0].startTime);
+ const result=channelStrengthBoxes(rows,{channels});assert.equal(result.boxes.length,12);assert.equal(result.boxes[0].originTime,channels[0].startTime);
 });
 test('the box freezes at the channel end and future prices cannot widen it',()=>{
  const first=channelStrengthBoxes(rows,{channels:[channel]}).latest;
@@ -28,6 +28,23 @@ test('Composite filtering checks the channel confirmation, annotation preserves 
  const compositeRows=new Map(rows.map(r=>[r.t,{adjusted:.8}]));compositeRows.set(channel.confirmationTime,{adjusted:-.8});
  assert.equal(channelStrengthBoxes(rows,{channels:[channel],compositeRows,compositeMode:'filter'}).boxes.length,0);
  const annotated=channelStrengthBoxes(rows,{channels:[channel],compositeRows}).latest;
- assert.equal(annotated.start,channel.startTime);assert.equal(annotated.top,rows[30].h);
+ assert.equal(annotated.originTime,channel.startTime);assert.equal(annotated.top,rows[30].h);
  compositeRows.set(channel.confirmationTime,{adjusted:.3});assert.equal(channelStrengthBoxes(rows,{channels:[channel],compositeRows,compositeMode:'filter'}).boxes.length,1);
+});
+
+test('backtracking changes geometry without moving the actual signal time',()=>{
+ const a=channelStrengthBoxes(rows,{channels:[channel],back:0}).latest,b=channelStrengthBoxes(rows,{channels:[channel],back:8}).latest;
+ assert.equal(a.start,channel.startTime);assert.equal(b.start,a.start-8*step);assert.equal(a.issuedAt,b.issuedAt);assert.equal(b.encoding.appearance.signalAt,b.issuedAt);assert.notEqual(b.encoding.appearance.signalAt,b.start);
+ const gapped=rows.filter((_,i)=>i!==14),limited=channelStrengthBoxes(gapped,{channels:[channel],back:8}).latest;assert.equal(limited.backBars,1);
+});
+test('an encoded early candidate uses only current closed data and matures under the same ID',()=>{
+ const early={...channel,startTime:rows[16].t,confirmationTime:rows[17].t,insideEndTime:rows[19].t,provisional:true,early:true,adaptiveR2:.95,slopeAtr:.3},compositeRows=new Map(rows.map(r=>[r.t,{adjusted:.8}])),volumeRows=new Map(rows.map(r=>[r.t,{adjusted:.8}])),options={earlyChannels:[early],compositeRows,volumeRows,now:rows[19].end+1};
+ const a=channelStrengthBoxes(rows,options).latest;assert(a);assert.equal(a.stage,'EARLY');assert.equal(a.channelBars,4);assert.match(a.label,/SỚM 4\/8/);assert.equal(a.issuedAt,rows[19].end+1);assert.equal(a.encoding.forecast.remainingMinBars,4);assert.equal(a.encoding.forecast.probability,null);assert.equal(a.encoding.scoreIsProbability,false);assert(a.encoding.features.every(Number.isFinite));
+ const grown=channelStrengthBoxes(rows,{...options,earlyChannels:[{...early,insideEndTime:rows[20].t}],now:rows[20].end+1}).latest;assert.equal(grown.issuedAt,a.issuedAt);assert.equal(grown.encoding.appearance.ageAtEncodingBars,1);
+ const delayedComposite=new Map(compositeRows),delayedVolume=new Map(volumeRows);for(let i=16;i<=19;i++){delayedComposite.set(rows[i].t,{adjusted:-.8});delayedVolume.set(rows[i].t,{adjusted:-.8});}
+ const delayed=channelStrengthBoxes(rows,{...options,earlyChannels:[{...early,insideEndTime:rows[20].t}],compositeRows:delayedComposite,volumeRows:delayedVolume,now:rows[20].end+1}).latest;assert.equal(delayed.issuedAt,rows[20].end+1);
+ const altered=rows.map((r,i)=>i>19?{...r,c:500,h:501}:r);assert.deepEqual(channelStrengthBoxes(altered,options).latest,a);
+ assert.equal(channelStrengthBoxes(rows,{...options,showEarly:false}).boxes.length,0);
+ assert.equal(channelStrengthBoxes(rows,{...options,now:rows[18].end+1}).boxes.length,0);
+ const mature={...early,early:false,insideEndTime:rows[23].t},b=channelStrengthBoxes(rows,{channels:[mature],earlyChannels:[early],compositeRows,volumeRows,now:rows[23].end+1}).latest;assert.equal(b.id,a.id);assert.equal(b.stage,'CONFIRMED');assert.equal(b.encoding.forecast,null);
 });
