@@ -1,4 +1,4 @@
-import {createStrengthBoxLayer} from './strength-box-ui.mjs?v=20261026-early-box1';
+import {createStrengthBoxLayer} from './strength-box-ui.mjs?v=20261026-chart-clean1';
 import {createQuantilePrice} from './quantile-price-ui.mjs?v=20261026-early-box1';
 import {chartFresh} from './chart-live.mjs?v=20261026-boxqr1';
 import {chartHistoryFallback} from './chart-history-fallback.mjs?v=20261026-boxqr2';
@@ -736,8 +736,12 @@ function bindChartGestures(){
 if(init()){
   updateTrendMethodCopy();
   setupChartActions();
-  strengthBoxLayer=createStrengthBoxLayer({chart,host:$('chart'),actions:document.querySelector('.chart-actions'),getContext:()=>({rows:rows[$('symbol').value]??[],symbol:$('symbol').value,interval:$('interval').value,step:STEPS[$('interval').value],now:cache?.serverTime??0,price,composite:maps.COMPOSITE??new Map(),compositeRevision:studyResultKey,volume:boxVolumeStrengthMap,earlyChannels:studyResultKey===studyKey&&$('causal-trend-channel').checked&&$('causal-trend-channel-provisional').checked?(causalChannelState.early??[]):[],channels:studyResultKey===studyKey&&$('causal-trend-channel').checked?(causalChannelState.trends??[]).filter(c=>!c.provisional||$('causal-trend-channel-provisional').checked):[]}),onChange:()=>quantileLayer?.update()});
-  quantileLayer=createQuantilePrice({chart,host:$('chart'),actions:document.querySelector('.chart-actions'),getContext:()=>({spy:rows.SPYUSDT??[],qqq:rows.QQQUSDT??[],boxes:strengthBoxLayer?.getState(),symbol:$('symbol').value,interval:$('interval').value,now:Date.now()+serverOffsetMs,live:$('live-indicator').className==='live'&&isChartLive()})});
+  const chartCard=document.querySelector('.chart-card');
+  const indicatorTools=document.createElement('section');indicatorTools.id='chart-indicator-tools';indicatorTools.className='chart-options chart-indicator-tools';indicatorTools.setAttribute('aria-label','Điều khiển hộp sức mạnh và phân vị');chartCard.before(indicatorTools);
+  const chartNotes=document.createElement('details');chartNotes.id='chart-notes';const notesSummary=document.createElement('summary');notesSummary.textContent='Giải thích và trạng thái chỉ báo';chartNotes.append(notesSummary);chartCard.after(chartNotes);
+  for(const node of chartCard.querySelectorAll('#tooltip,.hint'))chartNotes.append(node);
+  strengthBoxLayer=createStrengthBoxLayer({chart,host:$('chart'),actions:indicatorTools,getContext:()=>({rows:rows[$('symbol').value]??[],symbol:$('symbol').value,interval:$('interval').value,step:STEPS[$('interval').value],now:cache?.serverTime??0,price,composite:maps.COMPOSITE??new Map(),compositeRevision:studyResultKey,volume:boxVolumeStrengthMap,earlyChannels:studyResultKey===studyKey&&$('causal-trend-channel').checked&&$('causal-trend-channel-provisional').checked?(causalChannelState.early??[]):[],channels:studyResultKey===studyKey&&$('causal-trend-channel').checked?(causalChannelState.trends??[]).filter(c=>!c.provisional||$('causal-trend-channel-provisional').checked):[]}),onChange:()=>quantileLayer?.update()});
+  quantileLayer=createQuantilePrice({chart,host:$('chart'),actions:indicatorTools,getContext:()=>({spy:rows.SPYUSDT??[],qqq:rows.QQQUSDT??[],boxes:strengthBoxLayer?.getState(),symbol:$('symbol').value,interval:$('interval').value,now:Date.now()+serverOffsetMs,live:$('live-indicator').className==='live'&&isChartLive()})});
   restoreSavedSetup();
   try{const key='netflow:spy-taker:strength-pane:v1';if(!localStorage.getItem(key)){$('spy').checked=true;const saved=JSON.parse(localStorage.getItem(SETUP_STORAGE_KEY)||'null');if(saved?.version===1&&saved.controls){saved.controls.spy=true;localStorage.setItem(SETUP_STORAGE_KEY,JSON.stringify(saved));}localStorage.setItem(key,'enabled');}}catch{$('spy').checked=true;}
   $('spy').closest('label').title='SPY Taker NetFlow trong pane Composite Strength phía dưới; histogram dùng thang USDT riêng đối xứng quanh 0.';
