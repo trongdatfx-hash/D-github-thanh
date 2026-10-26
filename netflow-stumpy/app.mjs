@@ -1,6 +1,7 @@
-import {createStrengthBoxLayer} from './strength-box-ui.mjs?v=20261026-boxqr1';
+import {createStrengthBoxLayer} from './strength-box-ui.mjs?v=20261026-boxqr2';
 import {createQuantilePrice} from './quantile-price-ui.mjs?v=20261026-boxqr1';
 import {chartFresh} from './chart-live.mjs?v=20261026-boxqr1';
+import {chartHistoryFallback} from './chart-history-fallback.mjs?v=20261026-boxqr2';
 import {causalChannelAba} from './aba-causal-channels.mjs?v=20261026-channel-a1-2';
 import {wlrColorSegments} from './wlr-color-segments.mjs?v=20261025-wlr-colorfix1';
 import {wlrSlopeThickness,WLR_SLOPE_DEFAULTS} from './wlr-slope-thickness.mjs?v=20261025-wlr-slope1';
@@ -112,7 +113,13 @@ class VariableWidthLineSeries{
 }
 function status(text,error=false){$('status').textContent=text;$('status').classList.toggle('error',error);}
 function isChartLive(){return chartFresh(cache,Date.now()+serverOffsetMs,lastSuccess?.getTime());}
-function setLive(live){live=live&&isChartLive();const node=$('live-indicator');node.textContent=live?'● CHART LIVE':'● CHART KHÔNG LIVE';node.className=live?'live':'offline';scheduleAbaBandColors();strengthBoxLayer?.update();quantileLayer?.update();}
+function setLive(live){
+ live=live&&isChartLive();const node=$('live-indicator');node.textContent=live?'● CHART LIVE':'● CHART KHÔNG LIVE';node.className=live?'live':'offline';
+ let source=$('chart-source-status');if(!source){source=document.createElement('p');source.id='chart-source-status';source.setAttribute('role','status');source.style.cssText='color:#f6c85f;font:12px/1.6 system-ui;margin:8px 0';$('chart').insertAdjacentElement('beforebegin',source);}
+ source.hidden=live||!cache;const last=(rows[$('symbol').value]??[]).filter(r=>r.end<(cache?.serverTime??0)).at(-1);
+ source.textContent=live?'':`${cache?.historical?'LỊCH SỬ ĐÃ LƯU':'DỮ LIỆU CŨ'} · KHÔNG LIVE · nến đóng cuối ${last?new Date(last.end+1).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'}):'—'} (giờ VN). Đang thử kết nối lại Binance; dự báo phân vị tạm dừng.`;
+ scheduleAbaBandColors();strengthBoxLayer?.update();quantileLayer?.update();
+}
 function setupChartActions(){
   const actions=document.querySelector('.chart-actions'),fit=$('chart-fit'),live=$('live-indicator');
   if(!actions||!fit||!live)return;
@@ -660,6 +667,14 @@ function toggle(){
   for(const key of ['mid','upper','lower'])setOptions(series[key],{visible:$('bands').checked});
   setOptions(marks,{visible:$('markers').checked});
 }
+function acceptChartData(data,fit,live){
+ const step=STEPS[data.interval];
+ rows={SPYUSDT:analyze(data.SPYUSDT,step),QQQUSDT:analyze(data.QQQUSDT,step),COMPOSITE:analyze(composite(data.SPYUSDT,data.QQQUSDT),step)};
+ volumeStrengthRows=analyze(data.SPYUSDT,step,{strength:calculateVolumeStrength(data.SPYUSDT,step)});
+ modelRows=rows;modelVolumeStrengthRows=volumeStrengthRows;
+ maps=Object.fromEntries(Object.entries(rows).map(([k,v])=>[k,new Map(v.map(x=>[x.t,x]))]));
+ cache=data;serverOffsetMs=data.serverTime-Date.now();lastSuccess=live?new Date():null;render(fit);setLive(live);
+}
 async function refresh(clear=false){
   controller?.abort();controller=new AbortController();const gen=++generation;
   loading=true;$('refresh').disabled=true;
@@ -668,17 +683,16 @@ async function refresh(clear=false){
   status(`Đang xác minh SPYUSDT/QQQUSDT và tải ${interval} · ${days} ngày…`);
   try{
     const data=await load(interval,days,{signal:controller.signal,previous:cache});if(gen!==generation)return;
-    const step=STEPS[interval];
-    rows={SPYUSDT:analyze(data.SPYUSDT,step),QQQUSDT:analyze(data.QQQUSDT,step),COMPOSITE:analyze(composite(data.SPYUSDT,data.QQQUSDT),step)};
-    volumeStrengthRows=analyze(data.SPYUSDT,step,{strength:calculateVolumeStrength(data.SPYUSDT,step)});
-    modelRows=rows;modelVolumeStrengthRows=volumeStrengthRows;
-    maps=Object.fromEntries(Object.entries(rows).map(([k,v])=>[k,new Map(v.map(x=>[x.t,x]))]));
-    cache=data;serverOffsetMs=data.serverTime-Date.now();lastSuccess=new Date();render(clear);setLive(true);
+    acceptChartData(data,clear,true);
     const modelText=interval==='15m'?' · Nghiên cứu lịch sử chạy nền':'';
     status(`SPYUSDT + QQQUSDT · TRADING / ${data.contracts.map(x=>x.contractType).join(' + ')} · ${rows.SPYUSDT.length}/${rows.QQQUSDT.length} nến, gồm nến đang chạy · ${rows.COMPOSITE.length} timestamp chung${modelText} · ${data.incremental?'cập nhật realtime ~3 giây':'tải lịch sử song song'} · cập nhật ${lastSuccess.toLocaleTimeString('vi-VN')} · ${rows.COMPOSITE.length?'Dữ liệu thật Binance':'Composite chưa có dữ liệu giao nhau'}`);
   }catch(e){
     if(gen!==generation)return;
-    setLive(false);schedulePivotFlowOverlay();status(`${e.message}. Có thể bị CORS, vùng truy cập, mất mạng hoặc rate limit. ${cache?`Dữ liệu cũ chưa cập nhật (lần thành công ${lastSuccess.toLocaleTimeString('vi-VN')}).`:'Không có dữ liệu thay thế; biểu đồ để trống.'} Dùng Tải lại sau khi kiểm tra kết nối.`,true);
+    if(!cache&&interval==='15m'){
+     try{const historical=await chartHistoryFallback({interval,days,signal:controller.signal});if(gen!==generation)return;acceptChartData(historical,true,false);}
+     catch(historyError){if(gen!==generation)return;$('chart').dataset.historyFallbackError=historyError.message;}
+    }
+    setLive(false);schedulePivotFlowOverlay();status(`${e.message}. Có thể bị CORS, vùng truy cập, mất mạng hoặc rate limit. ${cache?(cache.historical?'Đang hiển thị lịch sử đã lưu, không phải dữ liệu live.':`Dữ liệu cũ chưa cập nhật${lastSuccess?` (lần thành công ${lastSuccess.toLocaleTimeString('vi-VN')})`:''}.`):'Không có dữ liệu thay thế; biểu đồ để trống.'} Dùng Tải lại sau khi kiểm tra kết nối.`,true);
   }finally{if(gen===generation){loading=false;$('refresh').disabled=false;}}
 }
 function exportCSV(){

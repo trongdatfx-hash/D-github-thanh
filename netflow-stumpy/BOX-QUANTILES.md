@@ -63,3 +63,5 @@ endpoint forecast only; they are not intermediate-horizon quantile forecasts.
 Run `python research/quantile-price/train.py` from the repository root.
 The workflow maintains closed M15 data and a model report. The browser
 only performs a few dot products and redraws on a new closed bar/model.
+
+If Binance fails at startup, M15 can display the saved closed history with an explicit last-close timestamp and KHÔNG LIVE banner. The fallback does not set a live success timestamp, does not issue forecasts, and retries the live API normally. Other timeframes do not synthesize candles from M15.

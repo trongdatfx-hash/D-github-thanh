@@ -15,7 +15,7 @@ const root=path.resolve(__dirname,'../..'),read=p=>JSON.parse(fs.readFileSync(pa
  if(process.env.SPARTICUZ_CHROMIUM){const c=(await import(process.env.SPARTICUZ_CHROMIUM+'/build/index.js')).default;process.env.BROWSER_EXECUTABLE=await c.executablePath();browserArgs=c.args;}
  const browser=await chromium.launch({headless:true,executablePath:process.env.BROWSER_EXECUTABLE,args:browserArgs});
  try{
-  const page=await browser.newPage({viewport:{width:1440,height:1100}}),errors=[],oldRequests=[];
+  const page=await browser.newPage({viewport:{width:1440,height:1100}}),errors=[],oldRequests=[];let backendFailed=false;
   page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(r.url().includes('wlr-aba'))oldRequests.push(r.url());});
   await page.addInitScript(({now})=>{const RealDate=Date,started=RealDate.now();class Clock extends RealDate{constructor(...a){super(...(a.length?a:[now+RealDate.now()-started]));}static now(){return now+RealDate.now()-started;}}window.Date=Clock;},{now});
   await page.route('http://netflow.test/**',async route=>{
@@ -25,7 +25,7 @@ const root=path.resolve(__dirname,'../..'),read=p=>JSON.parse(fs.readFileSync(pa
    await route.fulfill({contentType:/\.(mjs|js)$/.test(file)?'text/javascript':file.endsWith('.json')?'application/json':file.endsWith('.css')?'text/css':'text/html',body:fs.readFileSync(target)});
   });
   await page.route('https://fapi.binance.com/**',async route=>{
-   const u=new URL(route.request().url());let json;
+   if(backendFailed)return route.abort('failed');const u=new URL(route.request().url());let json;
    if(u.pathname.endsWith('exchangeInfo'))json={symbols:read('netflow-stumpy/symbol-validation.json')};
    else if(u.pathname.endsWith('/time'))json={serverTime:now};
    else{const s=u.searchParams.get('symbol');json=(raw[s]??[]).filter(r=>r.t>=+u.searchParams.get('startTime')&&r.t<=+u.searchParams.get('endTime')).slice(0,+u.searchParams.get('limit')).map(r=>[r.t,r.o,r.h,r.l,r.c,r.v,r.end,r.q,1,0,r.buy,0]);}
@@ -60,7 +60,17 @@ const root=path.resolve(__dirname,'../..'),read=p=>JSON.parse(fs.readFileSync(pa
   await page.setViewportSize({width:390,height:844});
   await page.waitForFunction(()=>document.querySelector('#strength-box-overlay')?.width>0);
   assert((await page.locator('#chart').boundingBox()).width<=390);
+  backendFailed=true;await page.reload();
+  await page.waitForFunction(()=>document.querySelector('#chart')?.dataset.chartReady==='true',{},{timeout:120000});
+  assert.equal(await page.locator('#live-indicator').getAttribute('class'),'offline');
+  await page.locator('#strength-box-view').click();
+  await page.waitForFunction(()=>document.querySelectorAll('#strength-box-labels span').length>0);
+  assert.match(await page.locator('#chart-source-status').innerText(),/LỊCH SỬ ĐÃ LƯU.*KHÔNG LIVE/);
+  assert.equal(await page.locator('#quantile-price-panel').getAttribute('data-state'),'WAIT');
+  await page.locator('#refresh').click();
+  await page.waitForFunction(()=>!document.querySelector('#refresh').disabled);
+  assert.equal(await page.locator('#chart').getAttribute('data-chart-ready'),'true');
   assert.deepEqual(oldRequests,[]);assert.deepEqual(errors,[]);
-  console.log(JSON.stringify({status:'PASS',fixtureTime:new Date(now).toISOString(),checks:'chart, LIVE, boxes and pixel rendering, P10/P50/P90, composite annotation/filter, horizon, symbol, toggle, mobile, no old model requests or JS errors'}));
+  console.log(JSON.stringify({status:'PASS',fixtureTime:new Date(now).toISOString(),checks:'chart, LIVE, boxes and pixel rendering, P10/P50/P90, composite annotation/filter, horizon, symbol, toggle, mobile, offline history fallback, no old model requests or JS errors'}));
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

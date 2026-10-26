@@ -3,7 +3,7 @@ import {sessionAt,STEPS} from './engine.mjs?v=20261025-dcommon-all1';
 const ROOT='./data/binance/m15/';
 const MONTH_RE=/^\d{4}-\d{2}$/;
 const CACHE_TTL=5*60*1000;
-let cache=null,cacheAt=0;
+let cache=null,cacheAt=0,cacheDays=0;
 const shardCache=new Map();
 
 function compactToBar(r){
@@ -18,7 +18,7 @@ function mergeBars(a,b){
   return [...map.values()].sort((x,y)=>x.t-y.t);
 }
 export async function loadPersistentHistory({days=365,signal,live=null}={}){
-  if(!cache||Date.now()-cacheAt>CACHE_TTL){
+  if(!cache||days>cacheDays||Date.now()-cacheAt>CACHE_TTL){
     const response=await fetch(ROOT+'manifest.json?ts='+Date.now(),{signal,cache:'no-store'});
     if(!response.ok)throw Error('History manifest chưa sẵn sàng');
     const manifest=await response.json();
@@ -35,7 +35,7 @@ export async function loadPersistentHistory({days=365,signal,live=null}={}){
     }));
     const archived={manifest,SPYUSDT:[],QQQUSDT:[]};
     for(const symbol of ['SPYUSDT','QQQUSDT'])archived[symbol]=docs.flatMap(doc=>(doc[symbol]??[]).map(compactToBar)).filter(x=>x.t>=cutoff);
-    cache=archived;cacheAt=Date.now();
+    cache=archived;cacheAt=Date.now();cacheDays=days;
   }
   return {manifest:cache.manifest,SPYUSDT:mergeBars(cache.SPYUSDT,live?.SPYUSDT??[]),QQQUSDT:mergeBars(cache.QQQUSDT,live?.QQQUSDT??[])};
 }
