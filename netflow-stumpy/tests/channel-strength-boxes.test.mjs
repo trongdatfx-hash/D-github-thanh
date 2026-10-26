@@ -48,3 +48,11 @@ test('an encoded early candidate uses only current closed data and matures under
  assert.equal(channelStrengthBoxes(rows,{...options,now:rows[18].end+1}).boxes.length,0);
  const mature={...early,early:false,insideEndTime:rows[23].t},b=channelStrengthBoxes(rows,{channels:[mature],earlyChannels:[early],compositeRows,volumeRows,now:rows[23].end+1}).latest;assert.equal(b.id,a.id);assert.equal(b.stage,'CONFIRMED');assert.equal(b.encoding.forecast,null);
 });
+
+test('confirmed causal boxes expose causal snapshots for each eligible closed bar',()=>{
+ const result=channelStrengthBoxes(rows,{channels:[channel]});
+ assert(result.snapshots.has(rows[24].t));assert(result.snapshots.has(rows[30].t));
+ const first=result.snapshots.get(rows[24].t),last=result.snapshots.get(rows[30].t);
+ assert.equal(first.asOf,rows[24].t);assert.equal(first.right,rows[24].t);assert.equal(first.source,'causal-channel');
+ assert(first.n<last.n);assert(first.top<=last.top);assert(first.bottom>=last.bottom);
+});

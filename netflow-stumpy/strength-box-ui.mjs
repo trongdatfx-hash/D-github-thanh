@@ -1,4 +1,4 @@
-import {channelStrengthBoxes} from './channel-strength-boxes.mjs?v=20261026-early-box1';
+import {channelStrengthBoxes} from './channel-strength-boxes.mjs?v=20261026-channel-qr1';
 import {strengthBoxes} from './strength-box-core.mjs?v=20261026-channel-box1';
 export function createStrengthBoxLayer({chart,host,actions,getContext,onChange=()=>{}}){
  const label=document.createElement('label'),toggle=document.createElement('input');toggle.id='strength-box-toggle';toggle.type='checkbox';toggle.checked=true;label.append(toggle,'Hộp sức mạnh DVP');actions.append(label);

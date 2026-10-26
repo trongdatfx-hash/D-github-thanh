@@ -1,5 +1,5 @@
-import {createStrengthBoxLayer} from './strength-box-ui.mjs?v=20261026-chart-clean1';
-import {createQuantilePrice} from './quantile-price-ui.mjs?v=20261026-early-box1';
+import {createStrengthBoxLayer} from './strength-box-ui.mjs?v=20261026-channel-qr1';
+import {createQuantilePrice} from './quantile-price-ui.mjs?v=20261026-channel-qr1';
 import {chartFresh} from './chart-live.mjs?v=20261026-boxqr1';
 import {chartHistoryFallback} from './chart-history-fallback.mjs?v=20261026-boxqr2';
 import {causalChannelAba} from './aba-causal-channels.mjs?v=20261026-channel-a1-2';

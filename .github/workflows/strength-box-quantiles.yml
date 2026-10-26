@@ -5,6 +5,8 @@ on:
     paths:
       - '.github/workflows/strength-box-quantiles.yml'
       - 'netflow-stumpy/strength-box-*.mjs'
+      - 'netflow-stumpy/channel-strength-boxes.mjs'
+      - 'netflow-stumpy/causal-trend-channel.mjs'
       - 'netflow-stumpy/quantile-price-*.mjs'
       - 'netflow-stumpy/market-clock.mjs'
       - 'netflow-stumpy/requirements-quantiles.txt'

@@ -13,7 +13,7 @@ export function channelStrengthBoxes(rows,{channels=[],earlyChannels=[],showEarl
   trs.push(tr);if(trs.length>14)trs.shift();rma=rma===null?(trs.length===14?trs.reduce((a,b)=>a+b,0)/14:null):(13*rma+tr)/14;
   byTime.set(r.t,{...r,tr,index:i,atr:rma});previous=r;
  }
- const boxes=[];
+ const boxes=[],snapshots=new Map();
  const confirmedIds=new Set(channels.map(c=>c.confirmationTime));
  const candidates=showEarly?earlyChannels.filter(c=>c.early===true&&!confirmedIds.has(c.confirmationTime)):[];
  for(const c of [...channels,...candidates].sort((a,b)=>a.confirmationTime-b.confirmationTime)){
@@ -36,14 +36,23 @@ export function channelStrengthBoxes(rows,{channels=[],earlyChannels=[],showEarl
   let first=origin;for(let j=0;j<back&&first.index>0;j++){const prior=byTime.get(closed[first.index-1].t);if(first.t-prior.t!==step)break;first=prior;}
   const entryComposite=compositeRows.get(c.confirmationTime)?.adjusted;
   if(compositeMode==='filter'&&!(Number.isFinite(entryComposite)&&entryComposite*c.direction>=compositeThreshold))continue;
-  const seed=closed.slice(first.index,last.index+1).map(r=>byTime.get(r.t));if(seed.some((r,i)=>i&&r.t-seed[i-1].t!==step))continue;
-  const b={id:c.confirmationTime,start:first.t,originTime:origin.t,backBars:origin.index-first.index,channelBars,stage:isEarly?'EARLY':'CONFIRMED',startIndex:first.index,right:last.t,rightIndex:last.index,entryTime:c.confirmationTime,issuedAt,asOf:last.t,top:Math.max(...seed.map(r=>r.h)),bottom:Math.min(...seed.map(r=>r.l)),y0:first.c,direction:c.direction,phase:origin.session??'—',maxStrength:null,live:c.provisional===true,open:c.provisional===true,freeze:null,n:0,tr2:0,sx:0,sy:0,sxy:0,sxx:0,syy:0,compositeMode,source:'causal-channel'};
-  for(const r of seed){const x=r.index-first.index,y=r.c-first.c;b.n++;b.tr2+=r.tr*r.tr;b.sx+=x;b.sy+=y;b.sxy+=x*y;b.sxx+=x*x;b.syy+=y*y;const s=raw.strength.get(r.t);if(Number.isFinite(s))b.maxStrength=Math.max(b.maxStrength??0,Math.abs(s));}
-  const v=compositeRows.get(last.t)?.adjusted;b.compositeStrength=Number.isFinite(v)?v:null;b.compositeAlignment=!Number.isFinite(v)?'missing':v*c.direction>=compositeThreshold?'aligned':v*c.direction<=-compositeThreshold?'opposed':'neutral';
-  const box=summarizeStrengthBox(b,last.atr,null,BOX_DEFAULTS);
-  box.encoding=encodeStrengthBox(box,{channel:c,rows:closed,composite:v,volume:volumeRows.get(last.t)?.adjusted,step,previousAppearance:boxes.filter(x=>x.issuedAt<issuedAt).at(-1)?.issuedAt});
+  const makeBox=endRow=>{
+   const seed=closed.slice(first.index,endRow.index+1).map(r=>byTime.get(r.t));if(seed.some((r,i)=>i&&r.t-seed[i-1].t!==step))return null;
+   const bars=endRow.index-origin.index+1,b={id:c.confirmationTime,start:first.t,originTime:origin.t,backBars:origin.index-first.index,channelBars:bars,stage:isEarly?'EARLY':'CONFIRMED',startIndex:first.index,right:endRow.t,rightIndex:endRow.index,entryTime:c.confirmationTime,issuedAt,asOf:endRow.t,top:Math.max(...seed.map(r=>r.h)),bottom:Math.min(...seed.map(r=>r.l)),y0:first.c,direction:c.direction,phase:origin.session??'—',maxStrength:null,live:true,open:true,freeze:null,n:0,tr2:0,sx:0,sy:0,sxy:0,sxx:0,syy:0,compositeMode,source:'causal-channel'};
+   for(const r of seed){const x=r.index-first.index,y=r.c-first.c;b.n++;b.tr2+=r.tr*r.tr;b.sx+=x;b.sy+=y;b.sxy+=x*y;b.sxx+=x*x;b.syy+=y*y;const s=raw.strength.get(r.t);if(Number.isFinite(s))b.maxStrength=Math.max(b.maxStrength??0,Math.abs(s));}
+   const v=compositeRows.get(endRow.t)?.adjusted;b.compositeStrength=Number.isFinite(v)?v:null;b.compositeAlignment=!Number.isFinite(v)?'missing':v*c.direction>=compositeThreshold?'aligned':v*c.direction<=-compositeThreshold?'opposed':'neutral';
+   const box=summarizeStrengthBox(b,endRow.atr,null,BOX_DEFAULTS);box.encoding=encodeStrengthBox(box,{channel:{...c,insideEndTime:endRow.t,provisional:true},rows:closed.slice(0,endRow.index+1),composite:v,volume:volumeRows.get(endRow.t)?.adjusted,step,previousAppearance:boxes.filter(x=>x.issuedAt<issuedAt).at(-1)?.issuedAt});
+   box.label=(isEarly?`SỚM ${bars}/8 · `:'')+strengthBoxLabel(box);return box;
+  };
+  const box=makeBox(last);if(!box)continue;
   if(isEarly&&(box.encoding.ruleScore<60||!box.encoding.appearance.marketDay||!['PRE','RTH'].includes(box.encoding.appearance.session)))continue;
-  box.label=(isEarly?`SỚM ${channelBars}/8 · `:'')+strengthBoxLabel(box);boxes.push(box);
+  box.live=c.provisional===true;box.open=c.provisional===true;boxes.push(box);
+  const firstSnapshotIndex=Math.max(confirmation.index,origin.index+(isEarly?3:7));
+  for(let index=firstSnapshotIndex;index<=last.index;index++){
+   const row=closed[index];if(row.t+step<issuedAt)continue;const snapshot=makeBox(byTime.get(row.t));if(!snapshot)continue;
+   if(isEarly&&(snapshot.encoding.ruleScore<60||!snapshot.encoding.appearance.marketDay||!['PRE','RTH'].includes(snapshot.encoding.appearance.session)))continue;
+   snapshots.set(row.t,snapshot);
+  }
  }
- return {version:'causal-channel-strength-box-v2',boxes,latest:boxes.at(-1)??null,snapshots:new Map(),settings:{...BOX_DEFAULTS,back,showEarly,trigger:'causal-channel',compositeMode,compositeThreshold}};
+ return {version:'causal-channel-strength-box-v2',boxes,latest:boxes.at(-1)??null,snapshots,settings:{...BOX_DEFAULTS,back,showEarly,trigger:'causal-channel',compositeMode,compositeThreshold}};
 }

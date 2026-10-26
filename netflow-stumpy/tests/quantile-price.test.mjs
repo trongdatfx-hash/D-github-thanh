@@ -6,7 +6,8 @@ const rows=Array.from({length:60},(_,i)=>({t:start+i*step,end:start+(i+1)*step-1
 const t=rows[30].t,box={asOf:t,issuedAt:t+step,live:true,open:true,top:104,bottom:99,width:5,maxStrength:.97,direction:1,n:9,efficiency:.8,id:t,type:'COMPRESSED'};
 const feature=quantileFeature(rows.slice(11,31),new Map(rows.map(r=>[r.t,r])),box);
 const coefficients=[-.5,0,.5].map(v=>QR_FEATURES.map((_,i)=>i?0:v));
-const report={version:QR_VERSION,features:QR_FEATURES,models:{3:{coefficients,trainEnd:t-step,trainN:300,trainDays:30},6:{coefficients,trainEnd:t-step,trainN:300,trainDays:30}}};
+const sourceModels={3:{coefficients,trainEnd:t-step,trainN:300,trainDays:30},6:{coefficients,trainEnd:t-step,trainN:300,trainDays:30}};
+const report={version:QR_VERSION,features:QR_FEATURES,models:sourceModels,sources:{strength:{models:sourceModels},causalChannel:{models:sourceModels}}};
 test('prediction is anchored to the contemporaneous box midpoint, not last close',()=>{
  assert(feature);assert.equal(feature.anchor,101.5);assert.equal(feature.x.length,QR_FEATURES.length);assert(feature.x.every(Number.isFinite));
  const r=forecastQuantiles(feature,report,3);assert.equal(r.status,'RESEARCH');assert.equal(r.p50,feature.anchor);assert.equal(r.target,t+3*step);assert(r.p10<=r.p50&&r.p50<=r.p90);
@@ -29,4 +30,11 @@ test('quantile rearrangement is deterministic and numerical corruption is reject
 test('stored walk-forward targets mature strictly before each test forecast',()=>{
  const r=JSON.parse(fs.readFileSync(new URL('../data/quantile-price/report.json',import.meta.url),'utf8'));assert.equal(r.version,QR_VERSION);
  for(const h of [3,6]){const m=r.models[h];assert(m.coefficients.every(b=>b.length===QR_FEATURES.length));for(const row of m.replay)assert(row.trainEnd<row.t+step);assert.equal(m.validation.n,m.replay.length);}
+});
+
+test('causal-channel boxes select their dedicated coefficient branch',()=>{
+ const causalFeature={...feature,source:'causalChannel'};
+ assert.equal(forecastQuantiles(causalFeature,report,3,'causalChannel').status,'RESEARCH');
+ const missing={...report,sources:{strength:report.sources.strength}};
+ assert.equal(forecastQuantiles(causalFeature,missing,3,'causalChannel').status,'WAIT_MODEL');
 });
