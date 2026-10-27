@@ -2,7 +2,7 @@ import {trendSessionAt,trendSessionRows} from './trend-session.mjs?v=20261025-dc
 import {analyze,composite,calculateVolumeStrength,STEPS,sessionAt} from './engine.mjs?v=20261025-dcommon-all1';
 import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeometry} from './geometry.mjs?v=20261025-dcommon-all1';
 import {pivotZones} from './pivot-zones.mjs?v=20261025-dcommon-all1';
-import {causalTrendChannels} from './causal-trend-channel.mjs?v=20261027-slope-reversal1';
+import {causalTrendChannels} from './causal-trend-channel.mjs?v=20261027-slope-diagnostic2';
 import {preRthWlrTrend,historicalTrendAgeStates} from './pre-rth-wlr-trend.mjs?v=20261027-age-live1';
 import {chartFeatureRows} from './analogs-features.mjs?v=20261025-dcommon-all1';
 
