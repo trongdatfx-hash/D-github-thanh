@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-10-27T05:25:53.750Z",
+  "updatedAt": "2026-10-27T10:49:26.103Z",
   "events": [
     {
       "title": "Bank Holiday",
@@ -69,7 +69,7 @@
       "date": "2026-10-27T05:00:00.000Z",
       "timestamp": 1793077200000,
       "impact": "Low",
-      "actual": "",
+      "actual": "2.4%",
       "forecast": "1.9%",
       "previous": "1.8%"
     },
@@ -79,7 +79,7 @@
       "date": "2026-10-27T08:00:00.000Z",
       "timestamp": 1793088000000,
       "impact": "Low",
-      "actual": "",
+      "actual": "10.2%",
       "forecast": "9.9%",
       "previous": "9.9%"
     },
@@ -89,7 +89,7 @@
       "date": "2026-10-27T09:00:00.000Z",
       "timestamp": 1793091600000,
       "impact": "Low",
-      "actual": "",
+      "actual": "3.5%",
       "forecast": "3.5%",
       "previous": "3.5%"
     },
@@ -99,7 +99,7 @@
       "date": "2026-10-27T09:00:00.000Z",
       "timestamp": 1793091600000,
       "impact": "Low",
-      "actual": "",
+      "actual": "3.1%",
       "forecast": "3.1%",
       "previous": "3.1%"
     },
