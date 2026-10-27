@@ -10,7 +10,7 @@ import {wlrDisplayColors,WLR_COLOR_DEFAULTS} from './wlr-display-color.mjs?v=202
 import {createSeriesWriter} from './chart-data-cache.mjs?v=20261026-history-perf3';
 import {COMPOSITE_STRENGTH_VERSION,STEPS,composite,strengthAgreementCandleSignal,strengthPhaseLineStyle,directionalVolumeDelta,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,weightedPriceBands,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs?v=20261026-history-perf3';
 import {calculateCommonTakerVolumeStrength} from './common-volume.mjs?v=20261025-dcommon-all1';
-import {load} from './data.mjs?v=20261026-startup-cache1';
+import {load} from './data.mjs?v=20261027-startup-preview1';
 import {pivotFlowRealtime} from './pivot-zones.mjs?v=20261025-dcommon-all1';
 import {pivotFlowLayout,pivotFlowZeroCoordinate} from './pivot-flow-layout.mjs?v=20261025-dcommon-all1';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261025-dcommon-all1';
@@ -663,6 +663,15 @@ function toggle(){
   for(const key of ['mid','upper','lower'])setOptions(series[key],{visible:$('bands').checked});
   setOptions(marks,{visible:$('markers').checked});
 }
+function showStartupPreview(data){
+ const bars=data[$('symbol').value]??[];if(!bars.length)return;
+ writeSeries('price',price,bars.map(x=>({time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c})),`startup|${data.interval}`);
+ const last=bars.at(-1).t,first=bars.find(x=>x.t>=last-FIT_WINDOW_MS)?.t??bars[0].t;
+ chart.timeScale().setVisibleRange({from:first/1000,to:last/1000});
+ $('chart').dataset.startupPhase='preview';
+ $('live-indicator').textContent='◌ ĐANG TẢI LỊCH SỬ';
+ requestAnimationFrame(()=>{$('chart').dataset.firstPricePaintMs??=String(Math.round(performance.now()));});
+}
 function acceptChartData(data,fit,live){
  const step=STEPS[data.interval];
  rows={SPYUSDT:analyze(data.SPYUSDT,step),QQQUSDT:analyze(data.QQQUSDT,step),COMPOSITE:analyze(composite(data.SPYUSDT,data.QQQUSDT),step)};
@@ -670,20 +679,23 @@ function acceptChartData(data,fit,live){
  modelRows=rows;modelVolumeStrengthRows=volumeStrengthRows;boxVolumeStrengthMap=new Map(volumeStrengthRows.map(r=>[r.t,r]));
  maps=Object.fromEntries(Object.entries(rows).map(([k,v])=>[k,new Map(v.map(x=>[x.t,x]))]));
  cache=data;serverOffsetMs=data.serverTime-Date.now();lastSuccess=live?new Date():null;render(fit);setLive(live);
+ $('chart').dataset.startupPhase='ready';$('chart').setAttribute('aria-busy','false');
 }
 async function refresh(clear=false){
   controller?.abort();controller=new AbortController();const gen=++generation;
   loading=true;$('refresh').disabled=true;
   if(clear){resetStudies();cache=null;rows={};volumeStrengthRows=[];boxVolumeStrengthMap=new Map();commonVolumeStrengthMap=new Map();modelRows={};modelVolumeStrengthRows=[];modelStamp=null;trendRows={};trendVolumeStrengthRows=[];trendStamp=null;trainingMeta=null;maps={};lastSuccess=null;inspectedTime=null;pivotZoneKey='';pivotZoneState={ready:false,reason:'history',support:null,resistance:null};pivotFlowState=null;render(true);}
   const interval=$('interval').value,days=+$('days').value;
+  if(!cache){$('chart').dataset.startupPhase='loading';$('chart').setAttribute('aria-busy','true');}
   status(`Đang xác minh SPYUSDT/QQQUSDT và tải ${interval} · ${days} ngày…`);
   try{
-    const data=await load(interval,days,{signal:controller.signal,previous:cache});if(gen!==generation)return;
+    const data=await load(interval,days,{signal:controller.signal,previous:cache,onPreview:data=>{if(gen===generation&&!cache)showStartupPreview(data);}});if(gen!==generation)return;
     acceptChartData(data,clear,true);
     const modelText=interval==='15m'?' · Nghiên cứu lịch sử chạy nền':'';
     status(`SPYUSDT + QQQUSDT · TRADING / ${data.contracts.map(x=>x.contractType).join(' + ')} · ${rows.SPYUSDT.length}/${rows.QQQUSDT.length} nến, gồm nến đang chạy · ${rows.COMPOSITE.length} timestamp chung${modelText} · ${data.incremental?'cập nhật realtime ~3 giây':'tải lịch sử song song'} · cập nhật ${lastSuccess.toLocaleTimeString('vi-VN')} · ${rows.COMPOSITE.length?'Dữ liệu thật Binance':'Composite chưa có dữ liệu giao nhau'}`);
   }catch(e){
     if(gen!==generation)return;
+    if(!cache){render(true);$('chart').dataset.startupPhase='error';$('chart').setAttribute('aria-busy','false');}
     if(!cache&&interval==='15m'){
      try{const historical=await chartHistoryFallback({interval,days,signal:controller.signal});if(gen!==generation)return;acceptChartData(historical,true,false);}
      catch(historyError){if(gen!==generation)return;$('chart').dataset.historyFallbackError=historyError.message;}
@@ -773,4 +785,3 @@ if(init()){
   setInterval(()=>{if(!document.hidden)refreshCalendar();},CALENDAR_REFRESH_MS);
   setInterval(updateCandleCountdown,250);
 }
-
