@@ -49,7 +49,7 @@ test('PRE warm-start uses SPY V sign with price slope and does not require SPY V
 
 test('Flow-Leg defaults require eight candles and expose the reference setup',()=>{
   const rows=breakoutRows(),volumeRows=rows.map(row=>({t:row.t,adjusted:-.7})),short=causalTrendChannels(rows.slice(0,22),{volumeRows:volumeRows.slice(0,22)}),trend=causalTrendChannels(rows,{volumeRows}).trends[0];
-  assert.equal(short.trends.length,0);assert(trend);assert.equal(trend.flowDeadband,.15);assert.equal(trend.minLegBars,8);assert.equal(trend.minDisplayR2,.2);assert.equal(trend.slopeFlipBars,2);assert.equal(trend.slopeFlipAtr,.03);assert.equal(trend.slopeFlipMinR2,.2);assert(trend.lineWidth>=2&&trend.lineWidth<=5);assert(Number.isFinite(trend.netDeltaTotal));
+  assert.equal(short.trends.length,0);assert(trend);assert.equal(trend.flowDeadband,.15);assert.equal(trend.minLegBars,8);assert.equal(trend.minDisplayR2,.2);assert(trend.lineWidth>=2&&trend.lineWidth<=5);assert(Number.isFinite(trend.netDeltaTotal));
 });
 
 test('confirmed short Flow-Legs stay in survival episodes even when hidden from the chart',()=>{
@@ -102,10 +102,10 @@ test('SPY V closes a confirmed leg after two consecutive opposite dead-band cand
   assert(trend);assert.equal(trend.exitTime,rows[flipIndex+2].t);assert.equal(trend.exitReason,'flow-flip');assert.equal(trend.insideEndTime,rows[flipIndex+1].t);assert.equal(trend.bars,flipIndex-16+2);
 });
 
-test('an UP sample ends only after two qualified closed-channel slopes turn DOWN',()=>{
+test('an opposite OLS slope stays diagnostic and does not cut an active UP sample',()=>{
   const rows=breakoutRows().map(row=>({...row,o:200-row.o,h:200-row.l,l:200-row.h,c:200-row.c,net:-row.net}));let last=rows.at(-1);
   for(let i=0;i<12;i++){const t=last.t+900000,c=last.c-2-i*.9;last={t,end:t+899999,o:c+.1,h:c+.2,l:c-.2,c,net:-100,...sessionAt(t)};rows.push(last);}
-  const volumeRows=rows.map(row=>({t:row.t,adjusted:.7})),full=causalTrendChannels(rows,{volumeRows,adverseExitBars:99,maxHistory:99}).episodes[0],exitIndex=rows.findIndex(row=>row.t===full.exitTime),prefix=causalTrendChannels(rows.slice(0,exitIndex),{volumeRows:volumeRows.slice(0,exitIndex),adverseExitBars:99,maxHistory:99}).episodes[0];
-  assert.equal(full.direction,1);assert.equal(full.exitReason,'slope-reversal');assert.equal(full.points.at(-1).oppositeSlopeBars,2);assert.equal(full.insideEndTime,rows[exitIndex-1].t);
-  assert.equal(prefix.exitTime,null);assert.equal(prefix.provisional,true);assert.equal(prefix.points.at(-1).oppositeSlopeBars,1);assert.equal(prefix.bars,full.bars);
+  const volumeRows=rows.map(row=>({t:row.t,adjusted:.7})),full=causalTrendChannels(rows,{volumeRows,adverseExitBars:99,maxHistory:99}).episodes[0];
+  assert.equal(full.direction,1);assert.equal(full.exitTime,null);assert.equal(full.exitReason,null);assert.equal(full.provisional,true);assert.equal(full.insideEndTime,rows.at(-1).t);
+  assert(full.points.at(-1).oppositeSlopeBars>=2);assert.equal(full.absorbing,true);assert.equal(full.bars,rows.length-16);
 });
