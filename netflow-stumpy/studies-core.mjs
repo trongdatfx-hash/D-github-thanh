@@ -3,7 +3,7 @@ import {analyze,composite,calculateVolumeStrength,STEPS,sessionAt} from './engin
 import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeometry} from './geometry.mjs?v=20261025-dcommon-all1';
 import {pivotZones} from './pivot-zones.mjs?v=20261025-dcommon-all1';
 import {causalTrendChannels} from './causal-trend-channel.mjs?v=20261025-dcommon-all1';
-import {preRthWlrTrend,historicalTrendAgeStates} from './pre-rth-wlr-trend.mjs?v=20261026-age-restored1';
+import {preRthWlrTrend,historicalTrendAgeStates} from './pre-rth-wlr-trend.mjs?v=20261027-age-live1';
 import {chartFeatureRows} from './analogs-features.mjs?v=20261025-dcommon-all1';
 
 export function analyzeTrendSource(raw,now){
@@ -26,7 +26,13 @@ export function computeStudies({rows,volumeRows,symbol,interval,options,now,tren
   const channelState=causalTrendChannels(closedTrend.map(r=>r.session==='EURO'?{...r,session:'PRE'}:r),{volumeRows:trendVolume,maxHistory:Infinity});
   const rev63=preRthWlrTrend({priceRows:tRows,strengthRows:trend?.rows.COMPOSITE??[],volumeRows:trendVolume,channelTrends:channelState.episodes??channelState.trends,requireChannel:true,now});
   const trendAgeHistory=interval==='15m'&&symbol==='SPYUSDT'?historicalTrendAgeStates({priceRows:tRows,strengthRows:trend?.rows.COMPOSITE??[],volumeRows:trendVolume,channelTrends:channelState.episodes,now,fromTime:closedPrice[0]?.t??Infinity}):[];
+  const running=p.at(-1),runningEnd=running?.end??running?.t+899999,runningClock=Number.isFinite(running?.t)?trendSessionAt(running.t):null,nowClock=trendSessionAt(now);
+  const hasLivePreview=interval==='15m'&&symbol==='SPYUSDT'&&rev63.active&&rev63.livePreview&&Number.isFinite(running?.t)&&running.t<=now&&runningEnd>=now&&running.t>(closedTrend.at(-1)?.t??-Infinity)&&runningClock?.active&&runningClock.day===nowClock.day;
+  if(hasLivePreview)trendAgeHistory.push({t:running.t,...rev63.livePreview,reason:'Nến đang chạy · xem trước từ trend xác nhận ở nến đóng trước; chưa ghi vào cohort hoặc kết quả forward'});
+  const displayRev63=hasLivePreview?{...rev63,...rev63.livePreview,groups:rev63.groups,livePreview:rev63.livePreview}:rev63;
   const historicalChannels=channelState.episodes.filter(c=>!trendSessionAt(now).active||new Date(c.startTime).toLocaleDateString('en-CA',{timeZone:'America/New_York'})!==new Date(now).toLocaleDateString('en-CA',{timeZone:'America/New_York'}));
-  rev63.dataInfo={currentSession:trendSessionAt(now).session??'OFF',firstTime:closedTrend[0]?.t??null,lastTime:closedTrend.at(-1)?.t??null,bars:closedTrend.length,days:new Set(closedTrend.map(r=>r.day)).size,channels:historicalChannels.length,displayQualified:historicalChannels.filter(c=>c.displayQualified).length};
-  return {geometry,channels,breakout,points,backtest,pivot,rev63,trendAgeHistory};
+  const dataInfo={currentSession:trendSessionAt(now).session??'OFF',firstTime:closedTrend[0]?.t??null,lastTime:closedTrend.at(-1)?.t??null,bars:closedTrend.length,days:new Set(closedTrend.map(r=>r.day)).size,channels:historicalChannels.length,displayQualified:historicalChannels.filter(c=>c.displayQualified).length};
+  rev63.dataInfo=dataInfo;displayRev63.dataInfo=dataInfo;
+  return {geometry,channels,breakout,points,backtest,pivot,rev63:displayRev63,trendAgeHistory};
 }
+

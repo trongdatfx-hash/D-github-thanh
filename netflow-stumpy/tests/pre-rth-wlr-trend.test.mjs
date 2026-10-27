@@ -75,6 +75,13 @@ test('PRE→RTH WLR finds the active strongest price trend and formats only the 
   assert.match(formatPreRthWlrTrend(state),/^(↑ UP|WAIT) · \d+\/(\d+|—) NẾN · TUỔI P(\d+|—) · CÒN ~(\d+|—) NẾN · TREND CÒN (\d+|—)%$/);
 });
 
+test('live preview advances one age without changing the confirmed closed-candle state',()=>{
+  const input=fixture(),state=preRthWlrTrend({...input,minCohort:3});
+  assert.equal(state.active,true);assert.equal(state.livePreview.provisional,true);
+  assert.equal(state.livePreview.currentBars,state.currentBars+1);assert.equal(state.livePreview.baseClosedBars,state.currentBars);
+  assert(['UP','DOWN','WAIT'].includes(state.livePreview.label));assert.equal(state.provisional,undefined);
+});
+
 test('Composite only changes a small score component and cannot filter an otherwise identical trend',()=>{
   const input=fixture(),support=preRthWlrTrend({...input,minCohort:3}),opposed=preRthWlrTrend({...input,strengthRows:input.strengthRows.map(row=>({...row,adjusted:-1})),minCohort:3});
   assert.equal(opposed.active,true);assert.equal(opposed.currentBars,support.currentBars);assert(Math.abs(opposed.trendScore-support.trendScore)<=5);assert.equal(opposed.compositeScore,0);
@@ -182,3 +189,4 @@ test('readout retains the compact age label and masks stale/off-session percenta
   for(const options of [{now,live:false,lastTime:now-900000},{now,live:true,lastTime:now-2700000},{now:Date.parse('2026-10-20T20:00:00Z'),live:true,lastTime:now-900000}]){const masked=trendReadoutState(state,options);assert.equal(masked.label,'WAIT');assert.equal(masked.continuation,null);assert.equal(masked.active,false);}
   assert.equal(state.label,'UP');assert.equal(state.continuation,.75);
 });
+
