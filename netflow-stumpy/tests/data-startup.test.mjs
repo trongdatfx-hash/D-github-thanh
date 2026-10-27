@@ -59,3 +59,47 @@ test('historical fallback is not reused as a full live seed',async()=>{
  const result=await load('15m',30,{get:mock.get,storage:null,previous:{historical:true,interval:'15m',days:30,serverTime:base}});
  assert.equal(result.incremental,false);assert(mock.transferred>5700);
 });
+
+test('cold load previews validated latest prices before slow older history',async()=>{
+ let release;const waiting=new Promise(r=>release=r),mock=api(base+step/2),storage=memory();
+ const previews=[];let settled=false;
+ const get=async path=>{
+  if(path.includes('/klines')&&+new URL('https://test'+path).searchParams.get('startTime')<base-1000*step)await waiting;
+  return mock.get(path);
+ };
+ const task=load('15m',30,{get,storage,onPreview:data=>previews.push(data)}).then(data=>{settled=true;return data});
+ await new Promise(r=>setImmediate(r));
+ assert.equal(previews.length,1);assert.equal(settled,false);
+ const preview=previews[0];assert.equal(preview.partial,true);assert.equal(preview.contracts.length,2);
+ assert.equal(storage.getItem(),null);
+ for(const symbol of symbols){assert(preview[symbol].length>100);assert(preview[symbol].length<=1000);assert.equal(preview[symbol].at(-1).t,base);}
+ release();const full=await task;
+ const reference=await load('15m',30,{get:api(base+step/2).get,storage:null});
+ assert.deepEqual(full.SPYUSDT,reference.SPYUSDT);assert.deepEqual(full.QQQUSDT,reference.QQQUSDT);
+ assert.equal(full.partial,undefined);assert.equal(previews.length,1);
+});
+test('preview waits for valid contracts and is skipped on warm history',async()=>{
+ let release;const waiting=new Promise(r=>release=r),mock=api(base,{waitInfo:waiting}),previews=[];
+ const task=load('15m',30,{get:mock.get,storage:null,onPreview:data=>previews.push(data)});
+ await new Promise(r=>setImmediate(r));assert.equal(previews.length,0);release();const full=await task;
+ assert.equal(previews.length,1);
+ await load('15m',30,{get:api(base+step).get,storage:null,previous:full,onPreview:()=>assert.fail('warm load preview')});
+ await assert.rejects(load('15m',30,{get:api(base,{badInfo:true}).get,storage:null,onPreview:()=>assert.fail('unvalidated preview')}));
+});
+test('failed and aborted loads cannot emit a late preview',async()=>{
+ for(const aborted of [false,true]){
+  let release;const waiting=new Promise(r=>release=r),mock=api(base),controller=new AbortController(),previews=[];
+  const get=async path=>{
+   if(path.includes('/klines')){
+    const from=+new URL('https://test'+path).searchParams.get('startTime');
+    if(from>=base-1000*step)await waiting;
+    else if(!aborted)throw Error('older page failed');
+   }
+   return mock.get(path);
+  };
+  const task=load('15m',30,{get,storage:null,signal:controller.signal,onPreview:data=>previews.push(data)});
+  if(aborted){controller.abort();release();await assert.rejects(task,{name:'AbortError'});}
+  else{await assert.rejects(task,/older page failed/);release();}
+  await new Promise(r=>setImmediate(r));assert.equal(previews.length,0);
+ }
+});
