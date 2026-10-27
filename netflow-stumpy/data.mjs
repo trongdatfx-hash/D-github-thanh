@@ -42,17 +42,22 @@ async function mapLimited(items,limit,worker){
   await Promise.all(Array.from({length:Math.min(limit,items.length)},async()=>{while(next.value<items.length){const i=next.value++;output[i]=await worker(items[i]);}}));
   return output;
 }
-async function fetchRange(symbol,interval,start,end,step,get,signal){
+async function fetchRange(symbol,interval,start,end,step,get,signal,onLatest){
   if(start>=end)return [];
   const span=PAGE_LIMIT*step,chunks=[];for(let cursor=start;cursor<end;cursor+=span)chunks.push([cursor,Math.min(end,cursor+span-1)]);
-  const pages=await mapLimited(chunks,PARALLEL_PAGES,async([from,to])=>{
+  // Fetch the newest page first, keeping the same concurrency/request budget.
+  const latestStart=chunks.at(-1)[0];
+  const pages=await mapLimited(chunks.reverse(),PARALLEL_PAGES,async([from,to])=>{
     const limit=Math.max(1,Math.min(PAGE_LIMIT,Math.ceil((to-from+1)/step)));
     const page=await get(`/fapi/v1/klines?symbol=${symbol}&interval=${interval}&limit=${limit}&startTime=${from}&endTime=${to}`,signal);
-    if(!Array.isArray(page))throw Error('Kline response không hợp lệ');return page;
+    if(!Array.isArray(page))throw Error('Kline response không hợp lệ');
+    if(from===latestStart&&onLatest)await onLatest(page);
+    return page;
   });
   return pages.flat();
 }
-export async function load(interval,days,{signal,get=getJSON,previous=null,storage=browserStorage()}={}){
+export async function load(interval,days,{signal,get=getJSON,previous=null,storage=browserStorage(),onPreview=null}={}){
+  let active=true;
   const step=STEPS[interval];if(!step||![7,14,30].includes(days))throw Error('Khung thời gian/lịch sử không hợp lệ');
   const canCacheInfo=get===getJSON&&infoCache&&Date.now()-infoCachedAt<INFO_TTL;
   // Contract validation and candle loading are independent. Never publish data
@@ -67,24 +72,38 @@ export async function load(interval,days,{signal,get=getJSON,previous=null,stora
     const {serverTime}=await get('/fapi/v1/time',signal);
     if(!Number.isFinite(serverTime))throw Error('Thời gian server không hợp lệ');
     const start=Math.floor((serverTime-days*86400000)/step)*step;
-    const compatible=previous&&!previous.historical&&previous.interval===interval&&previous.days===days&&previous.serverTime<=serverTime;
+    const compatible=previous&&!previous.historical&&!previous.partial&&previous.interval===interval&&previous.days===days&&previous.serverTime<=serverTime;
     const source=compatible?previous:readHistory(storage,interval,days,serverTime);
     const reusable=!!source;
+    const previewRows=new Map();
+    const previewLatest=!reusable&&typeof onPreview==='function'?async(symbol,raw)=>{
+      const bars=parseKlines(raw,serverTime,step,{includeOpen:true});
+      if(!bars.length)return;
+      previewRows.set(symbol,bars);
+      if(previewRows.size!==SYMBOLS.length)return;
+      const contracts=await contractsTask;
+      signal?.throwIfAborted();
+      if(!active)return;
+      // Price-only preview. It must never seed history, indicators or LIVE state.
+      onPreview({contracts,serverTime,interval,days,partial:true,...Object.fromEntries(previewRows)});
+    }:null;
     const pairs=await Promise.all(SYMBOLS.map(async symbol=>{
       // Refresh the last closed candle as well as every previously open candle.
       // Historical fallback snapshots are never accepted as complete live history.
       const closed=reusable?(source[symbol]??[]).filter(x=>x.t>=start&&x.end<source.serverTime&&x.end<serverTime):[];
       const kept=closed.slice(0,-1);
       const cursor=kept.length?kept.at(-1).t+step:start;
-      const fresh=parseKlines(await fetchRange(symbol,interval,cursor,serverTime,step,get,signal),serverTime,step,{includeOpen:true});
+      const fresh=parseKlines(await fetchRange(symbol,interval,cursor,serverTime,step,get,signal,previewLatest?raw=>previewLatest(symbol,raw):null),serverTime,step,{includeOpen:true});
       const merged=new Map(kept.map(x=>[x.t,x]));for(const row of fresh)merged.set(row.t,row);
       const bars=[...merged.values()].sort((a,b)=>a.t-b.t);if(!bars.length)throw Error(`${symbol}: không có dữ liệu nến`);return [symbol,bars];
     }));
     return {serverTime,interval,days,incremental:reusable,restored:reusable&&!compatible,...Object.fromEntries(pairs)};
   })();
-  const [contracts,data]=await Promise.all([contractsTask,candlesTask]);
-  signal?.throwIfAborted();
-  const result={contracts,...data};
-  saveHistory(storage,result);
-  return result;
+  try{
+    const [contracts,data]=await Promise.all([contractsTask,candlesTask]);
+    signal?.throwIfAborted();
+    const result={contracts,...data};
+    saveHistory(storage,result);
+    return result;
+  }finally{active=false;}
 }
