@@ -10,6 +10,7 @@ import {wlrDisplayColors,WLR_COLOR_DEFAULTS} from './wlr-display-color.mjs?v=202
 import {createSeriesWriter} from './chart-data-cache.mjs?v=20261026-history-perf3';
 import {COMPOSITE_STRENGTH_VERSION,STEPS,composite,strengthAgreementCandleSignal,strengthPhaseLineStyle,directionalVolumeDelta,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,weightedPriceBands,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs?v=20261026-history-perf3';
 import {calculateCommonTakerVolumeStrength} from './common-volume.mjs?v=20261025-dcommon-all1';
+import {confirmedDeltaStrength} from './confirmed-delta.mjs?v=20261028-confirm1';
 import {load} from './data.mjs?v=20261027-startup-preview1';
 import {pivotFlowRealtime} from './pivot-zones.mjs?v=20261025-dcommon-all1';
 import {pivotFlowLayout,pivotFlowZeroCoordinate} from './pivot-flow-layout.mjs?v=20261025-dcommon-all1';
@@ -34,7 +35,7 @@ let studiesWorker=null,studyKey='',studyResultKey='',statsWorker=null,statsReque
 const CALENDAR_REFRESH_MS=5*60*1000;
 const FIT_WINDOW_MS=36*60*60*1000,FIT_HALF_WINDOW_MS=12*60*60*1000,DOUBLE_TAP_MS=360,DOUBLE_TAP_DISTANCE=28,TAP_MOVE_TOLERANCE=14;
 const SETUP_STORAGE_KEY='netflow-rth-lite:chart-setup:v1';
-const SETUP_CONTROL_IDS=['symbol','interval','days','signal','composite','alignment','common-volume-strength','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-trend-age-color','cvd-spectrum-toggle','show-strength','spy-volume-strength','bands','markers','double-tap-full','geometry-toggle','geometry-provisional','causal-trend-channel','causal-trend-channel-provisional','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
+const SETUP_CONTROL_IDS=['symbol','interval','days','signal','composite','alignment','common-volume-strength','confirmed-delta-toggle','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-trend-age-color','cvd-spectrum-toggle','show-strength','spy-volume-strength','bands','markers','double-tap-full','geometry-toggle','geometry-provisional','causal-trend-channel','causal-trend-channel-provisional','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
 let statsMap=new Map(),candleColorMap=new Map(),candleClusterMap=new Map(),rev63State=null,pivotZoneState={ready:false,reason:'history',support:null,resistance:null},pivotFlowState=null,pivotZoneKey='',inspectedTime=null;
 let calendarState={events:[],updatedAt:null,loading:false};
 let pendingSavedTimeRange=null,saveSetupTimer=null,strengthBoxLayer=null,quantileLayer=null;
@@ -129,6 +130,7 @@ function setupChartActions(){
   const half=document.createElement('button');half.id='chart-fit-half';half.type='button';half.title='Hiển thị các nến trong 0,5 ngày gần nhất';half.textContent='Fit 0.5 ngày';live.insertAdjacentElement('afterend',half);
   const save=document.createElement('button');save.id='chart-save';save.type='button';save.title='Lưu toàn bộ lựa chọn và vùng thời gian đang xem trên trình duyệt này';save.textContent='Lưu setup';save.setAttribute('aria-live','polite');half.insertAdjacentElement('afterend',save);
   const alignmentLabel=$('alignment')?.closest('label');if(alignmentLabel){alignmentLabel.lastChild.textContent='SPY V Δ nến';alignmentLabel.dataset.pane='strength-spy-v';alignmentLabel.title='Histogram chung thang −1…+1 với Strength SPY V. Biên độ tuyến tính Δ/2: volume bằng SMA20 đạt nửa biên, từ 2× SMA20 đạt toàn biên. Bốn màu: Δ+/V+ xanh lá, Δ−/V+ xanh dương, Δ+/V− hồng nhạt, Δ−/V− đỏ.';}
+  if(!$('confirmed-delta-toggle')){const input=document.createElement('input');input.id='confirmed-delta-toggle';input.type='checkbox';input.checked=true;const label=document.createElement('label');label.title='SPY M15: delta taker cùng hướng thân nến; trái hướng hoặc doji là 0. Cộng 8 nến, làm mượt và chuẩn hóa; nến LIVE có thể đổi.';label.append(input,'Strength Giá×Delta');$('spy-volume-strength').closest('label').insertAdjacentElement('afterend',label);}
   if(!$('common-volume-strength')){const input=document.createElement('input');input.id='common-volume-strength';input.type='checkbox';input.checked=window.matchMedia('(max-width: 650px), (pointer: coarse)').matches;const label=document.createElement('label');label.title='D common dùng true taker quote delta: Net Buy−Sell / SMA20 Quote Volume cho từng mã, trộn 70% SPY + 30% QQQ qua tanh, rồi chạy chuỗi causal của SPY V. Cùng công thức với Composite Strength, dùng chung cho các phần liên quan.';label.append(input,'D common ···');$('spy-volume-strength').closest('label').insertAdjacentElement('afterend',label);}
   const compositeLabel=$('composite')?.closest('label');if(compositeLabel)compositeLabel.title='C Taker NF hiển thị trong pane Strength C, dùng thang riêng đối xứng nhưng chung chính xác tâm 0 với đường Strength.';
   const phaseLabel=$('phase-width')?.closest('label');if(phaseLabel){phaseLabel.hidden=true;const button=document.createElement('button');button.id='wlr-width-mode';button.type='button';button.className='display-mode-button';phaseLabel.insertAdjacentElement('afterend',button);}
@@ -294,6 +296,7 @@ function init(){
   series.COMPOSITE=chart.addSeries(L.HistogramSeries,{priceScaleId:'taker-flow-strength-overlay',base:0,color:flowColors.COMPOSITE.up,title:'',priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',formatter:fmtK},autoscaleInfoProvider:symmetricAutoscale},2);
   series.COMPOSITE.priceScale().applyOptions({autoScale:true,scaleMargins:LOWER_PANE_SCALE_MARGINS});
   series.strength=chart.addSeries(L.BaselineSeries,{baseValue:{type:'price',price:0},topLineColor:'#1ae0a3',topFillColor1:'rgba(26,224,163,0)',topFillColor2:'rgba(26,224,163,0)',bottomLineColor:'#ff4d70',bottomFillColor1:'rgba(255,77,112,0)',bottomFillColor2:'rgba(255,77,112,0)',lineWidth:1,title:'',priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:4,autoscaleInfoProvider:symmetricAutoscale},2);
+  series.confirmedDelta=chart.addSeries(L.LineSeries,{priceScaleId:'right',color:'#d78bff',lineWidth:2,lineStyle:L.LineStyle.Dashed,title:'Giá×Delta',priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,autoscaleInfoProvider:symmetricAutoscale},2);
   for(const key of ['mid','upper','lower'])series[key]=chart.addSeries(L.LineSeries,{color:key==='mid'?'#9db5d1':'#8596ad',lineWidth:key==='mid'?2:1,lineStyle:key==='mid'?L.LineStyle.Dotted:L.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,title:'',autoscaleInfoProvider:symmetricAutoscale},2);
   series.strength.createPriceLine({price:0,color:'rgba(145,165,189,.28)',lineWidth:1,lineStyle:L.LineStyle.Dotted,axisLabelVisible:false,title:''});
   series.strength.priceScale().applyOptions({scaleMargins:LOWER_PANE_SCALE_MARGINS});
@@ -562,6 +565,8 @@ function render(fit=false){
   commonVolumeStrengthMap=new Map(commonStrengthRows.map(x=>[x.t,x]));
   writeSeries('alignment',series.alignment,volumeDeltaBandData(spyVolumeDelta,volumeStrengthMap),seriesContext);
   writeSeries('commonVolumeStrength',series.commonVolumeStrength,commonVolumeStrengthData(commonStrengthRows),seriesContext);
+  const confirmed=step===STEPS['15m']?confirmedDeltaStrength(rows.SPYUSDT??[],step):[];
+  writeSeries('confirmedDelta',series.confirmedDelta,confirmed.map(x=>Number.isFinite(x.value)?{time:x.t/1000,value:x.value}:{time:x.t/1000}),seriesContext);
   writeSeries('strength',series.strength,lineData(signalRows,'adjusted'),seriesContext);
   writeSeries('volumeStrength',series.volumeStrength,lineData(volumeStrengthRows,'adjusted'),seriesContext);
   setMarkers(strengthMarks,signalRows.filter(x=>Number.isFinite(x.adjusted)&&x.adjusted>.95).map(x=>({time:x.t/1000,position:'inBar',color:'#7dffd9',shape:'circle',text:''})));
@@ -662,6 +667,7 @@ function toggle(){
   $('geometry-overlay').style.display=$('geometry-toggle').checked||$('causal-trend-channel').checked?'block':'none';scheduleGeometryOverlay();updateGeometryReadout();
   setOptions(series.alignment,{visible:$('alignment').checked});
   setOptions(series.commonVolumeStrength,{visible:$('common-volume-strength').checked});$('chart').dataset.commonVolumeVisible=String($('common-volume-strength').checked);
+  setOptions(series.confirmedDelta,{visible:$('confirmed-delta-toggle').checked&&$('interval').value==='15m'});
   for(const key of ['priceMid','priceUpper','priceLower'])setOptions(series[key],{visible:$('price-bands').checked});
   updatePivotZones();
   schedulePivotFlowOverlay();
@@ -778,6 +784,7 @@ if(init()){
   $('refresh').onclick=()=>refresh();for(const id of ['interval','days'])$(id).onchange=()=>refresh(true);
   for(const id of ['symbol','signal'])$(id).onchange=()=>{resetStudies();render(false);};
   for(const id of ['composite','alignment','common-volume-strength','price-bands','pivot-zones','cvd-spectrum-toggle','show-strength','spy-volume-strength','bands','markers','geometry-toggle','geometry-provisional','causal-trend-channel','causal-trend-channel-provisional','geometry-pivots'])$(id).onchange=toggle;
+  $('confirmed-delta-toggle').onchange=toggle;
   for(const id of ['geometry-score','geometry-lines'])$(id).onchange=()=>render(false);
   $('wlr-soft-color-mode').onclick=()=>{const input=$('wlr-soft-colors');input.checked=!input.checked;syncDisplayModeButtons();render(false);};
   $('wlr-width-mode').onclick=()=>{$('phase-width').checked=!$('phase-width').checked;syncDisplayModeButtons();render(false);};
