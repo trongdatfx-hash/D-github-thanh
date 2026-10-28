@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-10-28T17:18:20.507Z",
+  "updatedAt": "2026-10-28T21:44:11.868Z",
   "events": [
     {
       "title": "Bank Holiday",
@@ -29,7 +29,7 @@
       "date": "2026-10-26T09:00:00.000Z",
       "timestamp": 1793005200000,
       "impact": "Low",
-      "actual": "90.2",
+      "actual": "",
       "forecast": "90.0",
       "previous": "89.9"
     },
@@ -39,7 +39,7 @@
       "date": "2026-10-26T11:00:00.000Z",
       "timestamp": 1793012400000,
       "impact": "Low",
-      "actual": "-10",
+      "actual": "",
       "forecast": "-47",
       "previous": "-55"
     },
@@ -49,9 +49,9 @@
       "date": "2026-10-26T23:50:00.000Z",
       "timestamp": 1793058600000,
       "impact": "Low",
-      "actual": "3.7%",
+      "actual": "",
       "forecast": "3.7%",
-      "previous": "3.5%"
+      "previous": "3.7%"
     },
     {
       "title": "BRC Shop Price Index y/y",
@@ -59,7 +59,7 @@
       "date": "2026-10-27T00:01:00.000Z",
       "timestamp": 1793059260000,
       "impact": "Low",
-      "actual": "2.1%",
+      "actual": "",
       "forecast": "1.6%",
       "previous": "1.4%"
     },
@@ -69,7 +69,7 @@
       "date": "2026-10-27T05:00:00.000Z",
       "timestamp": 1793077200000,
       "impact": "Low",
-      "actual": "2.4%",
+      "actual": "",
       "forecast": "1.9%",
       "previous": "1.8%"
     },
@@ -79,7 +79,7 @@
       "date": "2026-10-27T08:00:00.000Z",
       "timestamp": 1793088000000,
       "impact": "Low",
-      "actual": "10.2%",
+      "actual": "",
       "forecast": "9.9%",
       "previous": "9.9%"
     },
@@ -89,7 +89,7 @@
       "date": "2026-10-27T09:00:00.000Z",
       "timestamp": 1793091600000,
       "impact": "Low",
-      "actual": "3.5%",
+      "actual": "",
       "forecast": "3.5%",
       "previous": "3.5%"
     },
@@ -99,7 +99,7 @@
       "date": "2026-10-27T09:00:00.000Z",
       "timestamp": 1793091600000,
       "impact": "Low",
-      "actual": "3.1%",
+      "actual": "",
       "forecast": "3.1%",
       "previous": "3.1%"
     },
@@ -109,9 +109,9 @@
       "date": "2026-10-27T12:15:00.000Z",
       "timestamp": 1793103300000,
       "impact": "Low",
-      "actual": "16.8K",
+      "actual": "",
       "forecast": "",
-      "previous": "17.5K"
+      "previous": "18.5K"
     },
     {
       "title": "Core Durable Goods Orders m/m",
@@ -119,9 +119,9 @@
       "date": "2026-10-27T12:30:00.000Z",
       "timestamp": 1793104200000,
       "impact": "Low",
-      "actual": "0.5%",
+      "actual": "",
       "forecast": "0.6%",
-      "previous": "0.2%"
+      "previous": "0.3%"
     },
     {
       "title": "Durable Goods Orders m/m",
@@ -129,9 +129,9 @@
       "date": "2026-10-27T12:30:00.000Z",
       "timestamp": 1793104200000,
       "impact": "Low",
-      "actual": "1.8%",
+      "actual": "",
       "forecast": "2.0%",
-      "previous": "-0.1%"
+      "previous": "0.0%"
     },
     {
       "title": "HPI m/m",
@@ -139,9 +139,9 @@
       "date": "2026-10-27T13:00:00.000Z",
       "timestamp": 1793106000000,
       "impact": "Low",
-      "actual": "0.3%",
+      "actual": "",
       "forecast": "0.2%",
-      "previous": "0.2%"
+      "previous": "0.3%"
     },
     {
       "title": "S&P/CS Composite-20 HPI y/y",
@@ -149,7 +149,7 @@
       "date": "2026-10-27T13:00:00.000Z",
       "timestamp": 1793106000000,
       "impact": "Low",
-      "actual": "2.7%",
+      "actual": "",
       "forecast": "2.6%",
       "previous": "2.5%"
     },
@@ -159,9 +159,9 @@
       "date": "2026-10-27T14:00:00.000Z",
       "timestamp": 1793109600000,
       "impact": "Medium",
-      "actual": "91.7",
+      "actual": "",
       "forecast": "81.2",
-      "previous": "84.2"
+      "previous": "81.9"
     },
     {
       "title": "New Home Sales",
@@ -169,9 +169,9 @@
       "date": "2026-10-27T14:00:00.000Z",
       "timestamp": 1793109600000,
       "impact": "Low",
-      "actual": "676K",
+      "actual": "",
       "forecast": "651K",
-      "previous": "680K"
+      "previous": "684K"
     },
     {
       "title": "Richmond Manufacturing Index",
@@ -179,7 +179,7 @@
       "date": "2026-10-27T14:00:00.000Z",
       "timestamp": 1793109600000,
       "impact": "Low",
-      "actual": "-2",
+      "actual": "",
       "forecast": "0",
       "previous": "-2"
     },
@@ -209,7 +209,7 @@
       "date": "2026-10-28T00:30:00.000Z",
       "timestamp": 1793147400000,
       "impact": "High",
-      "actual": "0.8%",
+      "actual": "",
       "forecast": "0.7%",
       "previous": "0.4%"
     },
@@ -219,7 +219,7 @@
       "date": "2026-10-28T00:30:00.000Z",
       "timestamp": 1793147400000,
       "impact": "High",
-      "actual": "4.3%",
+      "actual": "",
       "forecast": "4.2%",
       "previous": "4.0%"
     },
@@ -229,7 +229,7 @@
       "date": "2026-10-28T00:30:00.000Z",
       "timestamp": 1793147400000,
       "impact": "High",
-      "actual": "0.3%",
+      "actual": "",
       "forecast": "0.3%",
       "previous": "0.2%"
     },
@@ -239,7 +239,7 @@
       "date": "2026-10-28T01:00:00.000Z",
       "timestamp": 1793149200000,
       "impact": "High",
-      "actual": "2.75%",
+      "actual": "",
       "forecast": "3.00%",
       "previous": "2.75%"
     },
@@ -269,7 +269,7 @@
       "date": "2026-10-28T07:00:00.000Z",
       "timestamp": 1793170800000,
       "impact": "Low",
-      "actual": "-30.8",
+      "actual": "",
       "forecast": "-30.1",
       "previous": "-30.6"
     },
@@ -279,7 +279,7 @@
       "date": "2026-10-28T09:00:00.000Z",
       "timestamp": 1793178000000,
       "impact": "Low",
-      "actual": "-15.3",
+      "actual": "",
       "forecast": "",
       "previous": "2.6"
     },
@@ -289,8 +289,8 @@
       "date": "2026-10-28T10:32:00.000Z",
       "timestamp": 1793183520000,
       "impact": "Low",
-      "actual": "3.37",
-      "forecast": "1.1",
+      "actual": "",
+      "forecast": "",
       "previous": "3.58|1.2"
     },
     {
@@ -319,9 +319,9 @@
       "date": "2026-10-28T12:30:00.000Z",
       "timestamp": 1793190600000,
       "impact": "Low",
-      "actual": "-134.9B",
+      "actual": "",
       "forecast": "-130.4B",
-      "previous": "-132.1B"
+      "previous": "-132.6B"
     },
     {
       "title": "Prelim Wholesale Inventories m/m",
@@ -329,9 +329,9 @@
       "date": "2026-10-28T12:30:00.000Z",
       "timestamp": 1793190600000,
       "impact": "Low",
-      "actual": "0.6%",
+      "actual": "",
       "forecast": "0.5%",
-      "previous": "0.5%"
+      "previous": "0.7%"
     },
     {
       "title": "CB Leading Index m/m",
@@ -339,9 +339,9 @@
       "date": "2026-10-28T13:00:00.000Z",
       "timestamp": 1793192400000,
       "impact": "Low",
-      "actual": "-0.1%",
+      "actual": "",
       "forecast": "",
-      "previous": "-0.3%"
+      "previous": "-0.2%"
     },
     {
       "title": "BOC Monetary Policy Report",
@@ -369,7 +369,7 @@
       "date": "2026-10-28T13:45:00.000Z",
       "timestamp": 1793195100000,
       "impact": "High",
-      "actual": "2.50%",
+      "actual": "",
       "forecast": "2.50%",
       "previous": "2.25%"
     },
@@ -389,7 +389,7 @@
       "date": "2026-10-28T14:30:00.000Z",
       "timestamp": 1793197800000,
       "impact": "Low",
-      "actual": "-1.9M",
+      "actual": "",
       "forecast": "0.1M",
       "previous": "-3.1M"
     },
@@ -501,7 +501,7 @@
       "impact": "Low",
       "actual": "",
       "forecast": "",
-      "previous": "4.58"
+      "previous": "4.58|1.6"
     },
     {
       "title": "Advance GDP Price Index q/q",
@@ -511,7 +511,7 @@
       "impact": "Medium",
       "actual": "",
       "forecast": "3.2%",
-      "previous": "6.1%"
+      "previous": "6.2%"
     },
     {
       "title": "Advance GDP q/q",
@@ -521,7 +521,7 @@
       "impact": "High",
       "actual": "",
       "forecast": "3.2%",
-      "previous": "2.2%"
+      "previous": "1.5%"
     },
     {
       "title": "Core PCE Price Index m/m",
@@ -661,7 +661,7 @@
       "impact": "Low",
       "actual": "",
       "forecast": "1.2%",
-      "previous": "-2.4%"
+      "previous": "-1.7%"
     },
     {
       "title": "Retail Sales y/y",
@@ -671,7 +671,7 @@
       "impact": "Low",
       "actual": "",
       "forecast": "3.3%",
-      "previous": "2.9%"
+      "previous": "2.7%"
     },
     {
       "title": "PPI q/q",
@@ -761,7 +761,7 @@
       "impact": "Low",
       "actual": "",
       "forecast": "0.1%",
-      "previous": "0.0%"
+      "previous": "0.2%"
     },
     {
       "title": "German Import Prices m/m",
@@ -861,7 +861,7 @@
       "impact": "Medium",
       "actual": "",
       "forecast": "0.1%",
-      "previous": "0.3%"
+      "previous": "0.2%"
     },
     {
       "title": "Italian Prelim GDP q/q",
@@ -891,7 +891,7 @@
       "impact": "Low",
       "actual": "",
       "forecast": "0.2%",
-      "previous": "0.6%"
+      "previous": "0.4%"
     },
     {
       "title": "Unemployment Rate",
