@@ -28,7 +28,7 @@ export async function loadPersistentHistory({days=365,signal,live=null}={}){
       const [y,m]=key.split('-').map(Number),end=Date.UTC(y,m,1)-1;return end>=cutoff;
     });
     const docs=await Promise.all(months.map(async key=>{
-      const version=key===months.at(-1)?String(manifest.lastTime??manifest.updatedAt??''):'closed';
+      const version=key===months.at(-1)?String(manifest.updatedAt??manifest.lastTime??''):'closed';
       const cached=shardCache.get(key);if(cached?.version===version)return cached.doc;
       const r=await fetch(ROOT+key+'.json?v='+version,{signal,cache:'force-cache'});
       if(!r.ok)throw Error('Thiếu shard '+key);const doc=await r.json();shardCache.set(key,{version,doc});return doc;
