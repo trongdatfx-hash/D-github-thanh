@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-10-27T16:04:14.733Z",
+  "updatedAt": "2026-10-28T05:25:44.522Z",
   "events": [
     {
       "title": "Bank Holiday",
@@ -209,7 +209,7 @@
       "date": "2026-10-28T00:30:00.000Z",
       "timestamp": 1793147400000,
       "impact": "High",
-      "actual": "",
+      "actual": "0.8%",
       "forecast": "0.7%",
       "previous": "0.4%"
     },
@@ -219,7 +219,7 @@
       "date": "2026-10-28T00:30:00.000Z",
       "timestamp": 1793147400000,
       "impact": "High",
-      "actual": "",
+      "actual": "4.3%",
       "forecast": "4.2%",
       "previous": "4.0%"
     },
@@ -229,7 +229,7 @@
       "date": "2026-10-28T00:30:00.000Z",
       "timestamp": 1793147400000,
       "impact": "High",
-      "actual": "",
+      "actual": "0.3%",
       "forecast": "0.3%",
       "previous": "0.2%"
     },
@@ -239,7 +239,7 @@
       "date": "2026-10-28T01:00:00.000Z",
       "timestamp": 1793149200000,
       "impact": "High",
-      "actual": "",
+      "actual": "2.75%",
       "forecast": "3.00%",
       "previous": "2.75%"
     },
@@ -390,7 +390,7 @@
       "timestamp": 1793197800000,
       "impact": "Low",
       "actual": "",
-      "forecast": "-0.1M",
+      "forecast": "0.1M",
       "previous": "-3.1M"
     },
     {
@@ -510,7 +510,7 @@
       "timestamp": 1793277000000,
       "impact": "Medium",
       "actual": "",
-      "forecast": "3.3%",
+      "forecast": "3.2%",
       "previous": "6.1%"
     },
     {
@@ -610,7 +610,7 @@
       "timestamp": 1793284200000,
       "impact": "Low",
       "actual": "",
-      "forecast": "",
+      "forecast": "75B",
       "previous": "77B"
     },
     {
@@ -780,7 +780,7 @@
       "timestamp": 1793343600000,
       "impact": "Low",
       "actual": "",
-      "forecast": "-0.1%",
+      "forecast": "-0.2%",
       "previous": "-0.2%"
     },
     {
