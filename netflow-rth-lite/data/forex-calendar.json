@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-10-28T05:25:44.522Z",
+  "updatedAt": "2026-10-28T11:30:57.665Z",
   "events": [
     {
       "title": "Bank Holiday",
@@ -269,7 +269,7 @@
       "date": "2026-10-28T07:00:00.000Z",
       "timestamp": 1793170800000,
       "impact": "Low",
-      "actual": "",
+      "actual": "-30.8",
       "forecast": "-30.1",
       "previous": "-30.6"
     },
@@ -279,19 +279,19 @@
       "date": "2026-10-28T09:00:00.000Z",
       "timestamp": 1793178000000,
       "impact": "Low",
-      "actual": "",
+      "actual": "-15.3",
       "forecast": "",
       "previous": "2.6"
     },
     {
       "title": "German 10-y Bond Auction",
       "country": "EUR",
-      "date": "2026-10-28T09:42:00.000Z",
-      "timestamp": 1793180520000,
+      "date": "2026-10-28T10:32:00.000Z",
+      "timestamp": 1793183520000,
       "impact": "Low",
-      "actual": "",
-      "forecast": "",
-      "previous": "3.58"
+      "actual": "3.37",
+      "forecast": "1.1",
+      "previous": "3.58|1.2"
     },
     {
       "title": "Annual Budget Release",
