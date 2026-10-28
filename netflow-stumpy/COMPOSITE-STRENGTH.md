@@ -1,9 +1,5 @@
-# Composite Strength D common
+# Composite Strength Giá×Delta
 
-Version: dcommon-taker-70-30-v1.
+For every supported interval (M5, M15, M30, H1), the Composite Strength impulse uses SPYUSDT's Binance taker **quote** delta, `(2*takerBuyQuoteVolume − quoteVolume) / mean(quoteVolume, last 20 available consecutive bars)`. It keeps the signed impulse only when the SPY candle body points in the same direction; an opposing candle or doji contributes zero. A gap restarts the normalization and Strength warmup. The causal chain sums eight impulses, smooths with EWMA half-life two, scales by 500 historical magnitudes through the normal CDF, and applies the prior-session-to-RTH adjustment. The live candle can change until close.
 
-All analyze(composite(SPY,QQQ),step) paths now use the same impulse as D common: 0.7*tanh(netSPY/SMA20(quoteSPY))+0.3*tanh(netQQQ/SMA20(quoteQQQ)). SMA uses the available prefix until twenty bars, exactly as the existing D common. Sum 8 impulses, EWMA half-life 2, 500-history magnitude-to-normal-CDF scaling, then the existing causal session adjustment. Gap handling is shared with D common. Native SPY/QQQ Strength and original-volume SPY V retain their formulas.
-
-Composite q/buy/sell/net/nf remain additive raw quote-flow measures. Only its Strength changes. Chart, studies worker, geometry, WLR phase, pivot states, trend age, analog features and research producers all use the central engine. The optional dotted D common line is disabled by default because it duplicates Composite Strength.
-
-Offline reports carry strengthVersion and are rejected until rebuilt. Historical old-policy reports cannot be used with the new features. The previous frozen V3 policy file is preserved; the new formula has its own v3-policy-lock-dcommon-v1.json. No historical edge or forward record transfers between formulas. New V3 retains its original gate checks and start date; it is a separate experimental cohort.
+The dotted yellow/white line in the upper indicator pane is the analyzed Composite Strength itself. `q/buy/sell/net/nf` in Composite remain additive SPY+QQQ raw quote flows, so the C Taker NetFlow histogram still measures both symbols. WLR color/thickness, candle agreement, pivot geometry and studies that consume Composite Strength receive the new analyzed series. Per-symbol Strength and original-volume SPY V retain their formulas. Stored research reports carrying the former Strength version are rejected until their models are rebuilt and evaluated; their prior performance claims must not be relabeled as outcomes for this series.

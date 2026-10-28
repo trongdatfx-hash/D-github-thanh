@@ -1,4 +1,4 @@
-import {normalizedTakerVolumeDelta,calculateDeltaVolumeStrength} from './engine.mjs?v=20261026-history-perf3';
+import {normalizedTakerVolumeDelta,calculateDeltaVolumeStrength} from './engine.mjs?v=20261029-price-delta1';
 
 // SPY quote taker delta gated by the direction of the same candle body.
 export function confirmedDeltaStrength(bars,step){

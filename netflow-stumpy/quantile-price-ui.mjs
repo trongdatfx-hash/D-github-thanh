@@ -1,4 +1,4 @@
-import {quantileFeature,forecastQuantiles,QR_VERSION} from './quantile-price-core.mjs?v=20261026-channel-qr1';
+import {quantileFeature,forecastQuantiles,QR_VERSION} from './quantile-price-core.mjs?v=20261029-price-delta1';
 const number=x=>Number.isFinite(x)?x.toFixed(2):'—',percent=x=>Number.isFinite(x)?(100*x).toFixed(1)+'%':'—';
 const date=t=>new Date(t).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
 const reasons={WAIT_MODEL:'Chờ mô hình phân vị',WAIT_SESSION_END:'Chân trời đi qua cuối phiên POST',WAIT_TRAINING_CUTOFF:'Mô hình chưa phù hợp mốc dự báo',WAIT_MODEL_STALE:'Mô hình cũ quá 10 ngày; chờ huấn luyện lại'};

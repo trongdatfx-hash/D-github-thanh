@@ -1,5 +1,5 @@
-import {BOX_DEFAULTS,strengthBoxes,strengthBoxLabel,summarizeStrengthBox} from './strength-box-core.mjs?v=20261026-channel-box1';
-import {encodeStrengthBox,earlyBoxRuleScore} from './strength-box-encoding.mjs?v=20261026-early-box1';
+import {BOX_DEFAULTS,strengthBoxes,strengthBoxLabel,summarizeStrengthBox} from './strength-box-core.mjs?v=20261029-price-delta1';
+import {encodeStrengthBox,earlyBoxRuleScore} from './strength-box-encoding.mjs?v=20261029-price-delta1';
 function prefixR2(prices){const n=prices.length,xm=(n-1)/2,ym=prices.reduce((a,b)=>a+b,0)/n;let xx=0,xy=0,yy=0;for(let i=0;i<n;i++){xx+=(i-xm)**2;xy+=(i-xm)*(prices[i]-ym);yy+=(prices[i]-ym)**2;}return xx>0&&yy>0?Math.max(0,Math.min(1,xy*xy/(xx*yy))):0;}
 
 // Display annotations of the channels currently drawn, not forecast snapshots.

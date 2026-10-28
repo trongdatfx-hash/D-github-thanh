@@ -1,4 +1,4 @@
-export const COMPOSITE_STRENGTH_VERSION='dcommon-taker-70-30-v1';
+export const COMPOSITE_STRENGTH_VERSION='spy-price-confirmed-taker-v1';
 export function requireCompositeStrengthVersion(value){if(value?.strengthVersion!==COMPOSITE_STRENGTH_VERSION)throw Error('Composite Strength version mismatch; rebuild features and profiles');return value;}
 export const SYMBOLS=['SPYUSDT','QQQUSDT'];
 export const STEPS={'5m':300000,'15m':900000,'30m':1800000,'1h':3600000};
@@ -28,11 +28,11 @@ export function parseKlines(rows,now,step,{includeOpen=false}={}){
 export function composite(a,b,step=null){
   // Keep additive quote flows intact; only the Strength impulse changes.
   step??=[...a,...b].map(r=>r.end-r.t+1).find(x=>Object.values(STEPS).includes(x))??STEPS['15m'];
-  const spyDelta=normalizedTakerVolumeDelta(a,step),qqqDelta=normalizedTakerVolumeDelta(b,step),deltaMap=new Map(qqqDelta.map(r=>[r.t,r.value])),spyMap=new Map(spyDelta.map(r=>[r.t,r.value])),other=new Map(b.map(x=>[x.t,x]));
+  const spyDelta=normalizedTakerVolumeDelta(a,step),spyMap=new Map(spyDelta.map(r=>[r.t,r.value])),other=new Map(b.map(x=>[x.t,x]));
   return a.flatMap(x=>{
     const y=other.get(x.t);if(!y)return [];
     const q=x.q+y.q,buy=x.buy+y.buy,sell=x.sell+y.sell,net=x.net+y.net;
-    const strengthImpulse=commonTakerDeltaValue(spyMap.get(x.t),deltaMap.get(x.t));
+    const impulse=spyMap.get(x.t),strengthImpulse=(x.c-x.o)*(2*x.buy-x.q)>0?impulse:0;
     return [{t:x.t,end:x.end,day:x.day,session:x.session,q,buy,sell,net,nf:q>0?100*net/q:null,strengthImpulse,strengthVersion:COMPOSITE_STRENGTH_VERSION}];
   });
 }

@@ -1,4 +1,4 @@
-import {loadPersistentHistory} from './history-store.mjs?v=20261026-boxqr2';
+import {loadPersistentHistory} from './history-store.mjs?v=20261029-price-delta1';
 
 // A historical view never counts as a successful live response.
 export async function chartHistoryFallback({interval,days,now=Date.now(),signal}){

@@ -1,10 +1,10 @@
-import {COMPOSITE_STRENGTH_VERSION,requireCompositeStrengthVersion} from '../engine.mjs?v=20261025-dcommon-all1';
+import {COMPOSITE_STRENGTH_VERSION,requireCompositeStrengthVersion} from '../engine.mjs?v=20261029-price-delta1';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {prepareRaw,fromKlines} from '../analogs-features.mjs?v=20261025-dcommon-all1';
-import {sessionAt} from '../engine.mjs?v=20261025-dcommon-all1';
-import {candidateIndices,summarize} from '../analogs-core.mjs?v=20261025-dcommon-all1';
+import {prepareRaw,fromKlines} from '../analogs-features.mjs?v=20261029-price-delta1';
+import {sessionAt} from '../engine.mjs?v=20261029-price-delta1';
+import {candidateIndices,summarize} from '../analogs-core.mjs?v=20261029-price-delta1';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const args=process.argv.slice(2),get=(flag,fallback)=>{const i=args.indexOf(flag);return i<0?fallback:args[i+1];};
 function save(file,data){fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,JSON.stringify({...data,strengthVersion:COMPOSITE_STRENGTH_VERSION}));}

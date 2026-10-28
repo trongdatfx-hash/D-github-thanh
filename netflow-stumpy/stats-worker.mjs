@@ -1,5 +1,5 @@
-import {strengthStatistics} from './strength-stats.mjs?v=20261025-dcommon-all1';
-import {flowAlignment} from './engine.mjs?v=20261025-dcommon-all1';
+import {strengthStatistics} from './strength-stats.mjs?v=20261029-price-delta1';
+import {flowAlignment} from './engine.mjs?v=20261029-price-delta1';
 self.onmessage=({data})=>{try{
   const alignment=flowAlignment(data.rows.SPYUSDT??[],data.rows.QQQUSDT??[],{step:data.step});
   const stats=strengthStatistics({...data.rows,alignment},data.symbol,data.source,data.step);

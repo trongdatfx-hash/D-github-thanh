@@ -1,9 +1,9 @@
-import {strengthBoxes,BOX_VERSION} from './strength-box-core.mjs?v=20261026-box1';
-import {channelStrengthBoxes} from './channel-strength-boxes.mjs?v=20261026-channel-qr1';
-import {causalTrendChannels} from './causal-trend-channel.mjs?v=20261025-dcommon-all1';
-import {calculateVolumeStrength,sessionAt} from './engine.mjs?v=20261026-history-perf3';
-import {ny,tradingDay,postEnd} from './rth-structure.mjs?v=20261025-dcommon-all1';
-import {europeOpen} from './market-clock.mjs?v=20261026-boxqr1';
+import {strengthBoxes,BOX_VERSION} from './strength-box-core.mjs?v=20261029-price-delta1';
+import {channelStrengthBoxes} from './channel-strength-boxes.mjs?v=20261029-price-delta1';
+import {causalTrendChannels} from './causal-trend-channel.mjs?v=20261029-price-delta1';
+import {calculateVolumeStrength,sessionAt} from './engine.mjs?v=20261029-price-delta1';
+import {ny,tradingDay,postEnd} from './rth-structure.mjs?v=20261029-price-delta1';
+import {europeOpen} from './market-clock.mjs?v=20261029-price-delta1';
 export const QR_VERSION='box-price-quantiles-m15-v1';
 export const QR_STEP=900000;
 export const QR_FEATURES=['intercept','spyReturn1','spyReturn4','qqqReturn4','spyNF','qqqNF','spyNF4','relativeQuoteVolume','signedEfficiency8','rangeATR','clockSin','clockCos','boxWidth','boxPosition','boxStrength','boxDirection','boxAge','boxEfficiency'];

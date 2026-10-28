@@ -1,5 +1,5 @@
-import {channelStrengthBoxes} from './channel-strength-boxes.mjs?v=20261026-channel-qr1';
-import {strengthBoxes} from './strength-box-core.mjs?v=20261026-channel-box1';
+import {channelStrengthBoxes} from './channel-strength-boxes.mjs?v=20261029-price-delta1';
+import {strengthBoxes} from './strength-box-core.mjs?v=20261029-price-delta1';
 export function createStrengthBoxLayer({chart,host,actions,getContext,onChange=()=>{}}){
  const label=document.createElement('label'),toggle=document.createElement('input');toggle.id='strength-box-toggle';toggle.type='checkbox';toggle.checked=true;label.append(toggle,'Hộp sức mạnh DVP');actions.append(label);
  const trigger=document.createElement('select');trigger.id='strength-box-trigger';for(const [value,text] of [['causal-channel','Theo kênh trend causal'],['strength','Theo Strength DVP gốc']]){const o=document.createElement('option');o.value=value;o.textContent=text;trigger.append(o);}actions.append(trigger);

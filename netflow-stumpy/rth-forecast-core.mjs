@@ -1,6 +1,6 @@
-import {shapeDistance,percentile,wilson} from './analogs-core.mjs?v=20261025-dcommon-all1';
-import {caseAt,ny,closeMinute,selectCases,STEP} from './rth-structure.mjs?v=20261025-dcommon-all1';
-import {choosePivotCohort} from './rth-pivot.mjs?v=20261025-dcommon-all1';
+import {shapeDistance,percentile,wilson} from './analogs-core.mjs?v=20261029-price-delta1';
+import {caseAt,ny,closeMinute,selectCases,STEP} from './rth-structure.mjs?v=20261029-price-delta1';
+import {choosePivotCohort} from './rth-pivot.mjs?v=20261029-price-delta1';
 export const FORECAST_MODELS=['FLAT','PRIOR','STUMPY8','STUMPY16','PIVOT8','PIVOT16'];
 export const MODEL_NAMES={FLAT:'Giữ giá hiện tại',PRIOR:'Trung vị cùng phút RTH',STUMPY8:'STUMPY · 8 nến',STUMPY16:'STUMPY · 16 nến',PIVOT8:'STUMPY + Pivot · 8 nến',PIVOT16:'STUMPY + Pivot · 16 nến'};
 export function forecastQuery(rows,{now=Date.now()}={}){

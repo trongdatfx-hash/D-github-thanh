@@ -1,5 +1,5 @@
-import {COMPOSITE_STRENGTH_VERSION,analyze,composite,calculateVolumeStrength,parseKlines,STEPS,wlrTrendThickness,candleRegimeClusters} from './engine.mjs?v=20261025-dcommon-all1';
-import {eligibleMarketBar} from './market-calendar.mjs?v=20261025-dcommon-all1';
+import {COMPOSITE_STRENGTH_VERSION,analyze,composite,calculateVolumeStrength,parseKlines,STEPS,wlrTrendThickness,candleRegimeClusters} from './engine.mjs?v=20261029-price-delta1';
+import {eligibleMarketBar} from './market-calendar.mjs?v=20261029-price-delta1';
 export function featureRows(priceRows,compositeRows,volumeRows,{now=Date.now()}={}){
   const cMap=new Map(compositeRows.map(r=>[r.t,r])),vMap=new Map(volumeRows.map(r=>[r.t,r]));
   return priceRows.filter(r=>r.end<now).map(r=>{

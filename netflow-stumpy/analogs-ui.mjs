@@ -1,4 +1,4 @@
-import {COMPOSITE_STRENGTH_VERSION} from './engine.mjs?v=20261025-dcommon-all1';
+import {COMPOSITE_STRENGTH_VERSION} from './engine.mjs?v=20261029-price-delta1';
 let worker,latest=null,key='',request=0,activeResult=null,selected=0,source='';
 const $=id=>document.getElementById(id),pct=(v,d=1)=>Number.isFinite(v)?`${v.toFixed(d)}%`:'—';
 const date=t=>new Date(t).toLocaleString('vi-VN',{timeZone:'America/New_York',hour12:false});
@@ -41,7 +41,7 @@ function search(force=false){
   const m=+$('analogs-window').value,h=+$('analogs-horizon').value,symbol=latest.symbol,technique=$('analogs-technique')?.value??'flow';
   const next=`${symbol}:${latest.rows.at(-1)?.t}:${latest.rows.length}:${m}:${h}:${technique}`;if(!force&&key===next)return;key=next;
   $('analogs-status').textContent='Đang tìm cấu trúc giá–dòng tiền trong lịch sử…';
-  if(!worker){worker=new Worker(new URL('./analogs-worker.mjs?v=20261025-dcommon-all1',import.meta.url),{type:'module'});worker.onmessage=({data})=>{if(data.id!==request)return;if(data.error){$('analogs-status').textContent=`Không tính được: ${data.error}`;return;}render(data.result,'So khớp trực tiếp · khoảng cách tương đương STUMPY MASS');};worker.onerror=()=>{$('analogs-status').textContent='Không khởi chạy được bộ so khớp. Hãy tải lại trang.';key='';worker?.terminate();worker=null;};}
+  if(!worker){worker=new Worker(new URL('./analogs-worker.mjs?v=20261029-price-delta1',import.meta.url),{type:'module'});worker.onmessage=({data})=>{if(data.id!==request)return;if(data.error){$('analogs-status').textContent=`Không tính được: ${data.error}`;return;}render(data.result,'So khớp trực tiếp · khoảng cách tương đương STUMPY MASS');};worker.onerror=()=>{$('analogs-status').textContent='Không khởi chạy được bộ so khớp. Hãy tải lại trang.';key='';worker?.terminate();worker=null;};}
   worker.postMessage({id:++request,rows:latest.rows,options:{m,h,technique}});
 }
 export function updateAnalogs({rows,symbol,interval}){

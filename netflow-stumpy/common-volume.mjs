@@ -1,11 +1,10 @@
-import {analyze,normalizedTakerVolumeDelta,commonTakerDeltaValue,calculateDeltaVolumeStrength,COMPOSITE_STRENGTH_VERSION} from './engine.mjs?v=20261025-dcommon-all1';
-export {normalizedTakerVolumeDelta,commonTakerDeltaValue,calculateDeltaVolumeStrength} from './engine.mjs?v=20261025-dcommon-all1';
+import {analyze,composite,calculateStrength,normalizedTakerVolumeDelta,commonTakerDeltaValue,calculateDeltaVolumeStrength,COMPOSITE_STRENGTH_VERSION} from './engine.mjs?v=20261029-price-delta1';
+export {normalizedTakerVolumeDelta,commonTakerDeltaValue,calculateDeltaVolumeStrength} from './engine.mjs?v=20261029-price-delta1';
 
-// Compatibility facade: D common and every Composite consumer share the engine.
+// Compatibility facade for callers that formerly requested D common. It now
+// returns the same price-confirmed SPY taker Strength used by Composite.
 export function calculateCommonTakerVolumeStrength(spyBars,qqqBars,step,{spyWeight=.7,...strengthOptions}={}){
-  const spyDelta=normalizedTakerVolumeDelta(spyBars,step),qqqDelta=normalizedTakerVolumeDelta(qqqBars,step),qqqMap=new Map(qqqDelta.map(row=>[row.t,row])),deltas=spyDelta.flatMap(row=>{
-    const value=commonTakerDeltaValue(row.value,qqqMap.get(row.t)?.value,{spyWeight});
-    return Number.isFinite(value)?[{t:row.t,value}]:[];
-  }),times=new Set(deltas.map(row=>row.t)),bars=spyBars.filter(row=>times.has(row.t));
-  return {strengthVersion:COMPOSITE_STRENGTH_VERSION,rows:analyze(bars,step,{strength:calculateDeltaVolumeStrength(deltas,step,strengthOptions)}),deltas,spyDelta,qqqDelta};
+  if(spyWeight!==.7)throw Error('Custom D common weights are no longer supported');
+  const bars=composite(spyBars,qqqBars,step),deltas=bars.map(row=>({t:row.t,value:row.strengthImpulse}));
+  return {strengthVersion:COMPOSITE_STRENGTH_VERSION,rows:analyze(bars,step,{strength:calculateStrength(bars,step,strengthOptions)}),deltas};
 }

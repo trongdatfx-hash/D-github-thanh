@@ -1,10 +1,10 @@
-import {trendSessionAt,trendSessionRows} from './trend-session.mjs?v=20261025-dcommon-all1';
-import {analyze,composite,calculateVolumeStrength,STEPS,sessionAt} from './engine.mjs?v=20261025-dcommon-all1';
-import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeometry} from './geometry.mjs?v=20261025-dcommon-all1';
-import {pivotZones} from './pivot-zones.mjs?v=20261025-dcommon-all1';
-import {causalTrendChannels} from './causal-trend-channel.mjs?v=20261027-slope-diagnostic2';
-import {preRthWlrTrend,historicalTrendAgeStates} from './pre-rth-wlr-trend.mjs?v=20261027-age-live1';
-import {chartFeatureRows} from './analogs-features.mjs?v=20261025-dcommon-all1';
+import {trendSessionAt,trendSessionRows} from './trend-session.mjs?v=20261029-price-delta1';
+import {analyze,composite,calculateVolumeStrength,STEPS,sessionAt} from './engine.mjs?v=20261029-price-delta1';
+import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeometry} from './geometry.mjs?v=20261029-price-delta1';
+import {pivotZones} from './pivot-zones.mjs?v=20261029-price-delta1';
+import {causalTrendChannels} from './causal-trend-channel.mjs?v=20261029-price-delta1';
+import {preRthWlrTrend,historicalTrendAgeStates} from './pre-rth-wlr-trend.mjs?v=20261029-price-delta1';
+import {chartFeatureRows} from './analogs-features.mjs?v=20261029-price-delta1';
 
 export function analyzeTrendSource(raw,now){
   const closed=Object.fromEntries(['SPYUSDT','QQQUSDT'].map(s=>[s,(raw[s]??[]).filter(r=>r.end<now)])),step=STEPS['15m'];

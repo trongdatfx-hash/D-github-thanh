@@ -1,9 +1,9 @@
-import {COMPOSITE_STRENGTH_VERSION,requireCompositeStrengthVersion} from '../engine.mjs?v=20261025-dcommon-all1';
+import {COMPOSITE_STRENGTH_VERSION,requireCompositeStrengthVersion} from '../engine.mjs?v=20261029-price-delta1';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {caseAt,candidatesFor,selectCases,probabilities,summarizeCases,scoreForecasts,SHAPES,STEP,ny} from '../rth-structure.mjs?v=20261025-dcommon-all1';
-import {attachPivotStates,choosePivotCohort,pivotGroups,PIVOT_PROTOCOL} from '../rth-pivot.mjs?v=20261025-dcommon-all1';
+import {caseAt,candidatesFor,selectCases,probabilities,summarizeCases,scoreForecasts,SHAPES,STEP,ny} from '../rth-structure.mjs?v=20261029-price-delta1';
+import {attachPivotStates,choosePivotCohort,pivotGroups,PIVOT_PROTOCOL} from '../rth-pivot.mjs?v=20261029-price-delta1';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),args=process.argv.slice(2),get=(flag,fallback)=>args.includes(flag)?args[args.indexOf(flag)+1]:fallback;
 const payloadFile=get('--input',path.join(root,'data/rth-structure/tasks.json')),output=get('--output',path.join(root,'data/rth-structure/report.json'));
 const save=(file,data)=>{fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,JSON.stringify({...data,strengthVersion:COMPOSITE_STRENGTH_VERSION}));};

@@ -1,8 +1,8 @@
-import {COMPOSITE_STRENGTH_VERSION,requireCompositeStrengthVersion} from '../engine.mjs?v=20261025-dcommon-all1';
+import {COMPOSITE_STRENGTH_VERSION,requireCompositeStrengthVersion} from '../engine.mjs?v=20261029-price-delta1';
 import fs from 'node:fs';import path from 'node:path';import {fileURLToPath} from 'node:url';
-import {macdFeatures,readyMacdWindow,MACD_SPEC,MACD_MODELS,pairedMacd} from '../macd-research.mjs?v=20261025-dcommon-all1';
-import {forecastPaths,pathLoss,evaluatePaths} from '../rth-forecast-core.mjs?v=20261025-dcommon-all1';
-import {selectCases} from '../rth-structure.mjs?v=20261025-dcommon-all1';
+import {macdFeatures,readyMacdWindow,MACD_SPEC,MACD_MODELS,pairedMacd} from '../macd-research.mjs?v=20261029-price-delta1';
+import {forecastPaths,pathLoss,evaluatePaths} from '../rth-forecast-core.mjs?v=20261029-price-delta1';
+import {selectCases} from '../rth-structure.mjs?v=20261029-price-delta1';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),dir=path.join(root,'data/macd'),source=path.join(root,'data/rth-forecast'),read=file=>JSON.parse(fs.readFileSync(file)),save=(name,value)=>{fs.mkdirSync(dir,{recursive:true});fs.writeFileSync(path.join(dir,name),JSON.stringify({...value,strengthVersion:COMPOSITE_STRENGTH_VERSION}));};
 if(!process.argv.includes('--finalize')){
  const data=read(path.join(source,'tasks.json')),rows=macdFeatures(data.rows.SPYUSDT),cases=data.cases.filter(c=>readyMacdWindow(rows,c)),allowed=new Set(cases.map(c=>c.startIndex)),tasks={},queries={},evaluations=[];

@@ -1,9 +1,9 @@
-import {COMPOSITE_STRENGTH_VERSION,requireCompositeStrengthVersion} from '../engine.mjs?v=20261025-dcommon-all1';
+import {COMPOSITE_STRENGTH_VERSION,requireCompositeStrengthVersion} from '../engine.mjs?v=20261029-price-delta1';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {caseAt,ny,STEP} from '../rth-structure.mjs?v=20261025-dcommon-all1';
-import {FORECAST_MODELS,predictPath,pathLoss,evaluatePaths} from '../rth-forecast-core.mjs?v=20261025-dcommon-all1';
+import {caseAt,ny,STEP} from '../rth-structure.mjs?v=20261029-price-delta1';
+import {FORECAST_MODELS,predictPath,pathLoss,evaluatePaths} from '../rth-forecast-core.mjs?v=20261029-price-delta1';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),dir=path.join(root,'data/rth-forecast'),save=(name,value)=>{fs.mkdirSync(dir,{recursive:true});fs.writeFileSync(path.join(dir,name),JSON.stringify({...value,strengthVersion:COMPOSITE_STRENGTH_VERSION}));},finalize=process.argv.includes('--finalize');
 if(!finalize){
  const source=JSON.parse(fs.readFileSync(path.join(root,'data/rth-structure/tasks.json'))),rows=source.rows.SPYUSDT,lookup=new Map(rows.map(r=>[r.t,r])),cases=[];

@@ -1,4 +1,4 @@
-import {ny,stamp,closeMinute,tradingDay} from './rth-structure.mjs?v=20261025-dcommon-all1';
+import {ny,stamp,closeMinute,tradingDay} from './rth-structure.mjs?v=20261029-price-delta1';
 export const BOX_ENCODING_VERSION='strength-box-code-v1';
 export const BOX_ENCODING_FEATURES=Object.freeze(['direction','backBars','channelBars','widthATR','rwEfficiency','slopeATR','priceR2','compositeAlongTrend','volumeAlongTrend','priceEfficiency','appearanceClockSin','appearanceClockCos','weekdaySin','weekdayCos','barsFromSessionOpen','barsSincePreviousAppearance','ageAtEncodingBars','minutesSincePreviousAppearance']);
 const clamp=x=>Math.max(0,Math.min(1,x));
