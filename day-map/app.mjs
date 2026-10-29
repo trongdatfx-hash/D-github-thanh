@@ -1,10 +1,11 @@
-import {analyze,composite,calculateVolumeStrength,STEPS,sessionAt} from '../netflow-stumpy/engine.mjs?v=20261029-h1-map1';
+import {analyze,composite,calculateVolumeStrength,weightedPriceBands,STEPS,sessionAt} from '../netflow-stumpy/engine.mjs?v=20261029-colorstrength1';
 import {trendSessionRows} from '../netflow-stumpy/trend-session.mjs?v=20261029-h1-map1';
 import {causalTrendChannels} from '../netflow-stumpy/causal-trend-channel.mjs?v=20261029-h1-map1';
 import {historicalTrendAgeStates} from '../netflow-stumpy/pre-rth-wlr-trend.mjs?v=20261029-h1-map1';
 import {channelStrengthBoxes} from '../netflow-stumpy/channel-strength-boxes.mjs?v=20261029-h1-map1';
+import {wlrSoftColors} from '../netflow-stumpy/wlr-soft-color.mjs?v=20261029-colorstrength1';
 import {collectionFor,openClosedPairStream,topUpLive} from './live-topup.mjs?v=20261029-topup3';
-import {buildDailyMaps,buildIntradayDay,additiveMacroForecast,macroPcaProjection,walkForwardMacroAudit} from './day-map-core.mjs?v=20261029-topup3';
+import {buildDailyMaps,buildIntradayDay,additiveMacroForecast,macroPcaProjection,walkForwardMacroAudit} from './day-map-core.mjs?v=20261029-colorstrength1';
 
 const $=id=>document.getElementById(id),STEP=STEPS['15m'],LOOKBACK_DAYS=730;let days=[],forecast=null,manifest=null,audit=null,rawHistory=null,liveStream=null,restSyncing=false,repairing=false;
 const pct=x=>Number.isFinite(x)?`${x>0?'+':''}${x.toFixed(2)}%`:'—';
@@ -83,7 +84,7 @@ function render(){
   $('age').textContent=`${f.age.h1.current}${isPreview&&m30?.ageOffset?` + ${m30.ageOffset.toFixed(1)} preview`:''} → ${f.age.h1.final.p50} H1`;$('age-band').textContent=`Còn P50 ${f.age.h1.remaining.p50} H1 · P10–P90 ${f.age.h1.final.p10}–${f.age.h1.final.p90}${isPreview&&m30?.locked?` · M30 ${m30.hh?'HH':''}${m30.ll?'LL':''}${!m30.hh&&!m30.ll?'INSIDE':''} ${m30.aligned?'ủng hộ':'chưa ủng hộ'}`:''}`;
   $('cohort').textContent=`${f.n} chuỗi · N độc lập ${f.independentN.toFixed(1)}`;$('cohort-note').textContent=f.referenceOnly?`THAM KHẢO · cần ≥${f.minEffective} ngày/mẫu hiệu dụng`:'Đủ ngưỡng nghiên cứu';
   drawMacroMap(view);drawAgeMap(f);drawStateMap(index);renderSimilar();
-  const lag=manifest?.collection?.lagHours,status=String(manifest?.collection?.status??'').toUpperCase(),completeDays=days.filter(x=>!x.preview).length;$('status').className=stale?'negative':'';$('status').textContent=`${completeDays} ngày hoàn chỉnh${isPreview?` · hôm nay ${days[index].closedM15} M15 đóng`:''} · H1 khóa từ 4 M15 đóng · dữ liệu đến ${new Date(manifest.lastTime).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})}${status?` · ${status}`:''}${Number.isFinite(lag)?` · trễ ${lag.toFixed(1)}h`:''}${topUpStatusText()}`;
+  const lag=manifest?.collection?.lagHours,status=String(manifest?.collection?.status??'').toUpperCase(),completeDays=days.filter(x=>!x.preview).length;$('status').className=stale?'negative':'';$('status').textContent=`${completeDays} ngày hoàn chỉnh${isPreview?` · hôm nay ${days[index].closedM15} M15 đóng`:''} · Màu+SPY V+Strength M15→H1 · H1 khóa từ 4 M15 đóng · dữ liệu đến ${new Date(manifest.lastTime).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})}${status?` · ${status}`:''}${Number.isFinite(lag)?` · trễ ${lag.toFixed(1)}h`:''}${topUpStatusText()}`;
 }
 function rebuild(raw){
     manifest=raw.manifest;const now=manifest?.collection?.checkedAt??(manifest.lastTime??Date.now())+STEP;
@@ -91,7 +92,8 @@ function rebuild(raw){
     const market=trendSessionRows(spy.filter(x=>x.end<now)),times=new Set(market.map(x=>x.t)),marketVolume=volume.filter(x=>times.has(x.t)),channels=causalTrendChannels(market.map(x=>x.session==='EURO'?{...x,session:'PRE'}:x),{volumeRows:marketVolume,maxHistory:Infinity});
     const trendStates=historicalTrendAgeStates({priceRows:spy,strengthRows:comp,volumeRows:marketVolume,channelTrends:channels.episodes,now,fromTime:-Infinity});
     const boxes=channelStrengthBoxes(spy,{channels:channels.episodes,showEarly:false,back:8,now,step:STEP,compositeRows:new Map(comp.map(x=>[x.t,x])),volumeRows:new Map(volume.map(x=>[x.t,x])),compositeMode:'annotate'});
-    days=buildDailyMaps({priceRows:spy,boxSnapshots:boxes.snapshots,trendStates});if(days.length<13)throw Error('Chưa đủ ngày hoàn chỉnh để lập cohort H1');audit=walkForwardMacroAudit(days,{k:60,minSamples:12,minEffective:20,minIndex:20});renderAudit();const intraday=buildIntradayDay({priceRows:spy,boxSnapshots:boxes.snapshots,trendStates});if(intraday&&intraday.day>days.at(-1).day)days.push(intraday);
+    const strengthMap=new Map(comp.map(x=>[x.t,x])),volumeMap=new Map(volume.map(x=>[x.t,x])),wlrColors=wlrSoftColors(spy,weightedPriceBands(spy,STEP),strengthMap,volumeMap,{step:STEP,closedBefore:now});
+    days=buildDailyMaps({priceRows:spy,boxSnapshots:boxes.snapshots,trendStates,wlrColors,strengthRows:comp});if(days.length<13)throw Error('Chưa đủ ngày hoàn chỉnh để lập cohort H1');audit=walkForwardMacroAudit(days,{k:60,minSamples:12,minEffective:20,minIndex:20});renderAudit();const intraday=buildIntradayDay({priceRows:spy,boxSnapshots:boxes.snapshots,trendStates,wlrColors,strengthRows:comp});if(intraday&&intraday.day>days.at(-1).day)days.push(intraday);
     $('day').innerHTML=days.map((x,i)=>`<option value="${i}">${x.day}${x.preview?' · HÔM NAY M30 PREVIEW':i===days.length-1?' · mới nhất':''}</option>`).reverse().join('');$('day').value=String(days.length-1);render();
 }
 async function refreshFromRest(){
