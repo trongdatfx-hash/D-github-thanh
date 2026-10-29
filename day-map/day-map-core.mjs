@@ -21,6 +21,31 @@ export function weightedQuantile(values,weights,p){
   return pairs.at(-1).value;
 }
 
+// Causal weekly reversal study at confirmed (dark green/red) WLR points.
+// One sample is admitted per confirmed color run. Its outcome is resolved only
+// after five later US sessions have closed, so the selected checkpoint never
+// learns from its own future.
+export function weeklyWlrReversalForecast(priceRows=[],wlrColors=[],asOf=Infinity,{horizonDays=5,minSamples=20,deadband=.15}={}){
+  const rows=[...priceRows].filter(x=>Number.isFinite(x?.t)&&Number.isFinite(x?.c)&&x.t<asOf).sort((a,b)=>a.t-b.t),colorMap=wlrColors instanceof Map?wlrColors:new Map(wlrColors.filter(x=>Number.isFinite(x?.t)).map(x=>[x.t,x]));
+  if(!rows.length)return {ready:false,active:false,reason:'Chưa có dữ liệu giá đã đóng'};
+  const dayCloses=[],dayIndex=new Map();
+  for(const row of rows){const clock=nyClock(row.t);if(['Sat','Sun'].includes(clock.weekday)||clock.minute<DAY_START||clock.minute>=DAY_END)continue;const index=dayIndex.get(clock.day);if(index===undefined){dayIndex.set(clock.day,dayCloses.length);dayCloses.push({day:clock.day,t:row.t,c:row.c});}else if(row.t>dayCloses[index].t)dayCloses[index]={day:clock.day,t:row.t,c:row.c};}
+  const events=[];let inRun=false,runDirection=0,previousT=null;
+  for(const row of rows){const color=colorMap.get(row.t),direction=[-1,1].includes(color?.trendDirection)?color.trendDirection:0,strong=color?.closed===true&&color?.tone==='confirmed'&&direction!==0,contiguous=previousT===null||row.t-previousT===900000;
+    if(strong&&(!inRun||direction!==runDirection||!contiguous))events.push({t:row.t,day:nyClock(row.t).day,price:row.c,direction,width:Number.isFinite(color.width)?color.width:2,smoothed:Number.isFinite(color.smoothed)?color.smoothed:0});
+    inRun=strong;runDirection=strong?direction:0;previousT=row.t;
+  }
+  const latestRow=[...rows].reverse().find(x=>colorMap.get(x.t)?.closed===true);if(!latestRow)return {ready:false,active:false,reason:'Chưa có nến WLR đã đóng'};const latestColor=colorMap.get(latestRow.t),latestDirection=[-1,1].includes(latestColor?.trendDirection)?latestColor.trendDirection:0,active=latestColor?.tone==='confirmed'&&latestDirection!==0;
+  if(!active)return {ready:false,active:false,reason:'WLR hiện tại chưa ở màu đậm xanh/đỏ',asOf:latestRow.t};
+  const current=[...events].reverse().find(x=>x.direction===latestDirection&&x.t<=latestRow.t);if(!current)return {ready:false,active:false,reason:'Chưa xác định được điểm bắt đầu WLR đậm'};
+  current.price=latestRow.c;current.t=latestRow.t;current.day=nyClock(latestRow.t).day;current.width=Number.isFinite(latestColor.width)?latestColor.width:current.width;current.smoothed=Number.isFinite(latestColor.smoothed)?latestColor.smoothed:current.smoothed;
+  const outcomes=[];
+  for(const event of events){if(event.t>=current.t||event.direction!==current.direction)continue;const index=dayIndex.get(event.day),target=dayCloses[index+horizonDays];if(!Number.isInteger(index)||!target||target.t>=current.t)continue;const returnPct=100*(target.c/event.price-1),reversal=event.direction*returnPct< -deadband,distance=Math.abs(event.width-current.width)/3+Math.abs(Math.abs(event.smoothed)-Math.abs(current.smoothed));outcomes.push({...event,targetDay:target.day,returnPct,reversal,weight:Math.exp(-distance)});}
+  if(outcomes.length<minSamples)return {ready:false,active:true,direction:current.direction,current,n:outcomes.length,reason:`Chỉ có ${outcomes.length}/${minSamples} mẫu WLR đậm đã đủ 5 phiên`};
+  const total=outcomes.reduce((s,x)=>s+x.weight,0),reversalWeight=outcomes.reduce((s,x)=>s+x.weight*(x.reversal?1:0),0),prior=20,reversalProbability=(reversalWeight+prior*.5)/(total+prior),reversed=outcomes.filter(x=>x.reversal),values=reversed.map(x=>x.returnPct),weights=reversed.map(x=>x.weight),p10=weightedQuantile(values,weights,.10),p50=weightedQuantile(values,weights,.50),p90=weightedQuantile(values,weights,.90),targetPrice=Number.isFinite(p50)?current.price*(1+p50/100):null,neff=total*total/Math.max(1e-12,outcomes.reduce((s,x)=>s+x.weight*x.weight,0));
+  return {ready:true,active:true,direction:current.direction,current,n:outcomes.length,neff,reversalN:reversed.length,reversalProbability,horizonDays,deadband,returnBand:{p10,p50,p90},targetPrice,referenceOnly:neff<minSamples};
+}
+
 // Merge browser-fetched bars into the archive without ever admitting a candle
 // whose close time has not passed. The later source wins on an overlapping
 // timestamp so REST can refresh the archive's last closed candle safely.
