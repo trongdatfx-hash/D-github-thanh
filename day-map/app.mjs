@@ -3,8 +3,8 @@ import {trendSessionRows} from '../netflow-stumpy/trend-session.mjs?v=20261029-h
 import {causalTrendChannels} from '../netflow-stumpy/causal-trend-channel.mjs?v=20261029-h1-map1';
 import {historicalTrendAgeStates} from '../netflow-stumpy/pre-rth-wlr-trend.mjs?v=20261029-h1-map1';
 import {channelStrengthBoxes} from '../netflow-stumpy/channel-strength-boxes.mjs?v=20261029-h1-map1';
-import {collectionFor,openClosedPairStream,topUpLive} from './live-topup.mjs?v=20261029-topup2';
-import {buildDailyMaps,buildIntradayDay,additiveMacroForecast,macroPcaProjection,walkForwardMacroAudit} from './day-map-core.mjs?v=20261029-topup2';
+import {collectionFor,openClosedPairStream,topUpLive} from './live-topup.mjs?v=20261029-topup3';
+import {buildDailyMaps,buildIntradayDay,additiveMacroForecast,macroPcaProjection,walkForwardMacroAudit} from './day-map-core.mjs?v=20261029-topup3';
 
 const $=id=>document.getElementById(id),STEP=STEPS['15m'],LOOKBACK_DAYS=730;let days=[],forecast=null,manifest=null,audit=null,rawHistory=null,liveStream=null,restSyncing=false,repairing=false;
 const pct=x=>Number.isFinite(x)?`${x>0?'+':''}${x.toFixed(2)}%`:'—';
