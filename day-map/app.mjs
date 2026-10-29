@@ -5,9 +5,9 @@ import {historicalTrendAgeStates} from '../netflow-stumpy/pre-rth-wlr-trend.mjs?
 import {channelStrengthBoxes} from '../netflow-stumpy/channel-strength-boxes.mjs?v=20261029-h1-map1';
 import {wlrSoftColors} from '../netflow-stumpy/wlr-soft-color.mjs?v=20261029-colorstrength1';
 import {collectionFor,openClosedPairStream,topUpLive} from './live-topup.mjs?v=20261029-topup3';
-import {buildDailyMaps,buildIntradayDay,additiveMacroForecast,macroPcaProjection,walkForwardMacroAudit} from './day-map-core.mjs?v=20261029-colorstrength1';
+import {buildDailyMaps,buildIntradayDay,additiveMacroForecast,macroPcaProjection,walkForwardMacroAudit,weeklyWlrReversalForecast} from './day-map-core.mjs?v=20261029-wlrweek1';
 
-const $=id=>document.getElementById(id),STEP=STEPS['15m'],LOOKBACK_DAYS=730;let days=[],forecast=null,manifest=null,audit=null,rawHistory=null,liveStream=null,restSyncing=false,repairing=false;
+const $=id=>document.getElementById(id),STEP=STEPS['15m'],LOOKBACK_DAYS=730;let days=[],forecast=null,manifest=null,audit=null,rawHistory=null,liveStream=null,restSyncing=false,repairing=false,modelRows=[],modelWlrColors=[],autoRefresh=true,autoTimer=null;
 const pct=x=>Number.isFinite(x)?`${x>0?'+':''}${x.toFixed(2)}%`:'—';
 const price=x=>Number.isFinite(x)?x.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
 const clock=minute=>`${String(Math.floor(minute/60)).padStart(2,'0')}:${String(minute%60).padStart(2,'0')}`;
@@ -82,8 +82,18 @@ function drawStateMap(index){
 function renderSimilar(){
   $('similar').innerHTML=forecast.ranked.map(x=>`<div class="similar-row"><b>${x.state.day}<small>${clock(x.state.minute)}</small></b><span>d=${x.distance.toFixed(2)} · w=${Math.round(100*x.weight)}%</span><em>${x.outcome.finalAgeH1} H1</em><em class="${x.outcome.growthPct>0?'positive':'negative'}">${pct(x.outcome.growthPct)}</em></div>`).join('');
 }
+function renderWeeklyWlr(index){
+  const selected=days[index],asOf=(selected?.rows?.at(-1)?.end??selected?.rows?.at(-1)?.t??manifest?.lastTime??Date.now())+1,result=weeklyWlrReversalForecast(modelRows,modelWlrColors,asOf,{horizonDays:5,minSamples:20,deadband:.15}),signal=$('wlr-week'),main=$('wlr-week-main'),note=$('wlr-week-note');
+  if(!result.active){signal.textContent='WAIT';signal.className='wait';main.textContent=result.reason;note.textContent='Chỉ kích hoạt tại WLR confirmed xanh/đỏ trên nến đã đóng.';return;}
+  const color=result.direction>0?'XANH ĐẬM':'ĐỎ ĐẬM';signal.textContent=color;signal.className=result.direction>0?'positive':'negative';
+  if(!result.ready){main.textContent='P đảo chiều: WAIT';note.textContent=`${result.reason} · không ép mục tiêu tuần.`;return;}
+  const probability=Math.round(100*result.reversalProbability),move=result.returnBand.p50,target=result.targetPrice;
+  main.textContent=`P đảo chiều tuần ${probability}% · P50 ${price(target)}`;
+  note.textContent=`Kỳ vọng ${pct(move)} trong 5 phiên · ${result.n} mẫu (${result.reversalN} đảo chiều) · N hiệu dụng ${result.neff.toFixed(1)}${result.referenceOnly?' · THAM KHẢO':''}`;
+}
 function render(){
   const index=Number($('day').value),k=Number($('neighbors').value),stale=latestDataIsStale(index),isPreview=days[index]?.preview===true,m30=days[index]?.m30Preview;
+  renderWeeklyWlr(index);
   forecast=additiveMacroForecast(days,index,{k,minSamples:12,minEffective:20});
   if(!forecast.ready){
     $('signal').textContent='WAIT';$('signal').className='wait';
@@ -116,6 +126,7 @@ function rebuild(raw){
     const trendStates=historicalTrendAgeStates({priceRows:spy,strengthRows:comp,volumeRows:marketVolume,channelTrends:channels.episodes,now,fromTime:-Infinity});
     const boxes=channelStrengthBoxes(spy,{channels:channels.episodes,showEarly:false,back:8,now,step:STEP,compositeRows:new Map(comp.map(x=>[x.t,x])),volumeRows:new Map(volume.map(x=>[x.t,x])),compositeMode:'annotate'});
     const strengthMap=new Map(comp.map(x=>[x.t,x])),volumeMap=new Map(volume.map(x=>[x.t,x])),wlrColors=wlrSoftColors(spy,weightedPriceBands(spy,STEP),strengthMap,volumeMap,{step:STEP,closedBefore:now});
+    modelRows=spy;modelWlrColors=wlrColors;
     days=buildDailyMaps({priceRows:spy,boxSnapshots:boxes.snapshots,trendStates,wlrColors,strengthRows:comp});if(days.length<13)throw Error('Chưa đủ ngày hoàn chỉnh để lập cohort H1');audit=walkForwardMacroAudit(days,{k:60,minSamples:12,minEffective:20,minIndex:20});renderAudit();const intraday=buildIntradayDay({priceRows:spy,boxSnapshots:boxes.snapshots,trendStates,wlrColors,strengthRows:comp});if(intraday&&intraday.day>days.at(-1).day)days.push(intraday);
     $('day').innerHTML=days.map((x,i)=>`<option value="${i}">${x.day}${x.preview?' · HÔM NAY M30 PREVIEW':i===days.length-1?' · mới nhất':''}</option>`).reverse().join('');$('day').value=String(days.length-1);render();
 }
@@ -148,13 +159,16 @@ async function init(){
 }
 async function manualRefresh(){
   const button=$('refresh');if(button.disabled)return;button.disabled=true;button.textContent='↻ Đang làm tươi…';
-  try{const advanced=await refreshFromRest();button.textContent=advanced?'✓ Đã có M15 mới':'✓ Dữ liệu hiện tại';}
+  try{const advanced=await refreshFromRest();if(autoRefresh&&rawHistory)startStream();button.textContent=advanced?'✓ Đã có M15 mới':'✓ Dữ liệu hiện tại';}
   catch(error){$('status').textContent=`Làm tươi lỗi: ${error.message}`;$('status').className='negative';button.textContent='! Thử lại';}
   finally{setTimeout(()=>{button.disabled=false;button.textContent='↻ Làm tươi';},1400);}
 }
-$('day').addEventListener('change',render);$('neighbors').addEventListener('change',render);$('latest').addEventListener('click',()=>{$('day').value=String(days.length-1);render();});$('refresh').addEventListener('click',manualRefresh);addEventListener('resize',()=>{if(forecast?.ready)render();});init();
-setInterval(()=>{if(document.visibilityState==='visible')refreshFromRest();},5*60*1000);
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refreshFromRest();});
+function setAutoRefresh(enabled){
+  autoRefresh=enabled;clearInterval(autoTimer);autoTimer=null;const button=$('auto-refresh');button.textContent=enabled?'● AUTO LIVE':'○ AUTO TẮT';button.classList.toggle('active',enabled);button.setAttribute('aria-pressed',String(enabled));
+  if(enabled){autoTimer=setInterval(()=>{if(document.visibilityState==='visible')refreshFromRest();},60000);if(rawHistory)startStream();}else{liveStream?.close();liveStream=null;}
+}
+$('day').addEventListener('change',render);$('neighbors').addEventListener('change',render);$('latest').addEventListener('click',()=>{$('day').value=String(days.length-1);render();});$('refresh').addEventListener('click',manualRefresh);$('auto-refresh').addEventListener('click',()=>setAutoRefresh(!autoRefresh));addEventListener('resize',()=>{if(forecast?.ready)render();});init();setAutoRefresh(true);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&autoRefresh){refreshFromRest();if(rawHistory)startStream();}});
 
 
 
