@@ -6,19 +6,19 @@ const KLINES='https://fapi.binance.com/fapi/v1/klines';
 const STREAM='wss://fstream.binance.com/stream?streams=spyusdt@kline_15m/qqqusdt@kline_15m';
 
 function compactKline(k,step=STEP){
-  if(!Array.isArray(k)||k.length<11)throw Error('Kline thi?u tr�?ng');
+  if(!Array.isArray(k)||k.length<11)throw Error('Kline thiếu trường');
   const t=Number(k[0]),o=+k[1],h=+k[2],l=+k[3],c=+k[4],v=+k[5],end=Number(k[6]),q=+k[7],buy=+k[10],row=[t,o,h,l,c,v,end,q,buy];
-  if(!row.every(Number.isFinite)||t%step!==0||end!==t+step-1||o<=0||c<=0||l<=0||h<Math.max(o,c)||l>Math.min(o,c)||q<0||buy<0||buy>q)throw Error('Kline kh�ng h?p l?');
+  if(!row.every(Number.isFinite)||t%step!==0||end!==t+step-1||o<=0||c<=0||l<=0||h<Math.max(o,c)||l>Math.min(o,c)||q<0||buy<0||buy>q)throw Error('Kline không hợp lệ');
   return row;
 }
 
 export function closedContiguousKlines(raw,{afterT,now,step=STEP}){
-  if(!Array.isArray(raw))throw Error('Ph?n h?i klines kh�ng ph?i m?ng');
+  if(!Array.isArray(raw))throw Error('Phản hồi klines không phải mảng');
   const byT=new Map();
   for(const k of raw){
     const row=compactKline(k,step),t=row[0],end=row[6];
     if(end>=now||t<=afterT)continue;
-    const old=byT.get(t);if(old&&old.some((x,i)=>x!==row[i]))throw Error('Kline tr�ng timestamp kh�c d? li?u');
+    const old=byT.get(t);if(old&&old.some((x,i)=>x!==row[i]))throw Error('Kline trùng timestamp khác dữ liệu');
     byT.set(t,row);
   }
   const out=[];let expect=afterT+step;
@@ -45,7 +45,7 @@ export async function fetchKlinePages(symbol,startTime,{now=Date.now(),fetchImpl
     const url=`${KLINES}?symbol=${symbol}&interval=15m&limit=1000&startTime=${cursor}&endTime=${now}`;
     const response=await fetchImpl(url,{cache:'no-store'});
     if(!response.ok)throw Error(`Binance klines HTTP ${response.status}`);
-    const part=await response.json();if(!Array.isArray(part))throw Error('Binance klines tr? v? kh�ng ph?i m?ng');
+    const part=await response.json();if(!Array.isArray(part))throw Error('Binance klines trả về không phải mảng');
     if(!part.length)break;rows.push(...part);
     const next=Number(part.at(-1)[0])+STEP;if(!(next>cursor))break;cursor=next;
     if(part.length<1000)break;
@@ -59,12 +59,12 @@ export async function topUpLive(base,toRow,{now=Date.now(),fetchImpl=fetch}={}){
   const fail=reason=>({...base,manifest:{...base.manifest,topUp:{status:'failed',reason:String(reason?.message??reason)}}});
   try{
     const lastS=base.SPYUSDT.at(-1)?.t,lastQ=base.QQQUSDT.at(-1)?.t;
-    if(!Number.isFinite(lastS)||!Number.isFinite(lastQ))return fail('Thi?u n?n g?c �? n?i');
+    if(!Number.isFinite(lastS)||!Number.isFinite(lastQ))return fail('Thiếu nến gốc để nối');
     const [rawS,rawQ]=await Promise.all([fetchKlinePages('SPYUSDT',lastS+STEP,{now,fetchImpl}),fetchKlinePages('QQQUSDT',lastQ+STEP,{now,fetchImpl})]);
     const closedS=closedContiguousKlines(rawS,{afterT:lastS,now}),closedQ=closedContiguousKlines(rawQ,{afterT:lastQ,now});
     const [s,q]=trimToCommonEnd(closedS,closedQ);
     if(!s.length){
-      if(closedS.length||closedQ.length)return fail('Hai m? ch�a c� c�ng n?n ��ng li?n k?');
+      if(closedS.length||closedQ.length)return fail('Hai mã chưa có cùng nến đóng liền kề');
       const lastBySymbol={SPYUSDT:lastS,QQQUSDT:lastQ},collection=collectionFor({lastBySymbol,checkedAt:now,source:'browser-rest'});
       return {...base,manifest:{...base.manifest,collection,topUp:{status:'current',added:0,storedCollection:base.manifest.collection??null}}};
     }
@@ -105,4 +105,3 @@ export function openClosedPairStream({afterT,onPair,onGap,onStatus,WebSocketImpl
   };
   connect();return {close(){closed=true;clearTimeout(timer);socket?.close();},expected(){return expected;}};
 }
-
