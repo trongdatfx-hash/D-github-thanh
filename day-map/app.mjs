@@ -3,7 +3,7 @@ import {trendSessionRows} from '../netflow-stumpy/trend-session.mjs?v=20261029-h
 import {causalTrendChannels} from '../netflow-stumpy/causal-trend-channel.mjs?v=20261029-h1-map1';
 import {historicalTrendAgeStates} from '../netflow-stumpy/pre-rth-wlr-trend.mjs?v=20261029-h1-map1';
 import {channelStrengthBoxes} from '../netflow-stumpy/channel-strength-boxes.mjs?v=20261029-h1-map1';
-import {buildDailyMaps,additiveMacroForecast,macroPcaProjection,walkForwardMacroAudit} from './day-map-core.mjs?v=20261029-h1-map3';
+import {buildDailyMaps,additiveMacroForecast,macroPcaProjection,walkForwardMacroAudit} from './day-map-core.mjs?v=20261029-h1-map4';
 
 const $=id=>document.getElementById(id),STEP=STEPS['15m'],LOOKBACK_DAYS=730;let days=[],forecast=null,manifest=null,audit=null;
 const pct=x=>Number.isFinite(x)?`${x>0?'+':''}${x.toFixed(2)}%`:'—';
@@ -31,9 +31,9 @@ function latestDataIsStale(index){const lag=Number(manifest?.collection?.lagHour
 function clearForecastPanels(){for(const id of ['macro-map','age-map','state-map']){const canvas=$(id),ctx=canvas?.getContext?.('2d');if(ctx)ctx.clearRect(0,0,canvas.width,canvas.height);}$('similar').replaceChildren();}
 function renderAudit(){
   if(!audit?.ready){$('audit-result').textContent='WAIT';$('audit-note').textContent=audit?.reason??'Chưa đủ checkpoint đã phân giải';return;}
-  const precision=Number.isFinite(audit.signalPrecision)?Math.round(100*audit.signalPrecision)+'%':'—',age=Math.round(100*audit.ageCoverage),box=Math.round(100*audit.boxCoverage);
-  $('audit-result').textContent=`${audit.n} mốc · Brier ${audit.brier.toFixed(3)}`;
-  $('audit-note').textContent=`Tín hiệu ${audit.signals} · đúng mở rộng ${precision} · phủ tuổi P10–P90 ${age}% · phủ hộp ${box}%`;
+  const precision=Number.isFinite(audit.signalPrecision)?Math.round(100*audit.signalPrecision)+'%':'—',age=Math.round(100*audit.ageCoverage),box=Math.round(100*audit.boxCoverage),skill=Number.isFinite(audit.brierSkill)?`${audit.brierSkill>=0?'+':''}${Math.round(100*audit.brierSkill)}%`:'—';
+  $('audit-result').textContent=`${audit.n} mốc · Brier ${audit.brier.toFixed(3)} · skill ${skill}`;
+  $('audit-note').textContent=`Tín hiệu ${audit.signals} · đúng mở rộng ${precision} · phủ tuổi ${age}% · phủ hộp gốc ${box}% · đệm conformal ${audit.boxPadding80.toFixed(2)}%`;
 }
 
 function drawMacroMap(f){
@@ -75,12 +75,12 @@ function renderSimilar(){
 function render(){
   const index=Number($('day').value),k=Number($('neighbors').value),stale=latestDataIsStale(index);forecast=additiveMacroForecast(days,index,{k,minSamples:12,minEffective:20});
   if(!forecast.ready){$('signal').textContent='WAIT';$('signal').className='wait';$('confidence').textContent=stale?'DỮ LIỆU TRỄ · không phát tín hiệu':'CONF 0% · WAIT 100%';$('status').textContent=forecast.reason;clearForecastPanels();return;}
-  const f=forecast,open=f.current.sourceBlock.o,low=open*(1+f.box.lower.p50/100),high=open*(1+f.box.upper.p50/100),shownLabel=stale?'WAIT':f.label;
+  const f=forecast,pad=audit?.ready&&audit.n>=30?audit.boxPadding80:0,view=pad>0?{...f,box:{...f.box,lower:{...f.box.lower,p10:f.box.lower.p10-pad,p90:f.box.lower.p90+pad},upper:{...f.box.upper,p10:f.box.upper.p10-pad,p90:f.box.upper.p90+pad}}}:f,open=f.current.sourceBlock.o,low=open*(1+f.box.lower.p50/100),high=open*(1+f.box.upper.p50/100),shownLabel=stale?'WAIT':f.label;
   $('signal').textContent=shownLabel;$('signal').className=shownLabel.toLowerCase();$('confidence').textContent=stale?`DỮ LIỆU TRỄ · P mở tham khảo ${Math.round(100*f.expandProbability)}%`:`CONF ${f.confidence}% · WAIT ${f.wait}% · P mở ${Math.round(100*f.expandProbability)}%`;
-  $('box').textContent=`${price(low)} → ${price(high)}`;$('box-band').textContent=`H1 Open ${price(open)} · P10–P90 ${pct(f.box.lower.p10)} → ${pct(f.box.upper.p90)}`;
+  $('box').textContent=`${price(low)} → ${price(high)}`;$('box-band').textContent=`H1 Open ${price(open)} · P10–P90 đã hiệu chỉnh ${pct(view.box.lower.p10)} → ${pct(view.box.upper.p90)}${pad?` · đệm ±${pad.toFixed(2)}%`:''}`;
   $('age').textContent=`${f.age.h1.current} → ${f.age.h1.final.p50} H1`;$('age-band').textContent=`Còn P50 ${f.age.h1.remaining.p50} H1 · P10–P90 ${f.age.h1.final.p10}–${f.age.h1.final.p90}`;
   $('cohort').textContent=`${f.n} chuỗi · N độc lập ${f.independentN.toFixed(1)}`;$('cohort-note').textContent=f.referenceOnly?`THAM KHẢO · cần ≥${f.minEffective} ngày/mẫu hiệu dụng`:'Đủ ngưỡng nghiên cứu';
-  drawMacroMap(f);drawAgeMap(f);drawStateMap(index);renderSimilar();
+  drawMacroMap(view);drawAgeMap(f);drawStateMap(index);renderSimilar();
   const lag=manifest?.collection?.lagHours,status=String(manifest?.collection?.status??'').toUpperCase();$('status').className=stale?'negative':'';$('status').textContent=`${days.length} ngày · H1 khóa từ 4 M15 đóng · dữ liệu đến ${new Date(manifest.lastTime).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})}${status?` · ${status}`:''}${Number.isFinite(lag)?` · trễ ${lag.toFixed(1)}h`:''}`;
 }
 async function init(){
