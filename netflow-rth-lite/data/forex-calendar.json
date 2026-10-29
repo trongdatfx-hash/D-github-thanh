@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-10-29T14:29:05.873Z",
+  "updatedAt": "2026-10-29T19:46:57.196Z",
   "events": [
     {
       "title": "Bank Holiday",
@@ -609,7 +609,7 @@
       "date": "2026-10-29T14:30:00.000Z",
       "timestamp": 1793284200000,
       "impact": "Low",
-      "actual": "",
+      "actual": "80B",
       "forecast": "75B",
       "previous": "77B"
     },
