@@ -37,6 +37,6 @@ test('H1 macro forecast uses only resolved earlier episodes',()=>{
   const days=h1Days(20),f=additiveMacroForecast(days,19,{k:12,minSamples:3});assert.equal(f.ready,true);assert.equal(f.ranked.length,12);assert.ok(f.ranked.every(x=>x.episode.endIndex<f.current.index));assert.ok(f.ranked.every(x=>Number.isFinite(x.distance)&&x.distance<100));assert.equal(f.age.h1.current,2);assert.equal(macroPcaProjection(days,19).filter(x=>x.current).length,1);
 });
 test('walk-forward audit scores only past-trained forecasts',()=>{
-  const audit=walkForwardMacroAudit(h1Days(30),{k:12,minSamples:3,minEffective:3,minIndex:3});assert.equal(audit.ready,true);assert.ok(audit.n>0);assert.ok(audit.brier>=0&&audit.brier<=1);assert.ok(audit.ageCoverage>=0&&audit.ageCoverage<=1);assert.ok(audit.boxCoverage>=0&&audit.boxCoverage<=1);
+  const audit=walkForwardMacroAudit(h1Days(30),{k:12,minSamples:3,minEffective:3,minIndex:3});assert.equal(audit.ready,true);assert.ok(audit.n>0);assert.ok(audit.brier>=0&&audit.brier<=1);assert.ok(audit.ageCoverage>=0&&audit.ageCoverage<=1);assert.ok(audit.boxCoverage>=0&&audit.boxCoverage<=1);assert.ok(audit.boxPadding80>=0);assert.ok(audit.brierSkill===null||Number.isFinite(audit.brierSkill));
 });
 
