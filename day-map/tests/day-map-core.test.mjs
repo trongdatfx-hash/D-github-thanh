@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildDailyMaps,buildIntradayDay,similarDayForecast,weightedQuantile,pcaProjection,buildAdditiveMacroMap,additiveMacroForecast,macroPcaProjection,walkForwardMacroAudit} from '../day-map-core.mjs';
+import {buildDailyMaps,buildIntradayDay,mergeClosedBars,similarDayForecast,weightedQuantile,pcaProjection,buildAdditiveMacroMap,additiveMacroForecast,macroPcaProjection,walkForwardMacroAudit} from '../day-map-core.mjs';
 
 const DAY=86400000,STEP=900000,base=Date.UTC(2026,0,5,9); // 04:00 New York in January
 function rows(days=30){
@@ -22,6 +22,12 @@ test('daily map rejects duplicate or non-contiguous M15 bars',()=>{
 test('intraday preview locks H1 and keeps the extra M30 provisional',()=>{
   const preview=buildIntradayDay({priceRows:rows(1).slice(0,46)});assert.equal(preview.preview,true);assert.equal(preview.h1Blocks.length,11);assert.equal(preview.m30Preview.locked,true);assert.ok([0,.5].includes(preview.m30Preview.ageOffset));
 });
+test('browser backfill merges only closed M15 candles',()=>{
+  const baseRows=rows(1).slice(0,2),closed={...rows(1)[2]},open={...rows(1)[3]};
+  const merged=mergeClosedBars(baseRows,[closed,open],{now:open.end,step:STEP});
+  assert.deepEqual(merged.map(x=>x.t),[baseRows[0].t,baseRows[1].t,closed.t]);
+  assert.ok(merged.every(x=>x.end<open.end));
+});
 test('forecast is past-only and emits envelopes',()=>{
   const days=buildDailyMaps({priceRows:rows(30)}),f=similarDayForecast(days,25,{k:12,minSamples:8});
   assert.equal(f.ready,true);assert.equal(f.ranked.length,12);assert.equal(f.nextEnvelope.length,48);assert.ok(f.ranked.every(x=>x.day.day<days[25].day));
@@ -42,4 +48,11 @@ test('H1 macro forecast uses only resolved earlier episodes',()=>{
 test('walk-forward audit scores only past-trained forecasts',()=>{
   const audit=walkForwardMacroAudit(h1Days(30),{k:12,minSamples:3,minEffective:3,minIndex:3});assert.equal(audit.ready,true);assert.ok(audit.n>0);assert.ok(audit.brier>=0&&audit.brier<=1);assert.ok(audit.ageCoverage>=0&&audit.ageCoverage<=1);assert.ok(audit.boxCoverage>=0&&audit.boxCoverage<=1);assert.ok(audit.boxPadding80>=0);assert.ok(audit.brierSkill===null||Number.isFinite(audit.brierSkill));
 });
+test('adding future days does not rewrite existing walk-forward checkpoints',()=>{
+  const before=walkForwardMacroAudit(h1Days(30),{k:12,minSamples:3,minEffective:3,minIndex:3});
+  const after=walkForwardMacroAudit(h1Days(36),{k:12,minSamples:3,minEffective:3,minIndex:3});
+  const later=new Map(after.records.map(x=>[x.day,x]));
+  for(const record of before.records){const same=later.get(record.day);assert.ok(same);assert.equal(same.probability,record.probability);assert.equal(same.label,record.label);assert.equal(same.expanded,record.expanded);}
+});
+
 
