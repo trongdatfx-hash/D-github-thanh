@@ -16,6 +16,7 @@ import {pivotFlowRealtime} from './pivot-zones.mjs?v=20261029-price-delta1';
 import {pivotFlowLayout,pivotFlowZeroCoordinate} from './pivot-flow-layout.mjs?v=20261029-price-delta1';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261029-price-delta1';
 import {preRthWlrTrend,formatPreRthWlrTrend,trendReadoutState} from './pre-rth-wlr-trend.mjs?v=20261029-price-delta1';
+import {renderWeeklyTrendMap} from './weekly-trend-ui.mjs?v=20261029-weekly-map1';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
 let chart,price,series={},marks,strengthMarks,cache=null,rows={},volumeStrengthRows=[],modelRows={},modelVolumeStrengthRows=[],modelStamp=null,trendRows={},trendVolumeStrengthRows=[],trendStamp=null,trainingMeta=null,maps={},priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,pivotFlowFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},causalChannelState={trends:[],total:0},geometryStatePoints=[],geometryStatePointsKey='',breakoutState=null,geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
@@ -215,7 +216,7 @@ function updateRev63(){
 function resetStudies(){
   studyKey='';studyResultKey='';statsMap=new Map();++statsRequest;
   geometryState={pivots:[],events:[],lines:[],summary:{}};causalChannelState={trends:[],total:0};breakoutState=null;geometryStatePoints=[];geometryBacktest={n:0};
-  pivotZoneState={ready:false,reason:'history',support:null,resistance:null};pivotFlowState=null;rev63State=null;
+  pivotZoneState={ready:false,reason:'history',support:null,resistance:null};pivotFlowState=null;rev63State=null;renderWeeklyTrendMap(null);
 }
 function requestStudies(){
   if(!cache)return;
@@ -229,7 +230,7 @@ function requestStudies(){
     studiesWorker.onmessage=({data})=>{
       if(data.key!==studyKey)return;
       if(data.error){$('chart').dataset.studyStatus='error';$('chart').dataset.studyError=data.error;studyKey='';return;}
-      const r=data.result;geometryState=r.geometry;causalChannelState=r.channels;breakoutState=r.breakout;geometryStatePoints=r.points;geometryBacktest=r.backtest;pivotZoneState=r.pivot;rev63State=r.rev63;trendAgeCandleMap=new Map((r.trendAgeHistory??[]).map(state=>[state.t,state]));
+      const r=data.result;geometryState=r.geometry;causalChannelState=r.channels;breakoutState=r.breakout;geometryStatePoints=r.points;geometryBacktest=r.backtest;pivotZoneState=r.pivot;rev63State=r.rev63;trendAgeCandleMap=new Map((r.trendAgeHistory??[]).map(state=>[state.t,state]));renderWeeklyTrendMap(r.weekly);
       studyResultKey=data.key;studyTimingMs=data.computeMs;trainingMeta=data.archive;
       $('chart').dataset.studyStatus='ready';$('chart').dataset.studyComputeMs=String(Math.round(studyTimingMs));
       const now=cache?.serverTime??Date.now();pivotFlowState=pivotFlowRealtime(pivotZoneState.flow,rows.SPYUSDT??[],rows.COMPOSITE??[],now,pivotFlowState?.volatility?.key);
