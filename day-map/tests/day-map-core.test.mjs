@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildDailyMaps,similarDayForecast,weightedQuantile,pcaProjection,buildAdditiveMacroMap,additiveMacroForecast,macroPcaProjection,walkForwardMacroAudit} from '../day-map-core.mjs';
+import {buildDailyMaps,buildIntradayDay,similarDayForecast,weightedQuantile,pcaProjection,buildAdditiveMacroMap,additiveMacroForecast,macroPcaProjection,walkForwardMacroAudit} from '../day-map-core.mjs';
 
 const DAY=86400000,STEP=900000,base=Date.UTC(2026,0,5,9); // 04:00 New York in January
 function rows(days=30){
@@ -18,6 +18,9 @@ test('daily map keeps complete PRE to RTH sessions',()=>{
 });
 test('daily map rejects duplicate or non-contiguous M15 bars',()=>{
   const broken=rows(2);broken[10]={...broken[9]};assert.equal(buildDailyMaps({priceRows:broken}).length,1);
+});
+test('intraday preview locks H1 and keeps the extra M30 provisional',()=>{
+  const preview=buildIntradayDay({priceRows:rows(1).slice(0,46)});assert.equal(preview.preview,true);assert.equal(preview.h1Blocks.length,11);assert.equal(preview.m30Preview.locked,true);assert.ok([0,.5].includes(preview.m30Preview.ageOffset));
 });
 test('forecast is past-only and emits envelopes',()=>{
   const days=buildDailyMaps({priceRows:rows(30)}),f=similarDayForecast(days,25,{k:12,minSamples:8});
