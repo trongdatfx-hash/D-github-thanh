@@ -3,47 +3,46 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>B?n �? H?p l?n H1 c?ng t�nh</title>
-  <meta name="description" content="B?n �? H1 c?ng t�nh d? b�o H?p l?n, envelope cu?i v� tu?i trend l?n t? d? li?u M15 �? ��ng.">
+  <title>Bản đồ Hộp lớn H1 cộng tính</title>
+  <meta name="description" content="Bản đồ H1 cộng tính dự báo Hộp lớn, envelope cuối và tuổi trend lớn từ dữ liệu M15 đã đóng.">
   <link rel="stylesheet" href="style.css?v=20261029-h1-map2">
 </head>
 <body>
 <main>
   <header>
-    <div><span class="eyebrow">SPYUSDT � M15?H1 � NGHI�N C?U CAUSAL</span><h1>B?n �? <b>H?p l?n H1</b></h1><p>4 M15 ��ng = 1 g�i H1 kh�a � c?ng H?p s?c m?nh � c?ng tu?i trend � d? b�o envelope cu?i</p></div>
-    <a class="back" href="../">? Chart ch�nh</a>
+    <div><span class="eyebrow">SPYUSDT · M15→H1 · NGHIÊN CỨU CAUSAL</span><h1>Bản đồ <b>Hộp lớn H1</b></h1><p>4 M15 đóng = 1 gói H1 khóa · cộng Hộp sức mạnh · cộng tuổi trend · dự báo envelope cuối</p></div>
+    <a class="back" href="../">← Chart chính</a>
   </header>
   <section class="controls">
-    <label>Ng�y �?i chi?u <select id="day"></select></label>
-    <label>Cohort H1 <select id="neighbors"><option value="20">20 chu?i</option><option value="40">40 chu?i</option><option value="60" selected>60 chu?i</option><option value="80">80 chu?i</option></select></label>
-    <button id="latest" type="button">Ng�y m?i nh?t</button>
-    <span id="status">�ang n?p l?ch s?�</span>
+    <label>Ngày đối chiếu <select id="day"></select></label>
+    <label>Cohort H1 <select id="neighbors"><option value="20">20 chuỗi</option><option value="40">40 chuỗi</option><option value="60" selected>60 chuỗi</option><option value="80">80 chuỗi</option></select></label>
+    <button id="latest" type="button">Ngày mới nhất</button>
+    <span id="status">Đang nạp lịch sử…</span>
   </section>
-  <section class="cards" aria-label="K?t qu? d? b�o">
-    <article><small>TR?NG TH�I</small><strong id="signal">WAIT</strong><span id="confidence">CONF � � WAIT �</span></article>
-    <article><small>H?P L?N D? B�O</small><strong id="box">�</strong><span id="box-band">H1 Open � � P10�P90 �</span></article>
-    <article><small>TU?I TREND L?N</small><strong id="age">�</strong><span id="age-band">C?n � H1</span></article>
-    <article><small>COHORT</small><strong id="cohort">�</strong><span id="cohort-note">�</span></article>
+  <section class="cards" aria-label="Kết quả dự báo">
+    <article><small>TRẠNG THÁI</small><strong id="signal">WAIT</strong><span id="confidence">CONF — · WAIT —</span></article>
+    <article><small>HỘP LỚN DỰ BÁO</small><strong id="box">—</strong><span id="box-band">H1 Open — · P10–P90 —</span></article>
+    <article><small>TUỔI TREND LỚN</small><strong id="age">—</strong><span id="age-band">Còn — H1</span></article>
+    <article><small>COHORT</small><strong id="cohort">—</strong><span id="cohort-note">—</span></article>
   </section>
-  <section class="audit" aria-label="Ki?m �?nh walk-forward causal">
-    <div><small>KI?M �?NH WALK-FORWARD</small><strong id="audit-result">�ang ch?m�</strong></div>
-    <span id="audit-note">Ch? hu?n luy?n t? c�c episode �? k?t th�c tr�?c t?ng checkpoint l?ch s?.</span>
+  <section class="audit" aria-label="Kiểm định walk-forward causal">
+    <div><small>KIỂM ĐỊNH WALK-FORWARD</small><strong id="audit-result">Đang chấm…</strong></div>
+    <span id="audit-note">Chỉ huấn luyện từ các episode đã kết thúc trước từng checkpoint lịch sử.</span>
   </section>
   <section class="grid">
-    <article class="panel wide"><div class="panel-head"><div><small>B?N �? H?P C?NG T�NH</small><h2>Envelope H1 hi?n t?i ? H?p l?n cu?i k? v?ng</h2></div><span>Neo t?i Open H1 �?u chu?i</span></div><canvas id="macro-map" height="350"></canvas><p class="legend"><i class="current"></i>Bi�n H?p �ang c?ng <i class="median"></i>Close H1 <i class="forecast-key"></i>H?p cu?i P10�P90</p></article>
-    <article class="panel wide forecast"><div class="panel-head"><div><small>TU?I TREND C?NG T�NH</small><h2>Tu?i hi?n t?i, tu?i cu?i v� b?ng ch?ng t�ch l?y</h2></div><span>M15 ch? xem tr�?c � H1 ��ng m?i c?ng</span></div><canvas id="age-map" height="330"></canvas><p class="legend"><i class="current"></i>Hi?n t?i <i class="median"></i>P50 cu?i <i class="band"></i>P10�P90</p></article>
-    <article class="panel"><div class="panel-head"><div><small>KH�NG GIAN TR?NG TH�I</small><h2>Map PCA H1 + H?p + tu?i c?ng</h2></div></div><canvas id="state-map" height="360"></canvas><p class="legend"><i class="up"></i>Bi�n c?n m? r?ng <i class="down"></i>Bi�n co/h?t trend <i class="wait"></i>Ch�a bi?t</p></article>
-    <article class="panel"><div class="panel-head"><div><small>CHU?I H1 T��NG �?NG</small><h2>Cohort d�ng �? �?c l�?ng</h2></div></div><div id="similar" class="similar"></div></article>
+    <article class="panel wide"><div class="panel-head"><div><small>BẢN ĐỒ HỘP CỘNG TÍNH</small><h2>Envelope H1 hiện tại → Hộp lớn cuối kỳ vọng</h2></div><span>Neo tại Open H1 đầu chuỗi</span></div><canvas id="macro-map" height="350"></canvas><p class="legend"><i class="current"></i>Biên Hộp đang cộng <i class="median"></i>Close H1 <i class="forecast-key"></i>Hộp cuối P10–P90</p></article>
+    <article class="panel wide forecast"><div class="panel-head"><div><small>TUỔI TREND CỘNG TÍNH</small><h2>Tuổi hiện tại, tuổi cuối và bằng chứng tích lũy</h2></div><span>M15 chỉ xem trước · H1 đóng mới cộng</span></div><canvas id="age-map" height="330"></canvas><p class="legend"><i class="current"></i>Hiện tại <i class="median"></i>P50 cuối <i class="band"></i>P10–P90</p></article>
+    <article class="panel"><div class="panel-head"><div><small>KHÔNG GIAN TRẠNG THÁI</small><h2>Map PCA H1 + Hộp + tuổi cộng</h2></div></div><canvas id="state-map" height="360"></canvas><p class="legend"><i class="up"></i>Biên còn mở rộng <i class="down"></i>Biên co/hết trend <i class="wait"></i>Chưa biết</p></article>
+    <article class="panel"><div class="panel-head"><div><small>CHUỖI H1 TƯƠNG ĐỒNG</small><h2>Cohort dùng để ước lượng</h2></div></div><div id="similar" class="similar"></div></article>
   </section>
   <details>
-    <summary>Ph��ng ph�p v� gi?i h?n</summary>
-    <p>M?i b?n n?n M15 �? ��ng t?o m?t g�i H1 kh�ng ch?ng l?n. �i?m H1 g?m Price/Range 30%, body-signed delta 20%, taker NetFlow 20%, �?ng thu?n H?p�Trend 20% v� m?nh d?n so v?i H1 tr�?c 10%. H�?ng ph?i c� c?u tr�c gi�; Delta/NetFlow ch? n�ng ho?c h? ch?t l�?ng, kh�ng t? quy?t �?nh h�?ng.</p>
-    <p>V?i c�c H1 �? ch?t l�?ng v� c�ng chi?u: b?ng ch?ng <b>E</b>, tu?i H1 v� envelope gi� ��?c c?ng d?n. M?t H1 trung t�nh ��?c ph�p b?c c?u nh�ng kh�ng c?ng tu?i; H1 ng�?c chi?u �? ch?t l�?ng ��ng chu?i. Slope OLS ch? ch?n �o�n, kh�ng c� quy?n c?t tu?i trend.</p>
-    <p>Cohort ch? l?y c�c chu?i l?ch s? �? k?t th�c tr�?c th?i �i?m �ang x�t v� �? s?ng t?i ��ng tu?i H1 hi?n t?i. Ph�n v? c� tr?ng s? d? b�o bi�n cu?i, tu?i cu?i v� ph?n tu?i c?n l?i. X�c su?t m? r?ng ��?c co Bayes v? 50% v?i prior 20; c?n �t nh?t 20 ng�y/m?u hi?u d?ng �?c l?p, n?u thi?u lu�n gi? WAIT. Walk-forward ch?m Brier, �? ��ng c?a t�n hi?u m? r?ng v� �? ph? P10�P90; c?n 200�500 checkpoint �? ph�n gi?i tr�?c khi coi l� x�c th?c m?nh.</p>
+    <summary>Phương pháp và giới hạn</summary>
+    <p>Mỗi bốn nến M15 đã đóng tạo một gói H1 không chồng lấn. Điểm H1 gồm Price/Range 30%, body-signed delta 20%, taker NetFlow 20%, đồng thuận Hộp–Trend 20% và mạnh dần so với H1 trước 10%. Hướng phải có cấu trúc giá; Delta/NetFlow chỉ nâng hoặc hạ chất lượng, không tự quyết định hướng.</p>
+    <p>Với các H1 đủ chất lượng và cùng chiều: bằng chứng <b>E</b>, tuổi H1 và envelope giá được cộng dồn. Một H1 trung tính được phép bắc cầu nhưng không cộng tuổi; H1 ngược chiều đủ chất lượng đóng chuỗi. Slope OLS chỉ chẩn đoán, không có quyền cắt tuổi trend.</p>
+    <p>Cohort chỉ lấy các chuỗi lịch sử đã kết thúc trước thời điểm đang xét và đã sống tới đúng tuổi H1 hiện tại. Phân vị có trọng số dự báo biên cuối, tuổi cuối và phần tuổi còn lại. Xác suất mở rộng được co Bayes về 50% với prior 20; cần ít nhất 20 ngày/mẫu hiệu dụng độc lập, nếu thiếu luôn giữ WAIT. Walk-forward chấm Brier, độ đúng của tín hiệu mở rộng và độ phủ P10–P90; cần 200–500 checkpoint đã phân giải trước khi coi là xác thực mạnh.</p>
   </details>
 </main>
 <script type="module" src="app.mjs?v=20261029-topup2"></script>
 </body>
 </html>
-
 
