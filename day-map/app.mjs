@@ -1,5 +1,4 @@
-import {loadPersistentHistory} from '../netflow-stumpy/history-store.mjs?v=20261029-day-map1';
-import {analyze,composite,calculateVolumeStrength,STEPS} from '../netflow-stumpy/engine.mjs?v=20261029-day-map1';
+import {analyze,composite,calculateVolumeStrength,STEPS,sessionAt} from '../netflow-stumpy/engine.mjs?v=20261029-day-map2';
 import {trendSessionRows} from '../netflow-stumpy/trend-session.mjs?v=20261029-day-map1';
 import {causalTrendChannels} from '../netflow-stumpy/causal-trend-channel.mjs?v=20261029-day-map1';
 import {historicalTrendAgeStates} from '../netflow-stumpy/pre-rth-wlr-trend.mjs?v=20261029-day-map1';
@@ -9,6 +8,16 @@ import {buildDailyMaps,similarDayForecast,pcaProjection} from './day-map-core.mj
 const $=id=>document.getElementById(id),STEP=STEPS['15m'];let days=[],forecast=null,manifest=null;
 const pct=x=>Number.isFinite(x)?`${x>0?'+':''}${x.toFixed(2)}%`:'—';
 const tone=x=>x>0?'positive':x<0?'negative':'';
+
+async function loadDayHistory(){
+  const root='../netflow-stumpy/data/binance/m15/',response=await fetch(root+'manifest.json?ts='+Date.now(),{cache:'no-store'});
+  if(!response.ok)throw Error('History manifest chưa sẵn sàng');
+  const manifest=await response.json();if(manifest?.interval!=='15m'||!Array.isArray(manifest.months))throw Error('History manifest không hợp lệ');
+  const cutoff=(manifest.lastTime??Date.now())-365*86400000,months=manifest.months.filter(key=>/^\d{4}-\d{2}$/.test(key)).filter(key=>{const [y,m]=key.split('-').map(Number);return Date.UTC(y,m,1)-1>=cutoff;});
+  const docs=await Promise.all(months.map(async key=>{const r=await fetch(root+key+'.json?v='+(key===months.at(-1)?manifest.lastTime:'closed'),{cache:'force-cache'});if(!r.ok)throw Error('Thiếu shard '+key);return r.json();}));
+  const compact=r=>{if(!Array.isArray(r)||r.length<9)throw Error('Shard lịch sử M15 không hợp lệ');const [t,o,h,l,c,v,end,q,buy]=r.map(Number);if(![t,o,h,l,c,v,end,q,buy].every(Number.isFinite)||end!==t+STEP-1)throw Error('Bar lịch sử M15 không hợp lệ');return {t,o,h,l,c,v,end,q,buy,sell:q-buy,net:2*buy-q,nf:q>0?100*(2*buy-q)/q:null,...sessionAt(t)};};
+  return {manifest,SPYUSDT:docs.flatMap(doc=>(doc.SPYUSDT??[]).map(compact)).filter(x=>x.t>=cutoff),QQQUSDT:docs.flatMap(doc=>(doc.QQQUSDT??[]).map(compact)).filter(x=>x.t>=cutoff)};
+}
 
 function resizeCanvas(canvas){
   const dpr=devicePixelRatio||1,w=Math.max(320,canvas.clientWidth),h=Number(canvas.getAttribute('height'))||330;
@@ -53,7 +62,7 @@ function render(){
 async function init(){
   document.body.classList.add('loading');
   try{
-    const raw=await loadPersistentHistory({days:365});manifest=raw.manifest;const now=(manifest.lastTime??Date.now())+STEP;
+    const raw=await loadDayHistory();manifest=raw.manifest;const now=(manifest.lastTime??Date.now())+STEP;
     const spy=analyze(raw.SPYUSDT,STEP),qqq=analyze(raw.QQQUSDT,STEP),comp=analyze(composite(raw.SPYUSDT,raw.QQQUSDT,STEP),STEP),volume=analyze(raw.SPYUSDT,STEP,{strength:calculateVolumeStrength(raw.SPYUSDT,STEP)});
     const market=trendSessionRows(spy.filter(x=>x.end<now)),times=new Set(market.map(x=>x.t)),marketVolume=volume.filter(x=>times.has(x.t)),channels=causalTrendChannels(market.map(x=>x.session==='EURO'?{...x,session:'PRE'}:x),{volumeRows:marketVolume,maxHistory:Infinity});
     const trendStates=historicalTrendAgeStates({priceRows:spy,strengthRows:comp,volumeRows:marketVolume,channelTrends:channels.episodes,now,fromTime:-Infinity});
