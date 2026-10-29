@@ -35,7 +35,7 @@ function alignmentValue(value){return value==='aligned'?1:value==='opposed'?-1:0
 function finite(value,fallback=0){return Number.isFinite(value)?value:fallback;}
 
 function buildH1Blocks(rows,boxSnapshots,trendMap){
-  const blocks=[];let previousImpulse=0;
+  const blocks=[];let previousImpulse=null;
   for(let offset=0;offset+3<rows.length;offset+=4){
     const sample=rows.slice(offset,offset+4),first=sample[0],last=sample.at(-1),o=first.o,c=last.c,h=Math.max(...sample.map(x=>x.h)),l=Math.min(...sample.map(x=>x.l)),range=Math.max(1e-12,h-l);
     const box=[...sample].reverse().map(x=>boxSnapshots?.get?.(x.t)).find(Boolean)??null,trend=[...sample].reverse().map(x=>trendMap.get(x.t)).find(x=>x?.active===true)??null;
@@ -46,7 +46,7 @@ function buildH1Blocks(rows,boxSnapshots,trendMap){
     const bodyDelta=sample.reduce((s,x)=>{const delta=Number.isFinite(x.net)?x.net:Number.isFinite(x.q)&&Number.isFinite(x.buy)?2*x.buy-x.q:0;return s+Math.sign(x.c-x.o)*Math.abs(delta);},0);
     const deltaScore=direction&&quote?clamp(direction*bodyDelta/quote*4,0,1):0,nfScore=direction&&quote?clamp(direction*net/quote*4,0,1):0;
     const structural=[boxDirection,trendDirection].filter(Boolean),alignment=direction&&structural.length?structural.reduce((s,x)=>s+(x===direction?1:0),0)/structural.length:0;
-    const impulse=.30*priceScore+.20*deltaScore+.20*nfScore+.20*alignment,strengthening=impulse>previousImpulse?1:0,score=100*(impulse+.10*strengthening);previousImpulse=impulse;
+    const impulse=.30*priceScore+.20*deltaScore+.20*nfScore+.20*alignment,strengthening=Number.isFinite(previousImpulse)&&impulse>previousImpulse?1:0,score=100*(impulse+.10*strengthening);previousImpulse=impulse;
     blocks.push({t:first.t,end:last.end??last.t+899999,day:nyClock(first.t).day,minute:nyClock(first.t).minute,o,h,l,c,range,direction,quality:clamp(score/100,0,1),score,priceScore,deltaScore,nfScore,alignment,strengthening,box,trend,quote,net,bodyDelta,
       feature:[direction,score/100,priceScore,deltaScore,nfScore,alignment,strengthening,100*(c/o-1),100*range/o,finite(box?.percentile,.5)-.5,finite(trend?.continuation,.5)-.5]});
   }
@@ -75,8 +75,8 @@ export function buildDailyMaps({priceRows=[],boxSnapshots=new Map(),trendStates=
   }
   const days=[];
   for(const [day,unsorted] of [...groups.entries()].sort(([a],[b])=>a.localeCompare(b))){
-    const rows=unsorted.sort((a,b)=>a.t-b.t);
-    if(rows.length!==SLOTS||rows[0].minute!==DAY_START||rows.at(-1).minute!==DAY_END-15)continue;
+    const rows=unsorted.sort((a,b)=>a.t-b.t),contiguous=rows.length===SLOTS&&rows.every((row,i)=>row.minute===DAY_START+15*i&&Number.isFinite(row.t)&&(!i||row.t-rows[i-1].t===900000));
+    if(!contiguous||rows[0].minute!==DAY_START||rows.at(-1).minute!==DAY_END-15)continue;
     const preOpen=rows[0].o,rthOpen=rows.find(x=>x.minute===PRE_END)?.o;
     if(!(preOpen>0&&rthOpen>0))continue;
     const pct=value=>100*(value/preOpen-1),path=rows.map(x=>pct(x.c));
@@ -205,7 +205,7 @@ export function buildAdditiveMacroMap(days,{minQuality=.25,neutralBridge=1}={}){
 
 function qset(values,weights){return {p10:weightedQuantile(values,weights,.10),p25:weightedQuantile(values,weights,.25),p50:weightedQuantile(values,weights,.50),p75:weightedQuantile(values,weights,.75),p90:weightedQuantile(values,weights,.90)};}
 
-export function additiveMacroForecast(days,index,{k=20,minSamples=12}={}){
+export function additiveMacroForecast(days,index,{k=20,minSamples=12,minEffective=20}={}){
   const map=buildAdditiveMacroMap(days),stateIndex=map.dayLastStateIndex[index],current=map.states[stateIndex];
   if(!current?.active)return {ready:false,reason:'H1 cuối ngày được chọn chưa có chuỗi Hộp/Trend cùng chiều để cộng',current,map};
   const resolved=map.episodes.filter(episode=>!episode.censored&&episode.endIndex<stateIndex&&episode.direction===current.direction&&episode.finalAgeH1>=current.ageH1);
@@ -214,14 +214,35 @@ export function additiveMacroForecast(days,index,{k=20,minSamples=12}={}){
   const scale=standardizer(candidates),target=normalizedFeature(current,scale),ranked=candidates.map(state=>({state,episode:state.outcome,distance:distance(normalizedFeature(state,scale),target)})).sort((a,b)=>a.distance-b.distance).slice(0,Math.min(k,candidates.length));
   const bandwidth=ranked[Math.floor(ranked.length/2)]?.distance||1,raw=ranked.map(x=>Math.exp(-.5*(x.distance/Math.max(.05,bandwidth))**2)),total=raw.reduce((s,x)=>s+x,0)||1,weights=raw.map(x=>x/total),neff=1/weights.reduce((s,w)=>s+w*w,0);
   const outcomes=ranked.map(({state,episode})=>{const anchor=state.sourceBlock.o,finalWidthPct=100*(episode.upper-episode.lower)/anchor,currentWidthPct=100*(state.upper-state.lower)/anchor;return {remainingH1:episode.finalAgeH1-state.ageH1,finalAgeH1:episode.finalAgeH1,remainingDays:Math.max(0,episode.finalAgeDays-state.ageDays),finalAgeDays:episode.finalAgeDays,remainingBars:Math.max(0,episode.finalAgeBars-state.ageBars),finalAgeBars:episode.finalAgeBars,lowerPct:100*(episode.lower/anchor-1),upperPct:100*(episode.upper/anchor-1),growthPct:finalWidthPct-currentWidthPct,finalEvidence:episode.finalEvidence};});
-  const growth=outcomes.map(x=>x.growthPct),expandThreshold=Math.max(.15,current.widthPct*.10),rawExpand=weights.reduce((s,w,i)=>s+w*(growth[i]>=expandThreshold?1:0),0),prior=20,expandProbability=(rawExpand*neff+prior*.5)/(neff+prior);
-  const growthBand=qset(growth,weights),evidenceFactor=Math.min(1,neff/50),edge=Math.max(0,(expandProbability-.5)/.15),bandFactor=growthBand.p10>0?1:.55,confidence=Math.round(100*evidenceFactor*Math.min(1,edge)*bandFactor),referenceOnly=neff<50;
+  const growth=outcomes.map(x=>x.growthPct),expandThreshold=Math.max(.15,current.widthPct*.10),rawExpand=weights.reduce((s,w,i)=>s+w*(growth[i]>=expandThreshold?1:0),0),prior=20,expandProbability=(rawExpand*neff+prior*.5)/(neff+prior),uniqueDays=new Set(ranked.map(x=>x.state.day)).size,independentN=Math.min(neff,uniqueDays);
+  const growthBand=qset(growth,weights),evidenceFactor=Math.min(1,independentN/minEffective),edge=Math.max(0,(expandProbability-.5)/.15),bandFactor=growthBand.p10>0?1:.55,confidence=Math.round(100*evidenceFactor*Math.min(1,edge)*bandFactor),referenceOnly=independentN<minEffective;
   const label=!referenceOnly&&ranked.length>=minSamples&&expandProbability>=.60&&growthBand.p10>0?(current.direction>0?'UP':'DOWN'):'WAIT';
   const currentTrack=map.states.filter(state=>state.episodeId===current.episodeId&&state.index<=stateIndex),anchor=current.startAnchor;
-  return {ready:true,current,map,currentTrack,ranked:ranked.map((x,i)=>({...x,weight:weights[i],outcome:outcomes[i]})),n:ranked.length,neff,label,confidence,wait:100-confidence,referenceOnly,expandProbability,expandThreshold,
+  return {ready:true,current,map,currentTrack,ranked:ranked.map((x,i)=>({...x,weight:weights[i],outcome:outcomes[i]})),n:ranked.length,neff,uniqueDays,independentN,minEffective,label,confidence,wait:100-confidence,referenceOnly,expandProbability,expandThreshold,
     box:{lower:qset(outcomes.map(x=>x.lowerPct),weights),upper:qset(outcomes.map(x=>x.upperPct),weights),growth:growthBand},
     age:{h1:{current:current.ageH1,final:qset(outcomes.map(x=>x.finalAgeH1),weights),remaining:qset(outcomes.map(x=>x.remainingH1),weights)},days:{current:current.ageDays,final:qset(outcomes.map(x=>x.finalAgeDays),weights),remaining:qset(outcomes.map(x=>x.remainingDays),weights)},bars:{current:current.ageBars,final:qset(outcomes.map(x=>x.finalAgeBars),weights),remaining:qset(outcomes.map(x=>x.remainingBars),weights)}},
     evidence:{current:current.evidence,final:qset(outcomes.map(x=>x.finalEvidence),weights)},anchor,diagnostics:{candidates:candidates.length,resolved:resolved.length}};
+}
+
+// Causal walk-forward audit. Each historical checkpoint is forecast with only
+// episodes that ended before that checkpoint; the later resolved episode is
+// used exclusively as the score target.
+export function walkForwardMacroAudit(days,{k=60,minSamples=12,minEffective=20,minIndex=20}={}){
+  const full=buildAdditiveMacroMap(days),records=[];
+  for(let index=Math.max(0,minIndex);index<days.length;index++){
+    const stateIndex=full.dayLastStateIndex[index],actualState=full.states[stateIndex],actual=actualState?.outcome;
+    if(!actualState?.active||!actual||actual.censored||actual.endIndex<stateIndex)continue;
+    const forecast=additiveMacroForecast(days,index,{k,minSamples,minEffective});
+    if(!forecast.ready||forecast.ranked.some(x=>x.episode.endIndex>=forecast.current.index))continue;
+    const anchor=forecast.current.sourceBlock.o,currentWidth=100*(forecast.current.upper-forecast.current.lower)/anchor,finalWidth=100*(actual.upper-actual.lower)/anchor,growth=finalWidth-currentWidth,expanded=growth>=forecast.expandThreshold;
+    const lower=100*(actual.lower/anchor-1),upper=100*(actual.upper/anchor-1),age=actual.finalAgeH1;
+    records.push({day:days[index].day,probability:forecast.expandProbability,expanded,label:forecast.label,referenceOnly:forecast.referenceOnly,growth,
+      ageCovered:age>=forecast.age.h1.final.p10&&age<=forecast.age.h1.final.p90,
+      boxCovered:lower>=forecast.box.lower.p10&&lower<=forecast.box.lower.p90&&upper>=forecast.box.upper.p10&&upper<=forecast.box.upper.p90});
+  }
+  if(!records.length)return {ready:false,n:0,reason:'Chưa có checkpoint walk-forward đã phân giải'};
+  const signals=records.filter(x=>x.label!=='WAIT'),avg=fn=>mean(records.map(fn)),signalHits=signals.filter(x=>x.expanded).length;
+  return {ready:true,n:records.length,signals:signals.length,signalHits,signalPrecision:signals.length?signalHits/signals.length:null,brier:avg(x=>(x.probability-Number(x.expanded))**2),baseRate:avg(x=>Number(x.expanded)),ageCoverage:avg(x=>Number(x.ageCovered)),boxCoverage:avg(x=>Number(x.boxCovered)),records};
 }
 
 export function macroPcaProjection(days,index){
@@ -251,3 +272,4 @@ export function pcaProjection(days,index){
 }
 
 export const DAY_MAP_META={slots:SLOTS,startMinute:DAY_START,preEndMinute:PRE_END,endMinute:DAY_END,pathSlots:PATH_SLOTS};
+
