@@ -2,6 +2,7 @@ const DAY_START=4*60,PRE_END=9*60+30,DAY_END=16*60,SLOTS=48;
 const PATH_SLOTS=[0,8,16,21,25,31,39,47];
 const PATH_WEIGHTS=PATH_SLOTS.map(()=>0.55);
 const EXTRA_WEIGHTS=[1,1,1,1,1.1,1,1,1,1,1.1,1,1,1];
+export const DAY_MAP_FEATURE_VERSION='color-spyv-strength-m15-h1-lock-v1';
 
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const mean=a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:0;
@@ -49,7 +50,7 @@ function latestByDay(map,day,endMinute,{activeOnly=false}={}){
 function alignmentValue(value){return value==='aligned'?1:value==='opposed'?-1:0;}
 function finite(value,fallback=0){return Number.isFinite(value)?value:fallback;}
 
-function buildH1Blocks(rows,boxSnapshots,trendMap){
+function buildH1Blocks(rows,boxSnapshots,trendMap,colorMap=new Map(),strengthMap=new Map()){
   const blocks=[];let previousImpulse=null;
   for(let offset=0;offset+3<rows.length;offset+=4){
     const sample=rows.slice(offset,offset+4),first=sample[0],last=sample.at(-1),o=first.o,c=last.c,h=Math.max(...sample.map(x=>x.h)),l=Math.min(...sample.map(x=>x.l)),range=Math.max(1e-12,h-l);
@@ -62,8 +63,12 @@ function buildH1Blocks(rows,boxSnapshots,trendMap){
     const deltaScore=direction&&quote?clamp(direction*bodyDelta/quote*4,0,1):0,nfScore=direction&&quote?clamp(direction*net/quote*4,0,1):0;
     const structural=[boxDirection,trendDirection].filter(Boolean),alignment=direction&&structural.length?structural.reduce((s,x)=>s+(x===direction?1:0),0)/structural.length:0;
     const impulse=.30*priceScore+.20*deltaScore+.20*nfScore+.20*alignment,strengthening=Number.isFinite(previousImpulse)&&impulse>previousImpulse?1:0,score=100*(impulse+.10*strengthening);previousImpulse=impulse;
-    blocks.push({t:first.t,end:last.end??last.t+899999,day:nyClock(first.t).day,minute:nyClock(first.t).minute,o,h,l,c,range,direction,quality:clamp(score/100,0,1),score,priceScore,deltaScore,nfScore,alignment,strengthening,box,trend,quote,net,bodyDelta,
-      feature:[direction,score/100,priceScore,deltaScore,nfScore,alignment,strengthening,100*(c/o-1),100*range/o,finite(box?.percentile,.5)-.5,finite(trend?.continuation,.5)-.5]});
+    // The selected model keeps Strength at M15 resolution, then locks its
+    // summary only when all four M15 candles in this H1 packet are closed.
+    const colors=sample.map(x=>colorMap.get(x.t)).filter(Boolean),colorDirection=mean(colors.map(x=>finite(x.trendDirection))),colorAlignment=direction?mean(colors.map(x=>x.trendDirection===direction?1:0)):0;
+    const strengths=sample.map(x=>strengthMap.get(x.t)?.adjusted).filter(Number.isFinite),lastStrength=strengths.at(-1)??0,strengthAlignment=direction?mean(strengths.map(x=>Math.abs(x)>=.07&&Math.sign(x)===direction?1:0)):0;
+    blocks.push({t:first.t,end:last.end??last.t+899999,day:nyClock(first.t).day,minute:nyClock(first.t).minute,o,h,l,c,range,direction,quality:clamp(score/100,0,1),score,priceScore,deltaScore,nfScore,alignment,strengthening,box,trend,quote,net,bodyDelta,colorDirection,colorAlignment,lastStrength,strengthAlignment,
+      feature:[direction,score/100,priceScore,deltaScore,nfScore,alignment,strengthening,100*(c/o-1),100*range/o,finite(box?.percentile,.5)-.5,finite(trend?.continuation,.5)-.5,colorDirection,colorAlignment,lastStrength,strengthAlignment]});
   }
   return blocks;
 }
@@ -80,8 +85,8 @@ function makeFeatures(day){
   ];
 }
 
-export function buildDailyMaps({priceRows=[],boxSnapshots=new Map(),trendStates=[]}={}){
-  const groups=new Map(),trendMap=new Map(trendStates.filter(x=>Number.isFinite(x?.t)).map(x=>[x.t,x]));
+export function buildDailyMaps({priceRows=[],boxSnapshots=new Map(),trendStates=[],wlrColors=[],strengthRows=[]}={}){
+  const groups=new Map(),trendMap=new Map(trendStates.filter(x=>Number.isFinite(x?.t)).map(x=>[x.t,x])),colorMap=wlrColors instanceof Map?wlrColors:new Map(wlrColors.filter(x=>Number.isFinite(x?.t)).map(x=>[x.t,x])),strengthMap=strengthRows instanceof Map?strengthRows:new Map(strengthRows.filter(x=>Number.isFinite(x?.t)).map(x=>[x.t,x]));
   for(const row of priceRows){
     const clock=nyClock(row.t);
     if(['Sat','Sun'].includes(clock.weekday)||clock.minute<DAY_START||clock.minute>=DAY_END)continue;
@@ -101,7 +106,7 @@ export function buildDailyMaps({priceRows=[],boxSnapshots=new Map(),trendStates=
     const close=rows.at(-1).c,range=100*(high-low)/preOpen,closeLocation=high>low?(close-low)/(high-low)-.5:0;
     const item={day,rows,preOpen,rthOpen,path,preMove:path[21],rthMove:100*(close/rthOpen-1),dayMove:path.at(-1),range,closeLocation,
       rthHigh:100*(high/preOpen-1),rthLow:100*(low/preOpen-1),box:directBox??null,trend:lastActiveTrend,feature:null,next:null};
-    item.h1Blocks=buildH1Blocks(rows,boxSnapshots,trendMap);
+    item.h1Blocks=buildH1Blocks(rows,boxSnapshots,trendMap,colorMap,strengthMap);
     item.feature=makeFeatures(item);days.push(item);
   }
   for(let i=0;i<days.length-1;i++)days[i].next=days[i+1];
@@ -111,13 +116,13 @@ export function buildDailyMaps({priceRows=[],boxSnapshots=new Map(),trendStates=
 // Builds a current-day research preview without changing confirmed H1 age.
 // Two extra closed M15 bars form one locked M30 structure observation; it may
 // preview +0.5 H1 only when HH/LL structure agrees with the last confirmed H1.
-export function buildIntradayDay({priceRows=[],boxSnapshots=new Map(),trendStates=[]}={}){
-  const groups=new Map(),trendMap=new Map(trendStates.filter(x=>Number.isFinite(x?.t)).map(x=>[x.t,x]));
+export function buildIntradayDay({priceRows=[],boxSnapshots=new Map(),trendStates=[],wlrColors=[],strengthRows=[]}={}){
+  const groups=new Map(),trendMap=new Map(trendStates.filter(x=>Number.isFinite(x?.t)).map(x=>[x.t,x])),colorMap=wlrColors instanceof Map?wlrColors:new Map(wlrColors.filter(x=>Number.isFinite(x?.t)).map(x=>[x.t,x])),strengthMap=strengthRows instanceof Map?strengthRows:new Map(strengthRows.filter(x=>Number.isFinite(x?.t)).map(x=>[x.t,x]));
   for(const row of priceRows){const clock=nyClock(row.t);if(['Sat','Sun'].includes(clock.weekday)||clock.minute<DAY_START||clock.minute>=DAY_END)continue;if(!groups.has(clock.day))groups.set(clock.day,[]);groups.get(clock.day).push({...row,minute:clock.minute});}
   const [day,source]=[...groups.entries()].sort(([a],[b])=>a.localeCompare(b)).at(-1)??[];if(!source)return null;
   const rows=source.sort((a,b)=>a.t-b.t);if(rows.length>=SLOTS||rows[0]?.minute!==DAY_START||!rows.every((row,i)=>row.minute===DAY_START+15*i&&(!i||row.t-rows[i-1].t===900000)))return null;
   const lockedCount=Math.floor(rows.length/4)*4;if(lockedCount<4)return null;
-  const lockedRows=rows.slice(0,lockedCount),h1Blocks=buildH1Blocks(lockedRows,boxSnapshots,trendMap),extra=rows.slice(lockedCount),lastH1=h1Blocks.at(-1);let m30Preview={locked:false,direction:0,hh:false,ll:false,outside:false,aligned:false,ageOffset:0};
+  const lockedRows=rows.slice(0,lockedCount),h1Blocks=buildH1Blocks(lockedRows,boxSnapshots,trendMap,colorMap,strengthMap),extra=rows.slice(lockedCount),lastH1=h1Blocks.at(-1);let m30Preview={locked:false,direction:0,hh:false,ll:false,outside:false,aligned:false,ageOffset:0};
   if(extra.length>=2&&lockedCount>=2){const previous=rows.slice(lockedCount-2,lockedCount),sample=extra.slice(0,2),o=sample[0].o,c=sample.at(-1).c,h=Math.max(...sample.map(x=>x.h)),l=Math.min(...sample.map(x=>x.l)),previousHigh=Math.max(...previous.map(x=>x.h)),previousLow=Math.min(...previous.map(x=>x.l)),hh=h>previousHigh,ll=l<previousLow,outside=hh&&ll,direction=hh&&!ll?1:ll&&!hh?-1:outside?Math.sign(c-o):0,aligned=direction!==0&&direction===lastH1?.direction;m30Preview={locked:true,direction,hh,ll,outside,aligned,ageOffset:aligned?.5:0};}
   return {day,rows,preview:true,closedM15:rows.length,h1Blocks,m30Preview};
 }
