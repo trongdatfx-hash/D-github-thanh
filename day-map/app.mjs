@@ -8,18 +8,18 @@ import {collectionFor,openClosedPairStream,topUpLive} from './live-topup.mjs?v=2
 import {buildDailyMaps,buildIntradayDay,additiveMacroForecast,macroPcaProjection,walkForwardMacroAudit} from './day-map-core.mjs?v=20261029-colorstrength1';
 
 const $=id=>document.getElementById(id),STEP=STEPS['15m'],LOOKBACK_DAYS=730;let days=[],forecast=null,manifest=null,audit=null,rawHistory=null,liveStream=null,restSyncing=false,repairing=false;
-const pct=x=>Number.isFinite(x)?`${x>0?'+':''}${x.toFixed(2)}%`:'�';
-const price=x=>Number.isFinite(x)?x.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'�';
+const pct=x=>Number.isFinite(x)?`${x>0?'+':''}${x.toFixed(2)}%`:'—';
+const price=x=>Number.isFinite(x)?x.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
 const clock=minute=>`${String(Math.floor(minute/60)).padStart(2,'0')}:${String(minute%60).padStart(2,'0')}`;
-const compact=r=>{if(!Array.isArray(r)||r.length<9)throw Error('Shard l?ch s? M15 kh�ng h?p l?');const [t,o,h,l,c,v,end,q,buy]=r.map(Number),valid=[t,o,h,l,c,v,end,q,buy].every(Number.isFinite)&&end===t+STEP-1&&o>0&&c>0&&h>=Math.max(o,c)&&l<=Math.min(o,c)&&l>0&&q>=0&&buy>=0&&buy<=q;if(!valid)throw Error('Bar l?ch s? M15 kh�ng h?p l?');return {t,o,h,l,c,v,end,q,buy,sell:q-buy,net:2*buy-q,nf:q>0?100*(2*buy-q)/q:null,...sessionAt(t)};};
+const compact=r=>{if(!Array.isArray(r)||r.length<9)throw Error('Shard lịch sử M15 không hợp lệ');const [t,o,h,l,c,v,end,q,buy]=r.map(Number),valid=[t,o,h,l,c,v,end,q,buy].every(Number.isFinite)&&end===t+STEP-1&&o>0&&c>0&&h>=Math.max(o,c)&&l<=Math.min(o,c)&&l>0&&q>=0&&buy>=0&&buy<=q;if(!valid)throw Error('Bar lịch sử M15 không hợp lệ');return {t,o,h,l,c,v,end,q,buy,sell:q-buy,net:2*buy-q,nf:q>0?100*(2*buy-q)/q:null,...sessionAt(t)};};
 
 async function loadDayHistory(){
   const root='../netflow-stumpy/data/binance/m15/',response=await fetch(root+'manifest.json?ts='+Date.now(),{cache:'no-store'});
-  if(!response.ok)throw Error('History manifest ch�a s?n s�ng');
-  const manifest=await response.json();if(manifest?.interval!=='15m'||!Array.isArray(manifest.months)||!Number.isFinite(manifest.lastTime))throw Error('History manifest kh�ng h?p l?');
+  if(!response.ok)throw Error('History manifest chưa sẵn sàng');
+  const manifest=await response.json();if(manifest?.interval!=='15m'||!Array.isArray(manifest.months)||!Number.isFinite(manifest.lastTime))throw Error('History manifest không hợp lệ');
   const cutoff=manifest.lastTime-LOOKBACK_DAYS*86400000,months=manifest.months.filter(key=>/^\d{4}-\d{2}$/.test(key)).filter(key=>{const [y,m]=key.split('-').map(Number);return Date.UTC(y,m,1)-1>=cutoff;});
-  const docs=await Promise.all(months.map(async key=>{const r=await fetch(root+key+'.json?v='+(key===months.at(-1)?manifest.lastTime:'closed'),{cache:'force-cache'});if(!r.ok)throw Error('Thi?u shard '+key);return r.json();}));
-  const normalize=symbol=>{const map=new Map();for(const doc of docs)for(const raw of doc[symbol]??[]){const row=compact(raw),old=map.get(row.t);if(old&&[old.o,old.h,old.l,old.c,old.q,old.buy].some((x,i)=>x!==[row.o,row.h,row.l,row.c,row.q,row.buy][i]))throw Error('Tr�ng timestamp M15 kh�c d? li?u: '+symbol);map.set(row.t,row);}return [...map.values()].filter(x=>x.t>=cutoff).sort((a,b)=>a.t-b.t);};
+  const docs=await Promise.all(months.map(async key=>{const r=await fetch(root+key+'.json?v='+(key===months.at(-1)?manifest.lastTime:'closed'),{cache:'force-cache'});if(!r.ok)throw Error('Thiếu shard '+key);return r.json();}));
+  const normalize=symbol=>{const map=new Map();for(const doc of docs)for(const raw of doc[symbol]??[]){const row=compact(raw),old=map.get(row.t);if(old&&[old.o,old.h,old.l,old.c,old.q,old.buy].some((x,i)=>x!==[row.o,row.h,row.l,row.c,row.q,row.buy][i]))throw Error('Trùng timestamp M15 khác dữ liệu: '+symbol);map.set(row.t,row);}return [...map.values()].filter(x=>x.t>=cutoff).sort((a,b)=>a.t-b.t);};
   return topUpLive({manifest,SPYUSDT:normalize('SPYUSDT'),QQQUSDT:normalize('QQQUSDT')},compact);
 }
 
@@ -30,20 +30,20 @@ function resizeCanvas(canvas){
 }
 function line(c,points,color,width=2,dash=[]){if(!points.length)return;c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.strokeStyle=color;c.lineWidth=width;c.setLineDash(dash);c.stroke();c.setLineDash([]);}
 function latestDataIsStale(index){const lag=Number(manifest?.collection?.lagHours),status=String(manifest?.collection?.status??'').toLowerCase();return index===days.length-1&&((Number.isFinite(lag)&&lag>2)||(status&&status!=='live'));}
-function clearForecastPanels(){for(const id of ['macro-map','age-map','state-map']){const canvas=$(id),ctx=canvas?.getContext?.('2d');if(ctx)ctx.clearRect(0,0,canvas.width,canvas.height);}$('similar').replaceChildren();$('macro-result').textContent='K?t qu? h?p: ch�a �? d? li?u �? �?c l�?ng.';$('age-result').textContent='K?t qu? tu?i: ch�a �? d? li?u �? �?c l�?ng.';}
+function clearForecastPanels(){for(const id of ['macro-map','age-map','state-map']){const canvas=$(id),ctx=canvas?.getContext?.('2d');if(ctx)ctx.clearRect(0,0,canvas.width,canvas.height);}$('similar').replaceChildren();$('macro-result').textContent='Kết quả hộp: chưa đủ dữ liệu để ước lượng.';$('age-result').textContent='Kết quả tuổi: chưa đủ dữ liệu để ước lượng.';}
 function m30PreviewText(isPreview,m30){
-  if(!isPreview)return 'M30 preview: kh�ng �p d?ng cho ng�y �? ho�n t?t.';
-  if(!m30?.locked)return 'M30 preview: ch�a �? 2 n?n M15 �? ��ng; ch�a c?ng tu?i.';
+  if(!isPreview)return 'M30 preview: không áp dụng cho ngày đã hoàn tất.';
+  if(!m30?.locked)return 'M30 preview: chưa đủ 2 nến M15 đã đóng; chưa cộng tuổi.';
   const structure=m30.hh&&m30.ll?'OUTSIDE':m30.hh?'HH':m30.ll?'LL':'INSIDE';
-  if(m30.aligned)return `M30 preview: ${structure} � ?ng h? h�?ng H1 � t?m +0,5 H1; ch? kh�a khi �? H1.`;
-  return `M30 preview: ${structure} � ch�a ?ng h? h�?ng H1 � kh�ng c?ng tu?i; kh�ng ph? �?nh d? b�o cohort.`;
+  if(m30.aligned)return `M30 preview: ${structure} · ủng hộ hướng H1 · tạm +0,5 H1; chỉ khóa khi đủ H1.`;
+  return `M30 preview: ${structure} · chưa ủng hộ hướng H1 · không cộng tuổi; không phủ định dự báo cohort.`;
 }
-function topUpStatusText(){const topUp=manifest?.topUp;return topUp?.status==='ok'?` � n?i live +${topUp.added} M15`:topUp?.status==='current'?' � live �? �?ng b?':topUp?.status==='failed'?` � n?i live l?i: ${topUp.reason}`:'';}
+function topUpStatusText(){const topUp=manifest?.topUp;return topUp?.status==='ok'?` · nối live +${topUp.added} M15`:topUp?.status==='current'?' · live đã đồng bộ':topUp?.status==='failed'?` · nối live lỗi: ${topUp.reason}`:'';}
 function renderAudit(){
-  if(!audit?.ready){$('audit-result').textContent='WAIT';$('audit-note').textContent=audit?.reason??'Ch�a �? checkpoint �? ph�n gi?i';return;}
-  const precision=Number.isFinite(audit.signalPrecision)?Math.round(100*audit.signalPrecision)+'%':'�',age=Math.round(100*audit.ageCoverage),box=Math.round(100*audit.boxCoverage),skill=Number.isFinite(audit.brierSkill)?`${audit.brierSkill>=0?'+':''}${Math.round(100*audit.brierSkill)}%`:'�';
-  $('audit-result').textContent=`${audit.n} m?c � Brier ${audit.brier.toFixed(3)} � skill ${skill}`;
-  $('audit-note').textContent=`T�n hi?u ${audit.signals} � ��ng m? r?ng ${precision} � ph? tu?i ${age}% � ph? h?p g?c ${box}% � �?m conformal ${audit.boxPadding80.toFixed(2)}%`;
+  if(!audit?.ready){$('audit-result').textContent='WAIT';$('audit-note').textContent=audit?.reason??'Chưa đủ checkpoint đã phân giải';return;}
+  const precision=Number.isFinite(audit.signalPrecision)?Math.round(100*audit.signalPrecision)+'%':'—',age=Math.round(100*audit.ageCoverage),box=Math.round(100*audit.boxCoverage),skill=Number.isFinite(audit.brierSkill)?`${audit.brierSkill>=0?'+':''}${Math.round(100*audit.brierSkill)}%`:'—';
+  $('audit-result').textContent=`${audit.n} mốc · Brier ${audit.brier.toFixed(3)} · skill ${skill}`;
+  $('audit-note').textContent=`Tín hiệu ${audit.signals} · đúng mở rộng ${precision} · phủ tuổi ${age}% · phủ hộp gốc ${box}% · đệm conformal ${audit.boxPadding80.toFixed(2)}%`;
 }
 
 function drawMacroMap(f){
@@ -56,19 +56,19 @@ function drawMacroMap(f){
   c.beginPath();track.forEach((s,i)=>i?c.lineTo(x(i),y(highs[i])):c.moveTo(x(i),y(highs[i])));for(let i=track.length-1;i>=0;i--)c.lineTo(x(i),y(lows[i]));c.closePath();c.fillStyle='rgba(54,223,255,.14)';c.fill();
   line(c,highs.map((v,i)=>[x(i),y(v)]),'#36dfff',1.7);line(c,lows.map((v,i)=>[x(i),y(v)]),'#36dfff',1.7);line(c,closes.map((v,i)=>[x(i),y(v)]),'#f6c85f',2.1);
   const bandTop=Math.max(projected.high10,projected.high90),bandBottom=Math.min(projected.low10,projected.low90);c.fillStyle='rgba(255,120,196,.18)';c.fillRect(futureX-14,y(bandTop),28,Math.max(3,y(bandBottom)-y(bandTop)));line(c,[[futureX-16,y(projected.high50)],[futureX+16,y(projected.high50)]],'#ff78c4',2.5);line(c,[[futureX-16,y(projected.low50)],[futureX+16,y(projected.low50)]],'#ff78c4',2.5);
-  c.fillStyle='#9eb2c8';c.fillText('H?P CU?I',futureX-28,h-12);c.fillText(`H1 #${f.current.ageH1}`,pad.l,h-12);c.fillText(`${track.at(-1).day} ${clock(track.at(-1).minute)}`,Math.max(pad.l+55,futureX-170),h-12);
+  c.fillStyle='#9eb2c8';c.fillText('HỘP CUỐI',futureX-28,h-12);c.fillText(`H1 #${f.current.ageH1}`,pad.l,h-12);c.fillText(`${track.at(-1).day} ${clock(track.at(-1).minute)}`,Math.max(pad.l+55,futureX-170),h-12);
   c.strokeStyle='rgba(176,194,215,.55)';c.setLineDash([4,4]);c.beginPath();c.moveTo(pad.l,y(0));c.lineTo(w-pad.r,y(0));c.stroke();c.setLineDash([]);
 }
 
 function drawAgeMap(f){
   const canvas=$('age-map'),{c,w,h}=resizeCanvas(canvas),pad={l:112,r:45,t:34,b:34},iw=w-pad.l-pad.r,rows=[
-    {label:'TU?I H1',current:f.age.h1.current,band:f.age.h1.final,suffix:' H1'},
-    {label:'TU?I M15',current:f.age.bars.current,band:f.age.bars.final,suffix:' n?n'},
-    {label:'B?NG CH?NG',current:f.evidence.current,band:f.evidence.final,suffix:''}
+    {label:'TUỔI H1',current:f.age.h1.current,band:f.age.h1.final,suffix:' H1'},
+    {label:'TUỔI M15',current:f.age.bars.current,band:f.age.bars.final,suffix:' nến'},
+    {label:'BẰNG CHỨNG',current:f.evidence.current,band:f.evidence.final,suffix:''}
   ],rowH=(h-pad.t-pad.b)/rows.length;
   c.clearRect(0,0,w,h);c.font='12px system-ui';
-  rows.forEach((row,i)=>{const top=pad.t+i*rowH,cy=top+rowH*.46,max=Math.max(row.band.p90,row.current,1)*1.15,x=v=>pad.l+iw*v/max;c.fillStyle='#9eb2c8';c.fillText(row.label,8,cy+4);c.strokeStyle='rgba(78,104,133,.38)';c.lineWidth=8;c.beginPath();c.moveTo(pad.l,cy);c.lineTo(w-pad.r,cy);c.stroke();c.strokeStyle='rgba(54,223,255,.42)';c.lineWidth=12;c.beginPath();c.moveTo(x(row.band.p10),cy);c.lineTo(x(row.band.p90),cy);c.stroke();c.strokeStyle='#f6c85f';c.lineWidth=3;c.beginPath();c.moveTo(x(row.band.p50),cy-11);c.lineTo(x(row.band.p50),cy+11);c.stroke();c.strokeStyle='#36dfff';c.lineWidth=3;c.beginPath();c.moveTo(x(row.current),cy-15);c.lineTo(x(row.current),cy+15);c.stroke();c.fillStyle='#eaf2fb';c.fillText(`${row.current.toFixed(row.current%1?1:0)} ? ${row.band.p50.toFixed(row.band.p50%1?1:0)}${row.suffix}`,pad.l,top+rowH*.82);});
-  const p=Math.round(100*f.expandProbability);c.fillStyle='#9eb2c8';c.fillText(`Kh? n�ng H?p c?n m? r?ng: ${p}% � ng�?ng t�ng bi�n ${f.expandThreshold.toFixed(2)}%`,pad.l,h-8);
+  rows.forEach((row,i)=>{const top=pad.t+i*rowH,cy=top+rowH*.46,max=Math.max(row.band.p90,row.current,1)*1.15,x=v=>pad.l+iw*v/max;c.fillStyle='#9eb2c8';c.fillText(row.label,8,cy+4);c.strokeStyle='rgba(78,104,133,.38)';c.lineWidth=8;c.beginPath();c.moveTo(pad.l,cy);c.lineTo(w-pad.r,cy);c.stroke();c.strokeStyle='rgba(54,223,255,.42)';c.lineWidth=12;c.beginPath();c.moveTo(x(row.band.p10),cy);c.lineTo(x(row.band.p90),cy);c.stroke();c.strokeStyle='#f6c85f';c.lineWidth=3;c.beginPath();c.moveTo(x(row.band.p50),cy-11);c.lineTo(x(row.band.p50),cy+11);c.stroke();c.strokeStyle='#36dfff';c.lineWidth=3;c.beginPath();c.moveTo(x(row.current),cy-15);c.lineTo(x(row.current),cy+15);c.stroke();c.fillStyle='#eaf2fb';c.fillText(`${row.current.toFixed(row.current%1?1:0)} → ${row.band.p50.toFixed(row.band.p50%1?1:0)}${row.suffix}`,pad.l,top+rowH*.82);});
+  const p=Math.round(100*f.expandProbability);c.fillStyle='#9eb2c8';c.fillText(`Khả năng Hộp còn mở rộng: ${p}% · ngưỡng tăng biên ${f.expandThreshold.toFixed(2)}%`,pad.l,h-8);
 }
 
 function drawStateMap(index){
@@ -76,49 +76,38 @@ function drawStateMap(index){
   const pad=30,xs=points.map(x=>x.x),ys=points.map(x=>x.y),xmin=Math.min(...xs),xmax=Math.max(...xs),ymin=Math.min(...ys),ymax=Math.max(...ys),x=v=>pad+(w-2*pad)*(v-xmin)/(xmax-xmin||1),y=v=>h-pad-(h-2*pad)*(v-ymin)/(ymax-ymin||1);
   c.strokeStyle='rgba(80,105,132,.35)';c.beginPath();c.moveTo(pad,y(0));c.lineTo(w-pad,y(0));c.moveTo(x(0),pad);c.lineTo(x(0),h-pad);c.stroke();
   for(const p of points){const color=p.current?'#36dfff':!Number.isFinite(p.target)?'#78889a':p.target>.15?'#28d6a2':p.target<-.15?'#ff6685':'#78889a';c.beginPath();c.arc(x(p.x),y(p.y),p.current?7:2.8,0,Math.PI*2);c.fillStyle=color;c.globalAlpha=p.current?1:.58;c.fill();c.globalAlpha=1;if(p.current){c.fillStyle='#eaf2fb';c.font='11px system-ui';c.fillText(`${p.day} ${clock(p.minute)}`,x(p.x)+9,y(p.y)-8);}}
-  c.fillStyle='#8ea3ba';c.font='11px system-ui';c.fillText('PC1 H1 + t�ch l?y',w/2-48,h-7);c.save();c.translate(10,h/2+38);c.rotate(-Math.PI/2);c.fillText('PC2 H1 + t�ch l?y',0,0);c.restore();
+  c.fillStyle='#8ea3ba';c.font='11px system-ui';c.fillText('PC1 H1 + tích lũy',w/2-48,h-7);c.save();c.translate(10,h/2+38);c.rotate(-Math.PI/2);c.fillText('PC2 H1 + tích lũy',0,0);c.restore();
 }
 
 function renderSimilar(){
-  $('similar').innerHTML=forecast.ranked.map(x=>`<div class="similar-row"><b>${x.state.day}<small>${clock(x.state.minute)}</small></b><span>d=${x.distance.toFixed(2)} � w=${Math.round(100*x.weight)}%</span><em>${x.outcome.finalAgeH1} H1</em><em class="${x.outcome.growthPct>0?'positive':'negative'}">${pct(x.outcome.growthPct)}</em></div>`).join('');
-}
-function renderLegacy(){
-  const index=Number($('day').value),k=Number($('neighbors').value),stale=latestDataIsStale(index),isPreview=days[index]?.preview===true,m30=days[index]?.m30Preview;forecast=additiveMacroForecast(days,index,{k,minSamples:12,minEffective:20});
-  if(!forecast.ready){$('signal').textContent='WAIT';$('signal').className='wait';$('confidence').textContent=stale?'D? LI?U TR? � kh�ng ph�t t�n hi?u':isPreview?'M30 PREVIEW � ch�a �? cohort tu?i':'CONF 0% � WAIT 100%';$('status').textContent=forecast.reason+topUpStatusText();clearForecastPanels();return;}
-  const f=forecast,pad=audit?.ready&&audit.n>=30?audit.boxPadding80:0,view=pad>0?{...f,box:{...f.box,lower:{...f.box.lower,p10:f.box.lower.p10-pad,p90:f.box.lower.p90+pad},upper:{...f.box.upper,p10:f.box.upper.p10-pad,p90:f.box.upper.p90+pad}}}:f,open=f.current.sourceBlock.o,low=open*(1+f.box.lower.p50/100),high=open*(1+f.box.upper.p50/100),shownLabel=stale||isPreview?'WAIT':f.label;
-  $('signal').textContent=shownLabel;$('signal').className=shownLabel.toLowerCase();$('confidence').textContent=stale?`D? LI?U TR? � P m? tham kh?o ${Math.round(100*f.expandProbability)}%`:isPreview?`M30 PREVIEW � kh�ng ph�t t�n hi?u � P m? ${Math.round(100*f.expandProbability)}%`:`CONF ${f.confidence}% � WAIT ${f.wait}% � P m? ${Math.round(100*f.expandProbability)}%`;
-  $('box').textContent=`${price(low)} ? ${price(high)}`;$('box-band').textContent=`H1 Open ${price(open)} � P10�P90 �? hi?u ch?nh ${pct(view.box.lower.p10)} ? ${pct(view.box.upper.p90)}${pad?` � �?m �${pad.toFixed(2)}%`:''}`;
-  $('age').textContent=`${f.age.h1.current}${isPreview&&m30?.ageOffset?` + ${m30.ageOffset.toFixed(1)} preview`:''} ? ${f.age.h1.final.p50} H1`;$('age-band').textContent=`C?n P50 ${f.age.h1.remaining.p50} H1 � P10�P90 ${f.age.h1.final.p10}�${f.age.h1.final.p90}${isPreview&&m30?.locked?` � M30 ${m30.hh?'HH':''}${m30.ll?'LL':''}${!m30.hh&&!m30.ll?'INSIDE':''} ${m30.aligned?'?ng h?':'ch�a ?ng h?'}`:''}`;
-  $('cohort').textContent=`${f.n} chu?i � N �?c l?p ${f.independentN.toFixed(1)}`;$('cohort-note').textContent=f.referenceOnly?`THAM KH?O � c?n ?${f.minEffective} ng�y/m?u hi?u d?ng`:'�? ng�?ng nghi�n c?u';
-  drawMacroMap(view);drawAgeMap(f);drawStateMap(index);renderSimilar();
-  const lag=manifest?.collection?.lagHours,status=String(manifest?.collection?.status??'').toUpperCase(),completeDays=days.filter(x=>!x.preview).length;$('status').className=stale?'negative':'';$('status').textContent=`${completeDays} ng�y ho�n ch?nh${isPreview?` � h�m nay ${days[index].closedM15} M15 ��ng`:''} � M�u+SPY V+Strength M15?H1 � H1 kh�a t? 4 M15 ��ng � d? li?u �?n ${new Date(manifest.lastTime).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})}${status?` � ${status}`:''}${Number.isFinite(lag)?` � tr? ${lag.toFixed(1)}h`:''}${topUpStatusText()}`;
+  $('similar').innerHTML=forecast.ranked.map(x=>`<div class="similar-row"><b>${x.state.day}<small>${clock(x.state.minute)}</small></b><span>d=${x.distance.toFixed(2)} · w=${Math.round(100*x.weight)}%</span><em>${x.outcome.finalAgeH1} H1</em><em class="${x.outcome.growthPct>0?'positive':'negative'}">${pct(x.outcome.growthPct)}</em></div>`).join('');
 }
 function render(){
   const index=Number($('day').value),k=Number($('neighbors').value),stale=latestDataIsStale(index),isPreview=days[index]?.preview===true,m30=days[index]?.m30Preview;
   forecast=additiveMacroForecast(days,index,{k,minSamples:12,minEffective:20});
   if(!forecast.ready){
     $('signal').textContent='WAIT';$('signal').className='wait';
-    $('confidence').textContent=stale?'D? LI?U TR? � kh�ng ph�t t�n hi?u':isPreview?'M30 PREVIEW � ch�a �? cohort tu?i':'CONF 0% � WAIT 100%';
-    $('age').textContent='Ch�a �? d? li?u';$('age-band').textContent='Tu?i hi?n t?i v� tu?i cu?i ch�a th? �?c l�?ng';$('age-preview').textContent=m30PreviewText(isPreview,m30);
+    $('confidence').textContent=stale?'DỮ LIỆU TRỄ · không phát tín hiệu':isPreview?'M30 PREVIEW · chưa đủ cohort tuổi':'CONF 0% · WAIT 100%';
+    $('age').textContent='Chưa đủ dữ liệu';$('age-band').textContent='Tuổi hiện tại và tuổi cuối chưa thể ước lượng';$('age-preview').textContent=m30PreviewText(isPreview,m30);
     $('status').textContent=forecast.reason+topUpStatusText();clearForecastPanels();return;
   }
   const f=forecast,pad=audit?.ready&&audit.n>=30?audit.boxPadding80:0,view=pad>0?{...f,box:{...f.box,lower:{...f.box.lower,p10:f.box.lower.p10-pad,p90:f.box.lower.p90+pad},upper:{...f.box.upper,p10:f.box.upper.p10-pad,p90:f.box.upper.p90+pad}}}:f,open=f.current.sourceBlock.o,low=open*(1+f.box.lower.p50/100),high=open*(1+f.box.upper.p50/100),shownLabel=stale||isPreview?'WAIT':f.label;
-  const currentAge=f.age.h1.current,finalAge=f.age.h1.final.p50,remaining=f.age.h1.remaining.p50,ageRange=`${f.age.h1.final.p10}�${f.age.h1.final.p90} H1`;
+  const currentAge=f.age.h1.current,finalAge=f.age.h1.final.p50,remaining=f.age.h1.remaining.p50,ageRange=`${f.age.h1.final.p10}–${f.age.h1.final.p90} H1`;
   $('signal').textContent=shownLabel;$('signal').className=shownLabel.toLowerCase();
-  $('confidence').textContent=stale?`D? LI?U TR? � P m? tham kh?o ${Math.round(100*f.expandProbability)}%`:isPreview?`M30 PREVIEW � kh�ng ph�t t�n hi?u � P m? ${Math.round(100*f.expandProbability)}%`:`CONF ${f.confidence}% � WAIT ${f.wait}% � P m? ${Math.round(100*f.expandProbability)}%`;
-  $('box').textContent=`${price(low)} ? ${price(high)}`;
-  $('box-band').textContent=`Open H1 ${price(open)} � v�ng cu?i P10�P90 ${pct(view.box.lower.p10)} ? ${pct(view.box.upper.p90)}${pad?` � �?m �${pad.toFixed(2)}%`:''}`;
-  $('age').textContent=`Hi?n t?i ${currentAge} H1 ? cu?i P50 ${finalAge} H1`;
-  $('age-band').textContent=`C?n l?i P50: ${remaining} H1 � kho?ng tu?i cu?i P10�P90: ${ageRange}`;
+  $('confidence').textContent=stale?`DỮ LIỆU TRỄ · P mở tham khảo ${Math.round(100*f.expandProbability)}%`:isPreview?`M30 PREVIEW · không phát tín hiệu · P mở ${Math.round(100*f.expandProbability)}%`:`CONF ${f.confidence}% · WAIT ${f.wait}% · P mở ${Math.round(100*f.expandProbability)}%`;
+  $('box').textContent=`${price(low)} → ${price(high)}`;
+  $('box-band').textContent=`Open H1 ${price(open)} · vùng cuối P10–P90 ${pct(view.box.lower.p10)} → ${pct(view.box.upper.p90)}${pad?` · đệm ±${pad.toFixed(2)}%`:''}`;
+  $('age').textContent=`Hiện tại ${currentAge} H1 → cuối P50 ${finalAge} H1`;
+  $('age-band').textContent=`Còn lại P50: ${remaining} H1 · khoảng tuổi cuối P10–P90: ${ageRange}`;
   $('age-preview').textContent=m30PreviewText(isPreview,m30);
-  $('cohort').textContent=`${f.n} chu?i � N �?c l?p ${f.independentN.toFixed(1)}`;
-  $('cohort-note').textContent=f.referenceOnly?`THAM KH?O � c?n ?${f.minEffective} ng�y/m?u hi?u d?ng`:'�? ng�?ng nghi�n c?u';
-  $('macro-result').textContent=`K?t qu?: H?p hi?n t?i r?ng ${f.current.widthPct.toFixed(2)}%; trung v? H?p cu?i n?m trong ${price(low)}�${price(high)}. X�c su?t c?n m? r?ng: ${Math.round(100*f.expandProbability)}%.`;
-  $('age-result').textContent=`K?t qu?: �? kh�a ${currentAge} H1; d? b�o k?t th�c t?i P50 ${finalAge} H1, t?c c?n kho?ng ${remaining} H1. 80% cohort n?m trong ${ageRange}.`;
+  $('cohort').textContent=`${f.n} chuỗi · N độc lập ${f.independentN.toFixed(1)}`;
+  $('cohort-note').textContent=f.referenceOnly?`THAM KHẢO · cần ≥${f.minEffective} ngày/mẫu hiệu dụng`:'Đủ ngưỡng nghiên cứu';
+  $('macro-result').textContent=`Kết quả: Hộp hiện tại rộng ${f.current.widthPct.toFixed(2)}%; trung vị Hộp cuối nằm trong ${price(low)}–${price(high)}. Xác suất còn mở rộng: ${Math.round(100*f.expandProbability)}%.`;
+  $('age-result').textContent=`Kết quả: đã khóa ${currentAge} H1; dự báo kết thúc tại P50 ${finalAge} H1, tức còn khoảng ${remaining} H1. 80% cohort nằm trong ${ageRange}.`;
   drawMacroMap(view);drawAgeMap(f);drawStateMap(index);renderSimilar();
   const lag=manifest?.collection?.lagHours,status=String(manifest?.collection?.status??'').toUpperCase(),completeDays=days.filter(x=>!x.preview).length;
   $('status').className=stale?'negative':'';
-  $('status').textContent=`${completeDays} ng�y ho�n ch?nh${isPreview?` � h�m nay ${days[index].closedM15} M15 ��ng`:''} � M�u+SPY V+Strength M15?H1 � H1 kh�a t? 4 M15 ��ng � d? li?u �?n ${new Date(manifest.lastTime).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})}${status?` � ${status}`:''}${Number.isFinite(lag)?` � tr? ${lag.toFixed(1)}h`:''}${topUpStatusText()}`;
+  $('status').textContent=`${completeDays} ngày hoàn chỉnh${isPreview?` · hôm nay ${days[index].closedM15} M15 đóng`:''} · Màu+SPY V+Strength M15→H1 · H1 khóa từ 4 M15 đóng · dữ liệu đến ${new Date(manifest.lastTime).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})}${status?` · ${status}`:''}${Number.isFinite(lag)?` · trễ ${lag.toFixed(1)}h`:''}${topUpStatusText()}`;
 }
 function rebuild(raw){
     manifest=raw.manifest;const now=manifest?.collection?.checkedAt??(manifest.lastTime??Date.now())+STEP;
@@ -127,8 +116,8 @@ function rebuild(raw){
     const trendStates=historicalTrendAgeStates({priceRows:spy,strengthRows:comp,volumeRows:marketVolume,channelTrends:channels.episodes,now,fromTime:-Infinity});
     const boxes=channelStrengthBoxes(spy,{channels:channels.episodes,showEarly:false,back:8,now,step:STEP,compositeRows:new Map(comp.map(x=>[x.t,x])),volumeRows:new Map(volume.map(x=>[x.t,x])),compositeMode:'annotate'});
     const strengthMap=new Map(comp.map(x=>[x.t,x])),volumeMap=new Map(volume.map(x=>[x.t,x])),wlrColors=wlrSoftColors(spy,weightedPriceBands(spy,STEP),strengthMap,volumeMap,{step:STEP,closedBefore:now});
-    days=buildDailyMaps({priceRows:spy,boxSnapshots:boxes.snapshots,trendStates,wlrColors,strengthRows:comp});if(days.length<13)throw Error('Ch�a �? ng�y ho�n ch?nh �? l?p cohort H1');audit=walkForwardMacroAudit(days,{k:60,minSamples:12,minEffective:20,minIndex:20});renderAudit();const intraday=buildIntradayDay({priceRows:spy,boxSnapshots:boxes.snapshots,trendStates,wlrColors,strengthRows:comp});if(intraday&&intraday.day>days.at(-1).day)days.push(intraday);
-    $('day').innerHTML=days.map((x,i)=>`<option value="${i}">${x.day}${x.preview?' � H�M NAY M30 PREVIEW':i===days.length-1?' � m?i nh?t':''}</option>`).reverse().join('');$('day').value=String(days.length-1);render();
+    days=buildDailyMaps({priceRows:spy,boxSnapshots:boxes.snapshots,trendStates,wlrColors,strengthRows:comp});if(days.length<13)throw Error('Chưa đủ ngày hoàn chỉnh để lập cohort H1');audit=walkForwardMacroAudit(days,{k:60,minSamples:12,minEffective:20,minIndex:20});renderAudit();const intraday=buildIntradayDay({priceRows:spy,boxSnapshots:boxes.snapshots,trendStates,wlrColors,strengthRows:comp});if(intraday&&intraday.day>days.at(-1).day)days.push(intraday);
+    $('day').innerHTML=days.map((x,i)=>`<option value="${i}">${x.day}${x.preview?' · HÔM NAY M30 PREVIEW':i===days.length-1?' · mới nhất':''}</option>`).reverse().join('');$('day').value=String(days.length-1);render();
 }
 async function refreshFromRest(){
   if(restSyncing||!rawHistory)return false;restSyncing=true;
@@ -158,10 +147,10 @@ async function init(){
   finally{document.body.classList.remove('loading');}
 }
 async function manualRefresh(){
-  const button=$('refresh');if(button.disabled)return;button.disabled=true;button.textContent='? �ang l�m t��i�';
-  try{const advanced=await refreshFromRest();button.textContent=advanced?'? �? c� M15 m?i':'? D? li?u hi?n t?i';}
-  catch(error){$('status').textContent=`L�m t��i l?i: ${error.message}`;$('status').className='negative';button.textContent='! Th? l?i';}
-  finally{setTimeout(()=>{button.disabled=false;button.textContent='? L�m t��i';},1400);}
+  const button=$('refresh');if(button.disabled)return;button.disabled=true;button.textContent='↻ Đang làm tươi…';
+  try{const advanced=await refreshFromRest();button.textContent=advanced?'✓ Đã có M15 mới':'✓ Dữ liệu hiện tại';}
+  catch(error){$('status').textContent=`Làm tươi lỗi: ${error.message}`;$('status').className='negative';button.textContent='! Thử lại';}
+  finally{setTimeout(()=>{button.disabled=false;button.textContent='↻ Làm tươi';},1400);}
 }
 $('day').addEventListener('change',render);$('neighbors').addEventListener('change',render);$('latest').addEventListener('click',()=>{$('day').value=String(days.length-1);render();});$('refresh').addEventListener('click',manualRefresh);addEventListener('resize',()=>{if(forecast?.ready)render();});init();
 setInterval(()=>{if(document.visibilityState==='visible')refreshFromRest();},5*60*1000);
