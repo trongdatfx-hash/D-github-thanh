@@ -97,7 +97,7 @@ function standardizer(rows){
   const n=rows[0]?.feature.length??0,mu=Array(n).fill(0),sd=Array(n).fill(0);
   for(const row of rows)for(let j=0;j<n;j++)mu[j]+=row.feature[j]/rows.length;
   for(const row of rows)for(let j=0;j<n;j++)sd[j]+=(row.feature[j]-mu[j])**2;
-  for(let j=0;j<n;j++)sd[j]=Math.sqrt(sd[j]/Math.max(1,rows.length-1))||1;
+  for(let j=0;j<n;j++){const value=Math.sqrt(sd[j]/Math.max(1,rows.length-1));sd[j]=Number.isFinite(value)&&value>1e-9?value:1;}
   return {mu,sd};
 }
 
