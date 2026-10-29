@@ -3,7 +3,7 @@ import {trendSessionRows} from '../netflow-stumpy/trend-session.mjs?v=20261029-h
 import {causalTrendChannels} from '../netflow-stumpy/causal-trend-channel.mjs?v=20261029-h1-map1';
 import {historicalTrendAgeStates} from '../netflow-stumpy/pre-rth-wlr-trend.mjs?v=20261029-h1-map1';
 import {channelStrengthBoxes} from '../netflow-stumpy/channel-strength-boxes.mjs?v=20261029-h1-map1';
-import {buildDailyMaps,additiveMacroForecast,macroPcaProjection} from './day-map-core.mjs?v=20261029-h1-map1';
+import {buildDailyMaps,additiveMacroForecast,macroPcaProjection} from './day-map-core.mjs?v=20261029-h1-map2';
 
 const $=id=>document.getElementById(id),STEP=STEPS['15m'];let days=[],forecast=null,manifest=null;
 const pct=x=>Number.isFinite(x)?`${x>0?'+':''}${x.toFixed(2)}%`:'—';
