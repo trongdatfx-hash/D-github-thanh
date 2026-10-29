@@ -3,7 +3,7 @@ import {trendSessionRows} from '../netflow-stumpy/trend-session.mjs?v=20261029-h
 import {causalTrendChannels} from '../netflow-stumpy/causal-trend-channel.mjs?v=20261029-h1-map1';
 import {historicalTrendAgeStates} from '../netflow-stumpy/pre-rth-wlr-trend.mjs?v=20261029-h1-map1';
 import {channelStrengthBoxes} from '../netflow-stumpy/channel-strength-boxes.mjs?v=20261029-h1-map1';
-import {buildDailyMaps,additiveMacroForecast,macroPcaProjection,walkForwardMacroAudit} from './day-map-core.mjs?v=20261029-h1-map4';
+import {buildDailyMaps,buildIntradayDay,additiveMacroForecast,macroPcaProjection,walkForwardMacroAudit} from './day-map-core.mjs?v=20261029-h1-map5';
 
 const $=id=>document.getElementById(id),STEP=STEPS['15m'],LOOKBACK_DAYS=730;let days=[],forecast=null,manifest=null,audit=null;
 const pct=x=>Number.isFinite(x)?`${x>0?'+':''}${x.toFixed(2)}%`:'—';
@@ -73,15 +73,15 @@ function renderSimilar(){
   $('similar').innerHTML=forecast.ranked.map(x=>`<div class="similar-row"><b>${x.state.day}<small>${clock(x.state.minute)}</small></b><span>d=${x.distance.toFixed(2)} · w=${Math.round(100*x.weight)}%</span><em>${x.outcome.finalAgeH1} H1</em><em class="${x.outcome.growthPct>0?'positive':'negative'}">${pct(x.outcome.growthPct)}</em></div>`).join('');
 }
 function render(){
-  const index=Number($('day').value),k=Number($('neighbors').value),stale=latestDataIsStale(index);forecast=additiveMacroForecast(days,index,{k,minSamples:12,minEffective:20});
-  if(!forecast.ready){$('signal').textContent='WAIT';$('signal').className='wait';$('confidence').textContent=stale?'DỮ LIỆU TRỄ · không phát tín hiệu':'CONF 0% · WAIT 100%';$('status').textContent=forecast.reason;clearForecastPanels();return;}
-  const f=forecast,pad=audit?.ready&&audit.n>=30?audit.boxPadding80:0,view=pad>0?{...f,box:{...f.box,lower:{...f.box.lower,p10:f.box.lower.p10-pad,p90:f.box.lower.p90+pad},upper:{...f.box.upper,p10:f.box.upper.p10-pad,p90:f.box.upper.p90+pad}}}:f,open=f.current.sourceBlock.o,low=open*(1+f.box.lower.p50/100),high=open*(1+f.box.upper.p50/100),shownLabel=stale?'WAIT':f.label;
-  $('signal').textContent=shownLabel;$('signal').className=shownLabel.toLowerCase();$('confidence').textContent=stale?`DỮ LIỆU TRỄ · P mở tham khảo ${Math.round(100*f.expandProbability)}%`:`CONF ${f.confidence}% · WAIT ${f.wait}% · P mở ${Math.round(100*f.expandProbability)}%`;
+  const index=Number($('day').value),k=Number($('neighbors').value),stale=latestDataIsStale(index),isPreview=days[index]?.preview===true,m30=days[index]?.m30Preview;forecast=additiveMacroForecast(days,index,{k,minSamples:12,minEffective:20});
+  if(!forecast.ready){$('signal').textContent='WAIT';$('signal').className='wait';$('confidence').textContent=stale?'DỮ LIỆU TRỄ · không phát tín hiệu':isPreview?'M30 PREVIEW · chưa đủ cohort tuổi':'CONF 0% · WAIT 100%';$('status').textContent=forecast.reason;clearForecastPanels();return;}
+  const f=forecast,pad=audit?.ready&&audit.n>=30?audit.boxPadding80:0,view=pad>0?{...f,box:{...f.box,lower:{...f.box.lower,p10:f.box.lower.p10-pad,p90:f.box.lower.p90+pad},upper:{...f.box.upper,p10:f.box.upper.p10-pad,p90:f.box.upper.p90+pad}}}:f,open=f.current.sourceBlock.o,low=open*(1+f.box.lower.p50/100),high=open*(1+f.box.upper.p50/100),shownLabel=stale||isPreview?'WAIT':f.label;
+  $('signal').textContent=shownLabel;$('signal').className=shownLabel.toLowerCase();$('confidence').textContent=stale?`DỮ LIỆU TRỄ · P mở tham khảo ${Math.round(100*f.expandProbability)}%`:isPreview?`M30 PREVIEW · không phát tín hiệu · P mở ${Math.round(100*f.expandProbability)}%`:`CONF ${f.confidence}% · WAIT ${f.wait}% · P mở ${Math.round(100*f.expandProbability)}%`;
   $('box').textContent=`${price(low)} → ${price(high)}`;$('box-band').textContent=`H1 Open ${price(open)} · P10–P90 đã hiệu chỉnh ${pct(view.box.lower.p10)} → ${pct(view.box.upper.p90)}${pad?` · đệm ±${pad.toFixed(2)}%`:''}`;
-  $('age').textContent=`${f.age.h1.current} → ${f.age.h1.final.p50} H1`;$('age-band').textContent=`Còn P50 ${f.age.h1.remaining.p50} H1 · P10–P90 ${f.age.h1.final.p10}–${f.age.h1.final.p90}`;
+  $('age').textContent=`${f.age.h1.current}${isPreview&&m30?.ageOffset?` + ${m30.ageOffset.toFixed(1)} preview`:''} → ${f.age.h1.final.p50} H1`;$('age-band').textContent=`Còn P50 ${f.age.h1.remaining.p50} H1 · P10–P90 ${f.age.h1.final.p10}–${f.age.h1.final.p90}${isPreview&&m30?.locked?` · M30 ${m30.hh?'HH':''}${m30.ll?'LL':''}${!m30.hh&&!m30.ll?'INSIDE':''} ${m30.aligned?'ủng hộ':'chưa ủng hộ'}`:''}`;
   $('cohort').textContent=`${f.n} chuỗi · N độc lập ${f.independentN.toFixed(1)}`;$('cohort-note').textContent=f.referenceOnly?`THAM KHẢO · cần ≥${f.minEffective} ngày/mẫu hiệu dụng`:'Đủ ngưỡng nghiên cứu';
   drawMacroMap(view);drawAgeMap(f);drawStateMap(index);renderSimilar();
-  const lag=manifest?.collection?.lagHours,status=String(manifest?.collection?.status??'').toUpperCase();$('status').className=stale?'negative':'';$('status').textContent=`${days.length} ngày · H1 khóa từ 4 M15 đóng · dữ liệu đến ${new Date(manifest.lastTime).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})}${status?` · ${status}`:''}${Number.isFinite(lag)?` · trễ ${lag.toFixed(1)}h`:''}`;
+  const lag=manifest?.collection?.lagHours,status=String(manifest?.collection?.status??'').toUpperCase(),completeDays=days.filter(x=>!x.preview).length;$('status').className=stale?'negative':'';$('status').textContent=`${completeDays} ngày hoàn chỉnh${isPreview?` · hôm nay ${days[index].closedM15} M15 đóng`:''} · H1 khóa từ 4 M15 đóng · dữ liệu đến ${new Date(manifest.lastTime).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})}${status?` · ${status}`:''}${Number.isFinite(lag)?` · trễ ${lag.toFixed(1)}h`:''}`;
 }
 async function init(){
   document.body.classList.add('loading');
@@ -91,8 +91,8 @@ async function init(){
     const market=trendSessionRows(spy.filter(x=>x.end<now)),times=new Set(market.map(x=>x.t)),marketVolume=volume.filter(x=>times.has(x.t)),channels=causalTrendChannels(market.map(x=>x.session==='EURO'?{...x,session:'PRE'}:x),{volumeRows:marketVolume,maxHistory:Infinity});
     const trendStates=historicalTrendAgeStates({priceRows:spy,strengthRows:comp,volumeRows:marketVolume,channelTrends:channels.episodes,now,fromTime:-Infinity});
     const boxes=channelStrengthBoxes(spy,{channels:channels.episodes,showEarly:false,back:8,now,step:STEP,compositeRows:new Map(comp.map(x=>[x.t,x])),volumeRows:new Map(volume.map(x=>[x.t,x])),compositeMode:'annotate'});
-    days=buildDailyMaps({priceRows:spy,boxSnapshots:boxes.snapshots,trendStates});if(days.length<13)throw Error('Chưa đủ ngày hoàn chỉnh để lập cohort H1');audit=walkForwardMacroAudit(days,{k:60,minSamples:12,minEffective:20,minIndex:20});renderAudit();
-    $('day').innerHTML=days.map((x,i)=>`<option value="${i}">${x.day}${i===days.length-1?' · mới nhất':''}</option>`).reverse().join('');$('day').value=String(days.length-1);render();
+    days=buildDailyMaps({priceRows:spy,boxSnapshots:boxes.snapshots,trendStates});if(days.length<13)throw Error('Chưa đủ ngày hoàn chỉnh để lập cohort H1');audit=walkForwardMacroAudit(days,{k:60,minSamples:12,minEffective:20,minIndex:20});renderAudit();const intraday=buildIntradayDay({priceRows:spy,boxSnapshots:boxes.snapshots,trendStates});if(intraday&&intraday.day>days.at(-1).day)days.push(intraday);
+    $('day').innerHTML=days.map((x,i)=>`<option value="${i}">${x.day}${x.preview?' · HÔM NAY M30 PREVIEW':i===days.length-1?' · mới nhất':''}</option>`).reverse().join('');$('day').value=String(days.length-1);render();
   }catch(error){$('status').textContent=error.message;$('status').className='negative';}
   finally{document.body.classList.remove('loading');}
 }
