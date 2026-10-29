@@ -31,4 +31,3 @@ test('websocket parser ignores open candles and accepts a closed one',()=>{
   assert.equal(closedWsKline({data:{k}}),null);k.x=true;assert.equal(closedWsKline({data:{k}}).row[0],t);
   assert.equal(collectionFor({lastBySymbol:{a:t,b:t},checkedAt:t+STEP+1000,source:'browser-ws'}).status,'live');
 });
-
