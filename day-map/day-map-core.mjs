@@ -93,6 +93,20 @@ export function buildDailyMaps({priceRows=[],boxSnapshots=new Map(),trendStates=
   return days;
 }
 
+// Builds a current-day research preview without changing confirmed H1 age.
+// Two extra closed M15 bars form one locked M30 structure observation; it may
+// preview +0.5 H1 only when HH/LL structure agrees with the last confirmed H1.
+export function buildIntradayDay({priceRows=[],boxSnapshots=new Map(),trendStates=[]}={}){
+  const groups=new Map(),trendMap=new Map(trendStates.filter(x=>Number.isFinite(x?.t)).map(x=>[x.t,x]));
+  for(const row of priceRows){const clock=nyClock(row.t);if(['Sat','Sun'].includes(clock.weekday)||clock.minute<DAY_START||clock.minute>=DAY_END)continue;if(!groups.has(clock.day))groups.set(clock.day,[]);groups.get(clock.day).push({...row,minute:clock.minute});}
+  const [day,source]=[...groups.entries()].sort(([a],[b])=>a.localeCompare(b)).at(-1)??[];if(!source)return null;
+  const rows=source.sort((a,b)=>a.t-b.t);if(rows.length>=SLOTS||rows[0]?.minute!==DAY_START||!rows.every((row,i)=>row.minute===DAY_START+15*i&&(!i||row.t-rows[i-1].t===900000)))return null;
+  const lockedCount=Math.floor(rows.length/4)*4;if(lockedCount<4)return null;
+  const lockedRows=rows.slice(0,lockedCount),h1Blocks=buildH1Blocks(lockedRows,boxSnapshots,trendMap),extra=rows.slice(lockedCount),lastH1=h1Blocks.at(-1);let m30Preview={locked:false,direction:0,hh:false,ll:false,outside:false,aligned:false,ageOffset:0};
+  if(extra.length>=2&&lockedCount>=2){const previous=rows.slice(lockedCount-2,lockedCount),sample=extra.slice(0,2),o=sample[0].o,c=sample.at(-1).c,h=Math.max(...sample.map(x=>x.h)),l=Math.min(...sample.map(x=>x.l)),previousHigh=Math.max(...previous.map(x=>x.h)),previousLow=Math.min(...previous.map(x=>x.l)),hh=h>previousHigh,ll=l<previousLow,outside=hh&&ll,direction=hh&&!ll?1:ll&&!hh?-1:outside?Math.sign(c-o):0,aligned=direction!==0&&direction===lastH1?.direction;m30Preview={locked:true,direction,hh,ll,outside,aligned,ageOffset:aligned?.5:0};}
+  return {day,rows,preview:true,closedM15:rows.length,h1Blocks,m30Preview};
+}
+
 function standardizer(rows){
   const n=rows[0]?.feature.length??0,mu=Array(n).fill(0),sd=Array(n).fill(0);
   for(const row of rows)for(let j=0;j<n;j++)mu[j]+=row.feature[j]/rows.length;
