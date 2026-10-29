@@ -55,4 +55,3 @@ test('adding future days does not rewrite existing walk-forward checkpoints',()=
   for(const record of before.records){const same=later.get(record.day);assert.ok(same);assert.equal(same.probability,record.probability);assert.equal(same.label,record.label);assert.equal(same.expanded,record.expanded);}
 });
 
-
