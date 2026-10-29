@@ -16,6 +16,14 @@ test('daily map keeps complete PRE to RTH sessions',()=>{
   const days=buildDailyMaps({priceRows:rows(5)});assert.equal(days.length,5);assert.equal(days[0].path.length,48);assert.equal(days[0].h1Blocks.length,12);assert.ok(days[0].next);
   assert.equal(days[0].h1Blocks[0].strengthening,0);
 });
+test('selected model locks four M15 color and Strength features at H1 close',()=>{
+  const priceRows=rows(1),directions=[1,1,-1,1],strengths=[.2,.1,-.2,.3];
+  for(let i=0;i<4;i++){const o=100+i*.2,c=o+.15;priceRows[i]={...priceRows[i],o,c,h:c+.05,l:o-.05};}
+  const wlrColors=priceRows.map((row,i)=>({t:row.t,trendDirection:directions[i%4]})),strengthRows=priceRows.map((row,i)=>({t:row.t,adjusted:strengths[i%4]}));
+  const block=buildDailyMaps({priceRows,wlrColors,strengthRows})[0].h1Blocks[0];
+  assert.equal(block.colorDirection,.5);assert.equal(block.colorAlignment,.75);assert.equal(block.lastStrength,.3);assert.equal(block.strengthAlignment,.75);
+  assert.deepEqual(block.feature.slice(-4),[.5,.75,.3,.75]);
+});
 test('daily map rejects duplicate or non-contiguous M15 bars',()=>{
   const broken=rows(2);broken[10]={...broken[9]};assert.equal(buildDailyMaps({priceRows:broken}).length,1);
 });
