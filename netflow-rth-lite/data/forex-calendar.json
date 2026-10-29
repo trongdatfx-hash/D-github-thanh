@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-10-29T07:14:22.124Z",
+  "updatedAt": "2026-10-29T14:29:05.873Z",
   "events": [
     {
       "title": "Bank Holiday",
@@ -459,7 +459,7 @@
       "date": "2026-10-29T09:00:00.000Z",
       "timestamp": 1793264400000,
       "impact": "Low",
-      "actual": "",
+      "actual": "6.3%",
       "forecast": "6.2%",
       "previous": "6.2%"
     },
@@ -469,7 +469,7 @@
       "date": "2026-10-29T09:30:00.000Z",
       "timestamp": 1793266200000,
       "impact": "Low",
-      "actual": "",
+      "actual": "0.1%",
       "forecast": "0.3%",
       "previous": "0.4%"
     },
@@ -479,7 +479,7 @@
       "date": "2026-10-29T09:30:00.000Z",
       "timestamp": 1793266200000,
       "impact": "Low",
-      "actual": "",
+      "actual": "53K",
       "forecast": "54K",
       "previous": "55K"
     },
@@ -489,19 +489,19 @@
       "date": "2026-10-29T09:30:00.000Z",
       "timestamp": 1793266200000,
       "impact": "Low",
-      "actual": "",
+      "actual": "5.8B",
       "forecast": "6.2B",
       "previous": "6.9B"
     },
     {
       "title": "Italian 10-y Bond Auction",
       "country": "EUR",
-      "date": "2026-10-29T09:33:00.000Z",
-      "timestamp": 1793266380000,
+      "date": "2026-10-29T10:08:00.000Z",
+      "timestamp": 1793268480000,
       "impact": "Low",
-      "actual": "",
-      "forecast": "",
-      "previous": "4.58"
+      "actual": "4.49",
+      "forecast": "1.6",
+      "previous": "4.58|1.6"
     },
     {
       "title": "Advance GDP Price Index q/q",
@@ -509,7 +509,7 @@
       "date": "2026-10-29T12:30:00.000Z",
       "timestamp": 1793277000000,
       "impact": "Medium",
-      "actual": "",
+      "actual": "2.3%",
       "forecast": "3.2%",
       "previous": "6.1%"
     },
@@ -519,7 +519,7 @@
       "date": "2026-10-29T12:30:00.000Z",
       "timestamp": 1793277000000,
       "impact": "High",
-      "actual": "",
+      "actual": "3.4%",
       "forecast": "3.2%",
       "previous": "2.2%"
     },
@@ -529,9 +529,9 @@
       "date": "2026-10-29T12:30:00.000Z",
       "timestamp": 1793277000000,
       "impact": "High",
-      "actual": "",
+      "actual": "0.3%",
       "forecast": "0.3%",
-      "previous": "0.2%"
+      "previous": "0.3%"
     },
     {
       "title": "Personal Income m/m",
@@ -539,9 +539,9 @@
       "date": "2026-10-29T12:30:00.000Z",
       "timestamp": 1793277000000,
       "impact": "Low",
-      "actual": "",
+      "actual": "0.2%",
       "forecast": "0.3%",
-      "previous": "0.2%"
+      "previous": "0.3%"
     },
     {
       "title": "Personal Spending m/m",
@@ -549,7 +549,7 @@
       "date": "2026-10-29T12:30:00.000Z",
       "timestamp": 1793277000000,
       "impact": "Low",
-      "actual": "",
+      "actual": "0.5%",
       "forecast": "0.6%",
       "previous": "0.9%"
     },
@@ -559,9 +559,9 @@
       "date": "2026-10-29T12:30:00.000Z",
       "timestamp": 1793277000000,
       "impact": "Medium",
-      "actual": "",
+      "actual": "194K",
       "forecast": "198K",
-      "previous": "194K"
+      "previous": "195K"
     },
     {
       "title": "Gov Council Member Gravelle Speaks",
@@ -579,7 +579,7 @@
       "date": "2026-10-29T13:15:00.000Z",
       "timestamp": 1793279700000,
       "impact": "High",
-      "actual": "",
+      "actual": "2.65%",
       "forecast": "2.65%",
       "previous": "2.65%"
     },
