@@ -24,11 +24,11 @@ export function weightedQuantile(values,weights,p){
 // whose close time has not passed. The later source wins on an overlapping
 // timestamp so REST can refresh the archive's last closed candle safely.
 export function mergeClosedBars(base=[],supplement=[],{now=Date.now(),step=900000}={}){
-  if(!Number.isFinite(now)||!Number.isFinite(step)||step<=0)throw Error('M?c th?i gian gh�p n?n kh�ng h?p l?');
+  if(!Number.isFinite(now)||!Number.isFinite(step)||step<=0)throw Error('Mốc thời gian ghép nến không hợp lệ');
   const merged=new Map();
   for(const row of [...base,...supplement]){
     const values=[row?.t,row?.end,row?.o,row?.h,row?.l,row?.c];
-    if(!values.every(Number.isFinite)||row.t%step!==0||row.end!==row.t+step-1||row.o<=0||row.c<=0||row.h<Math.max(row.o,row.c)||row.l>Math.min(row.o,row.c)||row.l<=0)throw Error('N?n b? sung kh�ng h?p l?');
+    if(!values.every(Number.isFinite)||row.t%step!==0||row.end!==row.t+step-1||row.o<=0||row.c<=0||row.h<Math.max(row.o,row.c)||row.l>Math.min(row.o,row.c)||row.l<=0)throw Error('Nến bổ sung không hợp lệ');
     if(row.end>=now)continue;
     merged.set(row.t,row);
   }
@@ -148,9 +148,9 @@ function envelope(paths,weights){
 }
 
 export function similarDayForecast(days,index,{k=20,minSamples=12,deadband=.15}={}){
-  const current=days[index];if(!current)return {ready:false,reason:'Kh�ng c� ng�y ��?c ch?n'};
+  const current=days[index];if(!current)return {ready:false,reason:'Không có ngày được chọn'};
   const candidates=days.slice(0,index).filter(x=>x.next);
-  if(candidates.length<minSamples)return {ready:false,reason:`Ch? c� ${candidates.length}/${minSamples} ng�y qu� kh? c� k?t qu? ng�y k? ti?p`,current,candidates:[]};
+  if(candidates.length<minSamples)return {ready:false,reason:`Chỉ có ${candidates.length}/${minSamples} ngày quá khứ có kết quả ngày kế tiếp`,current,candidates:[]};
   const scale=standardizer(candidates),target=normalizedFeature(current,scale);
   const ranked=candidates.map(day=>({day,distance:distance(normalizedFeature(day,scale),target)})).sort((a,b)=>a.distance-b.distance).slice(0,Math.min(k,candidates.length));
   const bandwidth=ranked[Math.floor(ranked.length/2)]?.distance||1,rawWeights=ranked.map(x=>Math.exp(-.5*(x.distance/Math.max(.05,bandwidth))**2)),sum=rawWeights.reduce((a,b)=>a+b,0)||1,weights=rawWeights.map(x=>x/sum);
@@ -236,10 +236,10 @@ function qset(values,weights){return {p10:weightedQuantile(values,weights,.10),p
 
 export function additiveMacroForecast(days,index,{k=20,minSamples=12,minEffective=20}={}){
   const map=buildAdditiveMacroMap(days),stateIndex=map.dayLastStateIndex[index],current=map.states[stateIndex];
-  if(!current?.active)return {ready:false,reason:'H1 cu?i ng�y ��?c ch?n ch�a c� chu?i H?p/Trend c�ng chi?u �? c?ng',current,map};
+  if(!current?.active)return {ready:false,reason:'H1 cuối ngày được chọn chưa có chuỗi Hộp/Trend cùng chiều để cộng',current,map};
   const resolved=map.episodes.filter(episode=>!episode.censored&&episode.endIndex<stateIndex&&episode.direction===current.direction&&episode.finalAgeH1>=current.ageH1);
   const candidates=resolved.map(episode=>map.states.filter(state=>state.episodeId===episode.id&&!state.carried&&state.ageH1===current.ageH1).at(-1)).filter(Boolean);
-  if(candidates.length<3)return {ready:false,reason:`Ch? c� ${candidates.length} chu?i l?ch s? c�ng chi?u s?ng �?n tu?i H1=${current.ageH1}`,current,map,candidates};
+  if(candidates.length<3)return {ready:false,reason:`Chỉ có ${candidates.length} chuỗi lịch sử cùng chiều sống đến tuổi H1=${current.ageH1}`,current,map,candidates};
   const scale=standardizer(candidates),target=normalizedFeature(current,scale),ranked=candidates.map(state=>({state,episode:state.outcome,distance:distance(normalizedFeature(state,scale),target)})).sort((a,b)=>a.distance-b.distance).slice(0,Math.min(k,candidates.length));
   const bandwidth=ranked[Math.floor(ranked.length/2)]?.distance||1,raw=ranked.map(x=>Math.exp(-.5*(x.distance/Math.max(.05,bandwidth))**2)),total=raw.reduce((s,x)=>s+x,0)||1,weights=raw.map(x=>x/total),neff=1/weights.reduce((s,w)=>s+w*w,0);
   const outcomes=ranked.map(({state,episode})=>{const anchor=state.sourceBlock.o,finalWidthPct=100*(episode.upper-episode.lower)/anchor,currentWidthPct=100*(state.upper-state.lower)/anchor;return {remainingH1:episode.finalAgeH1-state.ageH1,finalAgeH1:episode.finalAgeH1,remainingDays:Math.max(0,episode.finalAgeDays-state.ageDays),finalAgeDays:episode.finalAgeDays,remainingBars:Math.max(0,episode.finalAgeBars-state.ageBars),finalAgeBars:episode.finalAgeBars,lowerPct:100*(episode.lower/anchor-1),upperPct:100*(episode.upper/anchor-1),growthPct:finalWidthPct-currentWidthPct,finalEvidence:episode.finalEvidence};});
@@ -270,7 +270,7 @@ export function walkForwardMacroAudit(days,{k=60,minSamples=12,minEffective=20,m
       ageCovered:age>=forecast.age.h1.final.p10&&age<=forecast.age.h1.final.p90,
       boxCovered:lower>=forecast.box.lower.p10&&lower<=forecast.box.lower.p90&&upper>=forecast.box.upper.p10&&upper<=forecast.box.upper.p90});
   }
-  if(!records.length)return {ready:false,n:0,reason:'Ch�a c� checkpoint walk-forward �? ph�n gi?i'};
+  if(!records.length)return {ready:false,n:0,reason:'Chưa có checkpoint walk-forward đã phân giải'};
   const signals=records.filter(x=>x.label!=='WAIT'),avg=fn=>mean(records.map(fn)),signalHits=signals.filter(x=>x.expanded).length,brier=avg(x=>(x.probability-Number(x.expanded))**2),baseRate=avg(x=>Number(x.expanded)),baselineBrier=baseRate*(1-baseRate),boxPadding80=weightedQuantile(records.map(x=>x.boxMiss),records.map(()=>1),.80);
   return {ready:true,n:records.length,signals:signals.length,signalHits,signalPrecision:signals.length?signalHits/signals.length:null,brier,baseRate,baselineBrier,brierSkill:baselineBrier>0?1-brier/baselineBrier:null,ageCoverage:avg(x=>Number(x.ageCovered)),boxCoverage:avg(x=>Number(x.boxCovered)),boxPadding80,records};
 }
@@ -302,5 +302,4 @@ export function pcaProjection(days,index){
 }
 
 export const DAY_MAP_META={slots:SLOTS,startMinute:DAY_START,preEndMinute:PRE_END,endMinute:DAY_END,pathSlots:PATH_SLOTS};
-
 
