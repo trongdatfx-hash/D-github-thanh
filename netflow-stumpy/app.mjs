@@ -20,6 +20,7 @@ const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleStri
 const L=window.LightweightCharts;
 let chart,price,series={},marks,strengthMarks,cache=null,rows={},volumeStrengthRows=[],modelRows={},modelVolumeStrengthRows=[],modelStamp=null,trendRows={},trendVolumeStrengthRows=[],trendStamp=null,trainingMeta=null,maps={},priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,pivotFlowFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},causalChannelState={trends:[],total:0},geometryStatePoints=[],geometryStatePointsKey='',breakoutState=null,geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
 const colors={SPYUSDT:'#5ba8ff',QQQUSDT:'#c194ff',COMPOSITE:'#38dfba'};
+const PRICE_DELTA_COLORS={positive:'#36dfff',negative:'#ff78c4',neutral:'#b4c3d7'};
 let trendAgeCandleMap=new Map(),abaBandPhaseMap=new Map(),abaBandFrame=0;
 
 let boxVolumeStrengthMap=new Map(),wlrThicknessMap=new Map(),wlrColorMap=new Map();
@@ -121,7 +122,7 @@ class OiDottedRenderer{
     const a=bars[i-1],b=bars[i],x=b.originalData;
     if(!Number.isFinite(a.originalData?.value)||!Number.isFinite(x?.value)||b.x-a.x>Math.max(2,this.data.barSpacing*1.6))continue;
     const y1=priceToCoordinate(a.originalData.value),y2=priceToCoordinate(x.value);if(y1===null||y2===null)continue;
-    context.strokeStyle=x.value>=0?'#f6c85f':'#f3f6fb';context.lineWidth=(x.width??2)*ry;
+    context.strokeStyle=x.value>0?PRICE_DELTA_COLORS.positive:x.value<0?PRICE_DELTA_COLORS.negative:PRICE_DELTA_COLORS.neutral;context.lineWidth=(x.width??2)*ry;
     context.setLineDash([Math.max(1,ry),Math.max(2,ry*2)]);
     context.beginPath();context.moveTo(a.x*rx,y1*ry);context.lineTo(b.x*rx,y2*ry);context.stroke();
    }
@@ -135,7 +136,7 @@ class OiDottedSeries{
  update(data,options){this.lineRenderer.update(data,options);}
  priceValueBuilder(data){return [data.value];}
  isWhitespace(data){return !Number.isFinite(data?.value);}
- defaultOptions(){return {...L.customSeriesDefaultOptions,color:'#f6c85f',priceLineVisible:false,lastValueVisible:false,title:''};}
+ defaultOptions(){return {...L.customSeriesDefaultOptions,color:PRICE_DELTA_COLORS.positive,priceLineVisible:false,lastValueVisible:false,title:''};}
  destroy(){}
 }
 function status(text,error=false){$('status').textContent=text;$('status').classList.toggle('error',error);}
@@ -158,7 +159,7 @@ function setupChartActions(){
   const half=document.createElement('button');half.id='chart-fit-half';half.type='button';half.title='Hiển thị các nến trong 0,5 ngày gần nhất';half.textContent='Fit 0.5 ngày';live.insertAdjacentElement('afterend',half);
   const save=document.createElement('button');save.id='chart-save';save.type='button';save.title='Lưu toàn bộ lựa chọn và vùng thời gian đang xem trên trình duyệt này';save.textContent='Lưu setup';save.setAttribute('aria-live','polite');half.insertAdjacentElement('afterend',save);
   const alignmentLabel=$('alignment')?.closest('label');if(alignmentLabel){alignmentLabel.lastChild.textContent='SPY V Δ nến';alignmentLabel.dataset.pane='strength-spy-v';alignmentLabel.title='Histogram chung thang −1…+1 với Strength SPY V. Biên độ tuyến tính Δ/2: volume bằng SMA20 đạt nửa biên, từ 2× SMA20 đạt toàn biên. Bốn màu: Δ+/V+ xanh lá, Δ−/V+ xanh dương, Δ+/V− hồng nhạt, Δ−/V− đỏ.';}
-  if(!$('confirmed-delta-toggle')){const input=document.createElement('input');input.id='confirmed-delta-toggle';input.type='checkbox';input.checked=true;const label=document.createElement('label');label.title='Mọi khung: delta taker quote SPY cùng hướng thân nến; trái hướng hoặc doji là 0. Cộng 8 nến, làm mượt và chuẩn hóa; nến LIVE có thể đổi. Đây cũng là Strength Composite.';label.append(input,'Strength Giá×Delta ···');$('spy-volume-strength').closest('label').insertAdjacentElement('afterend',label);}
+  if(!$('confirmed-delta-toggle')){const input=document.createElement('input');input.id='confirmed-delta-toggle';input.type='checkbox';input.checked=true;const label=document.createElement('label');label.title='Màu đường: dương xanh cyan, âm hồng, 0 xám sáng. Mọi khung: delta taker quote SPY cùng hướng thân nến; trái hướng hoặc doji là 0. Cộng 8 nến, làm mượt và chuẩn hóa; nến LIVE có thể đổi. Đây cũng là Strength Composite.';label.append(input,'Strength Giá×Delta ···');$('spy-volume-strength').closest('label').insertAdjacentElement('afterend',label);}
   if(!$('oi-width-toggle')){const input=document.createElement('input');input.id='oi-width-toggle';input.type='checkbox';input.checked=true;const label=document.createElement('label');label.title='Độ dày 1/2/4 px theo biến động OI SPYUSDT: chỉ dữ liệu nến đóng, thiếu hoặc trễ giữ 2 px; không đổi giá trị Strength.';label.append(input,'Dày theo OI');$('confirmed-delta-toggle').closest('label').insertAdjacentElement('afterend',label);const state=document.createElement('span');state.id='oi-width-status';state.textContent='OI WAIT';label.append(' · ',state);}
   const compositeLabel=$('composite')?.closest('label');if(compositeLabel)compositeLabel.title='C Taker NF hiển thị trong pane Strength C, dùng thang riêng đối xứng nhưng chung chính xác tâm 0 với đường Strength.';
   const phaseLabel=$('phase-width')?.closest('label');if(phaseLabel){phaseLabel.hidden=true;const button=document.createElement('button');button.id='wlr-width-mode';button.type='button';button.className='display-mode-button';phaseLabel.insertAdjacentElement('afterend',button);}
@@ -310,7 +311,7 @@ function init(){
   series.alignment=chart.addSeries(L.HistogramSeries,{priceScaleId:'spy-volume-delta-overlay',base:0,color:'#68778a',title:'',priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},autoscaleInfoProvider:symmetricAutoscale},1);
   series.alignment.priceScale().applyOptions({scaleMargins:{top:.08,bottom:.08}});
   series.volumeStrength=chart.addSeries(L.BaselineSeries,{baseValue:{type:'price',price:0},topLineColor:'#f6c85f',topFillColor1:'rgba(246,200,95,.12)',topFillColor2:'rgba(246,200,95,0)',bottomLineColor:'#f3f6fb',bottomFillColor1:'rgba(243,246,251,0)',bottomFillColor2:'rgba(243,246,251,.09)',lineWidth:3,title:'',priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:4,autoscaleInfoProvider:()=>({priceRange:{minValue:-1,maxValue:1}})},1);
-  series.confirmedDelta=chart.addCustomSeries(new OiDottedSeries,{priceScaleId:'right',color:'#f6c85f',priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},autoscaleInfoProvider:symmetricAutoscale},1);
+  series.confirmedDelta=chart.addCustomSeries(new OiDottedSeries,{priceScaleId:'right',color:PRICE_DELTA_COLORS.positive,priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},autoscaleInfoProvider:symmetricAutoscale},1);
   series.volumeStrength.createPriceLine({price:0,color:'#6f8299',lineWidth:1,lineStyle:L.LineStyle.Solid,axisLabelVisible:true,title:'0'});
   series.volumeStrength.priceScale().applyOptions({scaleMargins:{top:.08,bottom:.08}});
   // A requested pane index can be clamped while panes are still being created.
