@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Bản đồ ngày PRE→RTH</title>
+  <meta name="description" content="Bản đồ nhiều ngày ghép Hộp sức mạnh, tuổi trend và envelope để nghiên cứu kỳ vọng giá ngày kế tiếp.">
+  <link rel="stylesheet" href="style.css?v=20261029-day-map1">
+</head>
+<body>
+<main>
+  <header>
+    <div><span class="eyebrow">SPYUSDT · M15 · NGHIÊN CỨU CAUSAL</span><h1>Bản đồ ngày <b>PRE→RTH</b></h1><p>Đồng bộ nhiều ngày theo PRE Open = 0% · Hộp sức mạnh · Tuổi trend · kỳ vọng ngày kế tiếp</p></div>
+    <a class="back" href="../">← Chart chính</a>
+  </header>
+  <section class="controls">
+    <label>Ngày đối chiếu <select id="day"></select></label>
+    <label>Nhóm gần nhất <select id="neighbors"><option value="12">12 ngày</option><option value="20" selected>20 ngày</option><option value="30">30 ngày</option><option value="40">40 ngày</option></select></label>
+    <button id="latest" type="button">Ngày mới nhất</button>
+    <span id="status">Đang nạp lịch sử…</span>
+  </section>
+  <section class="cards" aria-label="Kết quả dự báo">
+    <article><small>TRẠNG THÁI</small><strong id="signal">WAIT</strong><span id="confidence">CONF — · WAIT —</span></article>
+    <article><small>RTH CLOSE NGÀY SAU</small><strong id="close">—</strong><span id="close-band">P10 — · P90 —</span></article>
+    <article><small>BIÊN KỲ VỌNG</small><strong id="range">—</strong><span id="range-band">Low — · High —</span></article>
+    <article><small>COHORT</small><strong id="cohort">—</strong><span id="cohort-note">—</span></article>
+  </section>
+  <section class="grid">
+    <article class="panel wide"><div class="panel-head"><div><small>BẢN ĐỒ NGÀY ĐANG XÉT</small><h2>Quỹ đạo tương đồng và envelope</h2></div><span>PRE 04:00 → RTH 16:00 ET</span></div><canvas id="today-map" height="330"></canvas><p class="legend"><i class="current"></i>Ngày chọn <i class="median"></i>P50 nhóm <i class="band"></i>P10–P90</p></article>
+    <article class="panel wide forecast"><div class="panel-head"><div><small>BẢN ĐỒ KỲ VỌNG</small><h2>Quỹ đạo ngày kế tiếp của cohort</h2></div><span>Neo tại PRE Open ngày sau = 0%</span></div><canvas id="next-map" height="330"></canvas><p class="legend"><i class="median"></i>P50 kỳ vọng <i class="inner"></i>P25–P75 <i class="band"></i>P10–P90</p></article>
+    <article class="panel"><div class="panel-head"><div><small>KHÔNG GIAN TRẠNG THÁI</small><h2>Map PCA quỹ đạo + Hộp + tuổi trend</h2></div></div><canvas id="state-map" height="360"></canvas><p class="legend"><i class="up"></i>Ngày sau tăng <i class="down"></i>Ngày sau giảm <i class="wait"></i>Trung tính/chưa biết</p></article>
+    <article class="panel"><div class="panel-head"><div><small>NGÀY TƯƠNG ĐỒNG</small><h2>Cohort dùng để ước lượng</h2></div></div><div id="similar" class="similar"></div></article>
+  </section>
+  <details>
+    <summary>Phương pháp và giới hạn</summary>
+    <p>Mỗi ngày đủ 48 nến M15 từ 04:00 đến 16:00 New York được neo về PRE Open = 0%. Vector trạng thái gồm tám mốc quỹ đạo giá, dịch chuyển PRE/RTH, range, vị trí đóng cửa, Hộp sức mạnh causal và tuổi trend causal. Tất cả đặc trưng được chuẩn hóa bằng các ngày quá khứ trước ngày đang xét.</p>
+    <p>Nhóm tương đồng được chọn bằng khoảng cách Euclid có trọng số. Kỳ vọng ngày sau là phân vị có trọng số của ngày kế tiếp sau từng mẫu. Xác suất hướng được co Bayes về 50% với prior 20. Tín hiệu giữ WAIT nếu P10–P90 cắt 0, xác suất chưa đủ lệch, hiệu ứng nhỏ hơn 2 SE hoặc cohort hiệu dụng dưới ngưỡng.</p>
+    <p>Đây là bản đồ nghiên cứu. Cohort dưới 50 mẫu hiệu dụng chỉ mang tính tham khảo; cần 200–500 dự báo walk-forward đã chấm để đánh giá nghiêm túc. Delta/Strength không được dùng riêng để suy ra hướng giá.</p>
+  </details>
+</main>
+<script type="module" src="app.mjs?v=20261029-day-map1"></script>
+</body>
+</html>
