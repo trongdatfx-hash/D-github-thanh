@@ -35,7 +35,7 @@ function renderWait(message,{direction=0,detail=''}={}){
 }
 
 function renderForecast(result,manifest){
-  const lag=manifest?.collection?.lagHours,status=manifest?.collection?.status,detail=`${status==='live'?'LIVE':'DỮ LIỆU TRỄ'}${Number.isFinite(lag)?` · trễ ${lag.toFixed(1)}h`:''}`;
+  const lag=manifest?.collection?.lagHours,status=manifest?.collection?.status,top=manifest?.topUp,topDetail=top?.status==='failed'?` · nối live lỗi: ${top.reason}`:top?.status==='ok'?` · nối live +${top.added} M15`:'',detail=`${status==='live'?'LIVE':'DỮ LIỆU TRỄ'}${Number.isFinite(lag)?` · trễ ${lag.toFixed(1)}h`:''}${topDetail}`;
   if(status!=='live'||!Number.isFinite(lag)||lag>1){renderWait('Dữ liệu chưa đủ mới; không phát xác suất', {detail});return;}
   if(!result.ready){renderWait(result.reason,{direction:result.direction,detail});return;}
   const direction=result.direction,card=$('weekly-wlr-card'),signal=$('weekly-wlr-signal'),main=$('weekly-wlr-main'),note=$('weekly-wlr-note');
@@ -54,7 +54,8 @@ async function refresh(){
     const bands=weightedPriceBands(spyRows,STEP),colors=wlrSoftColors(spyRows,bands,new Map(comp.map(x=>[x.t,x])),new Map(volume.map(x=>[x.t,x])),{step:STEP,closedBefore});
     renderForecast(weeklyWlrReversalForecast(spy,colors,closedBefore),data.manifest);
     const lag=data.manifest?.collection?.lagHours,top=data.manifest?.topUp;
-    auto.textContent=`● AUTO 60 GIÂY${Number.isFinite(lag)?` · TRỄ ${lag.toFixed(1)}H`:''}${top?.status==='ok'?` · +${top.added} M15`:''}`;
+    auto.textContent=`● AUTO 60 GIÂY${Number.isFinite(lag)?` · TRỄ ${lag.toFixed(1)}H`:''}${top?.status==='ok'?` · +${top.added} M15`:top?.status==='failed'?' · NỐI LIVE LỖI':''}`;
+    auto.title=top?.status==='failed'?top.reason:'';
     auto.className=data.manifest?.collection?.status==='live'?'live':'delayed';
   }catch(error){renderWait(`Không cập nhật được: ${error.message}`);auto.textContent='● LỖI DỮ LIỆU';auto.className='delayed';}
   finally{busy=false;button.disabled=false;button.textContent='↻ Làm tươi';}
