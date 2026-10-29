@@ -30,5 +30,5 @@ test('H1 ledger adds only locked same-direction packets',()=>{
   const map=buildAdditiveMacroMap(h1Days(3));assert.equal(map.states.length,36);assert.equal(map.states[0].ageH1,1);assert.equal(map.states[1].ageH1,2);assert.equal(map.states[2].direction,-1);assert.equal(map.states[2].ageH1,1);assert.equal(map.states[1].ageBars,8);
 });
 test('H1 macro forecast uses only resolved earlier episodes',()=>{
-  const days=h1Days(20),f=additiveMacroForecast(days,19,{k:12,minSamples:3});assert.equal(f.ready,true);assert.equal(f.ranked.length,12);assert.ok(f.ranked.every(x=>x.episode.endIndex<f.current.index));assert.equal(f.age.h1.current,2);assert.equal(macroPcaProjection(days,19).filter(x=>x.current).length,1);
+  const days=h1Days(20),f=additiveMacroForecast(days,19,{k:12,minSamples:3});assert.equal(f.ready,true);assert.equal(f.ranked.length,12);assert.ok(f.ranked.every(x=>x.episode.endIndex<f.current.index));assert.ok(f.ranked.every(x=>Number.isFinite(x.distance)&&x.distance<100));assert.equal(f.age.h1.current,2);assert.equal(macroPcaProjection(days,19).filter(x=>x.current).length,1);
 });
