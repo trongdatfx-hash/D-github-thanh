@@ -1,4 +1,4 @@
-import {analyzeTrendSource,computeStudies} from './studies-core.mjs?v=20261029-weekly-map1';
+import {analyzeTrendSource,computeStudies} from './studies-core.mjs?v=20261029-weekly-map2';
 import {loadPersistentHistory} from './history-store.mjs?v=20261029-price-delta1';
 let serial=0,trend=null,trendKey='',historyPending=null;
 self.onmessage=async({data})=>{
