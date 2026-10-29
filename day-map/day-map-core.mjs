@@ -236,13 +236,14 @@ export function walkForwardMacroAudit(days,{k=60,minSamples=12,minEffective=20,m
     if(!forecast.ready||forecast.ranked.some(x=>x.episode.endIndex>=forecast.current.index))continue;
     const anchor=forecast.current.sourceBlock.o,currentWidth=100*(forecast.current.upper-forecast.current.lower)/anchor,finalWidth=100*(actual.upper-actual.lower)/anchor,growth=finalWidth-currentWidth,expanded=growth>=forecast.expandThreshold;
     const lower=100*(actual.lower/anchor-1),upper=100*(actual.upper/anchor-1),age=actual.finalAgeH1;
-    records.push({day:days[index].day,probability:forecast.expandProbability,expanded,label:forecast.label,referenceOnly:forecast.referenceOnly,growth,
+    const boxMiss=Math.max(0,forecast.box.lower.p10-lower,lower-forecast.box.lower.p90,forecast.box.upper.p10-upper,upper-forecast.box.upper.p90);
+    records.push({day:days[index].day,probability:forecast.expandProbability,expanded,label:forecast.label,referenceOnly:forecast.referenceOnly,growth,boxMiss,
       ageCovered:age>=forecast.age.h1.final.p10&&age<=forecast.age.h1.final.p90,
       boxCovered:lower>=forecast.box.lower.p10&&lower<=forecast.box.lower.p90&&upper>=forecast.box.upper.p10&&upper<=forecast.box.upper.p90});
   }
   if(!records.length)return {ready:false,n:0,reason:'Chưa có checkpoint walk-forward đã phân giải'};
-  const signals=records.filter(x=>x.label!=='WAIT'),avg=fn=>mean(records.map(fn)),signalHits=signals.filter(x=>x.expanded).length;
-  return {ready:true,n:records.length,signals:signals.length,signalHits,signalPrecision:signals.length?signalHits/signals.length:null,brier:avg(x=>(x.probability-Number(x.expanded))**2),baseRate:avg(x=>Number(x.expanded)),ageCoverage:avg(x=>Number(x.ageCovered)),boxCoverage:avg(x=>Number(x.boxCovered)),records};
+  const signals=records.filter(x=>x.label!=='WAIT'),avg=fn=>mean(records.map(fn)),signalHits=signals.filter(x=>x.expanded).length,brier=avg(x=>(x.probability-Number(x.expanded))**2),baseRate=avg(x=>Number(x.expanded)),baselineBrier=baseRate*(1-baseRate),boxPadding80=weightedQuantile(records.map(x=>x.boxMiss),records.map(()=>1),.80);
+  return {ready:true,n:records.length,signals:signals.length,signalHits,signalPrecision:signals.length?signalHits/signals.length:null,brier,baseRate,baselineBrier,brierSkill:baselineBrier>0?1-brier/baselineBrier:null,ageCoverage:avg(x=>Number(x.ageCovered)),boxCoverage:avg(x=>Number(x.boxCovered)),boxPadding80,records};
 }
 
 export function macroPcaProjection(days,index){
