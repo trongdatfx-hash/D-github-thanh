@@ -9,5 +9,5 @@ export function chartFresh(data,now,receivedAt,wallNow=Date.now()){
 }
 
 export function liveTrendAgeState(state,live){
- return state?.provisional&&!live?null:state??null;
+ return state??null;
 }

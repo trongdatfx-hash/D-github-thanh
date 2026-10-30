@@ -16,9 +16,9 @@ test('LIVE needs one recent complete response and the same fresh tail for both s
  assert.equal(chartFresh({...data,QQQUSDT:[{...current,end:current.end-1}]},now,receivedAt,now),false);
 });
 
-test('DELAYED suppresses only provisional trend-age state',()=>{
+test('DELAYED keeps provisional trend-age state available for candle coloring',()=>{
  const provisional={label:'UP',provisional:true},closed={label:'DOWN',provisional:false};
- assert.equal(liveTrendAgeState(provisional,false),null);
+ assert.equal(liveTrendAgeState(provisional,false),provisional);
  assert.equal(liveTrendAgeState(provisional,true),provisional);
  assert.equal(liveTrendAgeState(closed,false),closed);
  assert.equal(liveTrendAgeState(undefined,false),null);
