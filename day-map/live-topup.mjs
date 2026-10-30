@@ -39,11 +39,11 @@ export function collectionFor({lastBySymbol,checkedAt,source,step=STEP}){
   return {source,status:source==='daily-archive'||lag>step+15000?'delayed':'live',checkedAt,lastTimeBySymbol:lastBySymbol,lagHours:Math.round(lag/3600000*100)/100};
 }
 
-export async function fetchKlinePages(symbol,startTime,{now=Date.now(),fetchImpl=fetch,maxPages=4}={}){
+export async function fetchKlinePages(symbol,startTime,{now=Date.now(),fetchImpl=fetch,maxPages=4,timeoutMs=12000}={}){
   const rows=[];let cursor=startTime;
   for(let page=0;page<maxPages&&cursor<now;page++){
     const url=`${KLINES}?symbol=${symbol}&interval=15m&limit=1000&startTime=${cursor}&endTime=${now}`;
-    const response=await fetchImpl(url,{cache:'no-store'});
+    const response=await fetchImpl(url,{cache:'no-store',signal:AbortSignal.timeout(timeoutMs)});
     if(!response.ok)throw Error(`Binance klines HTTP ${response.status}`);
     const part=await response.json();if(!Array.isArray(part))throw Error('Binance klines trả về không phải mảng');
     if(!part.length)break;rows.push(...part);
@@ -105,3 +105,4 @@ export function openClosedPairStream({afterT,onPair,onGap,onStatus,WebSocketImpl
   };
   connect();return {close(){closed=true;clearTimeout(timer);socket?.close();},expected(){return expected;}};
 }
+
