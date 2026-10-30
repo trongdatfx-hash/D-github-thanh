@@ -18,9 +18,39 @@ export function selectedDayIndex(previousDays,value,nextDays){
   return found<0?nextDays.length-1:found;
 }
 
+export function collectionLastTime(collection,lastTime){
+  const bySymbol=collection?.lastTimeBySymbol;
+  if(bySymbol&&typeof bySymbol==='object'){
+    const spy=bySymbol.SPYUSDT,qqq=bySymbol.QQQUSDT;
+    return Number.isFinite(spy)&&Number.isFinite(qqq)?Math.min(spy,qqq):NaN;
+  }
+  return Number.isFinite(lastTime)?lastTime:NaN;
+}
+
 export function collectionIsStale(collection,lastTime,now=Date.now(),step=900000){
-  const stamps=Object.values(collection?.lastTimeBySymbol??{}).filter(Number.isFinite);
-  const end=stamps.length?Math.min(...stamps):lastTime;
+  const end=collectionLastTime(collection,lastTime);
   if(!Number.isFinite(end)||now-end-step>step+15000)return true;
   return String(collection?.status??'').toLowerCase()!=='live';
+}
+
+export async function fetchHistoryManifest(url,{fetchImpl=fetch}={}){
+  let primaryError;
+  try{
+    const response=await fetchImpl(url,{cache:'no-cache'});
+    if(!response.ok)throw Error(`History manifest HTTP ${response.status}`);
+    return await response.json();
+  }catch(error){primaryError=error;}
+  try{
+    const cached=await fetchImpl(url,{cache:'force-cache'});
+    if(!cached.ok)throw Error(`Cached history manifest HTTP ${cached.status}`);
+    return await cached.json();
+  }catch{return Promise.reject(primaryError);}
+}
+
+export function topUpStatusLabel(manifest,now=Date.now(),step=900000){
+  const topUp=manifest?.topUp;
+  if(topUp?.status==='ok')return `nối live +${topUp.added} M15`;
+  if(topUp?.status==='current')return collectionIsStale(manifest?.collection,manifest?.lastTime,now,step)?'REST không có nến mới':'live đã đồng bộ';
+  if(topUp?.status==='failed')return `nối live lỗi: ${topUp.reason}`;
+  return '';
 }

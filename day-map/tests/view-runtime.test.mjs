@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {resizeCanvas,selectedDayIndex,collectionIsStale} from '../view-runtime.mjs';
+import {resizeCanvas,selectedDayIndex,collectionIsStale,collectionLastTime,fetchHistoryManifest,topUpStatusLabel} from '../view-runtime.mjs';
 
 test('repeated DPR renders keep logical height and bounded backing store',()=>{
   const transforms=[],canvas={dataset:{},style:{},clientWidth:280,width:300,height:350,
@@ -24,4 +24,31 @@ test('LIVE metadata expires by candle time even after a failed refresh',()=>{
   assert.equal(collectionIsStale(c,t,t+1800000+15001),true);
   assert.equal(collectionIsStale({...c,status:'delayed'},t,t+900000),true);
   assert.equal(collectionIsStale(null,undefined,t),true);
+});
+
+
+test('LIVE requires timestamps from both SPY and QQQ',()=>{
+  const t=Date.UTC(2026,9,30),partial={status:'live',lastTimeBySymbol:{SPYUSDT:t}};
+  assert.equal(Number.isNaN(collectionLastTime(partial,t)),true);
+  assert.equal(collectionIsStale(partial,t,t+900000),true);
+});
+
+test('manifest loader uses stable revalidating request on a normal open',async()=>{
+  const expected={interval:'15m',months:['2026-10'],lastTime:123},calls=[];
+  const fetchImpl=async(url,options)=>{calls.push([url,options.cache]);return {ok:true,json:async()=>expected};};
+  assert.equal(await fetchHistoryManifest('/manifest.json',{fetchImpl}),expected);
+  assert.deepEqual(calls,[['/manifest.json','no-cache']]);
+});
+
+test('manifest loader falls back to browser cache after a network failure',async()=>{
+  const expected={interval:'15m',months:['2026-10'],lastTime:123},calls=[];
+  const fetchImpl=async(url,options)=>{calls.push([url,options.cache]);if(calls.length===1)throw Error('offline');return {ok:true,json:async()=>expected};};
+  assert.equal(await fetchHistoryManifest('/manifest.json',{fetchImpl}),expected);
+  assert.deepEqual(calls,[['/manifest.json','no-cache'],['/manifest.json','force-cache']]);
+});
+
+test('REST current label does not claim LIVE when stored data is stale',()=>{
+  const t=Date.UTC(2026,9,30),collection={status:'live',lastTimeBySymbol:{SPYUSDT:t,QQQUSDT:t}},manifest={lastTime:t,collection,topUp:{status:'current',added:0}};
+  assert.equal(topUpStatusLabel(manifest,t+1800000+15001),'REST không có nến mới');
+  assert.equal(topUpStatusLabel(manifest,t+900000),'live đã đồng bộ');
 });

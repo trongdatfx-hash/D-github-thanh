@@ -1,4 +1,4 @@
-import {resizeCanvas,selectedDayIndex,collectionIsStale} from './view-runtime.mjs?v=20261030-h1-perf1';
+import {resizeCanvas,selectedDayIndex,collectionIsStale,collectionLastTime,fetchHistoryManifest,topUpStatusLabel} from './view-runtime.mjs?v=20261030-h1-status2';
 import {analyze,composite,calculateVolumeStrength,weightedPriceBands,STEPS,sessionAt} from '../netflow-stumpy/engine.mjs?v=20261029-colorstrength1';
 import {trendSessionRows} from '../netflow-stumpy/trend-session.mjs?v=20261029-h1-map1';
 import {causalTrendChannels} from '../netflow-stumpy/causal-trend-channel.mjs?v=20261029-h1-map1';
@@ -15,9 +15,8 @@ const clock=minute=>`${String(Math.floor(minute/60)).padStart(2,'0')}:${String(m
 const compact=r=>{if(!Array.isArray(r)||r.length<9)throw Error('Shard lịch sử M15 không hợp lệ');const [t,o,h,l,c,v,end,q,buy]=r.map(Number),valid=[t,o,h,l,c,v,end,q,buy].every(Number.isFinite)&&end===t+STEP-1&&o>0&&c>0&&h>=Math.max(o,c)&&l<=Math.min(o,c)&&l>0&&q>=0&&buy>=0&&buy<=q;if(!valid)throw Error('Bar lịch sử M15 không hợp lệ');return {t,o,h,l,c,v,end,q,buy,sell:q-buy,net:2*buy-q,nf:q>0?100*(2*buy-q)/q:null,...sessionAt(t)};};
 
 async function loadDayHistory(){
-  const root='../netflow-stumpy/data/binance/m15/',response=await fetch(root+'manifest.json?ts='+Date.now(),{cache:'no-store'});
-  if(!response.ok)throw Error('History manifest chưa sẵn sàng');
-  const manifest=await response.json();if(manifest?.interval!=='15m'||!Array.isArray(manifest.months)||!Number.isFinite(manifest.lastTime))throw Error('History manifest không hợp lệ');
+  const root='../netflow-stumpy/data/binance/m15/',manifest=await fetchHistoryManifest(root+'manifest.json');
+  if(manifest?.interval!=='15m'||!Array.isArray(manifest.months)||!Number.isFinite(manifest.lastTime))throw Error('History manifest không hợp lệ');
   const cutoff=manifest.lastTime-LOOKBACK_DAYS*86400000,months=manifest.months.filter(key=>/^\d{4}-\d{2}$/.test(key)).filter(key=>{const [y,m]=key.split('-').map(Number);return Date.UTC(y,m,1)-1>=cutoff;});
   const docs=await Promise.all(months.map(async key=>{const r=await fetch(root+key+'.json?v='+(key===months.at(-1)?manifest.lastTime:'closed'),{cache:'force-cache'});if(!r.ok)throw Error('Thiếu shard '+key);return r.json();}));
   const normalize=symbol=>{const map=new Map();for(const doc of docs)for(const raw of doc[symbol]??[]){const row=compact(raw),old=map.get(row.t);if(old&&[old.o,old.h,old.l,old.c,old.q,old.buy].some((x,i)=>x!==[row.o,row.h,row.l,row.c,row.q,row.buy][i]))throw Error('Trùng timestamp M15 khác dữ liệu: '+symbol);map.set(row.t,row);}return [...map.values()].filter(x=>x.t>=cutoff).sort((a,b)=>a.t-b.t);};
@@ -34,7 +33,12 @@ function m30PreviewText(isPreview,m30){
   if(m30.aligned)return `M30 preview: ${structure} · ủng hộ hướng H1 · tạm +0,5 H1; chỉ khóa khi đủ H1.`;
   return `M30 preview: ${structure} · chưa ủng hộ hướng H1 · không cộng tuổi; không phủ định dự báo cohort.`;
 }
-function topUpStatusText(){const topUp=manifest?.topUp;return topUp?.status==='ok'?` · nối live +${topUp.added} M15`:topUp?.status==='current'?' · live đã đồng bộ':topUp?.status==='failed'?` · nối live lỗi: ${topUp.reason}`:'';}
+function topUpStatusText(){const label=topUpStatusLabel(manifest);return label?` · ${label}`:'';}
+function renderDataStatus(index,isPreview,reason=''){
+  const end=collectionLastTime(manifest?.collection,manifest?.lastTime),dataStale=collectionIsStale(manifest?.collection,manifest?.lastTime),lag=Number.isFinite(end)?Math.max(0,(Date.now()-end-STEP)/3600000):NaN,status=dataStale?'DELAYED':'LIVE',completeDays=days.filter(x=>!x.preview).length;
+  $('status').className=latestDataIsStale(index)?'negative':'';
+  $('status').textContent=`${completeDays} ngày hoàn chỉnh${isPreview?` · hôm nay ${days[index].closedM15} M15 đóng`:''} · Màu+SPY V+Strength M15→H1 · H1 khóa từ 4 M15 đóng · dữ liệu đến ${Number.isFinite(end)?new Date(end).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'}):'không xác định'} · ${status}${Number.isFinite(lag)?` · trễ ${lag.toFixed(1)}h`:''}${topUpStatusText()}${reason?` · WAIT: ${reason}`:''}`;
+}
 function renderAudit(){
   if(!audit?.ready){$('audit-result').textContent='WAIT';$('audit-note').textContent=audit?.reason??'Chưa đủ checkpoint đã phân giải';return;}
   const precision=Number.isFinite(audit.signalPrecision)?Math.round(100*audit.signalPrecision)+'%':'—',age=Math.round(100*audit.ageCoverage),box=Math.round(100*audit.boxCoverage),skill=Number.isFinite(audit.brierSkill)?`${audit.brierSkill>=0?'+':''}${Math.round(100*audit.brierSkill)}%`:'—';
@@ -97,7 +101,7 @@ function render(){
     $('signal').textContent='WAIT';$('signal').className='wait';
     $('confidence').textContent=stale?'DỮ LIỆU TRỄ · không phát tín hiệu':isPreview?'M30 PREVIEW · chưa đủ cohort tuổi':'CONF 0% · WAIT 100%';
     $('box').textContent='—';$('box-band').textContent='Chờ cohort đủ điều kiện';$('cohort').textContent='—';$('cohort-note').textContent=forecast.reason;$('age').textContent='Chưa đủ dữ liệu';$('age-band').textContent='Tuổi hiện tại và tuổi cuối chưa thể ước lượng';$('age-preview').textContent=m30PreviewText(isPreview,m30);
-    $('status').textContent=forecast.reason+topUpStatusText();clearForecastPanels();return;
+    renderDataStatus(index,isPreview,forecast.reason);clearForecastPanels();return;
   }
   const f=forecast,pad=audit?.ready&&audit.n>=30?audit.boxPadding80:0,view=pad>0?{...f,box:{...f.box,lower:{...f.box.lower,p10:f.box.lower.p10-pad,p90:f.box.lower.p90+pad},upper:{...f.box.upper,p10:f.box.upper.p10-pad,p90:f.box.upper.p90+pad}}}:f,open=f.current.sourceBlock.o,low=open*(1+f.box.lower.p50/100),high=open*(1+f.box.upper.p50/100),shownLabel=stale||isPreview?'WAIT':f.label;
   const currentAge=f.age.h1.current,finalAge=f.age.h1.final.p50,remaining=f.age.h1.remaining.p50,ageRange=`${f.age.h1.final.p10}–${f.age.h1.final.p90} H1`;
@@ -113,9 +117,7 @@ function render(){
   $('macro-result').textContent=`Kết quả: Hộp hiện tại rộng ${f.current.widthPct.toFixed(2)}%; trung vị Hộp cuối nằm trong ${price(low)}–${price(high)}. Xác suất còn mở rộng: ${Math.round(100*f.expandProbability)}%.`;
   $('age-result').textContent=`Kết quả: đã khóa ${currentAge} H1; dự báo kết thúc tại P50 ${finalAge} H1, tức còn khoảng ${remaining} H1. 80% cohort nằm trong ${ageRange}.`;
   drawView=view;drawMacroMap(view);drawAgeMap(f);drawStateMap(index);renderSimilar();
-  const lag=Math.max(0,(Date.now()-manifest.lastTime-STEP)/3600000),status=collectionIsStale(manifest?.collection,manifest?.lastTime)?'DELAYED':'LIVE',completeDays=days.filter(x=>!x.preview).length;
-  $('status').className=stale?'negative':'';
-  $('status').textContent=`${completeDays} ngày hoàn chỉnh${isPreview?` · hôm nay ${days[index].closedM15} M15 đóng`:''} · Màu+SPY V+Strength M15→H1 · H1 khóa từ 4 M15 đóng · dữ liệu đến ${new Date(manifest.lastTime).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})}${status?` · ${status}`:''}${Number.isFinite(lag)?` · trễ ${lag.toFixed(1)}h`:''}${topUpStatusText()}`;
+  renderDataStatus(index,isPreview);
 }
 function rebuild(raw){
     const previousDays=days,previousValue=$('day').value;
