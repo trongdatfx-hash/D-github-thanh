@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-10-30T16:16:58.811Z",
+  "updatedAt": "2026-10-30T20:53:55.992Z",
   "events": [
     {
       "title": "Bank Holiday",
@@ -948,6 +948,16 @@
       "country": "USD",
       "date": "2026-10-30T16:30:00.000Z",
       "timestamp": 1793377800000,
+      "impact": "Low",
+      "actual": "",
+      "forecast": "",
+      "previous": ""
+    },
+    {
+      "title": "FOMC Member Logan Speaks",
+      "country": "USD",
+      "date": "2026-10-30T17:30:00.000Z",
+      "timestamp": 1793381400000,
       "impact": "Low",
       "actual": "",
       "forecast": "",
