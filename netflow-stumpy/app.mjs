@@ -330,7 +330,8 @@ function init(){
   $('chart').dataset.wlrColorMode='hysteresis-closed-bars';$('chart').dataset.wlrColorEnter=String(WLR_COLOR_DEFAULTS.enter);$('chart').dataset.wlrColorExit=String(WLR_COLOR_DEFAULTS.exit);
   $('chart').dataset.compositeStrengthVersion=COMPOSITE_STRENGTH_VERSION;
   $('chart').dataset.commonVolumeInput='true-taker-quote-delta-70-30';
-  chart.panes()[0].setStretchFactor(.55);chart.panes()[1].setStretchFactor(0.209302);chart.panes()[2].setStretchFactor(0.240698);
+  // Keep price at 55%; SPY V is 130% of the lower Strength pane.
+  chart.panes()[0].setStretchFactor(.55);chart.panes()[1].setStretchFactor(.45*1.3/2.3);chart.panes()[2].setStretchFactor(.45/2.3);
   marks=L.createSeriesMarkers(price,[]);
   strengthMarks=L.createSeriesMarkers(series.strength,[]);
   chart.subscribeCrosshairMove(p=>{if(!p.sourceEvent)return;inspectedTime=p.time?p.time*1000:null;showTooltip(inspectedTime??rows[$('symbol').value]?.at(-1)?.t);});
