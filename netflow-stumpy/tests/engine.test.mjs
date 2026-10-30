@@ -32,15 +32,17 @@ test('SPY volume delta histogram exposes four delta × Strength colors',()=>{
   assert.match(volumeDeltaStrengthColor(-1,null),/^rgba\(255,77,112,/);
   assert.equal(volumeDeltaStrengthColor(0,null),'rgba(0,0,0,0)');
 });
-test('SPY volume delta is centered at zero and balanced inside the Strength range',()=>{
+test('SPY volume delta preserves normalized amplitude without halving or clipping',()=>{
   assert.equal(volumeDeltaStrengthValue(0),0);
-  assert.equal(volumeDeltaStrengthValue(1),.5);
-  assert.equal(volumeDeltaStrengthValue(-1),-.5);
-  assert.equal(volumeDeltaStrengthValue(1.5),.75);
-  assert.equal(volumeDeltaStrengthValue(2),1);
-  assert.equal(volumeDeltaStrengthValue(-2),-1);
-  assert.equal(volumeDeltaStrengthValue(10),1);
-  assert.equal(volumeDeltaStrengthValue(-10),-1);
+  assert.equal(volumeDeltaStrengthValue(1),1);
+  assert.equal(volumeDeltaStrengthValue(-1),-1);
+  assert.equal(volumeDeltaStrengthValue(1.5),1.5);
+  assert.equal(volumeDeltaStrengthValue(2),2);
+  assert.equal(volumeDeltaStrengthValue(-2),-2);
+  assert.equal(volumeDeltaStrengthValue(10),10);
+  assert.equal(volumeDeltaStrengthValue(-10),-10);
+  assert.equal(volumeDeltaStrengthValue(3),3);
+  assert.equal(volumeDeltaStrengthValue(5),5);
   assert.equal(volumeDeltaStrengthValue(null),0);
 });
 test('overlay price ranges keep zero at the same center coordinate',()=>{
