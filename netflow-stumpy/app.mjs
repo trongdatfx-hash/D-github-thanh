@@ -443,9 +443,21 @@ function drawPivotFlowOverlay(){
   context.textAlign='right';context.fillStyle='#9aadc2';context.fillText('0',right-5,zero+9);context.restore();canvas.dataset.status='visible';canvas.dataset.live=String(live);canvas.dataset.mode=flow.mode??'pivot';canvas.dataset.placement=position.placement;canvas.dataset.bins=String(bars.length);canvas.dataset.barWidth=String(barWidth);canvas.dataset.barSpacing=String(layout.barSpacing);canvas.dataset.volatilityKey=volatility?.key??'missing';canvas.dataset.volatilityScore=Number.isFinite(volScore)?String(volScore):'';canvas.setAttribute('aria-label',`Biến động 5 nến: ${volatility?`${volatility.label} ${volatility.score}%, biên độ trung bình ${fmt(volatility.rangePct)}%, realized volatility ${fmt(volatility.realizedPct)}%, chuẩn so sánh ${volatility.baselineN} cửa sổ ${volatility.baselineSession}`:'chưa đủ lịch sử'}. Histogram 5 nến Composite NF gần nhất. Phần trăm dùng EWMA half-life ${flow.pctHalfLife??32} nến, ${flow.mode==='rolling'?'trên nhóm 96 nến gần nhất':'từ cặp pivot xác nhận tới nến hiện tại'}: ${flow.pct>0?'mua':flow.pct<0?'bán':'cân bằng'} ${fmt(Math.abs(flow.pct))}%; mỗi cột rộng gấp đôi bước nến giá. ${position.placement==='pane-center'?'Mốc 0 đặt giữa pane vì chưa thấy đủ hai vùng hỗ trợ/kháng cự.':'Mốc 0 đặt giữa hỗ trợ và kháng cự.'} ${live?'Cột cuối có viền vàng; histogram, biến động và số phần trăm đều cập nhật theo nến live.':'Chưa có dữ liệu nến đang chạy mới từ cả SPY và QQQ.'} Buy trên mốc 0, sell dưới. Không phải tín hiệu OFI độc lập.`);
 }
 function positionForecastReadout(){
-  const node=$('geometry-readout'),paneHeight=chart?.panes?.()[0]?.getHeight?.();
+  const node=$('geometry-readout'),h1Node=$('h1-trend-age-readout'),paneHeight=chart?.panes?.()[0]?.getHeight?.();
   if(!node||!Number.isFinite(paneHeight))return;
-  node.style.top=`${Math.max(8,paneHeight-node.offsetHeight-10)}px`;
+  const top=Math.max(8,paneHeight-node.offsetHeight-10);node.style.top=`${top}px`;
+  if(h1Node)h1Node.style.top=`${Math.max(8,top-h1Node.offsetHeight-5)}px`;
+}
+function currentH1TrendAge(){
+  const blocks=new Map();for(const state of h1CandleMap.values()){if(!Number.isFinite(state.blockStart))continue;const old=blocks.get(state.blockStart);if(!old||state.t>old.t)blocks.set(state.blockStart,state);}
+  let direction=0,ageH1=0,latest=null;
+  for(const state of [...blocks.values()].sort((a,b)=>a.blockStart-b.blockStart)){if(state.direction===0){direction=0;ageH1=0;}else if(state.direction===direction)ageH1++;else{direction=state.direction;ageH1=1;}latest={...state,ageH1};}
+  return latest;
+}
+function updateH1TrendAgeReadout(){
+  let node=$('h1-trend-age-readout');if(!node){node=document.createElement('div');node.id='h1-trend-age-readout';node.className='forecast wait';node.style.cssText='position:absolute;z-index:6;right:58px;top:10px;max-width:min(560px,calc(100% - 80px));padding:5px 9px;border:1px solid #4e596b;border-radius:5px;text-align:right;background:#111b27;color:#b8bfca;font-size:10px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;pointer-events:auto;cursor:help';$('geometry-readout').insertAdjacentElement('beforebegin',node);}
+  const state=currentH1TrendAge(),direction=state?.direction??0,word=direction>0?'UP':direction<0?'DOWN':'WAIT';node.textContent=state?`TUỔI TREND H1 · ${word} · ${state.ageH1} H1${state.preview?' · LIVE':' · ĐÃ KHÓA'}`:'TUỔI TREND H1 · WAIT';node.className=`forecast ${direction>0?'up':direction<0?'down':'wait'}`;node.title='Tuổi trend H1 trên chart được tính bằng số hộp H1 liên tiếp cùng hướng theo màu Hộp H1; hướng WAIT đặt lại tuổi. LIVE là H1 đang xem trước; ĐÃ KHÓA dùng hộp H1 đã hoàn tất.';
+  positionForecastReadout();
 }
 function updateCandleCountdown(){
   const node=$('candle-countdown'),bar=(rows.SPYUSDT??[]).at(-1),show=$('interval').value==='15m'&&$('symbol').value==='SPYUSDT';
@@ -510,6 +522,7 @@ function updateGeometryReadout(){
   node.textContent=formatPreRthWlrTrend(state);
   node.className=`forecast ${(state?.label??'WAIT').toLowerCase()}`;
   const ridge=state?.strengthRegression;node.title=`Âu→RTH WLR M15 · ${state?.reason??'Chờ dữ liệu M15 đã đóng'}. Tuổi hiện tại / trung vị tổng độ dài leg. TUỔI P là phân vị tuổi, không phải phân vị giá WLR. CÒN ~ là trung vị số nến còn lại có điều kiện, không phải trung vị tổng trừ tuổi hiện tại. TREND CÒN là khả năng sống thêm ${state?.horizon??3} nến đã nhận, không phải xác suất giá tăng hoặc tỷ lệ đúng A–B–A. Kaplan–Meier dùng vị trí nến thất bại sau nến đã nhận cuối, có kiểm duyệt phải và kiểm tra đủ thời gian theo dõi. ${state?.active?`Nhóm tuổi ${state.ageGroup?.label??'—'} · điểm ${state.trendScore}/100 · R² giá ${fmt(state.r2)} · độ bền hướng giá ${Math.round((state.persistence??0)*100)}% · SPY V cùng dấu từng nến ${Math.round((state.volumeAlignment??0)*100)}% (chỉ tham khảo) · nến đã nhận vào Flow-Leg ±2σ ${Math.round((state.channelAlignment??0)*100)}% (${state.currentBars}/${state.elapsedBars??state.currentBars} nến được tính) · Composite góp ${Math.round((state.compositeScore??.5)*5)}/5 điểm · Strength ${state.strengthContext??'—'} · Ridge OOS R² ${fmt(ridge?.r2)}, partial C ${fmt(ridge?.partialComposite)}, V ${fmt(ridge?.partialVolume)}, n OOS ${ridge?.oosN??0} · mẫu ${state.sampleN} leg / ${state.uniqueDays??'—'} ngày, còn rủi ro ${state.atRiskN}, kết quả thêm ${state.horizon} nến đã biết ${state.resolvedHorizonN??'—'}, kiểm duyệt phải ${state.censoredN??0}. `:''}SPY V xác nhận dấu+slope ở cấp trend. Phá ±2σ cùng hướng, nến trung tính, một nến SPY V trái dấu hoặc một nến giá ngoài biên bất lợi vẫn thuộc leg và được tái khớp. Chỉ giá hoặc SPY V ngược hướng đủ hai nến đóng liên tiếp mới kết thúc; dốc OLS chỉ dùng chẩn đoán và không cắt tuổi trend. Composite chỉ góp 5% điểm trend; Ridge OOS vẫn là lớp mô tả riêng. Nến đang chạy không được tính; trend còn chạy lúc đóng RTH được xem là kiểm duyệt phải.`;
+  updateH1TrendAgeReadout();
   requestAnimationFrame(positionForecastReadout);
 }
 function drawGeometryOverlay(){
