@@ -1,4 +1,4 @@
-import {channelStrengthBoxes} from './channel-strength-boxes.mjs?v=20261029-price-delta1';
+import {channelStrengthBoxes} from './channel-strength-boxes.mjs?v=20261031-box-perf1';
 import {strengthBoxes} from './strength-box-core.mjs?v=20261029-price-delta1';
 export function createStrengthBoxLayer({chart,host,actions,getContext,onChange=()=>{}}){
  const label=document.createElement('label'),toggle=document.createElement('input');toggle.id='strength-box-toggle';toggle.type='checkbox';toggle.checked=true;label.append(toggle,'Hộp sức mạnh DVP');actions.append(label);
@@ -18,7 +18,14 @@ export function createStrengthBoxLayer({chart,host,actions,getContext,onChange=(
  const format=x=>Number.isFinite(x)?x.toFixed(2):'—';
  function update(){
   const c=getContext(),closed=(c.rows??[]).filter(r=>r.end<c.now),stamp=[c.symbol,c.interval,closed[0]?.t,closed.at(-1)?.t,closed.length,compositeMode.value,gate.value,c.compositeRevision,trigger.value,back.value,early.checked,JSON.stringify((c.channels??[]).map(x=>[x.startTime,x.confirmationTime,x.insideEndTime,x.direction,x.provisional,x.displayQualified])),JSON.stringify((c.earlyChannels??[]).map(x=>[x.startTime,x.confirmationTime,x.insideEndTime]))].join('|');
-  if(stamp!==key){state=(trigger.value==='causal-channel'?channelStrengthBoxes:strengthBoxes)(closed,{channels:c.channels??[],earlyChannels:c.earlyChannels??[],volumeRows:c.volume??new Map(),showEarly:early.checked,back:+back.value,step:c.step,now:c.now,compositeRows:c.composite??new Map(),compositeMode:compositeMode.value,compositeThreshold:+gate.value});key=stamp;renderCodes();}
+  if(stamp!==key){state=(trigger.value==='causal-channel'?channelStrengthBoxes:strengthBoxes)(closed,{channels:c.channels??[],earlyChannels:c.earlyChannels??[],volumeRows:c.volume??new Map(),showEarly:early.checked,back:+back.value,step:c.step,now:c.now,compositeRows:c.composite??new Map(),compositeMode:compositeMode.value,compositeThreshold:+gate.value});
+   if(c.interval==='1h'&&trigger.value==='causal-channel'){
+    const snapshots=new Map(state.snapshots);
+    for(const [time,box] of state.weekendSnapshots??[])snapshots.set(time,box);
+    const boxes=[...state.boxes.filter(box=>box.phase!=='WEEKEND'),...(state.weekendBoxes??[])].sort((a,b)=>a.issuedAt-b.issuedAt);
+    state={...state,boxes,latest:boxes.at(-1)??null,snapshots};
+   }
+   key=stamp;renderCodes();}
   const latest=state.latest;view.disabled=!latest;status.textContent=toggle.checked?`Hộp sức mạnh · ${c.symbol} · ${trigger.value==='causal-channel'?`lùi ${back.value} nến trước gốc kênh; hộp xác nhận từ 8 nến, hộp SỚM từ 4–7 nến (điểm quy tắc ≥60/100)`:`DVP gốc: |S| ≥0,95, lùi ${back.value} nến`} · chuẩn Hiệu suất RW. ${state.boxes.length} hộp · ${compositeMode.options[compositeMode.selectedIndex].text}; mới nhất: ${latest?.label??(trigger.value==='causal-channel'?'chờ kênh trend causal đã xác nhận (bật lớp kênh)':'chưa đủ 507 nến chuẩn hóa hoặc chưa chạm ngưỡng')}${latest?.encoding?' · Mã '+latest.encoding.code+' · điểm quy tắc '+latest.encoding.ruleScore+'/100 (không phải xác suất)':''}. NÉN vàng / ĐÃ TRẢ xám / trung tính theo ${trigger.value==='causal-channel'?'hướng kênh':'dấu S; ⤬ thoát biên, ⌛ hết hạn'}. p là phân vị bề rộng theo chuẩn mô phỏng DVP, không phải xác suất giá tăng/giảm. ${trigger.value==='causal-channel'?'Hộp SỚM nét đứt là dự kiến đạt 8 nến nếu kênh tiếp tục, có thể bị hủy. Mép trái vẽ lùi không phải lúc phát hiện. Mã hộp dùng giờ xuất hiện New York, số nến từ đầu phiên, tuổi và khoảng cách hộp trước; giờ không tự tạo xác suất. Kênh đóng thì khóa hộp.':'Gốc hộp được vẽ lùi, chỉ biết hộp từ nến chạm ngưỡng.'}`:'Đã tắt lớp vẽ hộp sức mạnh.';
   host.dataset.strengthBoxCount=String(state.boxes.length);host.dataset.strengthBoxSource=trigger.value;host.dataset.strengthBoxEarlyCount=String(state.boxes.filter(b=>b.stage==='EARLY').length);schedule();return state;
  }
@@ -30,6 +37,7 @@ export function createStrengthBoxLayer({chart,host,actions,getContext,onChange=(
   ctx.save();ctx.beginPath();ctx.rect(0,0,right,paneHeight);ctx.clip();
   const range=chart.timeScale().getVisibleRange();
   for(const box of state.boxes){
+   if(range&&(box.right/1000<range.from||box.start/1000>range.to))continue;
    const left=chart.timeScale().timeToCoordinate(box.start/1000),end=chart.timeScale().timeToCoordinate(box.right/1000),top=price.priceToCoordinate(box.top),bottom=price.priceToCoordinate(box.bottom);
    if(![left,end,top,bottom].every(Number.isFinite)||Math.max(left,end)<0||Math.min(left,end)>right||bottom<0||top>paneHeight)continue;
    const x=Math.max(-2,left),x2=Math.min(right,end),bw=Math.max(2,x2-x),bh=Math.max(1,bottom-top);
@@ -39,6 +47,6 @@ export function createStrengthBoxLayer({chart,host,actions,getContext,onChange=(
   }
   ctx.restore();
  }
- back.onchange=early.onchange=trigger.onchange=()=>{key='';update();onChange();};toggle.onchange=update;mode.onchange=schedule;compositeMode.onchange=gate.onchange=()=>{key='';update();onChange();};chart.timeScale().subscribeVisibleLogicalRangeChange(schedule);window.addEventListener('resize',schedule);host.addEventListener('wheel',schedule,{passive:true});host.addEventListener('pointermove',schedule,{passive:true});
+ back.onchange=early.onchange=trigger.onchange=()=>{key='';update();onChange();};toggle.onchange=update;mode.onchange=schedule;compositeMode.onchange=gate.onchange=()=>{key='';update();onChange();};chart.timeScale().subscribeVisibleLogicalRangeChange(schedule);window.addEventListener('resize',schedule);
  return {update,schedule,getState:()=>state};
 }
