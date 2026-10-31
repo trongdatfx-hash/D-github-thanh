@@ -23,6 +23,7 @@ let chart,price,series={},marks,strengthMarks,cache=null,chartLiveResponse=false
 const colors={SPYUSDT:'#5ba8ff',QQQUSDT:'#c194ff',COMPOSITE:'#38dfba'};
 const PRICE_DELTA_COLORS={positive:'#36dfff',negative:'#ff78c4',neutral:'#b4c3d7'};
 let trendAgeCandleMap=new Map(),h1CandleMap=new Map(),abaBandPhaseMap=new Map(),abaBandFrame=0;
+let h1H4StripFrame=0;
 
 let boxVolumeStrengthMap=new Map(),wlrThicknessMap=new Map(),wlrColorMap=new Map();
 let oiWidths=new Map(),oiStamp='',oiLastFetch=0,oiRequest=0;
@@ -247,7 +248,7 @@ function requestStudies(){
     studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261031-h4-frame1',import.meta.url),{type:'module'});
     studiesWorker.onmessage=({data})=>{
       if(data.key!==studyKey)return;
-      if(data.partial==='h1'){h1CandleMap=new Map((data.result?.h1CandleColors??[]).map(state=>[state.t,state]));updateH1TrendAgeReadout();if($('candle-h1-box-color')?.checked)render(false);return;}
+      if(data.partial==='h1'){h1CandleMap=new Map((data.result?.h1CandleColors??[]).map(state=>[state.t,state]));updateH1TrendAgeReadout();scheduleH1H4Strip();if($('candle-h1-box-color')?.checked)render(false);return;}
       if(data.error){$('chart').dataset.studyStatus='error';$('chart').dataset.studyError=data.error;studyKey='';return;}
       const r=data.result;geometryState=r.geometry;causalChannelState=r.channels;breakoutState=r.breakout;geometryStatePoints=r.points;geometryBacktest=r.backtest;pivotZoneState=r.pivot;rev63State=r.rev63;trendAgeCandleMap=new Map((r.trendAgeHistory??[]).map(state=>[state.t,state]));h1CandleMap=new Map((r.h1CandleColors??[]).map(state=>[state.t,state]));renderWeeklyTrendMap(r.weekly);
       studyResultKey=data.key;studyTimingMs=data.computeMs;trainingMeta=data.archive;
@@ -355,8 +356,8 @@ function init(){
   strengthMarks=L.createSeriesMarkers(series.strength,[]);
   chart.subscribeCrosshairMove(p=>{if(!p.sourceEvent)return;inspectedTime=p.time?p.time*1000:null;showTooltip(inspectedTime??rows[$('symbol').value]?.at(-1)?.t);});
   $('chart').addEventListener('pointerleave',()=>{inspectedTime=null;showTooltip(rows[$('symbol').value]?.at(-1)?.t);});
-  chart.timeScale().subscribeVisibleLogicalRangeChange(()=>{scheduleCvdSpectrum();scheduleDaySeparators();scheduleGeometryOverlay();schedulePivotFlowOverlay();});
-  window.addEventListener('resize',()=>{applyResponsiveChartOptions();scheduleCvdSpectrum();scheduleDaySeparators();scheduleGeometryOverlay();schedulePivotFlowOverlay();requestAnimationFrame(positionForecastReadout);requestAnimationFrame(positionStrengthReadout);requestAnimationFrame(positionFixedPaneReadouts);requestAnimationFrame(updateCandleCountdown);});
+  chart.timeScale().subscribeVisibleLogicalRangeChange(()=>{scheduleCvdSpectrum();scheduleDaySeparators();scheduleGeometryOverlay();schedulePivotFlowOverlay();scheduleH1H4Strip();});
+  window.addEventListener('resize',()=>{applyResponsiveChartOptions();scheduleCvdSpectrum();scheduleDaySeparators();scheduleGeometryOverlay();schedulePivotFlowOverlay();scheduleH1H4Strip();requestAnimationFrame(positionForecastReadout);requestAnimationFrame(positionStrengthReadout);requestAnimationFrame(positionFixedPaneReadouts);requestAnimationFrame(updateCandleCountdown);});
   window.addEventListener('orientationchange',()=>setTimeout(()=>{applyResponsiveChartOptions();window.dispatchEvent(new Event('resize'));},120));
   $('chart').addEventListener('pointermove',schedulePivotFlowOverlay,{passive:true});$('chart').addEventListener('wheel',schedulePivotFlowOverlay,{passive:true});
   bindChartGestures();
@@ -427,6 +428,37 @@ function scheduleCvdSpectrum(){if(cvdFrame)return;cvdFrame=requestAnimationFrame
 function scheduleDaySeparators(){if(dayFrame)return;dayFrame=requestAnimationFrame(()=>{dayFrame=requestAnimationFrame(()=>{dayFrame=0;drawDaySeparators();});});}
 function scheduleGeometryOverlay(){if(geometryFrame)return;geometryFrame=requestAnimationFrame(()=>{geometryFrame=requestAnimationFrame(()=>{geometryFrame=0;drawGeometryOverlay();});});}
 function schedulePivotFlowOverlay(){if(pivotFlowFrame)return;pivotFlowFrame=requestAnimationFrame(()=>{pivotFlowFrame=requestAnimationFrame(()=>{pivotFlowFrame=0;drawPivotFlowOverlay();});});}
+function scheduleH1H4Strip(){if(h1H4StripFrame)return;h1H4StripFrame=requestAnimationFrame(()=>{h1H4StripFrame=0;drawH1H4Strip();});}
+function drawH1H4Strip(){
+  const canvas=$('h1-h4-age-strip'),host=$('chart');if(!canvas||!host)return;
+  const width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1,bitmapWidth=Math.round(width*dpr),bitmapHeight=Math.round(height*dpr);
+  if(canvas.width!==bitmapWidth||canvas.height!==bitmapHeight){canvas.width=bitmapWidth;canvas.height=bitmapHeight;}
+  const context=canvas.getContext('2d');context.setTransform(dpr,0,0,dpr,0,0);context.clearRect(0,0,width,height);
+  const active=$('symbol').value==='SPYUSDT'&&$('interval').value==='1h'&&$('candle-h1-box-color')?.checked;
+  canvas.dataset.mode=active?'active':'off';canvas.dataset.states=String(h1CandleMap.size);canvas.dataset.visibleBars='0';canvas.dataset.previewBars='0';
+  canvas.setAttribute('aria-label',active?'Dải màu dưới chart: mỗi ô là một nến H1, tô theo trạng thái Hộp H4; viền vàng là nhóm H4 LIVE.':'Dải màu H1 theo Hộp H4 chỉ hiển thị khi chọn SPY H1 và bật màu hộp.');
+  if(!active||!h1CandleMap.size)return;
+  const scaleWidth=chart.priceScale('right',0)?.width?.()??56,right=Math.max(0,width-scaleWidth),stripHeight=9,bottom=height-26,y=bottom-stripHeight;
+  if(right<8||y<0)return;
+  context.fillStyle='rgba(9,17,29,.88)';context.fillRect(0,y,right,stripHeight);
+  const times=[...h1CandleMap.keys()].sort((x,y)=>x-y),timeScale=chart.timeScale(),fallbackSpacing=Math.max(1,Number(timeScale.options?.().barSpacing)||6);
+  let visibleBars=0,previewBars=0,previousBlock=null;
+  for(let i=0;i<times.length;i++){
+    const time=times[i],state=h1CandleMap.get(time),center=timeScale.timeToCoordinate(time/1000);
+    if(!Number.isFinite(center)||center< -fallbackSpacing||center>right+fallbackSpacing)continue;
+    let spacing=fallbackSpacing,neighbor=null;
+    if(i+1<times.length)neighbor=timeScale.timeToCoordinate(times[i+1]/1000);
+    if(Number.isFinite(neighbor)&&Math.abs(neighbor-center)>0)spacing=Math.abs(neighbor-center);
+    else if(i>0){neighbor=timeScale.timeToCoordinate(times[i-1]/1000);if(Number.isFinite(neighbor)&&Math.abs(center-neighbor)>0)spacing=Math.abs(center-neighbor);}
+    spacing=Math.max(1,Math.min(80,spacing));
+    const cellWidth=Math.max(1,spacing-.7),x=center-cellWidth/2;if(x+cellWidth<0||x>right)continue;
+    const color=h1BoxCandlePalette(null,state);context.fillStyle=color.body;context.fillRect(x,y,cellWidth,stripHeight);
+    if(state?.preview){context.strokeStyle='#f6c85f';context.lineWidth=1;context.strokeRect(x+.5,y+.5,Math.max(0,cellWidth-1),stripHeight-1);previewBars++;}
+    if(state?.blockStart!==previousBlock&&previousBlock!==null&&x>0){context.fillStyle='rgba(245,248,255,.8)';context.fillRect(x,y,1,stripHeight);}
+    previousBlock=state?.blockStart;visibleBars++;
+  }
+  canvas.dataset.visibleBars=String(visibleBars);canvas.dataset.previewBars=String(previewBars);
+}
 function drawPivotFlowOverlay(){
   const canvas=$('pivot-flow-overlay'),host=$('chart'),width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1;
   const bitmapWidth=Math.round(width*dpr),bitmapHeight=Math.round(height*dpr);if(canvas.width!==bitmapWidth||canvas.height!==bitmapHeight){canvas.width=bitmapWidth;canvas.height=bitmapHeight;}
@@ -668,6 +700,7 @@ function render(fit=false){
   scheduleDaySeparators();
   scheduleGeometryOverlay();
   schedulePivotFlowOverlay();
+  scheduleH1H4Strip();
   updateGeometryReadout();
   $('export').disabled=!p.length;
   scheduleAbaBandColors();strengthBoxLayer?.update();quantileLayer?.update();
