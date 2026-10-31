@@ -11,7 +11,7 @@ function latest(map,rows,predicate=()=>true){for(let i=rows.length-1;i>=0;i--){c
 export function h1CandleColorStates({priceRows=[],boxSnapshots=new Map(),trendStates=[],now=Date.now()}={}){
   const groups=new Map(),trend=new Map(trendStates.map(x=>[x.t,x]));
   for(const row of priceRows){
-    const clock=nyClock(row.t);if(['Sat','Sun'].includes(clock.weekday))continue;
+    const clock=nyClock(row.t);
     const hourStart=Math.floor(clock.minute/60)*60,key=`${clock.day}:${hourStart}`;
     if(!groups.has(key))groups.set(key,[]);groups.get(key).push({...row,minute:clock.minute,hourStart});
   }
