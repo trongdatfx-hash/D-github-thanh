@@ -434,23 +434,23 @@ function drawH1H4Strip(){
   const width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1,bitmapWidth=Math.round(width*dpr),bitmapHeight=Math.round(height*dpr);
   if(canvas.width!==bitmapWidth||canvas.height!==bitmapHeight){canvas.width=bitmapWidth;canvas.height=bitmapHeight;}
   const context=canvas.getContext('2d');context.setTransform(dpr,0,0,dpr,0,0);context.clearRect(0,0,width,height);
-  const active=$('symbol').value==='SPYUSDT'&&$('interval').value==='1h'&&$('candle-h1-box-color')?.checked;
+  const interval=$('interval').value,active=$('symbol').value==='SPYUSDT'&&['15m','1h'].includes(interval)&&$('candle-h1-box-color')?.checked;
   canvas.dataset.mode=active?'active':'off';canvas.dataset.states=String(h1CandleMap.size);canvas.dataset.visibleBars='0';canvas.dataset.previewBars='0';
-  canvas.setAttribute('aria-label',active?'Dải màu dưới chart: mỗi ô là một nến H1, tô theo trạng thái Hộp H4; viền vàng là nhóm H4 LIVE.':'Dải màu H1 theo Hộp H4 chỉ hiển thị khi chọn SPY H1 và bật màu hộp.');
+  canvas.setAttribute('aria-label',active?'Dải màu phía trên pane SPY V: mỗi ô là một nến H1, tô theo trạng thái Hộp H4; hiện trên chart M15 và H1, viền vàng là nhóm H4 LIVE.':'Dải màu H1 theo Hộp H4 hiển thị trên chart SPY M15 hoặc H1 khi bật màu hộp.');
   if(!active||!h1CandleMap.size)return;
-  const scaleWidth=chart.priceScale('right',0)?.width?.()??56,right=Math.max(0,width-scaleWidth),stripHeight=9,bottom=height-26,y=bottom-stripHeight;
+  const bounds=paneBounds(1),scaleWidth=chart.priceScale('right',0)?.width?.()??56,right=Math.max(0,width-scaleWidth),stripHeight=8,y=(bounds?.top??Math.round(height*.55))+1;
   if(right<8||y<0)return;
   context.fillStyle='rgba(9,17,29,.88)';context.fillRect(0,y,right,stripHeight);
-  const times=[...h1CandleMap.keys()].sort((x,y)=>x-y),timeScale=chart.timeScale(),fallbackSpacing=Math.max(1,Number(timeScale.options?.().barSpacing)||6);
+  const times=[...h1CandleMap.keys()].sort((x,y)=>x-y),timeScale=chart.timeScale(),fallbackSpacing=Math.max(1,Number(timeScale.options?.().barSpacing)||6),barGroup=interval==='15m'?4:1;
   let visibleBars=0,previewBars=0,previousBlock=null;
   for(let i=0;i<times.length;i++){
     const time=times[i],state=h1CandleMap.get(time),center=timeScale.timeToCoordinate(time/1000);
     if(!Number.isFinite(center)||center< -fallbackSpacing||center>right+fallbackSpacing)continue;
-    let spacing=fallbackSpacing,neighbor=null;
+    let spacing=fallbackSpacing*barGroup,neighbor=null;
     if(i+1<times.length)neighbor=timeScale.timeToCoordinate(times[i+1]/1000);
     if(Number.isFinite(neighbor)&&Math.abs(neighbor-center)>0)spacing=Math.abs(neighbor-center);
     else if(i>0){neighbor=timeScale.timeToCoordinate(times[i-1]/1000);if(Number.isFinite(neighbor)&&Math.abs(center-neighbor)>0)spacing=Math.abs(center-neighbor);}
-    spacing=Math.max(1,Math.min(80,spacing));
+    spacing=Math.max(1,Math.min(240,spacing));
     const cellWidth=Math.max(1,spacing-.7),x=center-cellWidth/2;if(x+cellWidth<0||x>right)continue;
     const color=h1BoxCandlePalette(null,state);context.fillStyle=color.body;context.fillRect(x,y,cellWidth,stripHeight);
     if(state?.preview){context.strokeStyle='#f6c85f';context.lineWidth=1;context.strokeRect(x+.5,y+.5,Math.max(0,cellWidth-1),stripHeight-1);previewBars++;}
