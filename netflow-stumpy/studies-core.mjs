@@ -4,7 +4,7 @@ import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeo
 import {pivotZones} from './pivot-zones.mjs?v=20261029-price-delta1';
 import {causalTrendChannels} from './causal-trend-channel.mjs?v=20261029-price-delta1';
 import {channelStrengthBoxes} from './channel-strength-boxes.mjs?v=20261029-weekly-map1';
-import {weeklyTrendForecast} from './weekly-trend-map.mjs?v=20261029-weekly-map2';
+import {weeklyTrendForecast,h1CandleColorStates} from './weekly-trend-map.mjs?v=20261031-h1-candle1';
 import {preRthWlrTrend,historicalTrendAgeStates} from './pre-rth-wlr-trend.mjs?v=20261029-price-delta1';
 import {chartFeatureRows} from './analogs-features.mjs?v=20261029-price-delta1';
 
@@ -31,6 +31,7 @@ export function computeStudies({rows,volumeRows,symbol,interval,options,now,tren
   const trendAgeHistory=allTrendAgeHistory.filter(state=>state.t>=(closedPrice[0]?.t??Infinity));
   const weeklyBoxes=interval==='15m'&&symbol==='SPYUSDT'?channelStrengthBoxes(tRows,{channels:channelState.episodes,showEarly:false,back:8,now,step:STEPS['15m'],compositeRows:new Map((trend?.rows.COMPOSITE??[]).map(x=>[x.t,x])),volumeRows:new Map(trendVolume.map(x=>[x.t,x])),compositeMode:'annotate'}):{snapshots:new Map()};
   const weekly=interval==='15m'&&symbol==='SPYUSDT'?weeklyTrendForecast({priceRows:tRows,strengthRows:trend?.rows.COMPOSITE??[],volumeRows:trendVolume,boxSnapshots:weeklyBoxes.snapshots,trendStates:allTrendAgeHistory,now}):{ready:false,label:'WAIT',reason:'Weekly Trend Map chỉ chạy trên SPYUSDT M15'};
+  const h1CandleColors=interval==='15m'&&symbol==='SPYUSDT'?h1CandleColorStates({priceRows:tRows,boxSnapshots:weeklyBoxes.snapshots,trendStates:allTrendAgeHistory,now}):[];
   const running=p.at(-1),runningEnd=running?.end??running?.t+899999,runningClock=Number.isFinite(running?.t)?trendSessionAt(running.t):null,nowClock=trendSessionAt(now);
   const hasLivePreview=interval==='15m'&&symbol==='SPYUSDT'&&rev63.active&&rev63.livePreview&&Number.isFinite(running?.t)&&running.t<=now&&runningEnd>=now&&running.t>(closedTrend.at(-1)?.t??-Infinity)&&runningClock?.active&&runningClock.day===nowClock.day;
   if(hasLivePreview)trendAgeHistory.push({t:running.t,...rev63.livePreview,reason:'Nến đang chạy · xem trước từ trend xác nhận ở nến đóng trước; chưa ghi vào cohort hoặc kết quả forward'});
@@ -38,6 +39,6 @@ export function computeStudies({rows,volumeRows,symbol,interval,options,now,tren
   const historicalChannels=channelState.episodes.filter(c=>!trendSessionAt(now).active||new Date(c.startTime).toLocaleDateString('en-CA',{timeZone:'America/New_York'})!==new Date(now).toLocaleDateString('en-CA',{timeZone:'America/New_York'}));
   const dataInfo={currentSession:trendSessionAt(now).session??'OFF',firstTime:closedTrend[0]?.t??null,lastTime:closedTrend.at(-1)?.t??null,bars:closedTrend.length,days:new Set(closedTrend.map(r=>r.day)).size,channels:historicalChannels.length,displayQualified:historicalChannels.filter(c=>c.displayQualified).length};
   rev63.dataInfo=dataInfo;displayRev63.dataInfo=dataInfo;
-  return {geometry,channels,breakout,points,backtest,pivot,rev63:displayRev63,trendAgeHistory,weekly};
+  return {geometry,channels,breakout,points,backtest,pivot,rev63:displayRev63,trendAgeHistory,h1CandleColors,weekly};
 }
 
