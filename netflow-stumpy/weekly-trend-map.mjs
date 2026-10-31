@@ -1,5 +1,6 @@
 const STEP=900000,DAY_START=240,DAY_END=960,SLOTS=48;
 const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
+const clampSigned=x=>Math.max(-1,Math.min(1,x));
 const mean=a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:0;
 const clockFormat=new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
 function nyClock(t){const p=Object.fromEntries(clockFormat.formatToParts(t).filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));return {day:`${p.year}-${p.month}-${p.day}`,weekday:p.weekday,minute:Number(p.hour)*60+Number(p.minute)};}
@@ -8,8 +9,8 @@ function weightedQuantile(values,weights,p){const a=values.map((value,i)=>({valu
 function qset(values,weights){return {p10:weightedQuantile(values,weights,.1),p50:weightedQuantile(values,weights,.5),p90:weightedQuantile(values,weights,.9)};}
 function latest(map,rows,predicate=()=>true){for(let i=rows.length-1;i>=0;i--){const value=map.get(rows[i].t);if(value&&predicate(value))return value;}return null;}
 
-export function h1CandleColorStates({priceRows=[],boxSnapshots=new Map(),trendStates=[],now=Date.now()}={}){
-  const groups=new Map(),trend=new Map(trendStates.map(x=>[x.t,x]));
+export function h1CandleColorStates({priceRows=[],boxSnapshots=new Map(),trendStates=[],volumeRows=[],now=Date.now()}={}){
+  const groups=new Map(),trend=new Map(trendStates.map(x=>[x.t,x])),volume=new Map(volumeRows.map(x=>[x.t,x]));
   for(const row of priceRows){
     const clock=nyClock(row.t);
     const hourStart=Math.floor(clock.minute/60)*60,key=`${clock.day}:${hourStart}`;
@@ -26,8 +27,8 @@ export function h1CandleColorStates({priceRows=[],boxSnapshots=new Map(),trendSt
     if(!complete&&!preview)continue;
     const o=sample[0].o,c=sample.at(-1).c,h=Math.max(...sample.map(x=>x.h)),l=Math.min(...sample.map(x=>x.l)),range=Math.max(1e-12,h-l);
     const box=latest(boxSnapshots,sample),age=latest(trend,sample,x=>x.active===true),priceDirection=Math.abs(c-o)>=.10*range?Math.sign(c-o):0,boxDirection=[-1,1].includes(box?.direction)?box.direction:0,trendDirection=[-1,1].includes(age?.direction)?age.direction:0;
-    const vote=.45*priceDirection+.30*boxDirection+.25*trendDirection,direction=Math.abs(vote)>=.25?Math.sign(vote):0,quality=clamp(Math.abs(vote));
-    for(const row of sample)states.push({t:row.t,direction,quality,preview,blockStart:sample[0].t,blockEnd:sample.at(-1).end??sample.at(-1).t+STEP-1});
+    const vote=.45*priceDirection+.30*boxDirection+.25*trendDirection,direction=Math.abs(vote)>=.25?Math.sign(vote):0,quality=clamp(Math.abs(vote)),path=sample.slice(1).reduce((sum,row,i)=>sum+Math.abs(row.c-sample[i].c),Math.abs(sample[0].c-o)),priceVector=path?clampSigned((c-o)/path):0,vValues=sample.map(row=>volume.get(row.t)?.adjusted).filter(Number.isFinite),spyV=vValues.length?clampSigned(mean(vValues)):null,boxVector=boxDirection*(Number.isFinite(box?.encoding?.ruleScore)?clamp(box.encoding.ruleScore/100):.5),trendVector=trendDirection*(Number.isFinite(age?.continuation)?clamp(age.continuation):.5),vectors=[[.30,priceVector],[.25,boxVector],[.35,spyV],[.10,trendVector]].filter(([,value])=>Number.isFinite(value)),vectorWeight=vectors.reduce((sum,[weight])=>sum+weight,0),trendVectorScore=direction&&Number.isFinite(spyV)&&vectorWeight?vectors.reduce((sum,[weight,value])=>sum+weight*value,0)/vectorWeight*direction:null,score=Number.isFinite(trendVectorScore)?Math.round(100*clamp(.5+.5*trendVectorScore)):null,dayKey=clock.day;
+    for(const row of sample)states.push({t:row.t,direction,quality,score,spyV,priceVector,preview,dayKey,blockStart:sample[0].t,blockEnd:sample.at(-1).end??sample.at(-1).t+STEP-1});
   }
   return states.sort((a,b)=>a.t-b.t);
 }
