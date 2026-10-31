@@ -9,26 +9,26 @@ function weightedQuantile(values,weights,p){const a=values.map((value,i)=>({valu
 function qset(values,weights){return {p10:weightedQuantile(values,weights,.1),p50:weightedQuantile(values,weights,.5),p90:weightedQuantile(values,weights,.9)};}
 function latest(map,rows,predicate=()=>true){for(let i=rows.length-1;i>=0;i--){const value=map.get(rows[i].t);if(value&&predicate(value))return value;}return null;}
 
-export function h1CandleColorStates({priceRows=[],boxSnapshots=new Map(),trendStates=[],volumeRows=[],now=Date.now()}={}){
-  const groups=new Map(),trend=new Map(trendStates.map(x=>[x.t,x])),volume=new Map(volumeRows.map(x=>[x.t,x]));
+export function h1CandleColorStates({priceRows=[],boxSnapshots=new Map(),trendStates=[],volumeRows=[],now=Date.now(),sourceStep=STEP,boxHours=1}={}){
+  const groups=new Map(),trend=new Map(trendStates.map(x=>[x.t,x])),volume=new Map(volumeRows.map(x=>[x.t,x])),sourceMinutes=sourceStep/60000,slots=Math.max(1,Math.round(boxHours*3600000/sourceStep)),periodMinutes=boxHours*60;
   for(const row of priceRows){
-    const clock=nyClock(row.t);
-    const hourStart=Math.floor(clock.minute/60)*60,key=`${clock.day}:${hourStart}`;
-    if(!groups.has(key))groups.set(key,[]);groups.get(key).push({...row,minute:clock.minute,hourStart});
+    const clock=nyClock(row.t),periodStart=Math.floor(clock.minute/periodMinutes)*periodMinutes,key=`${clock.day}:${periodStart}`;
+    if(!groups.has(key))groups.set(key,[]);groups.get(key).push({...row,minute:clock.minute,periodStart});
   }
   const states=[];
   for(const source of groups.values()){
-    const rows=source.sort((a,b)=>a.t-b.t),hourStart=rows[0]?.hourStart;
-    if(rows[0]?.minute!==hourStart)continue;
-    let usable=0;for(let i=0;i<Math.min(4,rows.length);i++){if(rows[i].minute!==hourStart+15*i||(i&&rows[i].t-rows[i-1].t!==STEP))break;usable=i+1;}
+    const rows=source.sort((a,b)=>a.t-b.t),periodStart=rows[0]?.periodStart;
+    if(rows[0]?.minute!==periodStart)continue;
+    let usable=0;for(let i=0;i<Math.min(slots,rows.length);i++){if(rows[i].minute!==periodStart+sourceMinutes*i||(i&&rows[i].t-rows[i-1].t!==sourceStep))break;usable=i+1;}
     const sample=rows.slice(0,usable);if(!sample.length)continue;
-    const complete=sample.length===4&&sample.every(row=>(row.end??row.t+STEP-1)<now);
-    const preview=!complete&&sample.some(row=>row.t<=now&&(row.end??row.t+STEP-1)>=now);
+    const complete=sample.length===slots&&sample.every(row=>(row.end??row.t+sourceStep-1)<now);
+    const nowClock=nyClock(now),currentPeriod=Math.floor(nowClock.minute/periodMinutes)*periodMinutes;
+    const preview=!complete&&nowClock.day===nyClock(sample[0].t).day&&periodStart===currentPeriod&&(sample.at(-1).end??sample.at(-1).t+sourceStep-1)>=now-2*sourceStep;
     if(!complete&&!preview)continue;
     const o=sample[0].o,c=sample.at(-1).c,h=Math.max(...sample.map(x=>x.h)),l=Math.min(...sample.map(x=>x.l)),range=Math.max(1e-12,h-l);
     const box=latest(boxSnapshots,sample),age=latest(trend,sample,x=>x.active===true),priceDirection=Math.abs(c-o)>=.10*range?Math.sign(c-o):0,boxDirection=[-1,1].includes(box?.direction)?box.direction:0,trendDirection=[-1,1].includes(age?.direction)?age.direction:0;
     const vote=.45*priceDirection+.30*boxDirection+.25*trendDirection,direction=Math.abs(vote)>=.25?Math.sign(vote):0,quality=clamp(Math.abs(vote)),path=sample.slice(1).reduce((sum,row,i)=>sum+Math.abs(row.c-sample[i].c),Math.abs(sample[0].c-o)),priceVector=path?clampSigned((c-o)/path):0,vValues=sample.map(row=>volume.get(row.t)?.adjusted).filter(Number.isFinite),spyV=vValues.length?clampSigned(mean(vValues)):null,boxVector=boxDirection*(Number.isFinite(box?.encoding?.ruleScore)?clamp(box.encoding.ruleScore/100):.5),trendVector=trendDirection*(Number.isFinite(age?.continuation)?clamp(age.continuation):.5),vectors=[[.30,priceVector],[.25,boxVector],[.35,spyV],[.10,trendVector]].filter(([,value])=>Number.isFinite(value)),vectorWeight=vectors.reduce((sum,[weight])=>sum+weight,0),trendVectorScore=direction&&Number.isFinite(spyV)&&vectorWeight?vectors.reduce((sum,[weight,value])=>sum+weight*value,0)/vectorWeight*direction:null,score=Number.isFinite(trendVectorScore)?Math.round(100*clamp(.5+.5*trendVectorScore)):null,dayKey=nyClock(sample[0].t).day;
-    for(const row of sample)states.push({t:row.t,direction,quality,score,spyV,priceVector,preview,dayKey,blockStart:sample[0].t,blockEnd:sample.at(-1).end??sample.at(-1).t+STEP-1});
+    for(const row of sample)states.push({t:row.t,direction,quality,score,spyV,priceVector,preview,dayKey,blockStart:sample[0].t,blockEnd:sample.at(-1).end??sample.at(-1).t+sourceStep-1});
   }
   return states.sort((a,b)=>a.t-b.t);
 }
