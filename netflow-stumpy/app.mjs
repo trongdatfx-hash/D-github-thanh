@@ -520,7 +520,7 @@ function updateH1TrendAgeReadout(){
   const state=currentH1TrendAge(),direction=state?.direction??0,word=direction>0?'UP':direction<0?'DOWN':'WAIT';
   const scoreLabel=state?.ageH1>=5?(state.scoreN>=5?` · ĐIỂM ${state.score}/100 · MẪU ${state.scoreSpan} H1`:` · CHỜ SPY V ${state.scoreN}/5`):state?.direction?` · TÍCH LŨY ${state.ageH1}/5`:'';
   const spyLabel=state?.ageH1>=5&&Number.isFinite(state.spyV)?` · SPY V ${state.spyV>=0?'+':''}${state.spyV.toFixed(2)}`:'';
-  $('h1-trend-age-text').textContent=state?`TUỔI TREND H1 · ${word} · ${state.ageH1} H1${scoreLabel}${spyLabel}${state.preview?' · LIVE':' · ĐÃ KHÓA'}`:'TUỔI TREND H1 · WAIT';
+  $('h1-trend-age-text').textContent=state?`TUỔI H1 · ${word} · ${state.ageH1} H1${scoreLabel}${spyLabel}${state.preview?' · LIVE':' · ĐÃ KHÓA'}`:'TUỔI H1 · WAIT';
   node.className=`forecast ${direction>0?'up':direction<0?'down':'wait'}`;
   node.title='Tuổi trend H1 và điểm đồng thuận trong ngày New York. Điểm 0–100 vector hóa hiệu suất giá M15, màu Hộp H1, SPY V và trend; dùng tối đa 8 hộp cùng hướng gần nhất, bắt đầu tính từ 5 hộp. Đây là điểm đồng thuận, không phải xác suất. Đổi hướng hoặc sang ngày mới sẽ đặt lại mốc. LIVE là hộp H1 đang xem trước; ĐÃ KHÓA là hộp đã hoàn tất.';
   updateH1CandleCountdown();positionForecastReadout();
@@ -529,8 +529,8 @@ function updateH1CandleCountdown(){
   const node=$('h1-candle-countdown'),show=$('interval').value==='15m'&&$('symbol').value==='SPYUSDT';
   if(!node)return;node.hidden=!show;if(!show)return;
   const serverNow=Date.now()+serverOffsetMs,remaining=Math.max(0,(Math.floor(serverNow/3600000)+1)*3600000-serverNow),seconds=Math.ceil(remaining/1000),minutes=Math.floor(seconds/60),rest=seconds%60;
-  node.textContent=`H1 CÒN ${String(minutes).padStart(2,'0')}:${String(rest).padStart(2,'0')}`;
-  node.setAttribute('aria-label',`Còn ${minutes} phút ${rest} giây đến khi nến H1 đóng`);
+  node.textContent=`H1 ${String(minutes).padStart(2,'0')}:${String(rest).padStart(2,'0')}`;
+  node.setAttribute('aria-label',`Nến H1 đóng sau ${minutes} phút ${rest} giây`);
 }
 function updateCandleCountdown(){
   updateH1CandleCountdown();
