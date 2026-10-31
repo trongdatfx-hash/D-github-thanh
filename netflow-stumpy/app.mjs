@@ -232,7 +232,7 @@ function requestStudies(){
   const key=`${symbol}|${interval}|${$('days').value}|${closed[0]?.t}|${closed.at(-1)?.t}|${closed.length}|${options.minScore}|${options.maxLines}`;
   if(key===studyKey)return;studyKey=key;
   if(!studiesWorker){
-    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261031-h1-weekend-color1',import.meta.url),{type:'module'});
+    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261031-h1-fast-age1',import.meta.url),{type:'module'});
     studiesWorker.onmessage=({data})=>{
       if(data.key!==studyKey)return;
       if(data.partial==='h1'){h1CandleMap=new Map((data.result?.h1CandleColors??[]).map(state=>[state.t,state]));updateH1TrendAgeReadout();if($('candle-h1-box-color')?.checked)render(false);return;}
