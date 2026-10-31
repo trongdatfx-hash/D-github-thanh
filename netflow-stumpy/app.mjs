@@ -189,7 +189,7 @@ function syncDisplayModeButtons(){
   if(width){const soft=$('wlr-soft-colors').checked&&$('symbol').value==='SPYUSDT';width.textContent=`Độ dày WLR: ${soft?(trendWidth?'Dốc/σ + khóa mềm':'Cố định 3'):(trendWidth?'Dốc·R² + V×C':'C×V')}`;width.title=soft?'Theo điểm dốc/σ cùng chế độ màu: đồng thuận tối đa 8, chưa xác nhận tối đa 5, nhịp sớm tối đa 2,5, xung đột tối đa 3, trung tính 2. Làm mượt α=0,35 theo nến đóng. Tắt để dùng nét cố định 3. Độ dày mô tả sức mạnh, không phải xác suất thắng.':trendWidth?'Độ dày 2–10: 61% dốc WLR13 có xét R² + 39% SPY V×Composite, làm mượt α=0,35':'Độ dày theo đồng thuận Composite × SPY V';width.setAttribute('aria-pressed',String(trendWidth));}
   if(candle){candle.textContent=`Màu nến: ${priceVolume?'Cụm Giá×SPY V':'C×V'}`;candle.title=priceVolume?'Cụm causal từ WLR8, SPY V và thân giá/ATR; hai nến đối nghịch mới đổi cụm, nến ngược nhỏ chỉ giảm sáng':'Màu nến theo đồng thuận Strength Composite × SPY V';candle.setAttribute('aria-pressed',String(priceVolume));}
   if(trendCandle){trendCandle.lastChild.textContent=`Nến tuổi trend: ${trendAgeColor?'BẬT':'TẮT'}`;trendCandle.title='SPY M15: tô nến lịch sử tại lúc đóng và tô nến đang chạy bằng dự báo LIVE tuổi kế tiếp. Xanh/đỏ khi đủ mẫu và TREND CÒN ≥55%; nếu không thì xám. LIVE có thể đổi cho tới khi đóng và chưa được ghi vào cohort hoặc chấm forward.';trendCandle.setAttribute('aria-pressed',String(Boolean(trendAgeColor)));}
-  if(h1Candle){h1Candle.lastChild.textContent=`Nến theo Hộp H1: ${h1BoxColor?'BẬT':'TẮT'}`;h1Candle.title='SPY M15: tô cả bốn nến của Hộp H1 đã khóa và cả H1 đang hình thành (PREVIEW). Xanh = UP, đỏ = DOWN, xám = WAIT. Khi bật, lớp H1 được ưu tiên hơn màu Tuổi trend và Cụm Giá×SPY V.';h1Candle.setAttribute('aria-pressed',String(Boolean(h1BoxColor)));}
+  if(h1Candle){h1Candle.lastChild.textContent=`Nến theo Hộp H1: ${h1BoxColor?'BẬT':'TẮT'}`;h1Candle.title='SPY M15 từ PRE đến hết POST New York: tô cả bốn nến của Hộp H1 đã khóa và cả H1 đang hình thành (PREVIEW). Xanh = UP, đỏ = DOWN, xám = WAIT. Khi bật, lớp H1 được ưu tiên hơn màu Tuổi trend và Cụm Giá×SPY V.';h1Candle.setAttribute('aria-pressed',String(Boolean(h1BoxColor)));}
 }
 function restoreSavedSetup(){
   try{
@@ -232,7 +232,7 @@ function requestStudies(){
   const key=`${symbol}|${interval}|${$('days').value}|${closed[0]?.t}|${closed.at(-1)?.t}|${closed.length}|${runningKey}|${options.minScore}|${options.maxLines}`;
   if(key===studyKey)return;studyKey=key;
   if(!studiesWorker){
-    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261031-h1-candle1',import.meta.url),{type:'module'});
+    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261031-h1-post1',import.meta.url),{type:'module'});
     studiesWorker.onmessage=({data})=>{
       if(data.key!==studyKey)return;
       if(data.error){$('chart').dataset.studyStatus='error';$('chart').dataset.studyError=data.error;studyKey='';return;}
