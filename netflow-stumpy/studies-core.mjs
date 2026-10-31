@@ -4,7 +4,7 @@ import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeo
 import {pivotZones} from './pivot-zones.mjs?v=20261029-price-delta1';
 import {causalTrendChannels} from './causal-trend-channel.mjs?v=20261029-price-delta1';
 import {channelStrengthBoxes} from './channel-strength-boxes.mjs?v=20261029-weekly-map1';
-import {weeklyTrendForecast,h1CandleColorStates} from './weekly-trend-map.mjs?v=20261031-h1-day-score1';
+import {weeklyTrendForecast,h1CandleColorStates} from './weekly-trend-map.mjs?v=20261031-h1-box-state-fix1';
 import {preRthWlrTrend,historicalTrendAgeStates} from './pre-rth-wlr-trend.mjs?v=20261029-price-delta1';
 import {chartFeatureRows} from './analogs-features.mjs?v=20261029-price-delta1';
 
