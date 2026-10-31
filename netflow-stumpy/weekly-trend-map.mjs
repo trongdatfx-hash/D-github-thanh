@@ -8,6 +8,26 @@ function weightedQuantile(values,weights,p){const a=values.map((value,i)=>({valu
 function qset(values,weights){return {p10:weightedQuantile(values,weights,.1),p50:weightedQuantile(values,weights,.5),p90:weightedQuantile(values,weights,.9)};}
 function latest(map,rows,predicate=()=>true){for(let i=rows.length-1;i>=0;i--){const value=map.get(rows[i].t);if(value&&predicate(value))return value;}return null;}
 
+export function h1CandleColorStates({priceRows=[],boxSnapshots=new Map(),trendStates=[],now=Date.now()}={}){
+  const groups=new Map(),trend=new Map(trendStates.map(x=>[x.t,x]));
+  for(const row of priceRows){const clock=nyClock(row.t);if(['Sat','Sun'].includes(clock.weekday)||clock.minute<DAY_START||clock.minute>=DAY_END)continue;if(!groups.has(clock.day))groups.set(clock.day,[]);groups.get(clock.day).push({...row,minute:clock.minute});}
+  const states=[];
+  for(const source of groups.values()){
+    const rows=source.sort((a,b)=>a.t-b.t);if(rows[0]?.minute!==DAY_START)continue;
+    let usable=0;for(let i=0;i<rows.length;i++){if(rows[i].minute!==DAY_START+15*i||(i&&rows[i].t-rows[i-1].t!==STEP))break;usable=i+1;}
+    for(let offset=0;offset<Math.min(SLOTS,usable);offset+=4){
+      const sample=rows.slice(offset,Math.min(offset+4,usable));if(!sample.length)continue;
+      const complete=sample.length===4&&sample.every(row=>(row.end??row.t+STEP-1)<now),preview=!complete;
+      if(preview&&offset+sample.length<Math.min(SLOTS,usable))continue;
+      const o=sample[0].o,c=sample.at(-1).c,h=Math.max(...sample.map(x=>x.h)),l=Math.min(...sample.map(x=>x.l)),range=Math.max(1e-12,h-l);
+      const box=latest(boxSnapshots,sample),age=latest(trend,sample,x=>x.active===true),priceDirection=Math.abs(c-o)>=.10*range?Math.sign(c-o):0,boxDirection=[-1,1].includes(box?.direction)?box.direction:0,trendDirection=[-1,1].includes(age?.direction)?age.direction:0;
+      const vote=.45*priceDirection+.30*boxDirection+.25*trendDirection,direction=Math.abs(vote)>=.25?Math.sign(vote):0,quality=clamp(Math.abs(vote));
+      for(const row of sample)states.push({t:row.t,direction,quality,preview,blockStart:sample[0].t,blockEnd:sample.at(-1).end??sample.at(-1).t+STEP-1});
+    }
+  }
+  return states;
+}
+
 export function buildWeeklyDailyPackets({priceRows=[],strengthRows=[],volumeRows=[],boxSnapshots=new Map(),trendStates=[]}={}){
   const groups=new Map(),strength=new Map(strengthRows.map(x=>[x.t,x])),volume=new Map(volumeRows.map(x=>[x.t,x])),trend=new Map(trendStates.map(x=>[x.t,x]));
   for(const row of priceRows){const c=nyClock(row.t);if(['Sat','Sun'].includes(c.weekday)||c.minute<DAY_START||c.minute>=DAY_END)continue;if(!groups.has(c.day))groups.set(c.day,[]);groups.get(c.day).push({...row,minute:c.minute});}
