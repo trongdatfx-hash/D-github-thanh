@@ -228,13 +228,14 @@ function requestStudies(){
   if(!cache)return;
   const symbol=$('symbol').value,interval=$('interval').value,p=rows[symbol]??[],closed=p.filter(r=>r.end<cache.serverTime);
   if(!closed.length)return;
-  const options={minScore:Number($('geometry-score').value),maxLines:Number($('geometry-lines').value)},running=p.at(-1),runningKey=running&&running.end>=cache.serverTime?`${running.t}:${running.o}:${running.h}:${running.l}:${running.c}`:'closed';
-  const key=`${symbol}|${interval}|${$('days').value}|${closed[0]?.t}|${closed.at(-1)?.t}|${closed.length}|${runningKey}|${options.minScore}|${options.maxLines}`;
+  const options={minScore:Number($('geometry-score').value),maxLines:Number($('geometry-lines').value)};
+  const key=`${symbol}|${interval}|${$('days').value}|${closed[0]?.t}|${closed.at(-1)?.t}|${closed.length}|${options.minScore}|${options.maxLines}`;
   if(key===studyKey)return;studyKey=key;
   if(!studiesWorker){
     studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261031-h1-weekend-color1',import.meta.url),{type:'module'});
     studiesWorker.onmessage=({data})=>{
       if(data.key!==studyKey)return;
+      if(data.partial==='h1'){h1CandleMap=new Map((data.result?.h1CandleColors??[]).map(state=>[state.t,state]));updateH1TrendAgeReadout();if($('candle-h1-box-color')?.checked)render(false);return;}
       if(data.error){$('chart').dataset.studyStatus='error';$('chart').dataset.studyError=data.error;studyKey='';return;}
       const r=data.result;geometryState=r.geometry;causalChannelState=r.channels;breakoutState=r.breakout;geometryStatePoints=r.points;geometryBacktest=r.backtest;pivotZoneState=r.pivot;rev63State=r.rev63;trendAgeCandleMap=new Map((r.trendAgeHistory??[]).map(state=>[state.t,state]));h1CandleMap=new Map((r.h1CandleColors??[]).map(state=>[state.t,state]));renderWeeklyTrendMap(r.weekly);
       studyResultKey=data.key;studyTimingMs=data.computeMs;trainingMeta=data.archive;
@@ -455,11 +456,28 @@ function currentH1TrendAge(){
   return latest;
 }
 function updateH1TrendAgeReadout(){
-  let node=$('h1-trend-age-readout');if(!node){node=document.createElement('div');node.id='h1-trend-age-readout';node.className='forecast wait';node.style.cssText='position:absolute;z-index:6;right:58px;top:10px;max-width:min(560px,calc(100% - 80px));padding:5px 9px;border:1px solid #4e596b;border-radius:5px;text-align:right;background:#111b27;color:#b8bfca;font-size:10px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;pointer-events:auto;cursor:help';$('geometry-readout').insertAdjacentElement('beforebegin',node);}
-  const state=currentH1TrendAge(),direction=state?.direction??0,word=direction>0?'UP':direction<0?'DOWN':'WAIT';node.textContent=state?`TUỔI TREND H1 · ${word} · ${state.ageH1} H1${state.preview?' · LIVE':' · ĐÃ KHÓA'}`:'TUỔI TREND H1 · WAIT';node.className=`forecast ${direction>0?'up':direction<0?'down':'wait'}`;node.title='Tuổi trend H1 trên chart được tính bằng số hộp H1 liên tiếp cùng hướng theo màu Hộp H1; hướng WAIT đặt lại tuổi. LIVE là H1 đang xem trước; ĐÃ KHÓA dùng hộp H1 đã hoàn tất.';
-  positionForecastReadout();
+  let node=$('h1-trend-age-readout');
+  if(!node){
+    node=document.createElement('div');node.id='h1-trend-age-readout';node.className='forecast wait';node.style.cssText='position:absolute;z-index:6;right:58px;top:10px;display:flex;align-items:center;gap:8px;max-width:min(560px,calc(100% - 80px));padding:5px 9px;border:1px solid #4e596b;border-radius:5px;text-align:right;background:#111b27;color:#b8bfca;font-size:10px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;pointer-events:auto;cursor:help';
+    const age=document.createElement('span');age.id='h1-trend-age-text';node.append(age);
+    const countdown=document.createElement('span');countdown.id='h1-candle-countdown';countdown.style.cssText='padding-left:8px;border-left:1px solid #4e596b;color:#f6c85f';node.append(countdown);
+    $('geometry-readout').insertAdjacentElement('beforebegin',node);
+  }
+  const state=currentH1TrendAge(),direction=state?.direction??0,word=direction>0?'UP':direction<0?'DOWN':'WAIT';
+  $('h1-trend-age-text').textContent=state?`TUỔI TREND H1 · ${word} · ${state.ageH1} H1${state.preview?' · LIVE':' · ĐÃ KHÓA'}`:'TUỔI TREND H1 · WAIT';
+  node.className=`forecast ${direction>0?'up':direction<0?'down':'wait'}`;
+  node.title='Tuổi trend H1 trên chart được tính bằng số hộp H1 liên tiếp cùng hướng theo màu Hộp H1; hướng WAIT đặt lại tuổi. LIVE là H1 đang xem trước; ĐÃ KHÓA dùng hộp H1 đã hoàn tất.';
+  updateH1CandleCountdown();positionForecastReadout();
+}
+function updateH1CandleCountdown(){
+  const node=$('h1-candle-countdown'),show=$('interval').value==='15m'&&$('symbol').value==='SPYUSDT';
+  if(!node)return;node.hidden=!show;if(!show)return;
+  const serverNow=Date.now()+serverOffsetMs,remaining=Math.max(0,(Math.floor(serverNow/3600000)+1)*3600000-serverNow),seconds=Math.ceil(remaining/1000),minutes=Math.floor(seconds/60),rest=seconds%60;
+  node.textContent=`H1 CÒN ${String(minutes).padStart(2,'0')}:${String(rest).padStart(2,'0')}`;
+  node.setAttribute('aria-label',`Còn ${minutes} phút ${rest} giây đến khi nến H1 đóng');
 }
 function updateCandleCountdown(){
+  updateH1CandleCountdown();
   const node=$('candle-countdown'),bar=(rows.SPYUSDT??[]).at(-1),show=$('interval').value==='15m'&&$('symbol').value==='SPYUSDT';
   if(!node||!show||!bar){if(node)node.style.display='none';return;}
   node.style.display='block';
