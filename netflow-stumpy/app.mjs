@@ -474,7 +474,7 @@ function updateH1CandleCountdown(){
   if(!node)return;node.hidden=!show;if(!show)return;
   const serverNow=Date.now()+serverOffsetMs,remaining=Math.max(0,(Math.floor(serverNow/3600000)+1)*3600000-serverNow),seconds=Math.ceil(remaining/1000),minutes=Math.floor(seconds/60),rest=seconds%60;
   node.textContent=`H1 CÒN ${String(minutes).padStart(2,'0')}:${String(rest).padStart(2,'0')}`;
-  node.setAttribute('aria-label',`Còn ${minutes} phút ${rest} giây đến khi nến H1 đóng');
+  node.setAttribute('aria-label',`Còn ${minutes} phút ${rest} giây đến khi nến H1 đóng`);
 }
 function updateCandleCountdown(){
   updateH1CandleCountdown();
