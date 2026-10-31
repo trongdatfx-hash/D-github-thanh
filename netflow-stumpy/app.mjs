@@ -171,7 +171,7 @@ function setupChartActions(){
   if(!$('wlr-soft-colors')){const input=document.createElement('input');input.id='wlr-soft-colors';input.type='checkbox';input.checked=true;input.hidden=true;const button=document.createElement('button');button.id='wlr-soft-color-mode';button.type='button';button.className='display-mode-button';button.append(input,document.createElement('span'));$('wlr-width-mode').insertAdjacentElement('afterend',button);}
   const candleLabel=$('candle-agreement-color')?.closest('label');if(candleLabel){candleLabel.hidden=true;const button=document.createElement('button');button.id='candle-color-mode';button.type='button';button.className='display-mode-button';candleLabel.insertAdjacentElement('afterend',button);}
   if(candleLabel&&!$('candle-trend-age-color')){const input=document.createElement('input');input.id='candle-trend-age-color';input.type='checkbox';input.checked=false;input.hidden=true;const button=document.createElement('button');button.id='trend-age-candle-mode';button.type='button';button.className='display-mode-button';button.append(input,'Nến tuổi trend: TẮT');$('candle-color-mode').insertAdjacentElement('afterend',button);}
-  if(candleLabel&&!$('candle-h1-box-color')){const input=document.createElement('input');input.id='candle-h1-box-color';input.type='checkbox';input.checked=false;input.hidden=true;const button=document.createElement('button');button.id='h1-box-candle-mode';button.type='button';button.className='display-mode-button';button.append(input,'Nến theo Hộp H1: TẮT');$('trend-age-candle-mode').insertAdjacentElement('afterend',button);}
+  if(candleLabel&&!$('candle-h1-box-color')){const input=document.createElement('input');input.id='candle-h1-box-color';input.type='checkbox';input.checked=true;input.hidden=true;const button=document.createElement('button');button.id='h1-box-candle-mode';button.type='button';button.className='display-mode-button';button.append(input,'Nến theo Hộp H1: TẮT');$('trend-age-candle-mode').insertAdjacentElement('afterend',button);}
 
   if(!$('aba-band-colors')){
     const input=document.createElement('input');input.id='aba-band-colors';input.type='checkbox';input.checked=true;input.hidden=true;
@@ -193,10 +193,18 @@ function syncDisplayModeButtons(){
 }
 function restoreSavedSetup(){
   try{
-    const saved=JSON.parse(localStorage.getItem(SETUP_STORAGE_KEY)||'null');if(!saved||saved.version!==1||typeof saved.controls!=='object')return;
-    for(const id of SETUP_CONTROL_IDS){const node=$(id),value=saved.controls[id];if(!node)continue;if(node.type==='checkbox'){if(typeof value==='boolean')node.checked=value;}else if(typeof value==='string'&&[...node.options].some(option=>option.value===value))node.value=value;}
-    const from=Number(saved.timeRange?.from),to=Number(saved.timeRange?.to);if(Number.isFinite(from)&&Number.isFinite(to)&&to>from)pendingSavedTimeRange={from,to};
-  }catch{}
+    const saved=JSON.parse(localStorage.getItem(SETUP_STORAGE_KEY)||'null'),valid=saved?.version===1&&typeof saved.controls==='object';
+    if(valid){
+      for(const id of SETUP_CONTROL_IDS){const node=$(id),value=saved.controls[id];if(!node)continue;if(node.type==='checkbox'){if(typeof value==='boolean')node.checked=value;}else if(typeof value==='string'&&[...node.options].some(option=>option.value===value))node.value=value;}
+      const from=Number(saved.timeRange?.from),to=Number(saved.timeRange?.to);if(Number.isFinite(from)&&Number.isFinite(to)&&to>from)pendingSavedTimeRange={from,to};
+    }
+    const migrationKey='netflow:enable-h1-box-candle-default:v1';
+    if(!localStorage.getItem(migrationKey)){
+      $('candle-h1-box-color').checked=true;
+      if(valid){saved.controls['candle-h1-box-color']=true;localStorage.setItem(SETUP_STORAGE_KEY,JSON.stringify(saved));}
+      localStorage.setItem(migrationKey,'done');
+    }
+  }catch{$('candle-h1-box-color').checked=true;}
 }
 function applySavedTimeRange(data){
   if(!pendingSavedTimeRange||!data.length)return false;
@@ -630,8 +638,8 @@ function render(fit=false){
   const clusterColors=$('candle-agreement-color').checked;
   setOptions(price,{priceFormat:$('symbol').value==='SPYUSDT'?{type:'price',precision:1,minMove:.1}:{type:'price',precision:2,minMove:.01}});
   const chartLive=isChartLive();
-  $('chart').dataset.candleTrendAgeColor=trendAgeColor?'historical':'off';$('chart').dataset.candleTrendAgeLivePreview=trendAgeColor&&[...trendAgeCandleMap.values()].some(x=>x.provisional)?(chartLive?'active':'delayed'):'off';$('chart').dataset.candleTrendAgeHistoryBars=String(trendAgeCandleMap.size);$('chart').dataset.candleTrendAgeColoredBars=String([...trendAgeCandleMap.values()].filter(x=>['UP','DOWN'].includes(x.label)).length);$('chart').dataset.candleH1BoxColor=h1BoxColor?'active':'off';$('chart').dataset.candleH1BoxPreviewBars=String([...h1CandleMap.values()].filter(x=>x.preview).length);
-  writeSeries('price',price,p.map(x=>{const h1State=h1CandleMap.get(x.t),trendState=liveTrendAgeState(trendAgeCandleMap.get(x.t),chartLive),color=h1BoxColor?h1BoxCandlePalette(x,h1State):trendAgeColor?trendAgeCandlePalette(x,trendState):clusterColors?candleClusterPalette(candleClusterMap.get(x.t)):candlePalette(candleColorMap.get(x.t));return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color:color.body,wickColor:color.wick,borderColor:color.border};}),seriesContext);
+  $('chart').dataset.candleTrendAgeColor=trendAgeColor?'historical':'off';$('chart').dataset.candleTrendAgeLivePreview=trendAgeColor&&[...trendAgeCandleMap.values()].some(x=>x.provisional)?(chartLive?'active':'delayed'):'off';$('chart').dataset.candleTrendAgeHistoryBars=String(trendAgeCandleMap.size);$('chart').dataset.candleTrendAgeColoredBars=String([...trendAgeCandleMap.values()].filter(x=>['UP','DOWN'].includes(x.label)).length);$('chart').dataset.candleH1BoxColor=h1BoxColor?'active':'off';$('chart').dataset.candleH1BoxPreviewBars=String([...h1CandleMap.values()].filter(x=>x.preview).length);$('chart').dataset.candleH1BoxStates=String(h1CandleMap.size);
+  writeSeries('price',price,p.map(x=>{const h1State=h1CandleMap.get(x.t),trendState=liveTrendAgeState(trendAgeCandleMap.get(x.t),chartLive),color=h1BoxColor&&h1State?h1BoxCandlePalette(x,h1State):trendAgeColor?trendAgeCandlePalette(x,trendState):clusterColors?candleClusterPalette(candleClusterMap.get(x.t)):candlePalette(candleColorMap.get(x.t));return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color:color.body,wickColor:color.wick,borderColor:color.border};}),seriesContext);
   pivotFlowState=pivotFlowRealtime(pivotZoneState.flow,rows.SPYUSDT??[],rows.COMPOSITE??[],closedBefore,pivotFlowState?.volatility?.key);
   const priceBands=weightedPriceBands(p,STEPS[$('interval').value]),trendThickness=new Map(wlrSlopeThickness(p,maps.COMPOSITE??new Map(),volumeStrengthMap,{step:STEPS[$('interval').value],closedBefore}).map(x=>[x.t,x]));priceBandMap=new Map(priceBands.map(x=>[x.t,x]));wlrThicknessMap=trendThickness;const currentThickness=trendThickness.get(p.at(-1)?.t);$('chart').dataset.wlrThicknessModel='slope-r2-flow-noise';$('chart').dataset.wlrThicknessMax=String(WLR_SLOPE_DEFAULTS.maxWidth);$('chart').dataset.wlrThicknessTrendWeight=String(WLR_SLOPE_DEFAULTS.trendWeight);$('chart').dataset.wlrThicknessWindow=String(WLR_SLOPE_DEFAULTS.window);$('chart').dataset.wlrThicknessPairs=String(currentThickness?.pairs??0);
   updateRev63();
