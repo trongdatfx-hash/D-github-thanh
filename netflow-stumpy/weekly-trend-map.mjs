@@ -1,4 +1,4 @@
-const STEP=900000,DAY_START=240,DAY_END=960,SLOTS=48;
+const STEP=900000,DAY_START=240,DAY_END=960,SLOTS=48,H1_COLOR_DAY_END=1200,H1_COLOR_SLOTS=64;
 const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
 const mean=a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:0;
 const clockFormat=new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
@@ -10,15 +10,15 @@ function latest(map,rows,predicate=()=>true){for(let i=rows.length-1;i>=0;i--){c
 
 export function h1CandleColorStates({priceRows=[],boxSnapshots=new Map(),trendStates=[],now=Date.now()}={}){
   const groups=new Map(),trend=new Map(trendStates.map(x=>[x.t,x]));
-  for(const row of priceRows){const clock=nyClock(row.t);if(['Sat','Sun'].includes(clock.weekday)||clock.minute<DAY_START||clock.minute>=DAY_END)continue;if(!groups.has(clock.day))groups.set(clock.day,[]);groups.get(clock.day).push({...row,minute:clock.minute});}
+  for(const row of priceRows){const clock=nyClock(row.t);if(['Sat','Sun'].includes(clock.weekday)||clock.minute<DAY_START||clock.minute>=H1_COLOR_DAY_END)continue;if(!groups.has(clock.day))groups.set(clock.day,[]);groups.get(clock.day).push({...row,minute:clock.minute});}
   const states=[];
   for(const source of groups.values()){
     const rows=source.sort((a,b)=>a.t-b.t);if(rows[0]?.minute!==DAY_START)continue;
     let usable=0;for(let i=0;i<rows.length;i++){if(rows[i].minute!==DAY_START+15*i||(i&&rows[i].t-rows[i-1].t!==STEP))break;usable=i+1;}
-    for(let offset=0;offset<Math.min(SLOTS,usable);offset+=4){
+    for(let offset=0;offset<Math.min(H1_COLOR_SLOTS,usable);offset+=4){
       const sample=rows.slice(offset,Math.min(offset+4,usable));if(!sample.length)continue;
       const complete=sample.length===4&&sample.every(row=>(row.end??row.t+STEP-1)<now),preview=!complete;
-      if(preview&&offset+sample.length<Math.min(SLOTS,usable))continue;
+      if(preview&&offset+sample.length<Math.min(H1_COLOR_SLOTS,usable))continue;
       const o=sample[0].o,c=sample.at(-1).c,h=Math.max(...sample.map(x=>x.h)),l=Math.min(...sample.map(x=>x.l)),range=Math.max(1e-12,h-l);
       const box=latest(boxSnapshots,sample),age=latest(trend,sample,x=>x.active===true),priceDirection=Math.abs(c-o)>=.10*range?Math.sign(c-o):0,boxDirection=[-1,1].includes(box?.direction)?box.direction:0,trendDirection=[-1,1].includes(age?.direction)?age.direction:0;
       const vote=.45*priceDirection+.30*boxDirection+.25*trendDirection,direction=Math.abs(vote)>=.25?Math.sign(vote):0,quality=clamp(Math.abs(vote));
