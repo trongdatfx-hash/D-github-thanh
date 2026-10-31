@@ -8,7 +8,7 @@ import {wlrSoftColors} from '../netflow-stumpy/wlr-soft-color.mjs?v=20261029-col
 import {collectionFor,openClosedPairStream,topUpLive} from './live-topup.mjs?v=20261030-h1-perf1';
 import {buildDailyMaps,buildIntradayDay,additiveMacroForecast,macroPcaProjection,walkForwardMacroAudit,weeklyWlrReversalForecast} from './day-map-core.mjs?v=20261029-wlrweek1';
 
-const $=id=>document.getElementById(id),STEP=STEPS['15m'],LOOKBACK_DAYS=730;let days=[],forecast=null,manifest=null,audit=null,rawHistory=null,liveStream=null,restSyncing=false,repairing=false,modelRows=[],modelWlrColors=[],autoRefresh=true,autoTimer=null,repairTimer=null,auditKey=null,stateProjection=null,drawView=null,resizeFrame=null; 
+const $=id=>document.getElementById(id),STEP=STEPS['15m'],LOOKBACK_DAYS=730;let days=[],forecast=null,manifest=null,audit=null,rawHistory=null,liveStream=null,restSyncing=false,repairing=false,modelRows=[],modelWlrColors=[],autoRefresh=true,autoTimer=null,repairTimer=null,auditKey=null,stateProjection=null,drawView=null,resizeFrame=null,stateMapVisible=!('IntersectionObserver'in window); 
 const pct=x=>Number.isFinite(x)?`${x>0?'+':''}${x.toFixed(2)}%`:'—';
 const price=x=>Number.isFinite(x)?x.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
 const clock=minute=>`${String(Math.floor(minute/60)).padStart(2,'0')}:${String(minute%60).padStart(2,'0')}`;
@@ -116,7 +116,7 @@ function render(){
   $('cohort-note').textContent=f.referenceOnly?`THAM KHẢO · cần ≥${f.minEffective} ngày/mẫu hiệu dụng`:'Đủ ngưỡng nghiên cứu';
   $('macro-result').textContent=`Kết quả: Hộp hiện tại rộng ${f.current.widthPct.toFixed(2)}%; trung vị Hộp cuối nằm trong ${price(low)}–${price(high)}. Xác suất còn mở rộng: ${Math.round(100*f.expandProbability)}%.`;
   $('age-result').textContent=`Kết quả: đã khóa ${currentAge} H1; dự báo kết thúc tại P50 ${finalAge} H1, tức còn khoảng ${remaining} H1. 80% cohort nằm trong ${ageRange}.`;
-  drawView=view;drawMacroMap(view);drawAgeMap(f);drawStateMap(index);renderSimilar();
+  drawView=view;drawMacroMap(view);drawAgeMap(f);if(stateMapVisible)drawStateMap(index);renderSimilar();
   renderDataStatus(index,isPreview);
 }
 function rebuild(raw){
@@ -168,7 +168,9 @@ function setAutoRefresh(enabled){
   autoRefresh=enabled;clearTimeout(repairTimer);clearInterval(autoTimer);autoTimer=null;const button=$('auto-refresh');button.textContent=enabled?'● AUTO 60 GIÂY':'○ AUTO TẮT';button.classList.toggle('active',enabled);button.setAttribute('aria-pressed',String(enabled));
   if(enabled){autoTimer=setInterval(()=>{if(document.visibilityState==='visible')safeRefresh();},60000);if(rawHistory)startStream();}else{liveStream?.close();liveStream=null;}
 }
-$('day').addEventListener('change',render);$('neighbors').addEventListener('change',render);$('latest').addEventListener('click',()=>{$('day').value=String(days.length-1);render();});$('refresh').addEventListener('click',manualRefresh);$('auto-refresh').addEventListener('click',()=>setAutoRefresh(!autoRefresh));addEventListener('resize',()=>{cancelAnimationFrame(resizeFrame);resizeFrame=requestAnimationFrame(()=>{if(drawView&&forecast?.ready){drawMacroMap(drawView);drawAgeMap(forecast);drawStateMap(Number($('day').value));}});});init();setAutoRefresh(true);
+const stateMapObserver='IntersectionObserver'in window?new IntersectionObserver(entries=>{const visible=entries.some(entry=>entry.isIntersecting);if(visible!==stateMapVisible){stateMapVisible=visible;if(visible&&forecast?.ready)drawStateMap(Number($('day').value));}},{rootMargin:'160px'}):null;
+if(stateMapObserver)stateMapObserver.observe($('state-map'));
+$('day').addEventListener('change',render);$('neighbors').addEventListener('change',render);$('latest').addEventListener('click',()=>{$('day').value=String(days.length-1);render();});$('refresh').addEventListener('click',manualRefresh);$('auto-refresh').addEventListener('click',()=>setAutoRefresh(!autoRefresh));addEventListener('resize',()=>{cancelAnimationFrame(resizeFrame);resizeFrame=requestAnimationFrame(()=>{if(drawView&&forecast?.ready){drawMacroMap(drawView);drawAgeMap(forecast);if(stateMapVisible)drawStateMap(Number($('day').value));}});});init();setAutoRefresh(true);
 async function safeRefresh(){try{await refreshFromRest();}catch(error){$('status').textContent=`Cập nhật lỗi: ${error.message}`;$('status').className='negative';}}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&autoRefresh){safeRefresh();if(rawHistory)startStream();}else{clearTimeout(repairTimer);liveStream?.close();liveStream=null;}});
 
