@@ -6,7 +6,7 @@ function prefixR2(prices){const n=prices.length,xm=(n-1)/2,ym=prices.reduce((a,b
 // Closed-channel display qualification can be retrospective, just like its rails.
 export function channelStrengthBoxes(rows,{channels=[],earlyChannels=[],showEarly=true,back=8,now=Infinity,step=900000,compositeRows=new Map(),volumeRows=new Map(),compositeMode='annotate',compositeThreshold=.15}={}){
  if(!Number.isInteger(back)||back<0||back>60)throw Error('Invalid channel box back bars');
- const closed=rows.filter(r=>r.end<now),raw=strengthBoxes(closed,{now,step}),byTime=new Map(),trs=[];let previous=null,rma=null;
+ const closed=rows.filter(r=>r.end<now),raw=strengthBoxes(closed,{now,step,compositeRows,compositeMode,compositeThreshold}),byTime=new Map(),trs=[];let previous=null,rma=null;
  for(let i=0;i<closed.length;i++){
   const r=closed[i],tr=Math.max(r.h-r.l,previous?Math.abs(r.h-previous.c):0,previous?Math.abs(r.l-previous.c):0);
   if(previous&&r.t-previous.t!==step){trs.length=0;rma=null;}
@@ -54,5 +54,6 @@ export function channelStrengthBoxes(rows,{channels=[],earlyChannels=[],showEarl
    snapshots.set(row.t,snapshot);
   }
  }
- return {version:'causal-channel-strength-box-v2',boxes,latest:boxes.at(-1)??null,snapshots,settings:{...BOX_DEFAULTS,back,showEarly,trigger:'causal-channel',compositeMode,compositeThreshold}};
+ const weekendBoxes=raw.boxes.filter(box=>box.phase==='WEEKEND'),weekendSnapshots=new Map([...raw.snapshots].filter(([,box])=>box.phase==='WEEKEND'));
+ return {version:'causal-channel-strength-box-v2',boxes,latest:boxes.at(-1)??null,snapshots,weekendBoxes,weekendSnapshots,settings:{...BOX_DEFAULTS,back,showEarly,trigger:'causal-channel',compositeMode,compositeThreshold}};
 }
