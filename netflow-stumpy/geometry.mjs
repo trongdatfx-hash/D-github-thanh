@@ -44,6 +44,24 @@ export function confirmedPricePivots(bars,options={}){
   return pivots.sort((a,b)=>a.confirmedIndex-b.confirmedIndex||a.index-b.index||a.type.localeCompare(b.type));
 }
 
+export function h1ColorPivots(bars,states=[],atr=causalAtr(bars)){
+  const rowsByTime=new Map(bars.map((bar,index)=>[bar.t,{bar,index}])),groups=new Map();
+  for(const state of states){if(state.preview||!Number.isFinite(state.blockStart))continue;let group=groups.get(state.blockStart);if(!group){group={direction:state.direction,rows:[]};groups.set(state.blockStart,group);}if(group.direction!==state.direction)continue;const found=rowsByTime.get(state.t);if(found)group.rows.push(found);}
+  const blocks=[...groups.entries()].sort((a,b)=>a[0]-b[0]).map(([blockStart,g])=>({...g,rows:g.rows.sort((a,b)=>a.index-b.index)})).filter(g=>g.direction!==0&&g.rows.length===4&&g.rows.every((x,i)=>!i||x.index===g.rows[i-1].index+1));
+  const pivots=[];let run=null;
+  for(const block of blocks){
+    if(!run){run={direction:block.direction,blocks:[block]};continue;}
+    if(block.direction===run.direction){run.blocks.push(block);continue;}
+    const points=run.blocks.flatMap(x=>x.rows),type=run.direction>0?'high':'low',extreme=points.reduce((best,x)=>!best||(type==='high'?x.bar.h>best.bar.h:x.bar.l<best.bar.l)?x:best,null),confirm=block.rows.at(-1);
+    if(extreme&&confirm){
+      const value=type==='high'?extreme.bar.h:extreme.bar.l,scale=atr[extreme.index]??atr[confirm.index];
+      pivots.push({type,index:extreme.index,t:extreme.bar.t,value,confirmedIndex:confirm.index,confirmedAt:confirm.bar.t,atr:scale,prominenceAtr:finite(scale)&&scale>0?(Math.max(...points.map(x=>x.bar.h))-Math.min(...points.map(x=>x.bar.l)))/scale:0,source:'h1-box-color',h1Start:run.blocks[0].rows[0].bar.t,h1End:run.blocks.at(-1).rows.at(-1).bar.t});
+    }
+    run={direction:block.direction,blocks:[block]};
+  }
+  return pivots.sort((a,b)=>a.confirmedIndex-b.confirmedIndex||a.index-b.index);
+}
+
 function contextAt(bars,spy,qqq,flow,volume){
   const spyMap=new Map(spy.map(row=>[row.t,row])),qqqMap=new Map(qqq.map(row=>[row.t,row])),flowMap=new Map(flow.map(row=>[row.t,row])),volumeMap=new Map(volume.map(row=>[row.t,row]));
   return bars.map(bar=>({spy:spyMap.get(bar.t)?.adjusted,qqq:qqqMap.get(bar.t)?.adjusted,flow:flowMap.get(bar.t)?.nf,volume:volumeMap.get(bar.t)?.adjusted}));
@@ -156,8 +174,10 @@ export function buildPatternStructures(bars,pivots,context,options={}){
   if(end<23||!finite(scale)||scale<=0)return [];
   for(const length of [24,36,50,72,96]){
     const start=end-length+1;if(start<14)continue;
-    const highs=pivots.filter(p=>p.type==='high'&&p.index>=start&&p.confirmedIndex<=end),lows=pivots.filter(p=>p.type==='low'&&p.index>=start&&p.confirmedIndex<=end);
-    if(highs.length<2||lows.length<2||highs.at(-1).index-highs[0].index<6||lows.at(-1).index-lows[0].index<6)continue;
+    let highs=pivots.filter(p=>p.type==='high'&&p.index>=start&&p.confirmedIndex<=end),lows=pivots.filter(p=>p.type==='low'&&p.index>=start&&p.confirmedIndex<=end),pivotSource='H1_BOX_COLOR';
+    const enough=(a,b)=>a.length>=2&&b.length>=2&&a.at(-1).index-a[0].index>=6&&b.at(-1).index-b[0].index>=6;
+    if(!enough(highs,lows)&&Array.isArray(options.fallbackPivots)){highs=options.fallbackPivots.filter(p=>p.type==='high'&&p.index>=start&&p.confirmedIndex<=end);lows=options.fallbackPivots.filter(p=>p.type==='low'&&p.index>=start&&p.confirmedIndex<=end);pivotSource='M15_FALLBACK';}
+    if(!enough(highs,lows))continue;
     let upper=ols(highs),lower=ols(lows),u=i=>upper.intercept+upper.slope*i,l=i=>lower.intercept+lower.slope*i;
     let firstWidth=u(start)-l(start),width=u(end)-l(end);
     if(firstWidth<=0||width<.6*scale)continue;
@@ -183,10 +203,10 @@ export function buildPatternStructures(bars,pivots,context,options={}){
     const name=type==='box'?'HỘP':type==='flag'?'CỜ':upper.slope>0?'NÊM TĂNG':lower.slope<0?'NÊM GIẢM':'NÊM HỘI TỤ';
     const label=name+' · '+(phase==='accumulation'?'nghiêng tích lũy':phase==='distribution'?'nghiêng phân phối':'trung tính');
     const rails=[['support',lower,lowerTouches],['resistance',upper,upperTouches]].map(([kind,fit,touches])=>({
-      kind,source:'pattern',patternId:id,patternType:type,patternLabel:label,phase,score,startIndex:start,startTime:bars[start].t,knownAt,endIndex:end,endTime:bars[end].t,
+      kind,source:'pattern',patternId:id,patternType:type,patternLabel:label,pivotSource,phase,score,startIndex:start,startTime:bars[start].t,knownAt,endIndex:end,endTime:bars[end].t,
       startValue:fit.intercept+fit.slope*start,endValue:fit.intercept+fit.slope*end,slope:fit.slope,slopeAtr:fit.slope/scale,rmseAtr:rmse,touches:touches.length,ageBars:length,confluence:Math.abs(bias),anchors:touches.slice(-3)
     }));
-    found.push({id,type,label,phase,score,startIndex:start,endIndex:end,knownAt,compression,inside,rails});
+    found.push({id,type,label,phase,score,pivotSource,startIndex:start,endIndex:end,knownAt,compression,inside,rails});
   }
   // Overlapping windows describe one setup; retain the best rather than stack boxes.
   const selected=[];
@@ -197,11 +217,11 @@ export function buildPatternStructures(bars,pivots,context,options={}){
   return selected;
 }
 
-export function analyzeGeometry({price,spy=[],qqq=[],flow=[],volume=[]},options={}){
+export function analyzeGeometry({price,spy=[],qqq=[],flow=[],volume=[],h1CandleColors=[]},options={}){
   if(!Array.isArray(price)||!Array.isArray(spy)||!Array.isArray(qqq)||!Array.isArray(flow)||!Array.isArray(volume))throw Error('Nguồn hình học không hợp lệ');
   if(!price.length)return {pivots:[],events:[],lines:[],summary:{support:0,resistance:0,divergences:0,rotations:0}};
-  const config={...GEOMETRY_DEFAULTS,...options,maxLines:Math.max(4,options.maxLines??GEOMETRY_DEFAULTS.maxLines)},atr=causalAtr(price,{period:config.atrPeriod}),pivots=confirmedPricePivots(price,{...config,atr}),context=contextAt(price,spy,qqq,flow,volume),events=confirmedDivergences(pivots,context,config),classicLines=buildTrendlines(price,pivots,context,{...config,atr}),patterns=buildPatternStructures(price,pivots,context,{...config,atr}),classicBudget=Math.ceil(config.maxLines/2),patternBudget=Math.floor(config.maxLines/2),selectedPatterns=patterns.slice(0,Math.floor(patternBudget/2)),lines=[...classicLines.slice(0,classicBudget),...selectedPatterns.flatMap(p=>p.rails)],provisionalLines=provisionalTrendlines(price,pivots,{...config,atr});
-  return {pivots,events,lines,provisionalLines,patterns:selectedPatterns,referenceLines:[...classicLines,...selectedPatterns.flatMap(p=>p.rails)],selectionBudget:{classic:classicBudget,pattern:patternBudget},summary:{support:lines.filter(line=>line.kind==='support').length,resistance:lines.filter(line=>line.kind==='resistance').length,divergences:events.filter(event=>event.type==='regular-divergence').length,rotations:events.filter(event=>event.detail?.pairSplit||event.pairSplit).length},atr};
+  const config={...GEOMETRY_DEFAULTS,...options,maxLines:Math.max(4,options.maxLines??GEOMETRY_DEFAULTS.maxLines)},atr=causalAtr(price,{period:config.atrPeriod}),pricePivots=confirmedPricePivots(price,{...config,atr}),h1Pivots=h1ColorPivots(price,h1CandleColors,atr),h1Counts={high:h1Pivots.filter(p=>p.type==='high').length,low:h1Pivots.filter(p=>p.type==='low').length},useH1=h1Pivots.length>=4&&h1Counts.high>=2&&h1Counts.low>=2,pivots=useH1?h1Pivots:pricePivots,pivotSource=useH1?'H1_BOX_COLOR':'M15_PRICE',context=contextAt(price,spy,qqq,flow,volume),events=confirmedDivergences(pivots,context,config),classicLines=buildTrendlines(price,pivots,context,{...config,atr}),patterns=buildPatternStructures(price,pivots,context,{...config,atr,fallbackPivots:useH1?pricePivots:null}),classicBudget=Math.ceil(config.maxLines/2),patternBudget=Math.floor(config.maxLines/2),selectedPatterns=patterns.slice(0,Math.floor(patternBudget/2)),lines=[...classicLines.slice(0,classicBudget),...selectedPatterns.flatMap(p=>p.rails)],provisionalLines=provisionalTrendlines(price,pivots,{...config,atr});
+  return {pivots,h1Pivots,pivotSource,events,lines,provisionalLines,patterns:selectedPatterns,referenceLines:[...classicLines,...selectedPatterns.flatMap(p=>p.rails)],selectionBudget:{classic:classicBudget,pattern:patternBudget},summary:{support:lines.filter(line=>line.kind==='support').length,resistance:lines.filter(line=>line.kind==='resistance').length,divergences:events.filter(event=>event.type==='regular-divergence').length,rotations:events.filter(event=>event.detail?.pairSplit||event.pairSplit).length},atr};
 }
 
 const lineAt=(line,index)=>line.startValue+line.slope*(index-line.startIndex);
