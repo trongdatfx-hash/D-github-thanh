@@ -232,7 +232,7 @@ function requestStudies(){
   const key=`${symbol}|${interval}|${$('days').value}|${closed[0]?.t}|${closed.at(-1)?.t}|${closed.length}|${options.minScore}|${options.maxLines}`;
   if(key===studyKey)return;studyKey=key;
   if(!studiesWorker){
-    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261031-h1-color-pivots1',import.meta.url),{type:'module'});
+    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261031-h1-day-score1',import.meta.url),{type:'module'});
     studiesWorker.onmessage=({data})=>{
       if(data.key!==studyKey)return;
       if(data.partial==='h1'){h1CandleMap=new Map((data.result?.h1CandleColors??[]).map(state=>[state.t,state]));updateH1TrendAgeReadout();if($('candle-h1-box-color')?.checked)render(false);return;}
@@ -451,8 +451,15 @@ function positionForecastReadout(){
 }
 function currentH1TrendAge(){
   const blocks=new Map();for(const state of h1CandleMap.values()){if(!Number.isFinite(state.blockStart))continue;const old=blocks.get(state.blockStart);if(!old||state.t>old.t)blocks.set(state.blockStart,state);}
-  let direction=0,ageH1=0,latest=null;
-  for(const state of [...blocks.values()].sort((a,b)=>a.blockStart-b.blockStart)){if(state.direction===0){direction=0;ageH1=0;}else if(state.direction===direction)ageH1++;else{direction=state.direction;ageH1=1;}latest={...state,ageH1};}
+  let direction=0,ageH1=0,dayKey=null,run=[],latest=null;
+  for(const state of [...blocks.values()].sort((a,b)=>a.blockStart-b.blockStart)){
+    if(dayKey!==state.dayKey){dayKey=state.dayKey;direction=0;ageH1=0;run=[];}
+    if(state.direction===0){direction=0;ageH1=0;run=[];}
+    else if(state.direction===direction){ageH1++;run.push(state);}
+    else{direction=state.direction;ageH1=1;run=[state];}
+    const scored=run.filter(x=>Number.isFinite(x.score)).slice(-8),spy=run.filter(x=>Number.isFinite(x.spyV)).slice(-8);
+    latest={...state,ageH1,scoreN:scored.length,score:scored.length?Math.round(scored.reduce((sum,x)=>sum+x.score,0)/scored.length):null,scoreSpan:Math.min(8,scored.length),spyV:spy.length?spy.reduce((sum,x)=>sum+x.spyV,0)/spy.length:null};
+  }
   return latest;
 }
 function updateH1TrendAgeReadout(){
@@ -464,9 +471,11 @@ function updateH1TrendAgeReadout(){
     $('geometry-readout').insertAdjacentElement('beforebegin',node);
   }
   const state=currentH1TrendAge(),direction=state?.direction??0,word=direction>0?'UP':direction<0?'DOWN':'WAIT';
-  $('h1-trend-age-text').textContent=state?`TUỔI TREND H1 · ${word} · ${state.ageH1} H1${state.preview?' · LIVE':' · ĐÃ KHÓA'}`:'TUỔI TREND H1 · WAIT';
+  const scoreLabel=state?.ageH1>=5?(state.scoreN>=5?` · ĐIỂM ${state.score}/100 · MẪU ${state.scoreSpan} H1`:` · CHỜ SPY V ${state.scoreN}/5`):state?.direction?` · TÍCH LŨY ${state.ageH1}/5`:'';
+  const spyLabel=state?.ageH1>=5&&Number.isFinite(state.spyV)?` · SPY V ${state.spyV>=0?'+':''}${state.spyV.toFixed(2)}`:'';
+  $('h1-trend-age-text').textContent=state?`TUỔI TREND H1 · ${word} · ${state.ageH1} H1${scoreLabel}${spyLabel}${state.preview?' · LIVE':' · ĐÃ KHÓA'}`:'TUỔI TREND H1 · WAIT';
   node.className=`forecast ${direction>0?'up':direction<0?'down':'wait'}`;
-  node.title='Tuổi trend H1 trên chart được tính bằng số hộp H1 liên tiếp cùng hướng theo màu Hộp H1; hướng WAIT đặt lại tuổi. LIVE là H1 đang xem trước; ĐÃ KHÓA dùng hộp H1 đã hoàn tất.';
+  node.title='Tuổi trend H1 và điểm đồng thuận trong ngày New York. Điểm 0–100 vector hóa hiệu suất giá M15, màu Hộp H1, SPY V và trend; dùng tối đa 8 hộp cùng hướng gần nhất, bắt đầu tính từ 5 hộp. Đây là điểm đồng thuận, không phải xác suất. Đổi hướng hoặc sang ngày mới sẽ đặt lại mốc. LIVE là hộp H1 đang xem trước; ĐÃ KHÓA là hộp đã hoàn tất.';
   updateH1CandleCountdown();positionForecastReadout();
 }
 function updateH1CandleCountdown(){
