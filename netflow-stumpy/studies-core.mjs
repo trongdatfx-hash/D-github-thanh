@@ -4,7 +4,7 @@ import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeo
 import {pivotZones} from './pivot-zones.mjs?v=20261029-price-delta1';
 import {causalTrendChannels} from './causal-trend-channel.mjs?v=20261029-price-delta1';
 import {channelStrengthBoxes} from './channel-strength-boxes.mjs?v=20261029-weekly-map1';
-import {weeklyTrendForecast,h1CandleColorStates} from './weekly-trend-map.mjs?v=20261031-h1-weekend-color1';
+import {weeklyTrendForecast,h1CandleColorStates} from './weekly-trend-map.mjs?v=20261031-h1-day-score1';
 import {preRthWlrTrend,historicalTrendAgeStates} from './pre-rth-wlr-trend.mjs?v=20261029-price-delta1';
 import {chartFeatureRows} from './analogs-features.mjs?v=20261029-price-delta1';
 
@@ -20,7 +20,7 @@ export function computeStudies({rows,volumeRows,symbol,interval,options,now,tren
   const channelState=causalTrendChannels(closedTrend.map(r=>r.session==='EURO'?{...r,session:'PRE'}:r),{volumeRows:trendVolume,maxHistory:Infinity});
   const allTrendAgeHistory=interval==='15m'&&symbol==='SPYUSDT'?historicalTrendAgeStates({priceRows:tRows,strengthRows:trend?.rows.COMPOSITE??[],volumeRows:trendVolume,channelTrends:channelState.episodes,now,fromTime:-Infinity}):[];
   const weeklyBoxes=interval==='15m'&&symbol==='SPYUSDT'?channelStrengthBoxes(tRows,{channels:channelState.episodes,showEarly:false,back:8,now,step:STEPS['15m'],compositeRows:new Map((trend?.rows.COMPOSITE??[]).map(x=>[x.t,x])),volumeRows:new Map(trendVolume.map(x=>[x.t,x])),compositeMode:'annotate'}):{snapshots:new Map()};
-  const h1CandleColors=interval==='15m'&&symbol==='SPYUSDT'?h1CandleColorStates({priceRows:tRows,boxSnapshots:weeklyBoxes.snapshots,trendStates:allTrendAgeHistory,now}):[];
+  const h1CandleColors=interval==='15m'&&symbol==='SPYUSDT'?h1CandleColorStates({priceRows:tRows,boxSnapshots:weeklyBoxes.snapshots,trendStates:allTrendAgeHistory,volumeRows:trend?.volume??[],now}):[];
   if(typeof onH1Ready==='function')onH1Ready(h1CandleColors);
   const geometry=analyzeGeometry({...input,h1CandleColors},options),channels=causalTrendChannels(closedPrice,{volumeRows:input.volume,maxHistory:12});
   // Same causal leg rules, lower display age only. Preview predicts whether a
