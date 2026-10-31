@@ -438,15 +438,16 @@ function drawH1H4Strip(){
   canvas.dataset.mode=active?'active':'off';canvas.dataset.states=String(h1CandleMap.size);canvas.dataset.visibleBars='0';canvas.dataset.previewBars='0';
   canvas.setAttribute('aria-label',active?'Dải màu phía trên pane SPY V: mỗi ô là một nến H1, tô theo trạng thái Hộp H4; hiện trên chart M15 và H1, viền vàng là nhóm H4 LIVE.':'Dải màu H1 theo Hộp H4 hiển thị trên chart SPY M15 hoặc H1 khi bật màu hộp.');
   if(!active||!h1CandleMap.size)return;
-  const bounds=paneBounds(1),scaleWidth=chart.priceScale('right',0)?.width?.()??56,right=Math.max(0,width-scaleWidth),stripHeight=8,y=(bounds?.top??Math.round(height*.55))+1;
+  const bounds=paneBounds(1),scaleWidth=chart.priceScale('right',0)?.width?.()??56,right=Math.max(0,width-scaleWidth),stripHeight=10,y=(bounds?.top??Math.round(height*.55))+5;
   if(right<8||y<0)return;
   context.fillStyle='rgba(9,17,29,.88)';context.fillRect(0,y,right,stripHeight);
-  const times=[...h1CandleMap.keys()].sort((x,y)=>x-y),timeScale=chart.timeScale(),fallbackSpacing=Math.max(1,Number(timeScale.options?.().barSpacing)||6),barGroup=interval==='15m'?4:1;
+  const rawTimes=[...h1CandleMap.keys()].sort((x,y)=>x-y),timeScale=chart.timeScale(),fallbackSpacing=Math.max(1,Number(timeScale.options?.().barSpacing)||6);
+  const times=interval==='15m'?[...new Set(rawTimes.map(time=>h1CandleMap.get(time)?.blockStart??time))]:rawTimes;
   let visibleBars=0,previewBars=0,previousBlock=null;
   for(let i=0;i<times.length;i++){
     const time=times[i],state=h1CandleMap.get(time),center=timeScale.timeToCoordinate(time/1000);
     if(!Number.isFinite(center)||center< -fallbackSpacing||center>right+fallbackSpacing)continue;
-    let spacing=fallbackSpacing*barGroup,neighbor=null;
+    let spacing=fallbackSpacing*(interval==='15m'?4:1),neighbor=null;
     if(i+1<times.length)neighbor=timeScale.timeToCoordinate(times[i+1]/1000);
     if(Number.isFinite(neighbor)&&Math.abs(neighbor-center)>0)spacing=Math.abs(neighbor-center);
     else if(i>0){neighbor=timeScale.timeToCoordinate(times[i-1]/1000);if(Number.isFinite(neighbor)&&Math.abs(center-neighbor)>0)spacing=Math.abs(center-neighbor);}
@@ -458,6 +459,7 @@ function drawH1H4Strip(){
     previousBlock=state?.blockStart;visibleBars++;
   }
   canvas.dataset.visibleBars=String(visibleBars);canvas.dataset.previewBars=String(previewBars);
+  canvas.setAttribute('aria-label',`Dải màu phía trên pane SPY V: ${visibleBars} ô H1 đang hiển thị, tô theo trạng thái Hộp H4; chart ${interval==='15m'?'M15':'H1'}, ${previewBars} ô LIVE viền vàng.`);
 }
 function drawPivotFlowOverlay(){
   const canvas=$('pivot-flow-overlay'),host=$('chart'),width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1;
