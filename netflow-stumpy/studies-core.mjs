@@ -1,6 +1,6 @@
 import {trendSessionAt,trendSessionRows} from './trend-session.mjs?v=20261029-price-delta1';
 import {analyze,composite,calculateVolumeStrength,STEPS,sessionAt} from './engine.mjs?v=20261029-price-delta1';
-import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeometry} from './geometry.mjs?v=20261029-price-delta1';
+import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeometry} from './geometry.mjs?v=20261031-h1-color-pivots1';
 import {pivotZones} from './pivot-zones.mjs?v=20261029-price-delta1';
 import {causalTrendChannels} from './causal-trend-channel.mjs?v=20261029-price-delta1';
 import {channelStrengthBoxes} from './channel-strength-boxes.mjs?v=20261029-weekly-map1';
@@ -22,7 +22,7 @@ export function computeStudies({rows,volumeRows,symbol,interval,options,now,tren
   const weeklyBoxes=interval==='15m'&&symbol==='SPYUSDT'?channelStrengthBoxes(tRows,{channels:channelState.episodes,showEarly:false,back:8,now,step:STEPS['15m'],compositeRows:new Map((trend?.rows.COMPOSITE??[]).map(x=>[x.t,x])),volumeRows:new Map(trendVolume.map(x=>[x.t,x])),compositeMode:'annotate'}):{snapshots:new Map()};
   const h1CandleColors=interval==='15m'&&symbol==='SPYUSDT'?h1CandleColorStates({priceRows:tRows,boxSnapshots:weeklyBoxes.snapshots,trendStates:allTrendAgeHistory,now}):[];
   if(typeof onH1Ready==='function')onH1Ready(h1CandleColors);
-  const geometry=analyzeGeometry(input,options),channels=causalTrendChannels(closedPrice,{volumeRows:input.volume,maxHistory:12});
+  const geometry=analyzeGeometry({...input,h1CandleColors},options),channels=causalTrendChannels(closedPrice,{volumeRows:input.volume,maxHistory:12});
   // Same causal leg rules, lower display age only. Preview predicts whether a
   // 4–7 bar live candidate will survive to the normal eight-bar display age.
   const early=causalTrendChannels(closedPrice,{volumeRows:input.volume,minLegBars:4,maxHistory:12});
