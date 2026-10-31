@@ -1,4 +1,4 @@
-import {createStrengthBoxLayer} from './strength-box-ui.mjs?v=20261029-price-delta1';
+import {createStrengthBoxLayer} from './strength-box-ui.mjs?v=20261031-h1-box-perf1';
 import {createQuantilePrice} from './quantile-price-ui.mjs?v=20261029-price-delta1';
 import {chartFresh,liveTrendAgeState} from './chart-live.mjs?v=20261030-chart-live3';
 import {chartHistoryFallback} from './chart-history-fallback.mjs?v=20261029-price-delta1';
