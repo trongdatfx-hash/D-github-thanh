@@ -494,39 +494,36 @@ function positionForecastReadout(){
 }
 function currentH1TrendAge(){
   const blocks=new Map();for(const state of h1CandleMap.values()){if(!Number.isFinite(state.blockStart))continue;const old=blocks.get(state.blockStart);if(!old||state.t>old.t)blocks.set(state.blockStart,state);}
-  let direction=0,ageH1=0,dayKey=null,run=[],latest=null;
+  let direction=0,ageH1=0,dayKey=null,latest=null;
   for(const state of [...blocks.values()].sort((a,b)=>a.blockStart-b.blockStart)){
-    if(dayKey!==state.dayKey){dayKey=state.dayKey;direction=0;ageH1=0;run=[];}
-    if(state.direction===0){direction=0;ageH1=0;run=[];}
-    else if(state.direction===direction){ageH1++;run.push(state);}
-    else{direction=state.direction;ageH1=1;run=[state];}
-    const scored=run.filter(x=>Number.isFinite(x.score)).slice(-8),spy=run.filter(x=>Number.isFinite(x.spyV)).slice(-8);
-    latest={...state,ageH1,scoreN:scored.length,score:scored.length?Math.round(scored.reduce((sum,x)=>sum+x.score,0)/scored.length):null,scoreSpan:Math.min(8,scored.length),spyV:spy.length?spy.reduce((sum,x)=>sum+x.spyV,0)/spy.length:null};
+    if(dayKey!==state.dayKey){dayKey=state.dayKey;direction=0;ageH1=0;}
+    if(state.direction===0){direction=0;ageH1=0;}
+    else if(state.direction===direction){ageH1++;}
+    else{direction=state.direction;ageH1=1;}
+    latest={...state,ageH1};
   }
   return latest;
 }
 function updateH1TrendAgeReadout(){
   let node=$('h1-trend-age-readout');
   if(!node){
-    node=document.createElement('div');node.id='h1-trend-age-readout';node.className='forecast wait';node.style.cssText='position:absolute;z-index:6;right:58px;top:10px;display:flex;align-items:center;gap:8px;max-width:min(560px,calc(100% - 80px));padding:5px 9px;border:1px solid #4e596b;border-radius:5px;text-align:right;background:#111b27;color:#b8bfca;font-size:10px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;pointer-events:auto;cursor:help';
+    node=document.createElement('div');node.id='h1-trend-age-readout';node.className='forecast wait';
     const age=document.createElement('span');age.id='h1-trend-age-text';node.append(age);
-    const countdown=document.createElement('span');countdown.id='h1-candle-countdown';countdown.style.cssText='padding-left:8px;border-left:1px solid #4e596b;color:#f6c85f';node.append(countdown);
+    const countdown=document.createElement('span');countdown.id='h1-candle-countdown';node.append(countdown);
     $('geometry-readout').insertAdjacentElement('beforebegin',node);
   }
   const visible=$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';node.hidden=!visible;if(!visible)return;
   const state=currentH1TrendAge(),direction=state?.direction??0,word=direction>0?'UP':direction<0?'DOWN':'WAIT';
-  const scoreLabel=state?.ageH1>=5?(state.scoreN>=5?` · ĐIỂM ${state.score}/100 · MẪU ${state.scoreSpan} H1`:` · CHỜ SPY V ${state.scoreN}/5`):state?.direction?` · TÍCH LŨY ${state.ageH1}/5`:'';
-  const spyLabel=state?.ageH1>=5&&Number.isFinite(state.spyV)?` · SPY V ${state.spyV>=0?'+':''}${state.spyV.toFixed(2)}`:'';
-  $('h1-trend-age-text').textContent=state?`TUỔI H1 · ${word} · ${state.ageH1} H1${scoreLabel}${spyLabel}${state.preview?' · LIVE':' · ĐÃ KHÓA'}`:'TUỔI H1 · WAIT';
+  $('h1-trend-age-text').textContent=state?`TUỔI H1 · ${word} · ${state.ageH1} H1${state.preview?' · XEM TRƯỚC':' · ĐÃ KHÓA'}`:'TUỔI H1 · WAIT';
   node.className=`forecast ${direction>0?'up':direction<0?'down':'wait'}`;
-  node.title='Tuổi trend H1 và điểm đồng thuận trong ngày New York. Điểm 0–100 vector hóa hiệu suất giá M15, màu Hộp H1, SPY V và trend; dùng tối đa 8 hộp cùng hướng gần nhất, bắt đầu tính từ 5 hộp. Đây là điểm đồng thuận, không phải xác suất. Đổi hướng hoặc sang ngày mới sẽ đặt lại mốc. LIVE là hộp H1 đang xem trước; ĐÃ KHÓA là hộp đã hoàn tất.';
+  node.title='Tuổi H1 đếm các hộp H1 liên tiếp cùng màu với nến: xanh UP, đỏ DOWN, xám WAIT. Đổi màu hoặc sang ngày New York mới sẽ đặt lại tuổi. XEM TRƯỚC gồm hộp H1 đang hình thành và có thể đổi màu. Đồng hồ là thời gian đến hết giờ H1 hiện tại, không xác nhận dữ liệu LIVE.';
   updateH1CandleCountdown();positionForecastReadout();
 }
 function updateH1CandleCountdown(){
   const node=$('h1-candle-countdown'),show=$('interval').value==='15m'&&$('symbol').value==='SPYUSDT';
   if(!node)return;node.hidden=!show;if(!show)return;
   const serverNow=Date.now()+serverOffsetMs,remaining=Math.max(0,(Math.floor(serverNow/3600000)+1)*3600000-serverNow),seconds=Math.ceil(remaining/1000),minutes=Math.floor(seconds/60),rest=seconds%60;
-  node.textContent=`H1 ${String(minutes).padStart(2,'0')}:${String(rest).padStart(2,'0')}`;
+  node.textContent=`H1 CÒN ${String(minutes).padStart(2,'0')} phút ${String(rest).padStart(2,'0')} giây`;
   node.setAttribute('aria-label',`Nến H1 đóng sau ${minutes} phút ${rest} giây`);
 }
 function updateCandleCountdown(){
