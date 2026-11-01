@@ -1,3 +1,4 @@
+import {h1StripCell} from './h1-h4-strip.mjs?v=20261101-h1h4-align1';
 import {createStrengthBoxLayer} from './strength-box-ui.mjs?v=20261031-h1-box-perf1';
 import {createQuantilePrice} from './quantile-price-ui.mjs?v=20261029-price-delta1';
 import {chartFresh,liveTrendAgeState} from './chart-live.mjs?v=20261030-chart-live3';
@@ -245,12 +246,12 @@ function requestStudies(){
   const key=`${symbol}|${interval}|${$('days').value}|${closed[0]?.t}|${closed.at(-1)?.t}|${closed.length}|${options.minScore}|${options.maxLines}`;
   if(key===studyKey)return;studyKey=key;
   if(!studiesWorker){
-    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261031-h1h4-strip4',import.meta.url),{type:'module'});
+    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261101-h1h4-align1',import.meta.url),{type:'module'});
     studiesWorker.onmessage=({data})=>{
       if(data.key!==studyKey)return;
-      if(data.partial==='h1'){h1CandleMap=new Map((data.result?.h1CandleColors??[]).map(state=>[state.t,state]));h1H4CandleMap=new Map((data.result?.h1H4CandleColors??data.result?.h1CandleColors??[]).map(state=>[state.t,state]));updateH1TrendAgeReadout();scheduleH1H4Strip();if($('candle-h1-box-color')?.checked)render(false);return;}
+      if(data.partial==='h1'){h1CandleMap=new Map((data.result?.h1CandleColors??[]).map(state=>[state.t,state]));h1H4CandleMap=new Map((data.result?.h1H4CandleColors??[]).map(state=>[state.t,state]));updateH1TrendAgeReadout();scheduleH1H4Strip();if($('candle-h1-box-color')?.checked)render(false);return;}
       if(data.error){$('chart').dataset.studyStatus='error';$('chart').dataset.studyError=data.error;studyKey='';return;}
-      const r=data.result;geometryState=r.geometry;causalChannelState=r.channels;breakoutState=r.breakout;geometryStatePoints=r.points;geometryBacktest=r.backtest;pivotZoneState=r.pivot;rev63State=r.rev63;trendAgeCandleMap=new Map((r.trendAgeHistory??[]).map(state=>[state.t,state]));h1CandleMap=new Map((r.h1CandleColors??[]).map(state=>[state.t,state]));h1H4CandleMap=new Map((r.h1H4CandleColors??r.h1CandleColors??[]).map(state=>[state.t,state]));renderWeeklyTrendMap(r.weekly);
+      const r=data.result;geometryState=r.geometry;causalChannelState=r.channels;breakoutState=r.breakout;geometryStatePoints=r.points;geometryBacktest=r.backtest;pivotZoneState=r.pivot;rev63State=r.rev63;trendAgeCandleMap=new Map((r.trendAgeHistory??[]).map(state=>[state.t,state]));h1CandleMap=new Map((r.h1CandleColors??[]).map(state=>[state.t,state]));h1H4CandleMap=new Map((r.h1H4CandleColors??[]).map(state=>[state.t,state]));renderWeeklyTrendMap(r.weekly);
       studyResultKey=data.key;studyTimingMs=data.computeMs;trainingMeta=data.archive;
       $('chart').dataset.studyStatus='ready';$('chart').dataset.studyComputeMs=String(Math.round(studyTimingMs));
       const now=cache?.serverTime??Date.now();pivotFlowState=pivotFlowRealtime(pivotZoneState.flow,rows.SPYUSDT??[],rows.COMPOSITE??[],now,pivotFlowState?.volatility?.key);
@@ -436,30 +437,26 @@ function drawH1H4Strip(){
   const context=canvas.getContext('2d');context.setTransform(dpr,0,0,dpr,0,0);context.clearRect(0,0,width,height);
   const interval=$('interval').value,active=$('symbol').value==='SPYUSDT'&&['15m','1h'].includes(interval)&&$('candle-h1-box-color')?.checked;
   canvas.dataset.mode=active?'active':'off';canvas.dataset.states=String(h1H4CandleMap.size);canvas.dataset.visibleBars='0';canvas.dataset.previewBars='0';
-  canvas.setAttribute('aria-label',active?'Dải màu phía trên pane SPY V: mỗi ô là một nến H1, tô theo trạng thái Hộp H4; hiện trên chart M15 và H1, viền vàng là nhóm H4 LIVE.':'Dải màu H1 theo Hộp H4 hiển thị trên chart SPY M15 hoặc H1 khi bật màu hộp.');
+  canvas.setAttribute('aria-label',active?'Dải màu phía trên pane SPY V: mỗi ô là một nến H1, tô theo trạng thái Hộp H4; hiện trên chart M15 và H1, viền vàng là H4 XEM TRƯỚC, có thể đổi màu cho cả nhóm; màu đã khóa là tổng kết H4.':'Dải màu H1 theo Hộp H4 hiển thị trên chart SPY M15 hoặc H1 khi bật màu hộp.');
   if(!active||!h1H4CandleMap.size)return;
   const bounds=paneBounds(1),panes=chart.panes(),gap=panes.length>1?Math.max(0,height-panes.reduce((sum,pane)=>sum+pane.getHeight(),0))/(panes.length-1):0,paneTop=Math.max(0,(bounds?.top??Math.round(height*.55))-gap),scaleWidth=chart.priceScale('right',0)?.width?.()??56,right=Math.max(0,width-scaleWidth),stripHeight=10,y=Math.round(paneTop)+1;
   if(right<8||y<0)return;
   context.fillStyle='rgba(9,17,29,.88)';context.fillRect(0,y,right,stripHeight);
   const rawTimes=[...h1H4CandleMap.keys()].sort((x,y)=>x-y),timeScale=chart.timeScale(),fallbackSpacing=Math.max(1,Number(timeScale.options?.().barSpacing)||6);
-  const times=rawTimes;
+  const times=rawTimes,chartTimes=(rows.SPYUSDT??[]).map(row=>row.t);
   let visibleBars=0,previewBars=0,previousBlock=null;
   for(let i=0;i<times.length;i++){
-    const time=times[i],state=h1H4CandleMap.get(time),center=timeScale.timeToCoordinate(time/1000);
-    if(!Number.isFinite(center)||center< -fallbackSpacing||center>right+fallbackSpacing)continue;
-    let spacing=fallbackSpacing*(interval==='15m'?4:1),neighbor=null;
-    if(i+1<times.length)neighbor=timeScale.timeToCoordinate(times[i+1]/1000);
-    if(Number.isFinite(neighbor)&&Math.abs(neighbor-center)>0)spacing=Math.abs(neighbor-center);
-    else if(i>0){neighbor=timeScale.timeToCoordinate(times[i-1]/1000);if(Number.isFinite(neighbor)&&Math.abs(center-neighbor)>0)spacing=Math.abs(center-neighbor);}
-    spacing=Math.max(1,Math.min(240,spacing));
-    const cellWidth=Math.max(1,spacing-.7),x=center-cellWidth/2;if(x+cellWidth<0||x>right)continue;
+    const time=times[i],state=h1H4CandleMap.get(time);
+    const cell=h1StripCell(time,chartTimes,t=>timeScale.timeToCoordinate(t),fallbackSpacing);
+    if(!cell)continue;
+    const {x,width:cellWidth}=cell;if(x+cellWidth<0||x>right)continue;
     const color=h1BoxCandlePalette(null,state);context.fillStyle=color.body;context.fillRect(x,y,cellWidth,stripHeight);
     if(state?.preview){context.strokeStyle='#f6c85f';context.lineWidth=1;context.strokeRect(x+.5,y+.5,Math.max(0,cellWidth-1),stripHeight-1);previewBars++;}
     if(state?.blockStart!==previousBlock&&previousBlock!==null&&x>0){context.fillStyle='rgba(245,248,255,.8)';context.fillRect(x,y,1,stripHeight);}
     previousBlock=state?.blockStart;visibleBars++;
   }
   canvas.dataset.visibleBars=String(visibleBars);canvas.dataset.previewBars=String(previewBars);
-  canvas.setAttribute('aria-label',`Dải màu phía trên pane SPY V: ${visibleBars} ô H1 đang hiển thị, tô theo trạng thái Hộp H4; chart ${interval==='15m'?'M15':'H1'}, ${previewBars} ô LIVE viền vàng.`);
+  canvas.setAttribute('aria-label',`Dải màu phía trên pane SPY V: ${visibleBars} ô H1 đang hiển thị, tô theo trạng thái Hộp H4; chart ${interval==='15m'?'M15':'H1'}, ${previewBars} ô XEM TRƯỚC viền vàng · ${isChartLive()?'LIVE':'DELAYED'}. Màu H4 là tổng kết cả nhóm, không phải tín hiệu tại từng H1.`);
 }
 function drawPivotFlowOverlay(){
   const canvas=$('pivot-flow-overlay'),host=$('chart'),width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1;

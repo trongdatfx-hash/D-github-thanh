@@ -1,22 +1,15 @@
+import {aggregateHourlyRows} from './h1-h4-strip.mjs?v=20261101-h1h4-align1';
 import {trendSessionAt,trendSessionRows} from './trend-session.mjs?v=20261029-price-delta1';
 import {analyze,composite,calculateVolumeStrength,STEPS,sessionAt} from './engine.mjs?v=20261029-price-delta1';
 import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeometry} from './geometry.mjs?v=20261031-h1-color-pivots1';
 import {pivotZones} from './pivot-zones.mjs?v=20261029-price-delta1';
 import {causalTrendChannels} from './causal-trend-channel.mjs?v=20261029-price-delta1';
 import {channelStrengthBoxes} from './channel-strength-boxes.mjs?v=20261029-weekly-map1';
-import {weeklyTrendForecast,h1CandleColorStates} from './weekly-trend-map.mjs?v=20261031-h4-frame1';
+import {weeklyTrendForecast,h1CandleColorStates} from './weekly-trend-map.mjs?v=20261101-h1h4-align1';
 import {preRthWlrTrend,historicalTrendAgeStates} from './pre-rth-wlr-trend.mjs?v=20261029-price-delta1';
 import {chartFeatureRows} from './analogs-features.mjs?v=20261029-price-delta1';
 
 const H1_MS=STEPS['1h'];
-function aggregateHourlyRows(rows=[]){
-  const groups=new Map();
-  for(const row of rows){const key=Math.floor(row.t/H1_MS)*H1_MS;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(row);}
-  return [...groups.values()].map(group=>{
-    group.sort((a,b)=>a.t-b.t);const first=group[0],last=group.at(-1);
-    return {...first,t:first.t,end:last.end??last.t+STEPS['15m']-1,o:first.o,h:Math.max(...group.map(row=>row.h)),l:Math.min(...group.map(row=>row.l)),c:last.c};
-  });
-}
 function aggregateHourlySignals(rows=[],hourlyRows=[]){
   const byHour=new Map();
   for(const row of rows){const key=Math.floor(row.t/H1_MS)*H1_MS;if(!byHour.has(key))byHour.set(key,[]);if(Number.isFinite(row.adjusted))byHour.get(key).push(row.adjusted);}
@@ -38,7 +31,7 @@ export function computeStudies({rows,volumeRows,symbol,interval,options,now,tren
   let h1CandleColors=[],h1H4CandleColors=[];
   if(symbol==='SPYUSDT'&&interval==='15m'){
     h1CandleColors=h1CandleColorStates({priceRows:tRows,boxSnapshots:weeklyBoxes.snapshots,trendStates:allTrendAgeHistory,volumeRows:trend?.volume??[],now,sourceStep:STEPS['15m'],boxHours:1});
-    const h1Rows=aggregateHourlyRows(tRows),h1Closed=h1Rows.filter(row=>row.end<now),h1Volume=aggregateHourlySignals(trend?.volume??[],h1Rows),h1Composite=aggregateHourlySignals(trend?.rows.COMPOSITE??[],h1Rows);
+    const h1Rows=aggregateHourlyRows(tRows,now),h1Closed=h1Rows.filter(row=>row.sourceComplete&&row.end<now),h1Volume=aggregateHourlySignals(trend?.volume??[],h1Rows),h1Composite=aggregateHourlySignals(trend?.rows.COMPOSITE??[],h1Rows);
     const h1Channels=causalTrendChannels(h1Closed,{volumeRows:h1Volume,maxHistory:64});
     const h4Boxes=channelStrengthBoxes(h1Closed,{channels:h1Channels.episodes,showEarly:false,back:8,now,step:H1_MS,compositeRows:new Map(h1Composite.map(row=>[row.t,row])),volumeRows:new Map(h1Volume.map(row=>[row.t,row])),compositeMode:'annotate'});
     h1H4CandleColors=h1CandleColorStates({priceRows:h1Rows,boxSnapshots:h4Boxes.snapshots,volumeRows:h1Volume,now,sourceStep:H1_MS,boxHours:4});

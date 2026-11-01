@@ -20,8 +20,8 @@ export function h1CandleColorStates({priceRows=[],boxSnapshots=new Map(),trendSt
     const rows=source.sort((a,b)=>a.t-b.t),periodStart=rows[0]?.periodStart;
     if(rows[0]?.minute!==periodStart)continue;
     let usable=0;for(let i=0;i<Math.min(slots,rows.length);i++){if(rows[i].minute!==periodStart+sourceMinutes*i||(i&&rows[i].t-rows[i-1].t!==sourceStep))break;usable=i+1;}
-    const sample=rows.slice(0,usable);if(!sample.length)continue;
-    const complete=sample.length===slots&&sample.every(row=>(row.end??row.t+sourceStep-1)<now);
+    const sample=rows.slice(0,usable);if(!sample.length||usable!==rows.length||rows.length>slots)continue;
+    const complete=sample.length===slots&&sample.every(row=>row.sourceComplete!==false&&(row.end??row.t+sourceStep-1)<now);
     const nowClock=nyClock(now),currentPeriod=Math.floor(nowClock.minute/periodMinutes)*periodMinutes;
     const preview=!complete&&nowClock.day===nyClock(sample[0].t).day&&periodStart===currentPeriod&&(sample.at(-1).end??sample.at(-1).t+sourceStep-1)>=now-2*sourceStep;
     if(!complete&&!preview)continue;
