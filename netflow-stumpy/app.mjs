@@ -523,7 +523,7 @@ function updateH1CandleCountdown(){
   const node=$('h1-candle-countdown'),show=$('interval').value==='15m'&&$('symbol').value==='SPYUSDT';
   if(!node)return;node.hidden=!show;if(!show)return;
   const serverNow=Date.now()+serverOffsetMs,remaining=Math.max(0,(Math.floor(serverNow/3600000)+1)*3600000-serverNow),seconds=Math.ceil(remaining/1000),minutes=Math.floor(seconds/60),rest=seconds%60;
-  node.textContent=`H1 CÒN ${String(minutes).padStart(2,'0')} phút ${String(rest).padStart(2,'0')} giây`;
+  node.textContent=`H1 ${String(minutes).padStart(2,'0')}:${String(rest).padStart(2,'0')}`;
   node.setAttribute('aria-label',`Nến H1 đóng sau ${minutes} phút ${rest} giây`);
 }
 function updateCandleCountdown(){

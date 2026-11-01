@@ -43,3 +43,7 @@
 #h1-candle-countdown[hidden]{display:none}
 @media(max-width:650px){#h1-trend-age-readout{right:58px;max-width:calc(100% - 68px);padding:6px 8px;gap:3px}#h1-trend-age-text{font-size:11px}#h1-candle-countdown{font-size:16px;letter-spacing:0}}
 @media(max-width:360px){#h1-candle-countdown{font-size:14px}}
+
+/* Compact H1 clock with a distinct background. */
+#h1-candle-countdown{padding:4px 10px;border:1px solid #65768c;border-radius:6px;background:#23344b;color:#fff;font-size:18px;font-weight:850;letter-spacing:.04em;line-height:1.3;box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+@media(max-width:650px){#h1-candle-countdown{font-size:16px;padding:4px 9px}}
