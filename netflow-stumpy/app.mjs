@@ -452,7 +452,7 @@ function drawH1H4Strip(){
     const {x,width:cellWidth}=cell;if(x+cellWidth<0||x>right)continue;
     const color=h1BoxCandlePalette(null,state);context.fillStyle=color.body;context.fillRect(x,y,cellWidth,stripHeight);
     if(state?.preview){context.strokeStyle='#f6c85f';context.lineWidth=1;context.strokeRect(x+.5,y+.5,Math.max(0,cellWidth-1),stripHeight-1);previewBars++;}
-    if(state?.blockStart!==previousBlock&&previousBlock!==null&&x>0){context.fillStyle='rgba(245,248,255,.8)';context.fillRect(x,y,1,stripHeight);}
+    if((state?.blockStart===time||(previousBlock!==null&&state?.blockStart!==previousBlock))&&x>=0&&x<=right){context.fillStyle='#ffffff';context.fillRect(Math.round(x)-1,y-1,3,stripHeight+2);}
     previousBlock=state?.blockStart;visibleBars++;
   }
   canvas.dataset.visibleBars=String(visibleBars);canvas.dataset.previewBars=String(previewBars);
