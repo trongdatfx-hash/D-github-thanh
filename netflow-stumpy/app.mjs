@@ -1,3 +1,4 @@
+import {closedColorSourceKey,readH1ColorCache,saveH1ColorCache,archiveColorRevision} from './h1-color-cache.mjs?v=20261102-startup-colors1';
 import {h1StripCell} from './h1-h4-strip.mjs?v=20261101-h1h4-align1';
 import {createStrengthBoxLayer} from './strength-box-ui.mjs?v=20261031-h1-box-perf1';
 import {createQuantilePrice} from './quantile-price-ui.mjs?v=20261029-price-delta1';
@@ -16,7 +17,7 @@ import {oiWidthByBar} from './oi-width.mjs?v=20261029-oi-width1';
 import {pivotFlowRealtime} from './pivot-zones.mjs?v=20261029-price-delta1';
 import {pivotFlowLayout,pivotFlowZeroCoordinate} from './pivot-flow-layout.mjs?v=20261029-price-delta1';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261029-price-delta1';
-import {preRthWlrTrend,formatPreRthWlrTrend,trendReadoutState} from './pre-rth-wlr-trend.mjs?v=20261029-price-delta1';
+import {preRthWlrTrend,formatPreRthWlrTrend,trendReadoutState} from './pre-rth-wlr-trend.mjs?v=20261102-startup-colors1';
 import {renderWeeklyTrendMap} from './weekly-trend-ui.mjs?v=20261030-weekly-chart-label1';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
@@ -25,6 +26,7 @@ const colors={SPYUSDT:'#5ba8ff',QQQUSDT:'#c194ff',COMPOSITE:'#38dfba'};
 const PRICE_DELTA_COLORS={positive:'#36dfff',negative:'#ff78c4',neutral:'#b4c3d7'};
 let trendAgeCandleMap=new Map(),h1CandleMap=new Map(),h1H4CandleMap=new Map(),abaBandPhaseMap=new Map(),abaBandFrame=0;
 let h1H4StripFrame=0;
+let h1CacheAttempt='',h1CacheArchive=null,h1HistoryKnown=false,h1HistoryRevision=null,studyColorInput=null;
 
 let boxVolumeStrengthMap=new Map(),wlrThicknessMap=new Map(),wlrColorMap=new Map();
 let oiWidths=new Map(),oiStamp='',oiLastFetch=0,oiRequest=0;
@@ -234,33 +236,57 @@ function updateRev63(){
   renderTrendCohorts();
 }
 function resetStudies(){
-  studyKey='';studyResultKey='';statsMap=new Map();++statsRequest;
+  studyKey='';studyResultKey='';statsMap=new Map();++statsRequest;h1CacheAttempt='';h1CacheArchive=null;studyColorInput=null;$('chart').dataset.h1ColorCache='empty';
   geometryState={pivots:[],events:[],lines:[],summary:{}};causalChannelState={trends:[],total:0};breakoutState=null;geometryStatePoints=[];geometryBacktest={n:0};
   pivotZoneState={ready:false,reason:'history',support:null,resistance:null};pivotFlowState=null;rev63State=null;h1CandleMap=new Map();h1H4CandleMap=new Map();renderWeeklyTrendMap(null);
+}
+function colorStorage(){try{return globalThis.localStorage;}catch{return null;}}
+function recordH1ColorPaint(){if(h1CandleMap.size||h1H4CandleMap.size)requestAnimationFrame(()=>{$('chart').dataset.firstH1ColorPaintMs??=String(Math.round(performance.now()));});}
+function restoreH1Colors(data){
+  if($('symbol').value!=='SPYUSDT'||h1CandleMap.size||h1H4CandleMap.size)return;
+  const sourceKey=closedColorSourceKey(data);if(!sourceKey||sourceKey===h1CacheAttempt)return;h1CacheAttempt=sourceKey;
+  if(h1HistoryKnown&&h1HistoryRevision===null)return;
+  const saved=readH1ColorCache(colorStorage(),data,{sourceKey,archiveRevision:h1HistoryRevision});if(!saved)return;
+  h1CacheArchive=saved.archiveRevision;h1CandleMap=new Map(saved.h1.map(state=>[state.t,state]));h1H4CandleMap=new Map(saved.strip.map(state=>[state.t,state]));
+  $('chart').dataset.h1ColorCache='restored';recordH1ColorPaint();
+}
+function ensureStudiesWorker(){
+  if(!studiesWorker){
+    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261102-startup-colors1',import.meta.url),{type:'module'});
+    studiesWorker.onmessage=({data})=>{
+      if(data.type==='history-ready'){
+        h1HistoryKnown=true;h1HistoryRevision=archiveColorRevision(data.archive);
+        if(h1CacheArchive!==null&&h1CacheArchive!==h1HistoryRevision){h1CacheArchive=null;h1CandleMap=new Map();h1H4CandleMap=new Map();$('chart').dataset.h1ColorCache='rejected';updateH1TrendAgeReadout();scheduleH1H4Strip();if(cache)render(false);}
+        return;
+      }
+      if(data.key!==studyKey)return;
+      if(data.partial==='h1'){
+        h1CacheArchive=null;h1CandleMap=new Map((data.result?.h1CandleColors??[]).map(state=>[state.t,state]));h1H4CandleMap=new Map((data.result?.h1H4CandleColors??[]).map(state=>[state.t,state]));$('chart').dataset.h1ColorCache='fresh';
+        if(studyColorInput?.key===data.key)saveH1ColorCache(colorStorage(),studyColorInput.raw,{sourceKey:studyColorInput.sourceKey,archiveRevision:archiveColorRevision(data.archive),h1:data.result?.h1CandleColors??[],strip:data.result?.h1H4CandleColors??[]});
+        updateH1TrendAgeReadout();scheduleH1H4Strip();if($('candle-h1-box-color')?.checked)render(false);recordH1ColorPaint();return;
+      }
+      if(data.error){$('chart').dataset.studyStatus='error';$('chart').dataset.studyError=data.error;studyKey='';return;}
+      h1CacheArchive=null;const r=data.result;geometryState=r.geometry;causalChannelState=r.channels;breakoutState=r.breakout;geometryStatePoints=r.points;geometryBacktest=r.backtest;pivotZoneState=r.pivot;rev63State=r.rev63;trendAgeCandleMap=new Map((r.trendAgeHistory??[]).map(state=>[state.t,state]));h1CandleMap=new Map((r.h1CandleColors??[]).map(state=>[state.t,state]));h1H4CandleMap=new Map((r.h1H4CandleColors??[]).map(state=>[state.t,state]));renderWeeklyTrendMap(r.weekly);
+      $('chart').dataset.h1ColorCache='fresh';studyResultKey=data.key;studyTimingMs=data.computeMs;trainingMeta=data.archive;
+      $('chart').dataset.studyStatus='ready';$('chart').dataset.studyComputeMs=String(Math.round(studyTimingMs));
+      const now=cache?.serverTime??Date.now();pivotFlowState=pivotFlowRealtime(pivotZoneState.flow,rows.SPYUSDT??[],rows.COMPOSITE??[],now,pivotFlowState?.volatility?.key);
+      updateRev63();updatePivotZones();scheduleGeometryOverlay();schedulePivotFlowOverlay();scheduleAbaBandColors();strengthBoxLayer?.update();quantileLayer?.update();if($('candle-trend-age-color')?.checked||$('candle-h1-box-color')?.checked)render(false);
+    };
+    studiesWorker.onerror=()=>{$('chart').dataset.studyStatus='error';studyKey='';studiesWorker?.terminate();studiesWorker=null;h1HistoryKnown=false;h1HistoryRevision=null;};
+  }
 }
 function requestStudies(){
   if(!cache)return;
   const symbol=$('symbol').value,interval=$('interval').value,p=rows[symbol]??[],closed=p.filter(r=>r.end<cache.serverTime);
   if(!closed.length)return;
   const options={minScore:Number($('geometry-score').value),maxLines:Number($('geometry-lines').value)};
-  const key=`${symbol}|${interval}|${$('days').value}|${closed[0]?.t}|${closed.at(-1)?.t}|${closed.length}|${options.minScore}|${options.maxLines}`;
+  const sourceKey=closedColorSourceKey(cache);
+  const key=`${symbol}|${interval}|${$('days').value}|${closed[0]?.t}|${closed.at(-1)?.t}|${closed.length}|${options.minScore}|${options.maxLines}|${sourceKey??''}`;
   if(key===studyKey)return;studyKey=key;
-  if(!studiesWorker){
-    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261101-h1h4-align1',import.meta.url),{type:'module'});
-    studiesWorker.onmessage=({data})=>{
-      if(data.key!==studyKey)return;
-      if(data.partial==='h1'){h1CandleMap=new Map((data.result?.h1CandleColors??[]).map(state=>[state.t,state]));h1H4CandleMap=new Map((data.result?.h1H4CandleColors??[]).map(state=>[state.t,state]));updateH1TrendAgeReadout();scheduleH1H4Strip();if($('candle-h1-box-color')?.checked)render(false);return;}
-      if(data.error){$('chart').dataset.studyStatus='error';$('chart').dataset.studyError=data.error;studyKey='';return;}
-      const r=data.result;geometryState=r.geometry;causalChannelState=r.channels;breakoutState=r.breakout;geometryStatePoints=r.points;geometryBacktest=r.backtest;pivotZoneState=r.pivot;rev63State=r.rev63;trendAgeCandleMap=new Map((r.trendAgeHistory??[]).map(state=>[state.t,state]));h1CandleMap=new Map((r.h1CandleColors??[]).map(state=>[state.t,state]));h1H4CandleMap=new Map((r.h1H4CandleColors??[]).map(state=>[state.t,state]));renderWeeklyTrendMap(r.weekly);
-      studyResultKey=data.key;studyTimingMs=data.computeMs;trainingMeta=data.archive;
-      $('chart').dataset.studyStatus='ready';$('chart').dataset.studyComputeMs=String(Math.round(studyTimingMs));
-      const now=cache?.serverTime??Date.now();pivotFlowState=pivotFlowRealtime(pivotZoneState.flow,rows.SPYUSDT??[],rows.COMPOSITE??[],now,pivotFlowState?.volatility?.key);
-      updateRev63();updatePivotZones();scheduleGeometryOverlay();schedulePivotFlowOverlay();scheduleAbaBandColors();strengthBoxLayer?.update();quantileLayer?.update();if($('candle-trend-age-color')?.checked||$('candle-h1-box-color')?.checked)render(false);
-    };
-    studiesWorker.onerror=()=>{$('chart').dataset.studyStatus='error';studyKey='';studiesWorker?.terminate();studiesWorker=null;};
-  }
+  ensureStudiesWorker();
+  studyColorInput={key,raw:cache,sourceKey};
   $('chart').dataset.studyStatus='loading';$('chart').dataset.studyRequests=String(Number($('chart').dataset.studyRequests??0)+1);
-  studiesWorker.postMessage({key,rows,volumeRows:volumeStrengthRows,symbol,interval,options,now:cache.serverTime,raw:cache});
+  studiesWorker.postMessage({key,sourceKey,rows,volumeRows:volumeStrengthRows,symbol,interval,options,now:cache.serverTime,raw:cache});
 }
 function requestStats(){
   if(!cache)return;
@@ -514,7 +540,7 @@ function updateH1TrendAgeReadout(){
   }
   const visible=$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';node.hidden=!visible;if(!visible)return;
   const state=currentH1TrendAge(),direction=state?.direction??0,word=direction>0?'UP':direction<0?'DOWN':'WAIT';
-  $('h1-trend-age-text').textContent=state?`TUỔI H1 · ${word} · ${state.ageH1} H1${state.preview?' · XEM TRƯỚC':' · ĐÃ KHÓA'}`:'TUỔI H1 · WAIT';
+  $('h1-trend-age-text').textContent=state?`TUỔI H1 · ${word} · ${state.ageH1} H1${state.preview?' · XEM TRƯỚC':' · ĐÃ KHÓA'}${h1CacheArchive!==null?' · ĐANG CẬP NHẬT':''}`:'TUỔI H1 · WAIT';
   node.className=`forecast ${direction>0?'up':direction<0?'down':'wait'}`;
   node.title='Tuổi H1 đếm các hộp H1 liên tiếp cùng màu với nến: xanh UP, đỏ DOWN, xám WAIT. Đổi màu hoặc sang ngày New York mới sẽ đặt lại tuổi. XEM TRƯỚC gồm hộp H1 đang hình thành và có thể đổi màu. Đồng hồ là thời gian đến hết giờ H1 hiện tại, không xác nhận dữ liệu LIVE.';
   updateH1CandleCountdown();positionForecastReadout();
@@ -806,7 +832,7 @@ function acceptChartData(data,fit,live){
  volumeStrengthRows=analyze(data.SPYUSDT,step,{strength:calculateVolumeStrength(data.SPYUSDT,step)});
  modelRows=rows;modelVolumeStrengthRows=volumeStrengthRows;boxVolumeStrengthMap=new Map(volumeStrengthRows.map(r=>[r.t,r]));
  maps=Object.fromEntries(Object.entries(rows).map(([k,v])=>[k,new Map(v.map(x=>[x.t,x]))]));
- cache=data;chartLiveResponse=Boolean(live&&!data.historical&&!data.partial);serverOffsetMs=data.serverTime-Date.now();lastSuccess=chartLiveResponse?new Date():null;render(fit);setLive();
+ cache=data;chartLiveResponse=Boolean(live&&!data.historical&&!data.partial);serverOffsetMs=data.serverTime-Date.now();lastSuccess=chartLiveResponse?new Date():null;restoreH1Colors(data);render(fit);setLive();
  void refreshOiWidths(data.interval,data.serverTime);
  $('chart').dataset.startupPhase='ready';$('chart').setAttribute('aria-busy','false');
 }
@@ -912,7 +938,9 @@ if(init()){
   document.addEventListener('fullscreenchange',syncFullChart);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.querySelector('.chart-card').classList.contains('fullscreen-fallback')){document.querySelector('.chart-card').classList.remove('fullscreen-fallback');syncFullChart();}});
   $('export').onclick=exportCSV;
   const changeCalendarFilter=()=>{delete $('calendar-list').dataset.positioned;renderCalendar();};$('calendar-impact').onchange=changeCalendarFilter;$('calendar-currency').onchange=changeCalendarFilter;$('calendar-refresh').onclick=refreshCalendar;
+  ensureStudiesWorker();studiesWorker.postMessage({type:'prefetch'});
   setLive();refreshCalendar();refresh(true);setInterval(()=>{updateCandleCountdown();if(!isChartLive()){setLive();schedulePivotFlowOverlay();}updateGeometryReadout();if(!document.hidden&&!loading)refresh();},LIVE_REFRESH_MS);
   setInterval(()=>{if(!document.hidden)refreshCalendar();},CALENDAR_REFRESH_MS);
   setInterval(updateCandleCountdown,250);
 }
+

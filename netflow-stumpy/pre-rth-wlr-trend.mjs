@@ -6,7 +6,18 @@ export const PRE_RTH_WLR_HORIZON=3;
 
 const clamp01=value=>Math.max(0,Math.min(1,value));
 const mean=values=>values.reduce((sum,value)=>sum+value,0)/values.length;
-const percentileRank=(values,value)=>values.length?values.reduce((count,item)=>count+(item<=value),0)/values.length:0;
+// Keep the same causal 4,000-value window, sorted incrementally. Queries use
+// the window before the current candle is inserted, as in the replay loop.
+function rollingOrderWindow(limit=4000){
+  const queue=[],sorted=[];
+  const bound=(value,upper=false)=>{let lo=0,hi=sorted.length;while(lo<hi){const mid=(lo+hi)>>>1;if(sorted[mid]<value||(upper&&sorted[mid]===value))lo=mid+1;else hi=mid;}return lo;};
+  return {
+    get length(){return queue.length;},
+    rank(value){return sorted.length?bound(value,true)/sorted.length:0;},
+    quantile(p){if(!sorted.length)return null;const position=(sorted.length-1)*clamp01(p),lower=Math.floor(position),upper=Math.ceil(position);return sorted[lower]+(sorted[upper]-sorted[lower])*(position-lower);},
+    push(value){queue.push(value);sorted.splice(bound(value,true),0,value);if(queue.length>limit){const expired=queue.shift();sorted.splice(bound(expired),1);}}
+  };
+}
 export function quantile(values,p){
   if(!values.length)return null;
   const sorted=[...values].sort((a,b)=>a-b),position=(sorted.length-1)*clamp01(p),lower=Math.floor(position),upper=Math.ceil(position);
@@ -141,13 +152,13 @@ function daySignals(rows,strengthMap,volumeMap,channelMap,requireChannel,slopeHi
     const normalizedSlope=atr>1e-12?Math.abs(fit.slope)*window/atr:0;
     let path=0;for(let k=1;k<sample.length;k++)path+=Math.abs(sample[k].c-sample[k-1].c);
     const efficiency=path>1e-12?clamp01(Math.abs(sample.at(-1).c-sample[0].c)/path):0;
-    const persistentBars=sample.reduce((count,bar)=>count+(Math.sign(bar.c-bar.o)===direction),0),persistence=persistentBars/window,slopePercentile=slopeHistory.length>=20?percentileRank(slopeHistory,normalizedSlope):clamp01(normalizedSlope/2);
+    const persistentBars=sample.reduce((count,bar)=>count+(Math.sign(bar.c-bar.o)===direction),0),persistence=persistentBars/window,slopePercentile=slopeHistory.length>=20?slopeHistory.rank(normalizedSlope):clamp01(normalizedSlope/2);
     const composite=strengthMap.get(rows[i].t)?.adjusted,volume=volumeMap.get(rows[i].t)?.adjusted,compositeSide=Math.sign(composite)*direction,compositeScore=compositeSide>0?1:compositeSide<0?0:.5,volumeAligned=Number.isFinite(volume)&&Math.sign(volume)===direction,channelAligned=!requireChannel||channel?.direction===direction,countAligned=requireChannel?channelAligned:volumeAligned;
-    const score=100*(.38*slopePercentile+.28*fit.r2+.18*efficiency+.11*persistence+.05*compositeScore),threshold=scoreHistory.length>=30?quantile(scoreHistory,.70):60;
+    const score=100*(.38*slopePercentile+.28*fit.r2+.18*efficiency+.11*persistence+.05*compositeScore),threshold=scoreHistory.length>=30?scoreHistory.quantile(.70):60;
     const qualifies=direction!==0&&countAligned&&(requireChannel||(persistentBars>=Math.ceil(window*.75)&&score>=threshold));
     const strengthRegression=regressionSnapshot(regressionState,composite,volume),strengthContext=classifyStrengthRegression(direction,strengthRegression);
     signals.push({...rows[i],localIndex:i,direction,score,r2:fit.r2,efficiency,persistence,persistentBars,compositeScore,volumeAligned,channelAligned,channelAge:channelAligned?channel?.age:null,channelTotalBars:channelAligned?channel?.totalBars:null,channelKey:channelAligned?channel?.key:null,channelConfirmationTime:channelAligned?channel?.confirmationTime:null,channelCensored:channelAligned?channel?.censored:false,channelEnded:channelAligned?channel?.ended:false,countAligned,strengthContext,strengthRegression,normalizedSlope,threshold,qualifies});
-    slopeHistory.push(normalizedSlope);scoreHistory.push(score);if(slopeHistory.length>4000)slopeHistory.shift();if(scoreHistory.length>4000)scoreHistory.shift();
+    slopeHistory.push(normalizedSlope);scoreHistory.push(score);
   }
   if(requireChannel){
     const contextByKey=new Map();for(const signal of signals)if(signal.channelKey&&!contextByKey.has(signal.channelKey)&&signal.t>=signal.channelConfirmationTime)contextByKey.set(signal.channelKey,{strengthContext:signal.strengthContext,strengthRegression:signal.strengthRegression});
@@ -221,7 +232,7 @@ export function preRthWlrTrend({priceRows=[],strengthRows=[],volumeRows=[],chann
   const channelMap=requireChannel?causalChannelMap(marketRows,channelTrends):new Map();
   const days=new Map();
   for(const row of marketRows){if(!days.has(row.day))days.set(row.day,[]);days.get(row.day).push(row);}
-  const ordered=[...days.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([day,rows])=>[day,rows.sort((a,b)=>a.t-b.t)]),nowState=trendSessionAt(now),slopeHistory=[],scoreHistory=[],regressionStates={EURO:createRegressionState(),PRE:createRegressionState(),RTH:createRegressionState()},historical=[];let current=null,currentCompleted=[];
+  const ordered=[...days.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([day,rows])=>[day,rows.sort((a,b)=>a.t-b.t)]),nowState=trendSessionAt(now),slopeHistory=rollingOrderWindow(),scoreHistory=rollingOrderWindow(),regressionStates={EURO:createRegressionState(),PRE:createRegressionState(),RTH:createRegressionState()},historical=[];let current=null,currentCompleted=[];
   for(const [day,rows] of ordered){
     const signals=daySignals(rows,strengthMap,volumeMap,channelMap,requireChannel,slopeHistory,scoreHistory,regressionStates,window),lastClosed=rows.at(-1),fresh=lastClosed&&now-(Number.isFinite(lastClosed.end)?lastClosed.end+1:lastClosed.t+900000)<=915000,isCurrent=day===nowState.day&&nowState.active,detected=(requireChannel?detectChannelEpisodes:detectEpisodes)(signals,day,{leaveActive:isCurrent&&fresh});
     if(isCurrent){current=detected.active;currentCompleted=detected.completed;}
@@ -261,7 +272,7 @@ export function historicalTrendAgeStates({priceRows=[],strengthRows=[],volumeRow
   const marketRows=trendSessionRows(priceRows).filter(row=>(row.end??row.t+899999)<now&&[row.t,row.o,row.h,row.l,row.c].every(Number.isFinite)).sort((a,b)=>a.t-b.t);
   const channelMap=causalChannelMap(marketRows,channelTrends),strengthMap=new Map(strengthRows.map(row=>[row.t,row])),volumeMap=new Map(volumeRows.map(row=>[row.t,row])),days=new Map();
   for(const row of marketRows){if(!days.has(row.day))days.set(row.day,[]);days.get(row.day).push(row);}
-  const historical=[],result=[],slopeHistory=[],scoreHistory=[],regressionStates={EURO:createRegressionState(),PRE:createRegressionState(),RTH:createRegressionState()};
+  const historical=[],result=[],slopeHistory=rollingOrderWindow(),scoreHistory=rollingOrderWindow(),regressionStates={EURO:createRegressionState(),PRE:createRegressionState(),RTH:createRegressionState()};
   for(const [day,rows] of days){
     const signals=daySignals(rows,strengthMap,volumeMap,channelMap,true,slopeHistory,scoreHistory,regressionStates,window),memo=new Map();
     for(const bar of signals){
@@ -282,4 +293,5 @@ export function historicalTrendAgeStates({priceRows=[],strengthRows=[],volumeRow
   }
   return result;
 }
+
 
