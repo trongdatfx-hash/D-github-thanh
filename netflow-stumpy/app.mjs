@@ -1,5 +1,5 @@
 import {oiSpectrum} from './oi-spectrum.mjs?v=20261102-oi-spectrum1';
-import {closedColorSourceKey,readH1ColorCache,saveH1ColorCache,archiveColorRevision} from './h1-color-cache.mjs?v=20261102-startup-colors1';
+import {closedColorSourceKey,readH1ColorCache,saveH1ColorCache,archiveColorRevision} from './h1-color-cache.mjs?v=20261103-h1-consistent1';
 import {h1StripCell} from './h1-h4-strip.mjs?v=20261101-h1h4-align1';
 import {createStrengthBoxLayer} from './strength-box-ui.mjs?v=20261031-h1-box-perf1';
 import {createQuantilePrice} from './quantile-price-ui.mjs?v=20261029-price-delta1';
@@ -18,7 +18,7 @@ import {oiWidthByBar} from './oi-width.mjs?v=20261029-oi-width1';
 import {pivotFlowRealtime} from './pivot-zones.mjs?v=20261029-price-delta1';
 import {pivotFlowLayout,pivotFlowZeroCoordinate} from './pivot-flow-layout.mjs?v=20261029-price-delta1';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261029-price-delta1';
-import {preRthWlrTrend,formatPreRthWlrTrend,trendReadoutState} from './pre-rth-wlr-trend.mjs?v=20261102-startup-colors1';
+import {preRthWlrTrend,formatPreRthWlrTrend,trendReadoutState} from './pre-rth-wlr-trend.mjs?v=20261103-h1-consistent1';
 import {renderWeeklyTrendMap} from './weekly-trend-ui.mjs?v=20261030-weekly-chart-label1';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
@@ -27,7 +27,7 @@ const colors={SPYUSDT:'#5ba8ff',QQQUSDT:'#c194ff',COMPOSITE:'#38dfba'};
 const PRICE_DELTA_COLORS={positive:'#36dfff',negative:'#ff78c4',neutral:'#b4c3d7'};
 let trendAgeCandleMap=new Map(),h1CandleMap=new Map(),h1H4CandleMap=new Map(),abaBandPhaseMap=new Map(),abaBandFrame=0;
 let h1H4StripFrame=0;
-let h1CacheAttempt='',h1CacheArchive=null,h1HistoryKnown=false,h1HistoryRevision=null,studyColorInput=null;
+let h1PreviewStamp='',h1CacheAttempt='',h1CacheArchive=null,h1HistoryKnown=false,h1HistoryRevision=null,studyColorInput=null;
 
 let boxVolumeStrengthMap=new Map(),wlrThicknessMap=new Map(),wlrColorMap=new Map();
 let oiProfile={ready:false,bins:[],max:0},oiWidths=new Map(),oiStamp='',oiLastFetch=0,oiRequest=0;
@@ -237,7 +237,7 @@ function updateRev63(){
   renderTrendCohorts();
 }
 function resetStudies(){
-  studyKey='';studyResultKey='';statsMap=new Map();++statsRequest;h1CacheAttempt='';h1CacheArchive=null;studyColorInput=null;$('chart').dataset.h1ColorCache='empty';
+  h1PreviewStamp='';studyKey='';studyResultKey='';statsMap=new Map();++statsRequest;h1CacheAttempt='';h1CacheArchive=null;studyColorInput=null;$('chart').dataset.h1ColorCache='empty';
   geometryState={pivots:[],events:[],lines:[],summary:{}};causalChannelState={trends:[],total:0};breakoutState=null;geometryStatePoints=[];geometryBacktest={n:0};
   pivotZoneState={ready:false,reason:'history',support:null,resistance:null};pivotFlowState=null;rev63State=null;h1CandleMap=new Map();h1H4CandleMap=new Map();renderWeeklyTrendMap(null);
 }
@@ -253,7 +253,7 @@ function restoreH1Colors(data){
 }
 function ensureStudiesWorker(){
   if(!studiesWorker){
-    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261102-startup-colors1',import.meta.url),{type:'module'});
+    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261103-h1-consistent1',import.meta.url),{type:'module'});
     studiesWorker.onmessage=({data})=>{
       if(data.type==='history-ready'){
         h1HistoryKnown=true;h1HistoryRevision=archiveColorRevision(data.archive);
@@ -261,6 +261,11 @@ function ensureStudiesWorker(){
         return;
       }
       if(data.key!==studyKey)return;
+      if(data.partial==='h1-preview'){
+        for(const map of [h1CandleMap,h1H4CandleMap])for(const [t,state] of map)if(state.preview)map.delete(t);
+        for(const state of data.result.h1CandleColors)h1CandleMap.set(state.t,state);for(const state of data.result.h1H4CandleColors)h1H4CandleMap.set(state.t,state);
+        updateH1TrendAgeReadout();scheduleH1H4Strip();if($('candle-h1-box-color')?.checked)render(false);return;
+      }
       if(data.partial==='h1'){
         h1CacheArchive=null;h1CandleMap=new Map((data.result?.h1CandleColors??[]).map(state=>[state.t,state]));h1H4CandleMap=new Map((data.result?.h1H4CandleColors??[]).map(state=>[state.t,state]));$('chart').dataset.h1ColorCache='fresh';
         if(studyColorInput?.key===data.key)saveH1ColorCache(colorStorage(),studyColorInput.raw,{sourceKey:studyColorInput.sourceKey,archiveRevision:archiveColorRevision(data.archive),h1:data.result?.h1CandleColors??[],strip:data.result?.h1H4CandleColors??[]});
@@ -283,7 +288,7 @@ function requestStudies(){
   const options={minScore:Number($('geometry-score').value),maxLines:Number($('geometry-lines').value)};
   const sourceKey=closedColorSourceKey(cache);
   const key=`${symbol}|${interval}|${$('days').value}|${closed[0]?.t}|${closed.at(-1)?.t}|${closed.length}|${options.minScore}|${options.maxLines}|${sourceKey??''}`;
-  if(key===studyKey)return;studyKey=key;
+  if(key===studyKey){const tail=p.at(-1),stamp=JSON.stringify([key,tail?.t,tail?.o,tail?.h,tail?.l,tail?.c,tail?.v,tail?.q,tail?.buy]);if(stamp!==h1PreviewStamp){h1PreviewStamp=stamp;studiesWorker?.postMessage({key,previewOnly:true,priceRows:p.slice(-32),volumeRows:volumeStrengthRows.slice(-32),now:cache.serverTime});}return;}studyKey=key;h1PreviewStamp='';
   ensureStudiesWorker();
   studyColorInput={key,raw:cache,sourceKey};
   $('chart').dataset.studyStatus='loading';$('chart').dataset.studyRequests=String(Number($('chart').dataset.studyRequests??0)+1);
