@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-11-02T13:38:49.195Z",
+  "updatedAt": "2026-11-02T22:27:51.119Z",
   "events": [
     {
       "title": "Daylight Saving Time Shift",
@@ -179,7 +179,7 @@
       "date": "2026-11-02T14:30:00.000Z",
       "timestamp": 1793629800000,
       "impact": "Low",
-      "actual": "",
+      "actual": "49.6",
       "forecast": "",
       "previous": "51.5"
     },
@@ -189,7 +189,7 @@
       "date": "2026-11-02T14:45:00.000Z",
       "timestamp": 1793630700000,
       "impact": "Low",
-      "actual": "",
+      "actual": "54.9",
       "forecast": "56.0",
       "previous": "56.0"
     },
@@ -199,9 +199,9 @@
       "date": "2026-11-02T15:00:00.000Z",
       "timestamp": 1793631600000,
       "impact": "Low",
-      "actual": "",
+      "actual": "-1.9%",
       "forecast": "0.4%",
-      "previous": "0.9%"
+      "previous": "2.0%"
     },
     {
       "title": "ISM Manufacturing PMI",
@@ -209,7 +209,7 @@
       "date": "2026-11-02T15:00:00.000Z",
       "timestamp": 1793631600000,
       "impact": "Medium",
-      "actual": "",
+      "actual": "55.5",
       "forecast": "54.5",
       "previous": "54.5"
     },
@@ -219,15 +219,15 @@
       "date": "2026-11-02T15:00:00.000Z",
       "timestamp": 1793631600000,
       "impact": "Low",
-      "actual": "",
+      "actual": "75.2",
       "forecast": "77.2",
       "previous": "77.9"
     },
     {
       "title": "Loan Officer Survey",
       "country": "USD",
-      "date": "2026-11-02T19:03:00.000Z",
-      "timestamp": 1793646180000,
+      "date": "2026-11-02T19:00:00.000Z",
+      "timestamp": 1793646000000,
       "impact": "Low",
       "actual": "",
       "forecast": "",
@@ -239,9 +239,9 @@
       "date": "2026-11-02T21:45:00.000Z",
       "timestamp": 1793655900000,
       "impact": "Low",
-      "actual": "",
+      "actual": "-7.9%",
       "forecast": "",
-      "previous": "5.6%"
+      "previous": "5.3%"
     },
     {
       "title": "Bank Holiday",
@@ -340,7 +340,7 @@
       "timestamp": 1793718000000,
       "impact": "Medium",
       "actual": "",
-      "forecast": "7.11M",
+      "forecast": "7.15M",
       "previous": "7.08M"
     },
     {
@@ -360,7 +360,7 @@
       "timestamp": 1793718900000,
       "impact": "Low",
       "actual": "",
-      "forecast": "15.9M",
+      "forecast": "15.8M",
       "previous": "16.0M"
     },
     {
@@ -480,7 +480,7 @@
       "timestamp": 1793756700000,
       "impact": "Low",
       "actual": "",
-      "forecast": "51.5",
+      "forecast": "51.7",
       "previous": "51.6"
     },
     {
@@ -490,7 +490,7 @@
       "timestamp": 1793779200000,
       "impact": "Low",
       "actual": "",
-      "forecast": "25.3K",
+      "forecast": "18.7K",
       "previous": "23.6K"
     },
     {
@@ -500,7 +500,7 @@
       "timestamp": 1793780100000,
       "impact": "Low",
       "actual": "",
-      "forecast": "57.5",
+      "forecast": "57.6",
       "previous": "58.3"
     },
     {
@@ -510,7 +510,7 @@
       "timestamp": 1793781900000,
       "impact": "Low",
       "actual": "",
-      "forecast": "51.0",
+      "forecast": "51.4",
       "previous": "51.7"
     },
     {
@@ -580,7 +580,7 @@
       "timestamp": 1793798100000,
       "impact": "Low",
       "actual": "",
-      "forecast": "68K",
+      "forecast": "67K",
       "previous": "90K"
     },
     {
@@ -590,7 +590,7 @@
       "timestamp": 1793799000000,
       "impact": "Low",
       "actual": "",
-      "forecast": "3.8B",
+      "forecast": "4.8B",
       "previous": "4.2B"
     },
     {
@@ -620,7 +620,7 @@
       "timestamp": 1793804400000,
       "impact": "Medium",
       "actual": "",
-      "forecast": "54.9",
+      "forecast": "54.8",
       "previous": "54.9"
     },
     {
@@ -650,7 +650,7 @@
       "timestamp": 1793838600000,
       "impact": "Low",
       "actual": "",
-      "forecast": "0.96B",
+      "forecast": "0.94B",
       "previous": "0.50B"
     },
     {
@@ -680,7 +680,7 @@
       "timestamp": 1793862000000,
       "impact": "Low",
       "actual": "",
-      "forecast": "4.9%",
+      "forecast": "4.6%",
       "previous": "-10.6%"
     },
     {
@@ -690,7 +690,7 @@
       "timestamp": 1793864700000,
       "impact": "Low",
       "actual": "",
-      "forecast": "0.4%",
+      "forecast": "0.3%",
       "previous": "-0.3%"
     },
     {
@@ -710,7 +710,7 @@
       "timestamp": 1793869200000,
       "impact": "Low",
       "actual": "",
-      "forecast": "0.1%",
+      "forecast": "0.0%",
       "previous": "0.3%"
     },
     {
@@ -720,7 +720,7 @@
       "timestamp": 1793871000000,
       "impact": "Low",
       "actual": "",
-      "forecast": "46.5",
+      "forecast": "46.4",
       "previous": "46.1"
     },
     {
@@ -730,7 +730,7 @@
       "timestamp": 1793872800000,
       "impact": "Low",
       "actual": "",
-      "forecast": "2.6%",
+      "forecast": "2.5%",
       "previous": "1.9%"
     },
     {
@@ -940,7 +940,7 @@
       "timestamp": 1793948400000,
       "impact": "Low",
       "actual": "",
-      "forecast": "-0.2%",
+      "forecast": "0.0%",
       "previous": "2.0%"
     },
     {
@@ -1030,7 +1030,7 @@
       "timestamp": 1793971800000,
       "impact": "High",
       "actual": "",
-      "forecast": "14.5K",
+      "forecast": "14.6K",
       "previous": "-68.3K"
     },
     {
@@ -1060,7 +1060,7 @@
       "timestamp": 1793971800000,
       "impact": "High",
       "actual": "",
-      "forecast": "63K",
+      "forecast": "65K",
       "previous": "29K"
     },
     {
@@ -1100,7 +1100,7 @@
       "timestamp": 1793977200000,
       "impact": "Medium",
       "actual": "",
-      "forecast": "47.8",
+      "forecast": "48.1",
       "previous": "48.0"
     },
     {
@@ -1140,7 +1140,7 @@
       "timestamp": 1793995200000,
       "impact": "Low",
       "actual": "",
-      "forecast": "12.0B",
+      "forecast": "13.4B",
       "previous": "8.3B"
     },
     {
