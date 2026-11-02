@@ -6,13 +6,14 @@ self.onmessage=async({data})=>{
   try{
     let history=null;
     try{
+      if(data.raw.marketSymbol&&data.raw.marketSymbol!=='XAUUSDT')throw Error('Dùng lịch sử riêng của mã đang chọn');
       if(!historyPending)historyPending=loadPersistentHistory({days:365}).finally(()=>{historyPending=null;});
       history=await historyPending;
     }catch{}
     if(token!==serial)return;
     const source=history?{...history,SPYUSDT:merge(history.SPYUSDT,data.raw.interval==='15m'?data.raw.SPYUSDT:[]),QQQUSDT:merge(history.QQQUSDT,data.raw.interval==='15m'?data.raw.QQQUSDT:[])}:data.raw.interval==='15m'?data.raw:null;
     if(source){
-      const stamp=['SPYUSDT','QQQUSDT'].map(s=>{const a=source[s].filter(r=>r.end<data.now);return `${a[0]?.t}:${a.at(-1)?.t}:${a.length}`;}).join('|');
+      const stamp=['SPYUSDT','QQQUSDT'].map(s=>{const a=source[s].filter(r=>r.end<data.now);return `${a[0]?.t}:${a.at(-1)?.t}:${a.length}`;}).join('|')+'|'+(data.raw.marketSymbol??'XAUUSDT');
       if(stamp!==trendKey){trend=analyzeTrendSource(source,data.now);trendKey=stamp;}
     }else{trend=null;trendKey='';}
     const result=computeStudies({...data,trend,onH1Ready:(h1CandleColors,h1H4CandleColors,dayPacket)=>{if(token===serial)self.postMessage({key:data.key,partial:'h1',result:{h1CandleColors,h1H4CandleColors,dayPacket}});}});

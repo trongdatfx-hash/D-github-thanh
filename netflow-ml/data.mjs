@@ -4,16 +4,16 @@ export let BASE=BASES[0];
 let activeBaseIndex=0;
 const PAGE_LIMIT=1000,PARALLEL_PAGES=3,INFO_TTL=15*60000;
 let infoCache=null,infoCachedAt=0;
-const HISTORY_KEY='netflow:xauusdt-history:v3',HISTORY_TTL=24*60*60000;
+const HISTORY_KEY='netflow:single-market-history:v4',HISTORY_TTL=24*60*60000;
 let historySavedAt=0,historySavedKey='';
 function browserStorage(){try{return globalThis.localStorage;}catch{return null;}}
-function readHistory(storage,interval,days,serverTime){
+function readHistory(storage,interval,days,serverTime,marketSymbol){
   try{
-    const saved=JSON.parse(storage?.getItem(HISTORY_KEY)||'null');
-    if(saved?.version!==1||saved.interval!==interval||saved.days!==days||
+    const saved=JSON.parse(storage?.getItem(HISTORY_KEY+':'+marketSymbol)||'null');
+    if(saved?.version!==1||saved.marketSymbol!==marketSymbol||saved.interval!==interval||saved.days!==days||
       !Number.isFinite(saved.serverTime)||saved.serverTime>serverTime||
       serverTime-saved.serverTime>HISTORY_TTL)return null;
-    const data={interval,days,serverTime:saved.serverTime};
+    const data={marketSymbol,interval,days,serverTime:saved.serverTime};
     for(const symbol of SYMBOLS){
       const raw=saved[symbol];
       if(!Array.isArray(raw)||!raw.length||raw.length>20000)return null;
@@ -25,12 +25,12 @@ function readHistory(storage,interval,days,serverTime){
 }
 function saveHistory(storage,data){
   if(!storage)return;
-  const key=data.interval+':'+data.days;
+  const key=data.marketSymbol+':'+data.interval+':'+data.days;
   if(key===historySavedKey&&Date.now()-historySavedAt<60000)return;
   try{
-    const saved={version:1,interval:data.interval,days:data.days,serverTime:data.serverTime};
+    const saved={version:1,marketSymbol:data.marketSymbol,interval:data.interval,days:data.days,serverTime:data.serverTime};
     for(const symbol of SYMBOLS)saved[symbol]=data[symbol].map(r=>[r.t,r.o,r.h,r.l,r.c,r.v,r.end,r.q,0,0,r.buy]);
-    storage.setItem(HISTORY_KEY,JSON.stringify(saved));
+    storage.setItem(HISTORY_KEY+':'+data.marketSymbol,JSON.stringify(saved));
     historySavedAt=Date.now();historySavedKey=key;
   }catch{/* Storage disabled/full: live loading remains available. */}
 }
@@ -66,23 +66,24 @@ async function fetchRange(symbol,interval,start,end,step,get,signal){
   });
   return pages.flat();
 }
-export async function load(interval,days,{signal,get=getJSON,previous=null,storage=browserStorage()}={}){
+export async function load(interval,days,{signal,get=getJSON,previous=null,storage=browserStorage(),marketSymbol=DATA_SYMBOL}={}){
+  if(!['XAUUSDT','EURUSDT'].includes(marketSymbol))throw Error('Mã thị trường không được hỗ trợ');
   const step=STEPS[interval];if(!step||![7,14,30].includes(days))throw Error('Khung thời gian/lịch sử không hợp lệ');
   // XAUUSDT is fixed for this page. Do not block candle loading on exchangeInfo,
   // because Binance may geo/WAF-block metadata while public klines remain available.
-  const contractsTask=Promise.resolve(SYMBOLS.map(chartAlias=>({symbol:DATA_SYMBOL,chartAlias,sourceSymbol:DATA_SYMBOL,status:'TRADING',quoteAsset:'USDT',contractType:'PERPETUAL',validationFallback:true})));
+  const contractsTask=Promise.resolve(SYMBOLS.map(chartAlias=>({symbol:marketSymbol,chartAlias,sourceSymbol:marketSymbol,status:'TRADING',quoteAsset:'USDT',contractType:'PERPETUAL',validationFallback:true})));
   const candlesTask=(async()=>{
     // Browser time is sufficient for public kline boundaries and avoids a
     // second Binance endpoint that can be blocked independently.
     const serverTime=Date.now();
     const start=Math.floor((serverTime-days*86400000)/step)*step;
-    const compatible=previous&&!previous.historical&&previous.interval===interval&&previous.days===days&&previous.serverTime<=serverTime;
-    const source=compatible?previous:readHistory(storage,interval,days,serverTime);
+    const compatible=previous&&previous.marketSymbol===marketSymbol&&!previous.historical&&previous.interval===interval&&previous.days===days&&previous.serverTime<=serverTime;
+    const source=compatible?previous:readHistory(storage,interval,days,serverTime,marketSymbol);
     const reusable=!!source;
     const sharedRanges=new Map();
     const fetchXauRange=(cursor)=>{
       const key=`${interval}:${cursor}:${serverTime}`;
-      if(!sharedRanges.has(key))sharedRanges.set(key,fetchRange(DATA_SYMBOL,interval,cursor,serverTime,step,get,signal));
+      if(!sharedRanges.has(key))sharedRanges.set(key,fetchRange(marketSymbol,interval,cursor,serverTime,step,get,signal));
       return sharedRanges.get(key);
     };
     const pairs=await Promise.all(SYMBOLS.map(async symbol=>{
@@ -99,7 +100,7 @@ export async function load(interval,days,{signal,get=getJSON,previous=null,stora
   })();
   const [contracts,data]=await Promise.all([contractsTask,candlesTask]);
   signal?.throwIfAborted();
-  const result={contracts,...data};
+  const result={contracts,marketSymbol,...data};
   saveHistory(storage,result);
   return result;
 }
