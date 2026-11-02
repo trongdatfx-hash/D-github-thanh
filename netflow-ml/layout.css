@@ -16,3 +16,7 @@
 .chart-indicator-tools select,.chart-indicator-tools button{font-size:12px;padding:6px 9px;max-width:100%}
 #chart-notes{margin:12px 0;color:#9db5cd}#chart-notes .hint{padding:12px 0}#chart-notes #tooltip{padding:10px 0;min-height:0}
 .chart-card:fullscreen #strength-box-status,.chart-card.fullscreen-fallback #strength-box-status,.chart-card:fullscreen #strength-box-codes,.chart-card.fullscreen-fallback #strength-box-codes{display:none!important}
+
+#weekly-day-chart-label{position:absolute;z-index:7;top:8px;right:58px;max-width:calc(100% - 78px);padding:5px 9px;border:1px solid #4e596b;border-radius:6px;background:rgba(14,23,38,.94);box-shadow:0 2px 8px rgba(0,0,0,.25);pointer-events:auto;cursor:help;text-align:right;font-size:10px;font-weight:800;line-height:1.25;letter-spacing:.02em;font-variant-numeric:tabular-nums;white-space:nowrap}
+#weekly-day-chart-label.up{border-color:rgba(26,224,163,.62);color:#1ae0a3}#weekly-day-chart-label.down{border-color:rgba(255,77,112,.62);color:#ff4d70}#weekly-day-chart-label.wait{border-color:rgba(246,200,95,.58);color:#f6c85f}#weekly-day-chart-label.preview{border-style:dashed}
+@media(max-width:650px){#weekly-day-chart-label{right:58px;max-width:calc(100% - 70px);padding:4px 7px;font-size:9px;overflow:hidden;text-overflow:ellipsis}#geometry-readout{top:38px}}

@@ -1,4 +1,4 @@
-import {analyzeTrendSource,computeStudies} from './studies-core.mjs?v=20261026-age-restored1';
+import {analyzeTrendSource,computeStudies} from './studies-core.mjs?v=20261102-xau-box1';
 import {loadPersistentHistory} from './history-store.mjs?v=20261025-dcommon-all1';
 let serial=0,trend=null,trendKey='',historyPending=null;
 self.onmessage=async({data})=>{
@@ -15,7 +15,7 @@ self.onmessage=async({data})=>{
       const stamp=['SPYUSDT','QQQUSDT'].map(s=>{const a=source[s].filter(r=>r.end<data.now);return `${a[0]?.t}:${a.at(-1)?.t}:${a.length}`;}).join('|');
       if(stamp!==trendKey){trend=analyzeTrendSource(source,data.now);trendKey=stamp;}
     }else{trend=null;trendKey='';}
-    const result=computeStudies({...data,trend});
+    const result=computeStudies({...data,trend,onH1Ready:(h1CandleColors,h1H4CandleColors,dayPacket)=>{if(token===serial)self.postMessage({key:data.key,partial:'h1',result:{h1CandleColors,h1H4CandleColors,dayPacket}});}});
     if(token===serial)self.postMessage({key:data.key,result,archive:history?.manifest??null,computeMs:performance.now()-started});
   }catch(error){if(token===serial)self.postMessage({key:data.key,error:error.message});}
 };
