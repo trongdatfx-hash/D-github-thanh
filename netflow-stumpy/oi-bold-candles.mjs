@@ -4,6 +4,12 @@ export function oiBodyWidth(spacing){
   if(!Number.isFinite(spacing)||spacing<2)return 0;
   return Math.min(spacing*.94,Math.max(1,spacing*.65)*1.5);
 }
+export function oiBodyContrast(color){
+  const hex=/^#([0-9a-f]{6})$/i.exec(color??'');
+  if(!hex)return {body:color??'#b6c3d3',border:'#fff3bf'};
+  const rgb=[0,2,4].map(i=>parseInt(hex[1].slice(i,i+2),16));
+  return {body:'#'+rgb.map(x=>Math.round(x*.58+255*.42).toString(16).padStart(2,'0')).join(''),border:'#fff3bf'};
+}
 export class OiBoldCandles {
   constructor(){
     this.data=[];
@@ -24,7 +30,13 @@ export class OiBoldCandles {
         const x=ts.timeToCoordinate(row.time),open=this.series.priceToCoordinate(row.open),close=this.series.priceToCoordinate(row.close);
         if(x===null||open===null||close===null||x*rx<0||x*rx>bitmapSize.width)continue;
         const left=Math.round((x-width/2)*rx),right=Math.round((x+width/2)*rx),top=Math.round(Math.min(open,close)*ry),bottom=Math.round(Math.max(open,close)*ry);
-        context.fillStyle=row.color;context.fillRect(left,top,Math.max(1,right-left),Math.max(1,bottom-top));
+        const palette=oiBodyContrast(row.color),w=Math.max(1,right-left),h=Math.max(1,bottom-top);
+        context.fillStyle=palette.body;context.fillRect(left,top,w,h);
+        // Draw inside the body bounds so neither OHLC height nor spacing changes.
+        if(w>=3*rx&&h>=3*ry){
+          const edge=Math.max(1,Math.min(rx,ry));context.strokeStyle=palette.border;context.lineWidth=edge;
+          context.strokeRect(left+edge/2,top+edge/2,w-edge,h-edge);
+        }
       }
       context.restore();
     });
