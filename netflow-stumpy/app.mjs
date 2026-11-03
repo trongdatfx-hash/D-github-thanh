@@ -1,3 +1,4 @@
+import {oiCandleBars} from './oi-candle-bars.mjs?v=20261103-oi-bars1';
 import {oiSpectrum} from './oi-spectrum.mjs?v=20261103-vix-dayoi1';
 import {closedColorSourceKey,readH1ColorCache,saveH1ColorCache,archiveColorRevision} from './h1-color-cache.mjs?v=20261103-day-open1';
 import {h1StripCell} from './h1-h4-strip.mjs?v=20261101-h1h4-align1';
@@ -30,6 +31,7 @@ let h1H4StripFrame=0;
 let h1CacheAttempt='',h1CacheArchive=null,h1HistoryKnown=false,h1HistoryRevision=null,studyColorInput=null;
 
 let boxVolumeStrengthMap=new Map(),wlrThicknessMap=new Map(),wlrColorMap=new Map();
+let oiBarState={points:new Map()};
 let oiProfile={ready:false,bins:[],max:0},oiWidths=new Map(),oiStamp='',oiLastFetch=0,oiRequest=0;
 const flowColors={
   COMPOSITE:{up:'rgba(39,211,164,.82)',down:'rgba(255,91,116,.82)'}
@@ -43,7 +45,7 @@ let studiesWorker=null,studyKey='',studyResultKey='',statsWorker=null,statsReque
 const CALENDAR_REFRESH_MS=5*60*1000;
 const FIT_WINDOW_MS=36*60*60*1000,FIT_HALF_WINDOW_MS=12*60*60*1000,DOUBLE_TAP_MS=360,DOUBLE_TAP_DISTANCE=28,TAP_MOVE_TOLERANCE=14;
 const SETUP_STORAGE_KEY='netflow-rth-lite:chart-setup:v1';
-const SETUP_CONTROL_IDS=['symbol','interval','days','signal','composite','alignment','confirmed-delta-toggle','oi-width-toggle','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-trend-age-color','candle-h1-box-color','cvd-spectrum-toggle','oi-spectrum-toggle','show-strength','spy-volume-strength','bands','markers','double-tap-full','geometry-toggle','geometry-provisional','causal-trend-channel','causal-trend-channel-provisional','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
+const SETUP_CONTROL_IDS=['symbol','interval','days','signal','composite','alignment','confirmed-delta-toggle','oi-width-toggle','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-trend-age-color','candle-h1-box-color','cvd-spectrum-toggle','oi-spectrum-toggle','oi-candle-bars-toggle','oi-candle-pin-toggle','show-strength','spy-volume-strength','bands','markers','double-tap-full','geometry-toggle','geometry-provisional','causal-trend-channel','causal-trend-channel-provisional','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
 let statsMap=new Map(),candleColorMap=new Map(),candleClusterMap=new Map(),rev63State=null,pivotZoneState={ready:false,reason:'history',support:null,resistance:null},pivotFlowState=null,pivotZoneKey='',inspectedTime=null;
 let calendarState={events:[],updatedAt:null,loading:false};
 let pendingSavedTimeRange=null,saveSetupTimer=null,strengthBoxLayer=null,quantileLayer=null;
@@ -360,6 +362,8 @@ function init(){
   const strengthUnitFormat=x=>`${x>0?'+':''}${x.toFixed(2)}`;
   series.alignment=chart.addSeries(L.HistogramSeries,{priceScaleId:'spy-volume-delta-overlay',base:0,color:'#68778a',title:'',priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},autoscaleInfoProvider:symmetricAutoscale},1);
   series.alignment.priceScale().applyOptions({scaleMargins:{top:.08,bottom:.08}});
+  series.oiCandleBars=chart.addSeries(L.HistogramSeries,{priceScaleId:'oi-candle-bars-overlay',base:0,title:'',priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'volume'},autoscaleInfoProvider:original=>{const info=original();if(info)info.priceRange.minValue=0;return info;}},1);
+  series.oiCandleBars.priceScale().applyOptions({autoScale:true,scaleMargins:{top:.84,bottom:0}});
   series.volumeStrength=chart.addSeries(L.BaselineSeries,{baseValue:{type:'price',price:0},topLineColor:'#f6c85f',topFillColor1:'rgba(246,200,95,.12)',topFillColor2:'rgba(246,200,95,0)',bottomLineColor:'#f3f6fb',bottomFillColor1:'rgba(243,246,251,0)',bottomFillColor2:'rgba(243,246,251,.09)',lineWidth:3,title:'',priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:4,autoscaleInfoProvider:()=>({priceRange:{minValue:-1,maxValue:1}})},1);
   series.confirmedDelta=chart.addCustomSeries(new OiDottedSeries,{priceScaleId:'right',color:PRICE_DELTA_COLORS.positive,priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},autoscaleInfoProvider:symmetricAutoscale},1);
   series.volumeStrength.createPriceLine({price:0,color:'#6f8299',lineWidth:1,lineStyle:L.LineStyle.Solid,axisLabelVisible:true,title:'0'});
@@ -723,6 +727,14 @@ function render(fit=false){
   writeSeries('COMPOSITE',series.COMPOSITE,flowData(rows.COMPOSITE??[],'COMPOSITE'),seriesContext);
   const step=STEPS[$('interval').value],spyVolumeDelta=directionalVolumeDelta(rows.SPYUSDT??[],step);
   writeSeries('alignment',series.alignment,volumeDeltaBandData(spyVolumeDelta,volumeStrengthMap),seriesContext);
+  const oiBarsEnabled=$('oi-candle-bars-toggle')?.checked&&$('symbol').value==='SPYUSDT';
+  oiBarState=oiCandleBars(p,spyVolumeDelta,rows.COMPOSITE??[],oiWidths,step,cache?.serverTime??0,{filterPin:$('oi-candle-pin-toggle')?.checked??true});
+  writeSeries('oiCandleBars',series.oiCandleBars,oiBarState.data,seriesContext+'|'+$('oi-candle-pin-toggle')?.checked);
+  setOptions(series.oiCandleBars,{visible:oiBarsEnabled});
+  $('chart').dataset.oiCandleBarsState=!oiBarsEnabled?'off':oiBarState.eligible?'ready':'WAIT';
+  $('chart').dataset.oiCandleBarsPane=String(series.oiCandleBars.getPane().paneIndex());
+  $('chart').dataset.oiCandleBarsMatched=String(oiBarState.matched);$('chart').dataset.oiCandleBarsEligible=String(oiBarState.eligible);
+  $('oi-candle-bars-status').textContent=$('symbol').value!=='SPYUSDT'?'ΔOI theo nến · chỉ SPY':!oiBarsEnabled?'ΔOI theo nến':oiBarState.eligible?`ΔOI theo nến · ${oiBarState.matched}/${oiBarState.eligible} · ${oiBarState.day} NY`:'ΔOI theo nến · WAIT';
   writeSeries('confirmedDelta',series.confirmedDelta,priceDeltaStrengthData(rows.COMPOSITE??[]),seriesContext);
   writeSeries('strength',series.strength,lineData(signalRows,'adjusted'),seriesContext);
   writeSeries('volumeStrength',series.volumeStrength,lineData(volumeStrengthRows,'adjusted'),seriesContext);
@@ -811,6 +823,7 @@ function showTooltip(t){
     geometryEvent?`Dị biệt được xác nhận tại nến này: ${geometryEvent.direction==='bullish'?'phân kỳ tăng':geometryEvent.direction==='bearish'?'phân kỳ giảm':'SPY/QQQ luân phiên dẫn dắt'} · điểm ${geometryEvent.score}/100 · ΔStrength SPY ${signed(geometryEvent.spyDelta)} / QQQ ${signed(geometryEvent.qqqDelta)} / SPY V ${signed(geometryEvent.volumeDelta)} · ΔNetFlow ${signed(geometryEvent.flowDelta)}${geometryEvent.pairSplit?` · Strength SPY và QQQ ngược nhau, giá đang gần nhịp ${geometryEvent.leader==='SPY'?'SPY':geometryEvent.leader==='QQQ'?'QQQ':'hỗn hợp'}`:''}. Đây là mô tả hợp lưu tại thời điểm xác nhận, không phải dự báo chắc chắn.`:null,
     `Strength Giá×Delta ${signed(maps.COMPOSITE?.get(t)?.adjusted)}: delta taker quote SPY chuẩn hóa theo volume 20 nến, chỉ giữ khi cùng chiều thân nến; còn lại 0. Cộng 8 nến, EWMA và chuẩn hóa 500 nến. Composite và các tín hiệu liên quan dùng chuỗi này.`,
     displayedColorText,
+    $('oi-candle-bars-toggle')?.checked&&$('symbol').value==='SPYUSDT'?(()=>{const x=oiBarState.points.get(t);return x?`ΔOI theo nến ${signed(x.delta)} · SPY V ${signed(x.spyV)} · C Taker NF ${signed(x.net)} · ${x.matched?'ĐỒNG DẤU':'không đủ đồng thuận'}${x.pinAdjusted?' · pin bar phản đối chiều thân':''}. Chiều cao cột = |ΔOI|, xanh dương / đỏ âm; OI giảm là giảm tổng vị thế mở.`:'ΔOI theo nến: chờ nến đóng và đủ hai mẫu OI liên tiếp trong ngày New York.';})():null,
     `Điểm xác nhận ${state.score??'—'}/100 = Taker ${fmt(state.taker)}/50 + Dải ${fmt(state.pair)}/30 + |Strength| ${fmt(state.strength)}/20. Điểm theo quy tắc, không phải xác suất thắng.`];
   const nodes=text.filter(Boolean).map(value=>{const div=document.createElement('div');div.textContent=value;return div;});
   $('tooltip').replaceChildren(...nodes);
@@ -928,6 +941,11 @@ if(init()){
   oiSpectrumToggle.id='oi-spectrum-toggle';oiSpectrumToggle.type='checkbox';oiSpectrumToggle.checked=true;oiSpectrumStatus.id='oi-spectrum-status';oiSpectrumStatus.textContent='Phổ ΔOI SPY · WAIT';
   oiSpectrumLabel.title='Tím bên phải: OI tăng ròng; xám nét đứt bên trái: OI giảm ròng. Quy ΔOI về giá đóng nến, không phải vị thế còn mở tại từng giá. ΔOI chỉ cộng trong ngày New York hiện tại; CVD dùng liên tục nhiều ngày. Hai thang đo độc lập.';oiSpectrumLabel.append(oiSpectrumToggle,oiSpectrumStatus);$('cvd-spectrum-toggle').closest('label').after(oiSpectrumLabel);
   oiSpectrumToggle.onchange=()=>render(false);
+  const oiBarLabel=document.createElement('label'),oiBarToggle=document.createElement('input'),oiBarStatus=document.createElement('span');
+  oiBarToggle.id='oi-candle-bars-toggle';oiBarToggle.type='checkbox';oiBarToggle.checked=true;oiBarStatus.id='oi-candle-bars-status';oiBarStatus.textContent='ΔOI theo nến · WAIT';
+  oiBarLabel.title='Cột sát đáy pane SPY V, cao theo |ΔOI|: chỉ hiện khi chiều OHLC nến SPY, histogram SPY V, C Taker NF và ΔOI cùng dấu. Xanh = cùng dương, đỏ = cùng âm. Nến đóng, dữ liệu OI liên tiếp, chỉ ngày New York hiện tại; thiếu OI thì WAIT. Không dùng màu tô H1/tuổi trend làm dấu giá.';oiBarLabel.append(oiBarToggle,oiBarStatus);oiSpectrumLabel.after(oiBarLabel);
+  const pinLabel=document.createElement('label'),pinToggle=document.createElement('input');pinToggle.id='oi-candle-pin-toggle';pinToggle.type='checkbox';pinToggle.checked=true;pinLabel.title='Thân ≤35% biên độ, râu chính ≥60% và ít nhất gấp đôi râu còn lại: hướng từ chối giá theo râu. Pin ngược thân bị loại vì không đồng dấu SPY V thực tế; không đổi histogram hay màu nến.';pinLabel.append(pinToggle,'Lọc pin bar ΔOI');oiBarLabel.after(pinLabel);
+  oiBarToggle.onchange=pinToggle.onchange=()=>render(false);
   restoreSavedSetup();syncChartFrameButtons();
   // Restore the C histogram once for setups saved before the taker plot cleanup.
   // Subsequent user choices remain under the normal Save setup control.
