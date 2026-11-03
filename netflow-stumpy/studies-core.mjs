@@ -5,7 +5,7 @@ import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeo
 import {pivotZones} from './pivot-zones.mjs?v=20261029-price-delta1';
 import {causalTrendChannels} from './causal-trend-channel.mjs?v=20261029-price-delta1';
 import {channelStrengthBoxes} from './channel-strength-boxes.mjs?v=20261029-weekly-map1';
-import {weeklyTrendForecast,h1CandleColorStates} from './weekly-trend-map.mjs?v=20261101-h1h4-align1';
+import {weeklyTrendForecast,h1CandleColorStates} from './weekly-trend-map.mjs?v=20261103-day-open1';
 import {preRthWlrTrend,historicalTrendAgeStates} from './pre-rth-wlr-trend.mjs?v=20261103-spy-restore1';
 import {chartFeatureRows} from './analogs-features.mjs?v=20261029-price-delta1';
 
@@ -52,7 +52,7 @@ export function computeStudies({rows,volumeRows,symbol,interval,options,now,tren
   const pivot=pivotZones({price:modelPrice,composite:(model.rows.COMPOSITE??[]).filter(r=>modelTimes.has(r.t)),volume:model.volume.filter(r=>modelTimes.has(r.t))},STEPS[interval]);
   const rev63=preRthWlrTrend({priceRows:tRows,strengthRows:trend?.rows.COMPOSITE??[],volumeRows:trendVolume,channelTrends:channelState.episodes??channelState.trends,requireChannel:true,now});
   const trendAgeHistory=allTrendAgeHistory.filter(state=>state.t>=(closedPrice[0]?.t??Infinity));
-  const weekly=interval==='15m'&&symbol==='SPYUSDT'?weeklyTrendForecast({priceRows:tRows,strengthRows:trend?.rows.COMPOSITE??[],volumeRows:trendVolume,boxSnapshots:weeklyBoxes.snapshots,trendStates:allTrendAgeHistory,now}):{ready:false,label:'WAIT',reason:'Weekly Trend Map chỉ chạy trên SPYUSDT M15'};
+  const weekly=interval==='15m'&&symbol==='SPYUSDT'?weeklyTrendForecast({priceRows:[...tRows,...p.filter(r=>r.t<=now&&(r.end??r.t+899999)>=now&&r.t>(tRows.at(-1)?.t??-Infinity))],strengthRows:trend?.rows.COMPOSITE??[],volumeRows:trendVolume,boxSnapshots:weeklyBoxes.snapshots,trendStates:allTrendAgeHistory,now}):{ready:false,label:'WAIT',reason:'Weekly Trend Map chỉ chạy trên SPYUSDT M15'};
   const running=p.at(-1),runningEnd=running?.end??running?.t+899999,runningClock=Number.isFinite(running?.t)?trendSessionAt(running.t):null,nowClock=trendSessionAt(now);
   const hasLivePreview=interval==='15m'&&symbol==='SPYUSDT'&&rev63.active&&rev63.livePreview&&Number.isFinite(running?.t)&&running.t<=now&&runningEnd>=now&&running.t>(closedTrend.at(-1)?.t??-Infinity)&&runningClock?.active&&runningClock.day===nowClock.day;
   if(hasLivePreview)trendAgeHistory.push({t:running.t,...rev63.livePreview,reason:'Nến đang chạy · xem trước từ trend xác nhận ở nến đóng trước; chưa ghi vào cohort hoặc kết quả forward'});
