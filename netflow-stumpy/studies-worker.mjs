@@ -1,4 +1,4 @@
-import {analyzeTrendSource,computeStudies} from './studies-core.mjs?v=20261103-pivot-wedge1';
+import {analyzeTrendSource,computeStudies} from './studies-core.mjs?v=20261103-day247-1';
 import {loadPersistentHistory} from './history-store.mjs?v=20261029-price-delta1';
 let serial=0,trend=null,trendKey='',historyPending=null;
 function historyTask(){
