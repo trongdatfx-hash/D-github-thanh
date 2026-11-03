@@ -5,7 +5,7 @@ test('width stays inside candle spacing, including tight zoom',()=>{
   for(const spacing of [2,3,6,10,30]){assert.ok(oiBodyWidth(spacing)>spacing*.65);assert.ok(oiBodyWidth(spacing)<spacing);}
   assert.equal(oiBodyWidth(1),0);assert.equal(oiBodyWidth(NaN),0);
 });
-test('body uses original OHLC and brighter source hue, with no wick or autoscale changes',()=>{
+test('body uses original OHLC and state palette, with no wick or autoscale changes',()=>{
   const primitive=new OiBoldCandles(),drawn=[];let requests=0;
   primitive.attached({chart:{timeScale:()=>({options:()=>({barSpacing:10}),timeToCoordinate:()=>20})},series:{priceToCoordinate:p=>100-p},requestUpdate:()=>requests++});
   primitive.setData([{time:1,open:40,close:60,color:'#123456'}]);

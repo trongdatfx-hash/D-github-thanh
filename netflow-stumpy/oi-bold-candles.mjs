@@ -6,9 +6,10 @@ export function oiBodyWidth(spacing){
 }
 export function oiBodyContrast(color){
   const hex=/^#([0-9a-f]{6})$/i.exec(color??'');
-  if(!hex)return {body:color??'#b6c3d3',border:'#fff3bf'};
-  const rgb=[0,2,4].map(i=>parseInt(hex[1].slice(i,i+2),16));
-  return {body:'#'+rgb.map(x=>Math.round(x*.58+255*.42).toString(16).padStart(2,'0')).join(''),border:'#fff3bf'};
+  const [r,g,b]=hex?[0,2,4].map(i=>parseInt(hex[1].slice(i,i+2),16)):[0,0,0];
+  // Follow the existing candle's UP/DOWN/WAIT tone, including H1/H4 colors.
+  const body=g>r&&g>b?'#087f5b':r>g&&r>b?'#8b5cf6':'#788391';
+  return {body,border:'#fff3bf'};
 }
 export class OiBoldCandles {
   constructor(){
