@@ -1,6 +1,7 @@
+import {OiHistory} from './oi-history.mjs?v=20261104-oi-history1';
 import {SpectrumPrimitive} from './spectrum-primitive.mjs?v=20261104-oi-smooth1';
 import {OiBoldCandles} from './oi-bold-candles.mjs?v=20261104-oi-blue1';
-import {oiCandleBars} from './oi-candle-bars.mjs?v=20261104-oi-smooth1';
+import {oiCandleBars} from './oi-candle-bars.mjs?v=20261104-oi-history1';
 import {oiSpectrum} from './oi-spectrum.mjs?v=20261104-oi-smooth1';
 import {closedColorSourceKey,readH1ColorCache,saveH1ColorCache,archiveColorRevision} from './h1-color-cache.mjs?v=20261103-day-open1';
 import {h1StripCell} from './h1-h4-strip.mjs?v=20261101-h1h4-align1';
@@ -33,6 +34,7 @@ let h1H4StripFrame=0;
 let h1CacheAttempt='',h1CacheArchive=null,h1HistoryKnown=false,h1HistoryRevision=null,studyColorInput=null;
 
 let boxVolumeStrengthMap=new Map(),wlrThicknessMap=new Map(),wlrColorMap=new Map();
+const oiHistory=new OiHistory();
 const oiBoldCandles=new OiBoldCandles();
 const spectrumPrimitive=new SpectrumPrimitive(drawCvdSpectrum);
 let oiBarState={points:new Map()};
@@ -433,18 +435,29 @@ function priceDeltaStrengthData(data){return data.map(x=>Number.isFinite(x.adjus
 async function refreshOiWidths(interval,serverTime){
  if(!STEPS[interval]||Date.now()-oiLastFetch<60000&&oiStamp===interval)return;
  oiLastFetch=Date.now();oiStamp=interval;const request=++oiRequest;
+ const active=()=>request===oiRequest&&$('interval').value===interval;
+ const apply=(history,failed=false)=>{
+  if(!active())return;
+  oiWidths=oiWidthByBar(history.samples,STEPS[interval],cache?.serverTime??serverTime);
+  const last=rows.COMPOSITE?.filter(x=>x.end<(cache?.serverTime??serverTime)).at(-1)?.t,known=oiWidths.get(last);
+  $('chart').dataset.oiHistorySamples=String(history.samples.length);$('chart').dataset.oiHistorySaved=String(history.saved);
+  $('chart').dataset.oiWidthState=known?.state??'WAIT';
+  $('oi-width-status').textContent=failed?(history.samples.length?'OI lịch sử · API lỗi':'OI WAIT · chưa lấy được'):known?.state&&known.state!=='WAIT'?`OI ${known.state==='increase'?'tăng':known.state==='decrease'?'giảm':'bình thường'} · ${known.width}px`:'OI WAIT';
+  $('oi-width-status').title=`Lịch sử OI SPY: ${history.samples.length} mẫu, giữ tối đa 90 ngày trên trình duyệt này. ${history.saved?'Đã lưu bền vững.':'Chưa lưu được; hiện chỉ giữ trong bộ nhớ phiên này.'} Không cấp trạng thái LIVE cho chart.`;
+  render(false);
+ };
+ const restored=await oiHistory.load(interval,Date.now());
+ if(!active())return;
+ if(restored.samples.length)apply(restored);
  try{
   const samples=await getJSON(`/futures/data/openInterestHist?symbol=SPYUSDT&period=${interval}&limit=500`);
-  if(request!==oiRequest||$('interval').value!==interval)return;
+  if(!active())return;
   if(!Array.isArray(samples)||samples.some(x=>x.symbol!=='SPYUSDT'))throw Error('OI response invalid');
-  oiWidths=oiWidthByBar(samples,STEPS[interval],serverTime);
-  const last=rows.COMPOSITE?.filter(x=>x.end<serverTime).at(-1)?.t,known=oiWidths.get(last);
-  $('oi-width-status').textContent=known?.state&&known.state!=='WAIT'?`OI ${known.state==='increase'?'tăng':known.state==='decrease'?'giảm':'bình thường'} · ${known.width}px`:'OI WAIT';
-  $('chart').dataset.oiWidthState=known?.state??'WAIT';
-  render(false);
+  const history=await oiHistory.append(interval,samples,Date.now());
+  apply(history);
  }catch{
-  if(request!==oiRequest)return;
-  oiWidths=new Map();$('oi-width-status').textContent='OI WAIT · chưa lấy được';$('chart').dataset.oiWidthState='WAIT';render(false);
+  if(!active())return;
+  apply(await oiHistory.load(interval,Date.now()),true);
  }
 }
 
@@ -736,7 +749,7 @@ function render(fit=false){
   const step=STEPS[$('interval').value],spyVolumeDelta=directionalVolumeDelta(rows.SPYUSDT??[],step);
   writeSeries('alignment',series.alignment,volumeDeltaBandData(spyVolumeDelta,volumeStrengthMap),seriesContext);
   const oiBarsEnabled=$('oi-candle-bars-toggle')?.checked&&$('symbol').value==='SPYUSDT';
-  oiBarState=oiCandleBars(p,spyVolumeDelta,rows.COMPOSITE??[],oiWidths,step,cache?.serverTime??0,{filterPin:$('oi-candle-pin-toggle')?.checked??true});
+  oiBarState=oiCandleBars(p,spyVolumeDelta,rows.COMPOSITE??[],oiWidths,step,cache?.serverTime??0,{filterPin:$('oi-candle-pin-toggle')?.checked??true,history:true});
   writeSeries('oiCandleBars',series.oiCandleBars,oiBarState.data,seriesContext+'|'+$('oi-candle-pin-toggle')?.checked);
   setOptions(series.oiCandleBars,{visible:oiBarsEnabled});
   const boldEnabled=$('oi-bold-candles-toggle')?.checked&&$('symbol').value==='SPYUSDT';
@@ -745,7 +758,7 @@ function render(fit=false){
   $('chart').dataset.oiCandleBarsState=!oiBarsEnabled?'off':oiBarState.eligible?'ready':'WAIT';
   $('chart').dataset.oiCandleBarsPane=String(series.oiCandleBars.getPane().paneIndex());
   $('chart').dataset.oiCandleBarsMatched=String(oiBarState.matched);$('chart').dataset.oiCandleBarsEligible=String(oiBarState.eligible);
-  $('oi-candle-bars-status').textContent=$('symbol').value!=='SPYUSDT'?'ΔOI theo nến · chỉ SPY':!oiBarsEnabled?'ΔOI theo nến':oiBarState.eligible?`ΔOI theo nến · ${oiBarState.matched}/${oiBarState.eligible} · ${oiBarState.day} NY`:'ΔOI theo nến · WAIT';
+  $('oi-candle-bars-status').textContent=$('symbol').value!=='SPYUSDT'?'ΔOI theo nến · chỉ SPY':!oiBarsEnabled?'ΔOI theo nến':oiBarState.eligible?`ΔOI theo nến · ${oiBarState.matched}/${oiBarState.eligible} · lịch sử`:'ΔOI theo nến · WAIT';
   writeSeries('confirmedDelta',series.confirmedDelta,priceDeltaStrengthData(rows.COMPOSITE??[]),seriesContext);
   writeSeries('strength',series.strength,lineData(signalRows,'adjusted'),seriesContext);
   writeSeries('volumeStrength',series.volumeStrength,lineData(volumeStrengthRows,'adjusted'),seriesContext);
@@ -834,7 +847,7 @@ function showTooltip(t){
     geometryEvent?`Dị biệt được xác nhận tại nến này: ${geometryEvent.direction==='bullish'?'phân kỳ tăng':geometryEvent.direction==='bearish'?'phân kỳ giảm':'SPY/QQQ luân phiên dẫn dắt'} · điểm ${geometryEvent.score}/100 · ΔStrength SPY ${signed(geometryEvent.spyDelta)} / QQQ ${signed(geometryEvent.qqqDelta)} / SPY V ${signed(geometryEvent.volumeDelta)} · ΔNetFlow ${signed(geometryEvent.flowDelta)}${geometryEvent.pairSplit?` · Strength SPY và QQQ ngược nhau, giá đang gần nhịp ${geometryEvent.leader==='SPY'?'SPY':geometryEvent.leader==='QQQ'?'QQQ':'hỗn hợp'}`:''}. Đây là mô tả hợp lưu tại thời điểm xác nhận, không phải dự báo chắc chắn.`:null,
     `Strength Giá×Delta ${signed(maps.COMPOSITE?.get(t)?.adjusted)}: delta taker quote SPY chuẩn hóa theo volume 20 nến, chỉ giữ khi cùng chiều thân nến; còn lại 0. Cộng 8 nến, EWMA và chuẩn hóa 500 nến. Composite và các tín hiệu liên quan dùng chuỗi này.`,
     displayedColorText,
-    $('oi-candle-bars-toggle')?.checked&&$('symbol').value==='SPYUSDT'?(()=>{const x=oiBarState.points.get(t);return x?`ΔOI theo nến ${signed(x.delta)} · SPY V ${signed(x.spyV)} · C Taker NF ${signed(x.net)} · ${x.matched?'ĐỒNG DẤU':'không đủ đồng thuận'}${x.pinAdjusted?' · pin bar phản đối chiều thân':''}. Chiều cao cột = |ΔOI|, xanh dương / đỏ âm; OI giảm là giảm tổng vị thế mở.`:'ΔOI theo nến: chờ nến đóng và đủ hai mẫu OI liên tiếp trong ngày New York.';})():null,
+    $('oi-candle-bars-toggle')?.checked&&$('symbol').value==='SPYUSDT'?(()=>{const x=oiBarState.points.get(t);return x?`ΔOI theo nến ${signed(x.delta)} · SPY V ${signed(x.spyV)} · C Taker NF ${signed(x.net)} · ${x.matched?'ĐỒNG DẤU':'không đủ đồng thuận'}${x.pinAdjusted?' · pin bar phản đối chiều thân':''}. Chiều cao cột = |ΔOI|, xanh dương / đỏ âm; OI giảm là giảm tổng vị thế mở.`:'ΔOI theo nến: cần nến đóng và hai mẫu OI liên tiếp trong lịch sử đã tải.';})():null,
     `Điểm xác nhận ${state.score??'—'}/100 = Taker ${fmt(state.taker)}/50 + Dải ${fmt(state.pair)}/30 + |Strength| ${fmt(state.strength)}/20. Điểm theo quy tắc, không phải xác suất thắng.`];
   const nodes=text.filter(Boolean).map(value=>{const div=document.createElement('div');div.textContent=value;return div;});
   $('tooltip').replaceChildren(...nodes);
@@ -954,10 +967,10 @@ if(init()){
   oiSpectrumToggle.onchange=()=>render(false);
   const oiBarLabel=document.createElement('label'),oiBarToggle=document.createElement('input'),oiBarStatus=document.createElement('span');
   oiBarToggle.id='oi-candle-bars-toggle';oiBarToggle.type='checkbox';oiBarToggle.checked=true;oiBarStatus.id='oi-candle-bars-status';oiBarStatus.textContent='ΔOI theo nến · WAIT';
-  oiBarLabel.title='Cột sát đáy pane SPY V, cao theo |ΔOI|: chỉ hiện khi chiều OHLC nến SPY, histogram SPY V, C Taker NF và ΔOI cùng dấu. Xanh = cùng dương, đỏ = cùng âm. Nến đóng, dữ liệu OI liên tiếp, chỉ ngày New York hiện tại; thiếu OI thì WAIT. Không dùng màu tô H1/tuổi trend làm dấu giá.';oiBarLabel.append(oiBarToggle,oiBarStatus);oiSpectrumLabel.after(oiBarLabel);
+  oiBarLabel.title='Cột sát đáy pane SPY V, cao theo |ΔOI|: chỉ hiện khi chiều OHLC nến SPY, histogram SPY V, C Taker NF và ΔOI cùng dấu. Xanh = cùng dương, đỏ = cùng âm. Nến đóng, dữ liệu OI liên tiếp trong lịch sử đã tải; OI được lưu tối đa 90 ngày trên trình duyệt. Thiếu OI thì để trống. Phổ ΔOI theo giá vẫn chỉ ngày New York hiện tại. Không dùng màu tô H1/tuổi trend làm dấu giá.';oiBarLabel.append(oiBarToggle,oiBarStatus);oiSpectrumLabel.after(oiBarLabel);
   const pinLabel=document.createElement('label'),pinToggle=document.createElement('input');pinToggle.id='oi-candle-pin-toggle';pinToggle.type='checkbox';pinToggle.checked=true;pinLabel.title='Thân ≤35% biên độ, râu chính ≥60% và ít nhất gấp đôi râu còn lại: hướng từ chối giá theo râu. Pin ngược thân bị loại vì không đồng dấu SPY V thực tế; không đổi histogram hay màu nến.';pinLabel.append(pinToggle,'Lọc pin bar ΔOI');oiBarLabel.after(pinLabel);
   oiBarToggle.onchange=pinToggle.onchange=()=>render(false);
-  const boldLabel=document.createElement('label'),boldToggle=document.createElement('input');boldToggle.id='oi-bold-candles-toggle';boldToggle.type='checkbox';boldToggle.checked=true;boldLabel.title='Nến đồng thuận OI: thân rộng khoảng 1,5 lần, giới hạn 94% bước nến để tránh chồng lấn. Thân UP xanh dương, DOWN tím, WAIT xám theo màu nến đang hiển thị; giữ viền kem; giữ giá mở/đóng và râu nến. Chỉ nến đóng đủ OI trong ngày New York; độc lập nút hiện dải ΔOI.';boldLabel.append(boldToggle,'Nến đồng thuận OI đậm');pinLabel.after(boldLabel);boldToggle.onchange=()=>render(false);
+  const boldLabel=document.createElement('label'),boldToggle=document.createElement('input');boldToggle.id='oi-bold-candles-toggle';boldToggle.type='checkbox';boldToggle.checked=true;boldLabel.title='Nến đồng thuận OI: thân rộng khoảng 1,5 lần, giới hạn 94% bước nến để tránh chồng lấn. Thân UP xanh dương, DOWN tím, WAIT xám theo màu nến đang hiển thị; giữ viền kem; giữ giá mở/đóng và râu nến. Nến đóng đủ OI trong lịch sử đã tải, tự khôi phục từ OI lưu trên trình duyệt; độc lập nút hiện dải ΔOI.';boldLabel.append(boldToggle,'Nến đồng thuận OI đậm');pinLabel.after(boldLabel);boldToggle.onchange=()=>render(false);
   restoreSavedSetup();syncChartFrameButtons();
   // Restore the C histogram once for setups saved before the taker plot cleanup.
   // Subsequent user choices remain under the normal Save setup control.

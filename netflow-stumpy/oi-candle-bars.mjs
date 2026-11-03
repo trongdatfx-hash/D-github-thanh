@@ -14,7 +14,7 @@ export function oiCandleDirection(row, filterPin=true){
   return Math.sign(c-o);
 }
 
-export function oiCandleBars(priceRows,spyHistogram,flowRows,oiByTime,step,now,{filterPin=true}={}){
+export function oiCandleBars(priceRows,spyHistogram,flowRows,oiByTime,step,now,{filterPin=true,history=false}={}){
   const result={data:[],points:new Map(),eligible:0,matched:0,day:null};
   if(!(step>0)||!Number.isFinite(now)||now<=0)return result;
   result.day=oiSpectrumDay(now);
@@ -22,7 +22,8 @@ export function oiCandleBars(priceRows,spyHistogram,flowRows,oiByTime,step,now,{
   for(const row of priceRows){
     const point={time:row.t/1000};result.data.push(point);
     // Cheap bound before timezone formatting; a NY day is at most 25 hours.
-    if(!Number.isFinite(row.end)||row.end>=now||row.t<now-26*3600000||oiSpectrumDay(row.t)!==result.day)continue;
+    if(!Number.isFinite(row.end)||row.end>=now)continue;
+    if(!history&&(row.t<now-26*3600000||oiSpectrumDay(row.t)!==result.day))continue;
     const current=oiByTime.get(row.t),previous=oiByTime.get(row.t-step);
     if(!current||!previous||![current.oi,previous.oi].every(x=>Number.isFinite(x)&&x>0))continue;
     const delta=current.oi-previous.oi,v=volume.get(row.t),nf=flow.get(row.t);
