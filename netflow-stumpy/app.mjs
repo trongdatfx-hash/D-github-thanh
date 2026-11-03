@@ -1,6 +1,6 @@
 import {OiHistory} from './oi-history.mjs?v=20261104-oi-history1';
 import {SpectrumPrimitive} from './spectrum-primitive.mjs?v=20261104-oi-smooth1';
-import {OiBoldCandles} from './oi-bold-candles.mjs?v=20261104-oi-blue1';
+import {OiBoldCandles} from './oi-bold-candles.mjs?v=20261104-oi-border1';
 import {oiCandleBars} from './oi-candle-bars.mjs?v=20261104-oi-history1';
 import {oiSpectrum} from './oi-spectrum.mjs?v=20261104-oi-smooth1';
 import {closedColorSourceKey,readH1ColorCache,saveH1ColorCache,archiveColorRevision} from './h1-color-cache.mjs?v=20261103-day-open1';
@@ -970,7 +970,7 @@ if(init()){
   oiBarLabel.title='Cột sát đáy pane SPY V, cao theo |ΔOI|: chỉ hiện khi chiều OHLC nến SPY, histogram SPY V, C Taker NF và ΔOI cùng dấu. Xanh = cùng dương, đỏ = cùng âm. Nến đóng, dữ liệu OI liên tiếp trong lịch sử đã tải; OI được lưu tối đa 90 ngày trên trình duyệt. Thiếu OI thì để trống. Phổ ΔOI theo giá vẫn chỉ ngày New York hiện tại. Không dùng màu tô H1/tuổi trend làm dấu giá.';oiBarLabel.append(oiBarToggle,oiBarStatus);oiSpectrumLabel.after(oiBarLabel);
   const pinLabel=document.createElement('label'),pinToggle=document.createElement('input');pinToggle.id='oi-candle-pin-toggle';pinToggle.type='checkbox';pinToggle.checked=true;pinLabel.title='Thân ≤35% biên độ, râu chính ≥60% và ít nhất gấp đôi râu còn lại: hướng từ chối giá theo râu. Pin ngược thân bị loại vì không đồng dấu SPY V thực tế; không đổi histogram hay màu nến.';pinLabel.append(pinToggle,'Lọc pin bar ΔOI');oiBarLabel.after(pinLabel);
   oiBarToggle.onchange=pinToggle.onchange=()=>render(false);
-  const boldLabel=document.createElement('label'),boldToggle=document.createElement('input');boldToggle.id='oi-bold-candles-toggle';boldToggle.type='checkbox';boldToggle.checked=true;boldLabel.title='Nến đồng thuận OI: thân rộng khoảng 1,5 lần, giới hạn 94% bước nến để tránh chồng lấn. Thân UP xanh dương, DOWN tím, WAIT xám theo màu nến đang hiển thị; giữ viền kem; giữ giá mở/đóng và râu nến. Nến đóng đủ OI trong lịch sử đã tải, tự khôi phục từ OI lưu trên trình duyệt; độc lập nút hiện dải ΔOI.';boldLabel.append(boldToggle,'Nến đồng thuận OI đậm');pinLabel.after(boldLabel);boldToggle.onchange=()=>render(false);
+  const boldLabel=document.createElement('label'),boldToggle=document.createElement('input');boldToggle.id='oi-bold-candles-toggle';boldToggle.type='checkbox';boldToggle.checked=true;boldLabel.title='Nến đồng thuận OI: thân rộng khoảng 1,5 lần, giới hạn 94% bước nến để tránh chồng lấn. Thân UP xanh dương, DOWN tím, WAIT xám theo màu nến đang hiển thị; xanh dương và tím không viền, xám giữ viền kem; giữ giá mở/đóng và râu nến. Nến đóng đủ OI trong lịch sử đã tải, tự khôi phục từ OI lưu trên trình duyệt; độc lập nút hiện dải ΔOI.';boldLabel.append(boldToggle,'Nến đồng thuận OI đậm');pinLabel.after(boldLabel);boldToggle.onchange=()=>render(false);
   restoreSavedSetup();syncChartFrameButtons();
   // Restore the C histogram once for setups saved before the taker plot cleanup.
   // Subsequent user choices remain under the normal Save setup control.

@@ -9,7 +9,7 @@ export function oiBodyContrast(color){
   const [r,g,b]=hex?[0,2,4].map(i=>parseInt(hex[1].slice(i,i+2),16)):[0,0,0];
   // Follow the existing candle's UP/DOWN/WAIT tone, including H1/H4 colors.
   const body=g>r&&g>b?'#1351ee':r>g&&r>b?'#8b5cf6':'#788391';
-  return {body,border:'#fff3bf'};
+  return {body,border:body==='#788391'?'#fff3bf':null};
 }
 export class OiBoldCandles {
   constructor(){
@@ -34,7 +34,7 @@ export class OiBoldCandles {
         const palette=oiBodyContrast(row.color),w=Math.max(1,right-left),h=Math.max(1,bottom-top);
         context.fillStyle=palette.body;context.fillRect(left,top,w,h);
         // Draw inside the body bounds so neither OHLC height nor spacing changes.
-        if(w>=3*rx&&h>=3*ry){
+        if(palette.border&&w>=3*rx&&h>=3*ry){
           const edge=Math.max(1,Math.min(rx,ry));context.strokeStyle=palette.border;context.lineWidth=edge;
           context.strokeRect(left+edge/2,top+edge/2,w-edge,h-edge);
         }
