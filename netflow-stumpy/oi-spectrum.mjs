@@ -4,7 +4,7 @@ export const oiSpectrumDay=t=>nyDayFormat.format(t);
 export function oiSpectrum(priceRows, oiByTime, step, now, {binStep=.5,range=12}={}){
   const empty={ready:false,bins:[],max:0,times:[],count:0};
   if(!(step>0)||!(binStep>0)||!(range>0)||!Number.isFinite(now))return empty;
-  const day=oiSpectrumDay(now),closed=priceRows.filter(r=>r.end<now&&oiSpectrumDay(r.t)===day),last=closed.at(-1);
+  const day=oiSpectrumDay(now),closed=priceRows.filter(r=>r.end<now&&r.t>=now-26*3600000&&oiSpectrumDay(r.t)===day),last=closed.at(-1);
   if(!last)return empty;
   const times=[],bins=new Map(),center=priceRows.at(-1)?.c;
   for(const row of closed){

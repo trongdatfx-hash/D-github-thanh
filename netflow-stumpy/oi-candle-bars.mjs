@@ -1,4 +1,4 @@
-import {oiSpectrumDay} from './oi-spectrum.mjs?v=20261103-vix-dayoi1';
+import {oiSpectrumDay} from './oi-spectrum.mjs?v=20261104-oi-smooth1';
 
 // Only a clearly dominant rejection wick overrides the OHLC body direction.
 // The actual SPY V histogram is never rewritten to manufacture agreement.

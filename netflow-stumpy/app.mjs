@@ -1,6 +1,7 @@
+import {SpectrumPrimitive} from './spectrum-primitive.mjs?v=20261104-oi-smooth1';
 import {OiBoldCandles} from './oi-bold-candles.mjs?v=20261104-oi-contrast1';
-import {oiCandleBars} from './oi-candle-bars.mjs?v=20261103-oi-bars1';
-import {oiSpectrum} from './oi-spectrum.mjs?v=20261103-vix-dayoi1';
+import {oiCandleBars} from './oi-candle-bars.mjs?v=20261104-oi-smooth1';
+import {oiSpectrum} from './oi-spectrum.mjs?v=20261104-oi-smooth1';
 import {closedColorSourceKey,readH1ColorCache,saveH1ColorCache,archiveColorRevision} from './h1-color-cache.mjs?v=20261103-day-open1';
 import {h1StripCell} from './h1-h4-strip.mjs?v=20261101-h1h4-align1';
 import {createStrengthBoxLayer} from './strength-box-ui.mjs?v=20261031-h1-box-perf1';
@@ -24,7 +25,7 @@ import {preRthWlrTrend,formatPreRthWlrTrend,trendReadoutState} from './pre-rth-w
 import {renderWeeklyTrendMap} from './weekly-trend-ui.mjs?v=20261103-h4-age1';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
-let chart,price,series={},marks,strengthMarks,cache=null,chartLiveResponse=false,rows={},volumeStrengthRows=[],modelRows={},modelVolumeStrengthRows=[],modelStamp=null,trendRows={},trendVolumeStrengthRows=[],trendStamp=null,trainingMeta=null,maps={},priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,pivotFlowFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},causalChannelState={trends:[],total:0},geometryStatePoints=[],geometryStatePointsKey='',breakoutState=null,geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
+let chart,price,series={},marks,strengthMarks,cache=null,chartLiveResponse=false,rows={},volumeStrengthRows=[],modelRows={},modelVolumeStrengthRows=[],modelStamp=null,trendRows={},trendVolumeStrengthRows=[],trendStamp=null,trainingMeta=null,maps={},priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',dayBoundaries=[],dayFrame=0,geometryFrame=0,pivotFlowFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},causalChannelState={trends:[],total:0},geometryStatePoints=[],geometryStatePointsKey='',breakoutState=null,geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
 const colors={SPYUSDT:'#5ba8ff',QQQUSDT:'#c194ff',COMPOSITE:'#38dfba'};
 const PRICE_DELTA_COLORS={positive:'#36dfff',negative:'#ff78c4',neutral:'#b4c3d7'};
 let trendAgeCandleMap=new Map(),h1CandleMap=new Map(),h1H4CandleMap=new Map(),abaBandPhaseMap=new Map(),abaBandFrame=0;
@@ -33,6 +34,7 @@ let h1CacheAttempt='',h1CacheArchive=null,h1HistoryKnown=false,h1HistoryRevision
 
 let boxVolumeStrengthMap=new Map(),wlrThicknessMap=new Map(),wlrColorMap=new Map();
 const oiBoldCandles=new OiBoldCandles();
+const spectrumPrimitive=new SpectrumPrimitive(drawCvdSpectrum);
 let oiBarState={points:new Map()};
 let oiProfile={ready:false,bins:[],max:0},oiWidths=new Map(),oiStamp='',oiLastFetch=0,oiRequest=0;
 const flowColors={
@@ -350,6 +352,7 @@ function init(){
   applyResponsiveChartOptions();
   price=chart.addSeries(L.CandlestickSeries,{title:'',priceFormat:{type:'price',precision:1,minMove:.1},priceLineVisible:true,priceLineColor:'#36ddbd',priceLineWidth:1,priceLineStyle:L.LineStyle.Dashed,lastValueVisible:true,borderVisible:false},0);
   price.attachPrimitive(oiBoldCandles);
+  price.attachPrimitive(spectrumPrimitive);
   series.priceMid=chart.addCustomSeries(new VariableWidthLineSeries,{color:'#f6c85f',baseLineVisible:false,priceLineVisible:false,lastValueVisible:false,title:''},0);
   for(const key of ['priceUpper','priceLower'])series[key]=chart.addSeries(L.LineSeries,{color:'#4aa3ff',lineWidth:2,lineStyle:L.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,title:''},0);
   for(const [key,color,width,style,last,title] of [
@@ -460,7 +463,7 @@ function updateAbaBandColors(){
  $('aba-band-color-status').textContent=!on?'Đã tắt màu biên theo kênh causal.':!supported?'Biên theo kênh causal hỗ trợ SPY M15.':`Biên theo kênh trend causal · ${result.channelCount} kênh. Hộp sức mạnh ghi loại hộp thay nhãn A1.`;
 }
 
-function scheduleCvdSpectrum(){if(cvdFrame)return;cvdFrame=requestAnimationFrame(()=>{cvdFrame=requestAnimationFrame(()=>{cvdFrame=0;drawCvdSpectrum();strengthBoxLayer?.schedule();});});}
+function scheduleCvdSpectrum(){spectrumPrimitive.redraw();}
 function scheduleDaySeparators(){if(dayFrame)return;dayFrame=requestAnimationFrame(()=>{dayFrame=requestAnimationFrame(()=>{dayFrame=0;drawDaySeparators();});});}
 function scheduleGeometryOverlay(){if(geometryFrame)return;geometryFrame=requestAnimationFrame(()=>{geometryFrame=requestAnimationFrame(()=>{geometryFrame=0;drawGeometryOverlay();});});}
 function schedulePivotFlowOverlay(){if(pivotFlowFrame)return;pivotFlowFrame=requestAnimationFrame(()=>{pivotFlowFrame=requestAnimationFrame(()=>{pivotFlowFrame=0;drawPivotFlowOverlay();});});}
@@ -581,14 +584,12 @@ function cvdSpectrumBounds(){
   const xBase=Math.max(maxWidth+5,Math.min(usableRight-maxWidth-5,anchor+maxWidth+8));
   return {left:xBase-maxWidth,right:xBase+maxWidth,xBase,maxWidth,usableRight};
 }
-function drawCvdSpectrum(){
-  const canvas=$('cvd-spectrum'),host=$('chart'),width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1;
-  const bitmapWidth=Math.round(width*dpr),bitmapHeight=Math.round(height*dpr);if(canvas.width!==bitmapWidth||canvas.height!==bitmapHeight){canvas.width=bitmapWidth;canvas.height=bitmapHeight;}
-  const context=canvas.getContext('2d');context.setTransform(dpr,0,0,dpr,0,0);context.clearRect(0,0,width,height);
+function drawCvdSpectrum({context,mediaSize}){
+  const width=mediaSize.width,height=mediaSize.height;
   const showCvd=$('cvd-spectrum-toggle').checked;
   if((!showCvd&&!oiProfile.ready)||(!cvdProfile.maxAbs&&!oiProfile.max)||cvdAnchorTime===null)return;
   const bounds=cvdSpectrumBounds();if(!bounds)return;
-  const paneHeight=chart.panes()[0]?.getHeight?.()??height*.5,{xBase,maxWidth,usableRight}=bounds,scale=cvdProfile.maxAbs?maxWidth/cvdProfile.maxAbs:0;
+  const paneHeight=height,{xBase,maxWidth,usableRight}=bounds,scale=cvdProfile.maxAbs?maxWidth/cvdProfile.maxAbs:0;
   const visible=cvdProfile.bins.map(bin=>({...bin,y:price.priceToCoordinate(bin.price)})).filter(bin=>Number.isFinite(bin.y)&&bin.y>=0&&bin.y<=paneHeight);
   if(!visible.length&&!oiProfile.ready)return;
   context.save();context.setLineDash([3,4]);context.strokeStyle='rgba(151,164,181,.55)';context.lineWidth=1;context.beginPath();context.moveTo(xBase,(visible[0]?.y??12));context.lineTo(xBase,(visible.at(-1)?.y??paneHeight));context.stroke();context.setLineDash([]);
@@ -605,7 +606,7 @@ function drawCvdSpectrum(){
       if(bin.closed){context.setLineDash([3,3]);context.strokeStyle='#cbd5e1';context.beginPath();context.moveTo(xBase,y+3);context.lineTo(xBase-bin.closed*oiScale,y+3);context.stroke();}
     }context.setLineDash([]);
   }
-  canvas.setAttribute('aria-label',oiProfile.ready?`CVD ${cvdSourceLabel} và ΔOI SPY · ${oiProfile.count} nến chung. ΔOI tăng tím bên phải, giảm xám nét đứt bên trái; thang OI riêng, không biểu thị long/short. `+oiProfile.bins.map(b=>`${b.price}: tăng ${b.opened.toFixed(2)}, giảm ${b.closed.toFixed(2)}`).join('; '):`Phổ CVD ${cvdSourceLabel}; ΔOI chưa có hoặc đang tắt.`);
+
   context.font=`600 ${width<650?9:10}px Inter,system-ui,sans-serif`;context.textBaseline='bottom';context.textAlign='center';context.fillStyle='rgba(196,210,226,.9)';context.fillText(showCvd?`CVD∞ ${cvdSourceLabel}${oiProfile.ready?' + ΔOI SPY':''} · bin ${cvdProfile.binStep}`:'ΔOI SPY · thang riêng',xBase,Math.max(12,(visible[0]?.y??12)-5));
   if(width>=650){context.textBaseline='middle';if(buy){context.textAlign='left';context.fillStyle='#70aef4';context.fillText(`▲ ${fmt(buy.price)}`,Math.min(usableRight-42,buy.x+5),buy.y);}if(sell){context.textAlign='right';context.fillStyle='#f28a61';context.fillText(`▼ ${fmt(sell.price)}`,Math.max(42,sell.x-5),sell.y);}}
   context.restore();
@@ -712,6 +713,9 @@ function render(fit=false){
   // CVD retains all loaded days; only the OI profile resets at NY midnight.
   const profileBars=cvdBars;
   cvdProfile=continuousCvdSpectrum(profileBars);cvdAnchorTime=cvdBars.at(-1)?.t??null;
+  const spectrumNode=$('cvd-spectrum');spectrumNode.dataset.renderer='chart-primitive';
+  const spectrumDescription=oiProfile.ready?`CVD ${cvdSourceLabel} liên tục nhiều ngày; ΔOI SPY ngày ${oiProfile.day} NY, ${oiProfile.count} nến. Tăng tím bên phải, giảm xám nét đứt bên trái; thang riêng.`:`Phổ CVD ${cvdSourceLabel}; ΔOI chưa có hoặc đang tắt.`;
+  if(spectrumNode.getAttribute('aria-label')!==spectrumDescription)spectrumNode.setAttribute('aria-label',spectrumDescription);
   $('chart').dataset.oiSpectrumState=!oiEnabled?'off':oiProfile.ready?'ready':'WAIT';$('chart').dataset.oiSpectrumBars=String(oiProfile.count??0);$('chart').dataset.oiSpectrumDay=oiProfile.day??'';$('chart').dataset.cvdSpectrumPeriod='loaded-history';$('chart').dataset.cvdSpectrumBars=String(profileBars.length);
   const oiStatus=$('oi-spectrum-status');if(oiStatus){oiStatus.textContent=!compositeCvd?'Phổ ΔOI · chỉ SPY':!oiEnabled?'Phổ ΔOI SPY':oiProfile.ready?`Phổ ΔOI SPY · ${oiProfile.day} NY · ${oiProfile.count} nến`:'Phổ ΔOI SPY · WAIT';oiStatus.title=oiProfile.ready?`ΔOI chỉ ngày New York hiện tại; CVD liên tục nhiều ngày · ${new Date(oiProfile.first).toLocaleString('vi-VN')} → ${new Date(oiProfile.last).toLocaleString('vi-VN')}. Tím = OI tăng ròng; xám = giảm ròng. Độ dài dùng thang riêng.`:'Chờ ít nhất hai ΔOI hợp lệ trong ngày New York hiện tại và mẫu mới nhất. CVD luôn giữ lịch sử nhiều ngày.';}
   const closedBefore=cache?.serverTime??Infinity,closedPrice=p.filter(row=>(row.end??row.t)<closedBefore),closedTimes=new Set(closedPrice.map(row=>row.t)),modelPrice=model[$('symbol').value]??p,modelClosedPrice=modelPrice.filter(row=>(row.end??row.t)<closedBefore),modelClosedTimes=new Set(modelClosedPrice.map(row=>row.t));
