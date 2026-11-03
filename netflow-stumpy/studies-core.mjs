@@ -1,3 +1,4 @@
+import {continuousH4Age} from './h4-trend-age.mjs?v=20261103-h4-age1';
 import {aggregateHourlyRows} from './h1-h4-strip.mjs?v=20261101-h1h4-align1';
 import {trendSessionAt,trendSessionRows} from './trend-session.mjs?v=20261029-price-delta1';
 import {analyze,composite,calculateVolumeStrength,STEPS,sessionAt} from './engine.mjs?v=20261029-price-delta1';
@@ -53,6 +54,7 @@ export function computeStudies({rows,volumeRows,symbol,interval,options,now,tren
   const rev63=preRthWlrTrend({priceRows:tRows,strengthRows:trend?.rows.COMPOSITE??[],volumeRows:trendVolume,channelTrends:channelState.episodes??channelState.trends,requireChannel:true,now});
   const trendAgeHistory=allTrendAgeHistory.filter(state=>state.t>=(closedPrice[0]?.t??Infinity));
   const weekly=interval==='15m'&&symbol==='SPYUSDT'?weeklyTrendForecast({priceRows:[...tRows,...p.filter(r=>r.t<=now&&(r.end??r.t+899999)>=now&&r.t>(tRows.at(-1)?.t??-Infinity))],strengthRows:trend?.rows.COMPOSITE??[],volumeRows:trendVolume,boxSnapshots:weeklyBoxes.snapshots,trendStates:allTrendAgeHistory,now}):{ready:false,label:'WAIT',reason:'Weekly Trend Map chỉ chạy trên SPYUSDT M15'};
+  weekly.h4Age=continuousH4Age(h1H4CandleColors,now);
   const running=p.at(-1),runningEnd=running?.end??running?.t+899999,runningClock=Number.isFinite(running?.t)?trendSessionAt(running.t):null,nowClock=trendSessionAt(now);
   const hasLivePreview=interval==='15m'&&symbol==='SPYUSDT'&&rev63.active&&rev63.livePreview&&Number.isFinite(running?.t)&&running.t<=now&&runningEnd>=now&&running.t>(closedTrend.at(-1)?.t??-Infinity)&&runningClock?.active&&runningClock.day===nowClock.day;
   if(hasLivePreview)trendAgeHistory.push({t:running.t,...rev63.livePreview,reason:'Nến đang chạy · xem trước từ trend xác nhận ở nến đóng trước; chưa ghi vào cohort hoặc kết quả forward'});
