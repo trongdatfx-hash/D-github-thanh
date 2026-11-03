@@ -1,4 +1,4 @@
-import {oiSpectrum} from './oi-spectrum.mjs?v=20261102-oi-spectrum1';
+import {oiSpectrum} from './oi-spectrum.mjs?v=20261103-vix-dayoi1';
 import {closedColorSourceKey,readH1ColorCache,saveH1ColorCache,archiveColorRevision} from './h1-color-cache.mjs?v=20261103-day-open1';
 import {h1StripCell} from './h1-h4-strip.mjs?v=20261101-h1h4-align1';
 import {createStrengthBoxLayer} from './strength-box-ui.mjs?v=20261031-h1-box-perf1';
@@ -700,12 +700,13 @@ function render(fit=false){
   dayBoundaries=dayBoundaryTimes(p);
   const compositeCvd=$('symbol').value==='SPYUSDT',cvdBars=compositeCvd?projectNetFlowToPrice(p,rows.COMPOSITE??[]):p;
   cvdSourceLabel=compositeCvd?'C→S':'Q';$('cvd-spectrum').dataset.source=compositeCvd?'COMPOSITE→SPY':'QQQUSDT';
-  const cvdTimes=new Set(cvdBars.map(row=>row.t)),oiEnabled=$('oi-spectrum-toggle')?.checked&&compositeCvd;
-  oiProfile=oiEnabled?oiSpectrum(p.filter(row=>cvdTimes.has(row.t)),oiWidths,STEPS[$('interval').value],cache?.serverTime??0):{ready:false,bins:[],max:0};
-  const commonTimes=oiProfile.ready?new Set(oiProfile.times):null,profileBars=commonTimes?cvdBars.filter(bar=>commonTimes.has(bar.t)):cvdBars;
+  const oiEnabled=$('oi-spectrum-toggle')?.checked&&compositeCvd;
+  oiProfile=oiEnabled?oiSpectrum(p,oiWidths,STEPS[$('interval').value],cache?.serverTime??0):{ready:false,bins:[],max:0};
+  // CVD retains all loaded days; only the OI profile resets at NY midnight.
+  const profileBars=cvdBars;
   cvdProfile=continuousCvdSpectrum(profileBars);cvdAnchorTime=cvdBars.at(-1)?.t??null;
-  $('chart').dataset.oiSpectrumState=!oiEnabled?'off':oiProfile.ready?'ready':'WAIT';$('chart').dataset.oiSpectrumBars=String(oiProfile.count??0);
-  const oiStatus=$('oi-spectrum-status');if(oiStatus){oiStatus.textContent=!compositeCvd?'Phổ ΔOI · chỉ SPY':!oiEnabled?'Phổ ΔOI SPY':oiProfile.ready?`Phổ ΔOI SPY · ${oiProfile.count} nến chung`:'Phổ ΔOI SPY · WAIT';oiStatus.title=oiProfile.ready?`CVD C→S và ΔOI SPY cùng timestamp · ${new Date(oiProfile.first).toLocaleString('vi-VN')} → ${new Date(oiProfile.last).toLocaleString('vi-VN')}. Tím = OI tăng ròng; xám = giảm ròng. Độ dài dùng thang riêng.`:'Chờ hai mẫu OI liên tiếp và đủ dữ liệu nến đóng mới nhất. CVD giữ khoảng lịch sử gốc khi OI chưa sẵn sàng.';}
+  $('chart').dataset.oiSpectrumState=!oiEnabled?'off':oiProfile.ready?'ready':'WAIT';$('chart').dataset.oiSpectrumBars=String(oiProfile.count??0);$('chart').dataset.oiSpectrumDay=oiProfile.day??'';$('chart').dataset.cvdSpectrumPeriod='loaded-history';$('chart').dataset.cvdSpectrumBars=String(profileBars.length);
+  const oiStatus=$('oi-spectrum-status');if(oiStatus){oiStatus.textContent=!compositeCvd?'Phổ ΔOI · chỉ SPY':!oiEnabled?'Phổ ΔOI SPY':oiProfile.ready?`Phổ ΔOI SPY · ${oiProfile.day} NY · ${oiProfile.count} nến`:'Phổ ΔOI SPY · WAIT';oiStatus.title=oiProfile.ready?`ΔOI chỉ ngày New York hiện tại; CVD liên tục nhiều ngày · ${new Date(oiProfile.first).toLocaleString('vi-VN')} → ${new Date(oiProfile.last).toLocaleString('vi-VN')}. Tím = OI tăng ròng; xám = giảm ròng. Độ dài dùng thang riêng.`:'Chờ ít nhất hai ΔOI hợp lệ trong ngày New York hiện tại và mẫu mới nhất. CVD luôn giữ lịch sử nhiều ngày.';}
   const closedBefore=cache?.serverTime??Infinity,closedPrice=p.filter(row=>(row.end??row.t)<closedBefore),closedTimes=new Set(closedPrice.map(row=>row.t)),modelPrice=model[$('symbol').value]??p,modelClosedPrice=modelPrice.filter(row=>(row.end??row.t)<closedBefore),modelClosedTimes=new Set(modelClosedPrice.map(row=>row.t));
   const volumeStrengthMap=new Map(volumeStrengthRows.map(x=>[x.t,x]));
   candleColorMap=new Map(p.map(x=>[x.t,strengthAgreementCandleSignal(maps.COMPOSITE?.get(x.t),volumeStrengthMap.get(x.t))]));
@@ -925,7 +926,7 @@ if(init()){
   quantileLayer=createQuantilePrice({chart,host:$('chart'),actions:indicatorTools,getContext:()=>({spy:rows.SPYUSDT??[],qqq:rows.QQQUSDT??[],boxes:strengthBoxLayer?.getState(),symbol:$('symbol').value,interval:$('interval').value,now:Date.now()+serverOffsetMs,live:$('live-indicator').className==='live'&&isChartLive()})});
   const oiSpectrumLabel=document.createElement('label'),oiSpectrumToggle=document.createElement('input'),oiSpectrumStatus=document.createElement('span');
   oiSpectrumToggle.id='oi-spectrum-toggle';oiSpectrumToggle.type='checkbox';oiSpectrumToggle.checked=true;oiSpectrumStatus.id='oi-spectrum-status';oiSpectrumStatus.textContent='Phổ ΔOI SPY · WAIT';
-  oiSpectrumLabel.title='Tím bên phải: OI tăng ròng; xám nét đứt bên trái: OI giảm ròng. Quy ΔOI về giá đóng nến, không phải vị thế còn mở tại từng giá. CVD và OI dùng cùng các nến có OI hợp lệ; hai thang đo độc lập.';oiSpectrumLabel.append(oiSpectrumToggle,oiSpectrumStatus);$('cvd-spectrum-toggle').closest('label').after(oiSpectrumLabel);
+  oiSpectrumLabel.title='Tím bên phải: OI tăng ròng; xám nét đứt bên trái: OI giảm ròng. Quy ΔOI về giá đóng nến, không phải vị thế còn mở tại từng giá. ΔOI chỉ cộng trong ngày New York hiện tại; CVD dùng liên tục nhiều ngày. Hai thang đo độc lập.';oiSpectrumLabel.append(oiSpectrumToggle,oiSpectrumStatus);$('cvd-spectrum-toggle').closest('label').after(oiSpectrumLabel);
   oiSpectrumToggle.onchange=()=>render(false);
   restoreSavedSetup();syncChartFrameButtons();
   // Restore the C histogram once for setups saved before the taker plot cleanup.

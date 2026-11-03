@@ -1,13 +1,13 @@
+import {createVolatilityQuotes} from './volatility-quotes-ui.mjs?v=20261103-vix-dayoi1';
 const panel=document.getElementById('market-watchlist');
 const host=panel?.querySelector('[data-market-watchlist-widget]');
 let loaded=false;
+createVolatilityQuotes(panel);
 
 const config={
   title:'Xem chỉ số',width:'100%',height:'100%',locale:'en',colorTheme:'dark',showSymbolLogo:true,
   symbolsGroups:[{name:'Xem chỉ số',symbols:[
     {name:'CBOE:VIX1D',displayName:'VIX1D'},
-    {name:'CBOE:VIX9D',displayName:'VIX9D'},
-    {name:'TVC:VIX',displayName:'VIX'},
     {name:'FOREXCOM:SPXUSD',displayName:'SP500'},
     {name:'AMEX:SPY',displayName:'SPY'},
     {name:'BINANCE:SPYUSDT.P',displayName:'SPYUSDT'},

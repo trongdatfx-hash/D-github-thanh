@@ -19,3 +19,17 @@ test('invalid OI and unsupported inputs return WAIT',()=>{
  assert.equal(oiSpectrum(rows,points([100,NaN,-1,0]),step,4*step).ready,false);
  assert.equal(oiSpectrum([],new Map(),step,4*step).ready,false);
 });
+
+test('only current New York day contributes, with midnight OI allowed as a delta baseline',()=>{
+ const midnight=Date.parse('2026-11-03T05:00:00Z'),p=Array.from({length:5},(_,i)=>({t:midnight+(i-2)*step,end:midnight+(i-1)*step-1,c:100})),oi=new Map(p.map((r,i)=>[r.t,{oi:[100,1000,1010,1030,1025][i]}]));
+ const profile=oiSpectrum(p,oi,step,midnight+3*step);
+ assert(profile.ready);assert.deepEqual(profile.times,p.slice(2).map(r=>r.t));assert.deepEqual(profile.bins,[{price:100,opened:30,closed:5}]);assert.equal(profile.day,'2026-11-03');
+ assert.equal(oiSpectrum(p.slice(0,2),oi,step,midnight+3*step).ready,false);
+});
+test('NY midnight resets OI during both DST seasons, including historical-only data',()=>{
+ for(const midnight of [Date.parse('2026-07-06T04:00:00Z'),Date.parse('2026-11-03T05:00:00Z')]){
+  const p=Array.from({length:4},(_,i)=>({t:midnight+(i-1)*step,end:midnight+i*step-1,c:100})),oi=new Map(p.map((r,i)=>[r.t,{oi:100+i*10}]));
+  assert.equal(oiSpectrum(p,oi,step,midnight).ready,false);
+  const profile=oiSpectrum(p,oi,step,midnight+3*step);assert(profile.ready);assert.equal(profile.count,3);assert.equal(profile.first,midnight);
+ }
+});
