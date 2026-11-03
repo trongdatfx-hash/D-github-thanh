@@ -4,7 +4,7 @@ function prefixR2(prices){const n=prices.length,xm=(n-1)/2,ym=prices.reduce((a,b
 
 // Display annotations of the channels currently drawn, not forecast snapshots.
 // Closed-channel display qualification can be retrospective, just like its rails.
-export function channelStrengthBoxes(rows,{channels=[],earlyChannels=[],showEarly=true,back=8,now=Infinity,step=900000,compositeRows=new Map(),volumeRows=new Map(),compositeMode='annotate',compositeThreshold=.15,causalSnapshots=false}={}){
+export function channelStrengthBoxes(rows,{channels=[],earlyChannels=[],showEarly=true,back=8,now=Infinity,step=900000,compositeRows=new Map(),volumeRows=new Map(),compositeMode='annotate',compositeThreshold=.15}={}){
  if(!Number.isInteger(back)||back<0||back>60)throw Error('Invalid channel box back bars');
  const closed=rows.filter(r=>r.end<now),raw=strengthBoxes(closed,{now,step,compositeRows,compositeMode,compositeThreshold}),byTime=new Map(),trs=[];let previous=null,rma=null;
  for(let i=0;i<closed.length;i++){
@@ -17,7 +17,7 @@ export function channelStrengthBoxes(rows,{channels=[],earlyChannels=[],showEarl
  const confirmedIds=new Set(channels.map(c=>c.confirmationTime));
  const candidates=showEarly?earlyChannels.filter(c=>c.early===true&&!confirmedIds.has(c.confirmationTime)):[];
  for(const c of [...channels,...candidates].sort((a,b)=>a.confirmationTime-b.confirmationTime)){
-  if(c.confirmed!==true||c.volumeQualified===false||(!causalSnapshots&&c.displayQualified===false)||![-1,1].includes(c.direction)||![c.startTime,c.confirmationTime,c.insideEndTime].every(Number.isFinite)||c.startTime>c.confirmationTime||c.confirmationTime>c.insideEndTime||c.confirmationTime+step>now)continue;
+  if(c.confirmed!==true||c.volumeQualified===false||c.displayQualified===false||![-1,1].includes(c.direction)||![c.startTime,c.confirmationTime,c.insideEndTime].every(Number.isFinite)||c.startTime>c.confirmationTime||c.confirmationTime>c.insideEndTime||c.confirmationTime+step>now)continue;
   const origin=byTime.get(c.startTime),last=byTime.get(c.insideEndTime),confirmation=byTime.get(c.confirmationTime);if(!origin||!last||!confirmation)continue;
   const channelBars=last.index-origin.index+1,isEarly=c.early===true;
   if(isEarly&&(!c.provisional||channelBars<4||channelBars>=8||last.t!==closed.at(-1)?.t))continue;
@@ -41,8 +41,7 @@ export function channelStrengthBoxes(rows,{channels=[],earlyChannels=[],showEarl
    const bars=endRow.index-origin.index+1,b={id:c.confirmationTime,start:first.t,originTime:origin.t,backBars:origin.index-first.index,channelBars:bars,stage:isEarly?'EARLY':'CONFIRMED',startIndex:first.index,right:endRow.t,rightIndex:endRow.index,entryTime:c.confirmationTime,issuedAt,asOf:endRow.t,top:Math.max(...seed.map(r=>r.h)),bottom:Math.min(...seed.map(r=>r.l)),y0:first.c,direction:c.direction,phase:origin.session??'—',maxStrength:null,live:true,open:true,freeze:null,n:0,tr2:0,sx:0,sy:0,sxy:0,sxx:0,syy:0,compositeMode,source:'causal-channel'};
    for(const r of seed){const x=r.index-first.index,y=r.c-first.c;b.n++;b.tr2+=r.tr*r.tr;b.sx+=x;b.sy+=y;b.sxy+=x*y;b.sxx+=x*x;b.syy+=y*y;const s=raw.strength.get(r.t);if(Number.isFinite(s))b.maxStrength=Math.max(b.maxStrength??0,Math.abs(s));}
    const v=compositeRows.get(endRow.t)?.adjusted;b.compositeStrength=Number.isFinite(v)?v:null;b.compositeAlignment=!Number.isFinite(v)?'missing':v*c.direction>=compositeThreshold?'aligned':v*c.direction<=-compositeThreshold?'opposed':'neutral';
-   let prefixChannel=c;if(causalSnapshots){const prefix=closed.slice(origin.index,endRow.index+1).map(r=>r.c),n=prefix.length,xm=(n-1)/2,ym=prefix.reduce((a,b)=>a+b,0)/n,xx=prefix.reduce((a,_,i)=>a+(i-xm)**2,0),xy=prefix.reduce((a,y,i)=>a+(i-xm)*(y-ym),0);prefixChannel={...c,adaptiveR2:prefixR2(prefix),slopeAtr:endRow.atr>0&&xx>0?xy/xx/endRow.atr:0};}
-   const box=summarizeStrengthBox(b,endRow.atr,null,BOX_DEFAULTS);box.encoding=encodeStrengthBox(box,{channel:{...prefixChannel,insideEndTime:endRow.t,provisional:true},rows:closed.slice(0,endRow.index+1),composite:v,volume:volumeRows.get(endRow.t)?.adjusted,step,previousAppearance:boxes.filter(x=>x.issuedAt<issuedAt).at(-1)?.issuedAt});
+   const box=summarizeStrengthBox(b,endRow.atr,null,BOX_DEFAULTS);box.encoding=encodeStrengthBox(box,{channel:{...c,insideEndTime:endRow.t,provisional:true},rows:closed.slice(0,endRow.index+1),composite:v,volume:volumeRows.get(endRow.t)?.adjusted,step,previousAppearance:boxes.filter(x=>x.issuedAt<issuedAt).at(-1)?.issuedAt});
    box.label=(isEarly?`SỚM ${bars}/8 · `:'')+strengthBoxLabel(box);return box;
   };
   const box=makeBox(last);if(!box)continue;
