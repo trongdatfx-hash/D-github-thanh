@@ -46,3 +46,19 @@ test('strong breakout requires real volume expansion, body, range and aligned fl
  assert.notEqual(classifyBreakoutRetest(bars,[rail],{...opts,flowDirection:-1})?.key,'strong_break');
  assert.notEqual(classifyBreakoutRetest(bars,[{...rail,knownAt:39}],opts)?.key,'strong_break');
 });
+
+test('wedge-only candidates reject boxes and flags before ranking',()=>{
+ for(const type of ['box','flag','wedge']){
+  const f=fixture(type),patterns=buildPatternStructures(f.bars,f.pivots,f.context,{minScore:0,patternTypes:['wedge']});
+  assert(patterns.every(p=>p.type==='wedge'));if(type==='wedge')assert(patterns.length>0);else assert.equal(patterns.length,0);
+ }
+});
+test('main geometry reserves half for pivots and half for complete wedge pairs',()=>{
+ for(const maxLines of [4,8,12])for(const type of ['box','flag','wedge']){
+  const f=fixture(type),g=analyzeGeometry({price:f.bars},{minProminenceAtr:0,minScore:0,maxLines});
+  assert.equal(g.selectionBudget.classic,maxLines/2);assert.equal(g.selectionBudget.pattern,maxLines/2);
+  assert(g.lines.filter(l=>l.source!=='pattern').length<=maxLines/2);
+  const rails=g.lines.filter(l=>l.source==='pattern');assert(rails.length<=maxLines/2);assert.equal(rails.length%2,0);assert(rails.every(l=>l.patternType==='wedge'));if(type==='wedge')assert(g.patterns.length>0);
+  for(const pattern of g.patterns){assert.equal(pattern.type,'wedge');assert.equal(rails.filter(l=>l.patternId===pattern.id).length,2);}
+ }
+});
