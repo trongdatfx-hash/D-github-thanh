@@ -1,4 +1,4 @@
-import {regionFlow,drawRegionFlow,regionFlowDescription} from './region-flow.mjs?v=20261104-region-compact2';
+import {regionFlow,regionFlowLabel,regionFlowDescription} from './region-flow.mjs?v=20261104-region-compact2';
 import {OiFastLoader} from './oi-fast-load.mjs?v=20261104-oi-region-confirm1';
 import {buildSpectrumComparison,drawPairedSpectrum,spectrumPriceGroup,confirmSpectrumGroup} from './paired-spectrum.mjs?v=20261104-oi-stale-fast2';
 import {OiHistory} from './oi-history.mjs?v=20261104-oi-stale-fast2';
@@ -22,8 +22,6 @@ import {COMPOSITE_STRENGTH_VERSION,STEPS,composite,strengthAgreementCandleSignal
 import {load} from './data.mjs?v=20261029-price-delta1';
 import {getJSON} from './data.mjs?v=20261029-price-delta1';
 import {oiWidthByBar} from './oi-width.mjs?v=20261029-oi-width1';
-import {pivotFlowRealtime as basePivotFlowRealtime} from './pivot-zones.mjs?v=20261029-price-delta1';
-import {pivotFlowLayout,pivotFlowZeroCoordinate} from './pivot-flow-layout.mjs?v=20261029-price-delta1';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261029-price-delta1';
 import {preRthWlrTrend,formatPreRthWlrTrend,trendReadoutState} from './pre-rth-wlr-trend.mjs?v=20261103-day-open1';
 import {renderWeeklyTrendMap} from './weekly-trend-ui.mjs?v=20261103-h4-age1';
@@ -203,7 +201,7 @@ function setupChartActions(){
     const status=document.createElement('span');status.id='aba-band-color-status';status.setAttribute('role','status');status.style.cssText='font-size:11px;color:#9badc2;flex-basis:100%;line-height:1.45';button.insertAdjacentElement('afterend',status);
     const history=document.createElement('button');history.id='aba-band-history';history.type='button';history.textContent='Xem lịch sử kênh';history.disabled=true;status.insertAdjacentElement('afterend',history);history.onclick=()=>{const times=[...abaBandPhaseMap.keys()].sort((a,b)=>a-b);if(!times.length)return;const last=times.at(-1),first=times.find(t=>t>=last-36*3600000)??times[0];chart.timeScale().setVisibleRange({from:(first-3600000)/1000,to:(last+3600000)/1000});};
   }
-  const hint=document.querySelector('.hint');if(hint){hint.textContent='Mini chart CVD × OI: lực chuẩn hóa theo nhóm giá, cột đặc/rỗng cho OI tăng/giảm rõ, chấm vàng nghi hấp thụ; xem chú giải dưới chart. ';hint.textContent+=' Kênh trend causal dùng setup Flow-Leg: nguồn SPY V phân vị, dead-band ±0,15, tối thiểu 8 nến, R² hiển thị 0,20 và giữ 12 leg. Khi có break, đường lùi tối đa 4 nến M15 liền trước cùng ngày và cùng dấu SPY V làm gốc. Phá ±2σ theo hướng trend vẫn hợp lệ; nến SPY V trung tính hoặc một nến trái dấu vẫn được giữ. Giá phá biên bất lợi, SPY V vượt dead-band đối nghịch hoặc dốc OLS ngược hướng đủ mạnh phải kéo dài hai nến đóng liên tiếp mới đóng leg; nến phá giá đầu được nhận để tái khớp OLS và ±2σ. Hai rail dùng một OLS cuối nên luôn thẳng. Trendline causal chưa đủ pivot xác nhận được giữ hiện bằng nét chấm trong cửa sổ sớm 8 nến, có nhãn HT SỚM hoặc KC SỚM; chúng chưa tham gia thống kê nhóm trend.';}
+  const hint=document.querySelector('.hint');if(hint){hint.textContent='Nhãn CVD góc trái hiển thị lực %, trạng thái OI, phản ứng giá và XEM TRƯỚC khi nến đang mở. ';hint.textContent+=' Kênh trend causal dùng setup Flow-Leg: nguồn SPY V phân vị, dead-band ±0,15, tối thiểu 8 nến, R² hiển thị 0,20 và giữ 12 leg. Khi có break, đường lùi tối đa 4 nến M15 liền trước cùng ngày và cùng dấu SPY V làm gốc. Phá ±2σ theo hướng trend vẫn hợp lệ; nến SPY V trung tính hoặc một nến trái dấu vẫn được giữ. Giá phá biên bất lợi, SPY V vượt dead-band đối nghịch hoặc dốc OLS ngược hướng đủ mạnh phải kéo dài hai nến đóng liên tiếp mới đóng leg; nến phá giá đầu được nhận để tái khớp OLS và ±2σ. Hai rail dùng một OLS cuối nên luôn thẳng. Trendline causal chưa đủ pivot xác nhận được giữ hiện bằng nét chấm trong cửa sổ sớm 8 nến, có nhãn HT SỚM hoặc KC SỚM; chúng chưa tham gia thống kê nhóm trend.';}
 }
 function syncDisplayModeButtons(){
   const soft=$('wlr-soft-color-mode');if(soft){const on=$('wlr-soft-colors').checked;soft.querySelector('span').textContent=`Màu WLR dốc + SPY V: ${on?'BẬT':'TẮT'}`;soft.setAttribute('aria-pressed',String(on));soft.title='SPY: dốc WLR 2 nến / σ thay đổi giá 13 nến, EWMA α=0,5. Nhịp sớm: dốc giá 4 nến + SPY V + 2/3 thân nến cùng phía WLR, màu nhạt và nét mỏng tối đa 2,5; chưa phải trend xác nhận. SPY V cùng dấu: xanh/đỏ; Composite đồng thuận: đậm, trung tính: nhạt, đối nghịch: vàng cam. Xám khi thiếu hướng. Sắc độ Composite đổi sau 2 nến đóng liên tiếp; hướng giá đổi ngay theo tín hiệu đã chốt. Tắt để về màu C×V cũ.';}
@@ -486,7 +484,7 @@ function updateAbaBandColors(){
 function scheduleCvdSpectrum(){spectrumPrimitive.redraw();}
 function scheduleDaySeparators(){if(dayFrame)return;dayFrame=requestAnimationFrame(()=>{dayFrame=requestAnimationFrame(()=>{dayFrame=0;drawDaySeparators();});});}
 function scheduleGeometryOverlay(){if(geometryFrame)return;geometryFrame=requestAnimationFrame(()=>{geometryFrame=requestAnimationFrame(()=>{geometryFrame=0;drawGeometryOverlay();});});}
-function schedulePivotFlowOverlay(){if(pivotFlowFrame)return;pivotFlowFrame=requestAnimationFrame(()=>{pivotFlowFrame=requestAnimationFrame(()=>{pivotFlowFrame=0;drawPivotFlowOverlay();});});}
+function schedulePivotFlowOverlay(){updateSpectrumBadge(rows.SPYUSDT?.at(-1)?.c);}
 function scheduleH1H4Strip(){if(h1H4StripFrame)return;h1H4StripFrame=requestAnimationFrame(()=>{h1H4StripFrame=0;drawH1H4Strip();});}
 function drawH1H4Strip(){
   const canvas=$('h1-h4-age-strip'),host=$('chart');if(!canvas||!host)return;
@@ -517,32 +515,7 @@ function drawH1H4Strip(){
   canvas.setAttribute('aria-label',`Dải màu phía trên pane SPY V: ${visibleBars} ô H1 đang hiển thị, tô theo trạng thái Hộp H4; chart ${interval==='15m'?'M15':'H1'}, ${previewBars} ô XEM TRƯỚC viền vàng · ${isChartLive()?'LIVE':'DELAYED'}. Màu H4 là tổng kết cả nhóm, không phải tín hiệu tại từng H1.`);
 }
 function pivotFlowRealtime(anchor,priceRows,composite,now,previous){
-  const base=basePivotFlowRealtime(anchor,priceRows,composite,now,previous);
-  if(!base)return base;
-  const region=regionFlow(priceRows,composite,oiWidths,STEPS[$('interval').value],now,{binStep:.5,percentile:Number($('oi-delta-percentile')?.value??.62)});
-  return {...base,region};
-}
-function drawPivotFlowOverlay(){
-  const canvas=$('pivot-flow-overlay'),host=$('chart'),width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1;
-  const bitmapWidth=Math.round(width*dpr),bitmapHeight=Math.round(height*dpr);if(canvas.width!==bitmapWidth||canvas.height!==bitmapHeight){canvas.width=bitmapWidth;canvas.height=bitmapHeight;}
-  const context=canvas.getContext('2d');context.setTransform(dpr,0,0,dpr,0,0);context.clearRect(0,0,width,height);
-  canvas.dataset.status='hidden';canvas.dataset.bins='0';canvas.dataset.live='false';delete canvas.dataset.mode;delete canvas.dataset.oiState;delete canvas.dataset.absorption;delete host.dataset.regionFlow;const oldReadout=$('region-flow-readout');if(oldReadout)oldReadout.hidden=true;
-  canvas.setAttribute('aria-label','CVD × OI theo vùng giá: chờ dữ liệu hoặc đang tắt Pivot Zones.');
-  const {support,resistance}=pivotZoneState,state=pivotFlowState?.region;
-  if(!$('pivot-zones').checked||$('symbol').value!=='SPYUSDT'||!state?.bins.length)return;
-  const paneHeight=chart.panes()[0]?.getHeight?.()??height*.5,position=pivotFlowZeroCoordinate(paneHeight,resistance?price.priceToCoordinate(resistance.low):null,support?price.priceToCoordinate(support.high):null);
-  if(!position)return;
-  const scaleWidth=chart.priceScale('right',0)?.width?.()??56,right=width-scaleWidth-2,raw=pivotFlowLayout(Math.max(3,Math.min(7,chart.timeScale().options().barSpacing)),state.bins.length,right-12);
-  if(!raw)return;
-  const layout={...raw,panelWidth:Math.min(right-12,Math.max(raw.panelWidth,width<650?156:180))},zero=position.zero,halfHeight=Math.min(width<650?42:50,zero-22,paneHeight-zero-36);
-  if(halfHeight<14)return;
-  const live=!!pivotFlowState.live&&isChartLive()&&!!lastSuccess&&Date.now()-lastSuccess<15000;
-  drawRegionFlow({context,canvas,state,layout,right,zero,halfHeight,live,format:fmt,source:'CVD Composite SPY+QQQ theo giá SPY · OI SPY'});
-  canvas.dataset.placement=position.placement;
-  const description='CVD Composite SPY+QQQ theo giá SPY · OI SPY'+'. '+regionFlowDescription(state,fmt);
-  host.dataset.regionFlow=description;
-  let readout=$('region-flow-readout');if(!readout){readout=document.createElement('p');readout.id='region-flow-readout';readout.className='hint';host.closest('.chart-card').after(readout);}
-  readout.hidden=false;if(readout.textContent!==description)readout.textContent=description;
+  return {region:regionFlow(priceRows,composite,oiWidths,STEPS[$('interval').value],now,{binStep:.5,percentile:Number($('oi-delta-percentile')?.value??.62)})};
 }
 
 function positionForecastReadout(){
@@ -622,20 +595,22 @@ function updateSpectrumReadout(level=null){
 function updateSpectrumBadge(currentPrice){
  const badge=$('oi-price-group-badge');if(!badge)return;
  badge.hidden=!$('oi-spectrum-toggle')?.checked||$('symbol').value!=='SPYUSDT'||!Number.isFinite(currentPrice);if(badge.hidden)return;
- const group=spectrumPriceGroup(spectrumComparison,currentPrice);if(!group)return;
- const flow=group.cvd>0?'MUA CHỦ ĐỘNG':group.cvd<0?'BÁN CHỦ ĐỘNG':'CVD CÂN BẰNG';
- const oi=group.netOi>0?'OI TĂNG RÒNG':group.netOi<0?'OI GIẢM RÒNG':'OI RÒNG CÂN BẰNG';
- const headline=document.createElement('strong');headline.textContent=`VÙNG ${fmt(group.low)}–${fmt(group.high)}`;
- const state=document.createElement('span');state.textContent=group.ready?`${flow} · ${oi}`:`${group.count?flow:'CHỜ CVD NGÀY'} · OI WAIT`;
- const values=document.createElement('small');values.textContent=group.ready?`CVD ${fmtK(group.cvd)} · OI ròng ${signed(group.netOi)} · ${spectrumComparison.stale?'OI CŨ · đang cập nhật':isChartLive()?'LIVE':'DELAYED'}`:`${spectrumComparison.day??'—'} NY · ${spectrumComparison.count} nến đóng · ${isChartLive()?'LIVE':'DELAYED'}`;
+ const group=spectrumPriceGroup(spectrumComparison,currentPrice),region=pivotFlowState?.region,latest=region?.latest;
+ if(!group)return;
+ const parts=regionFlowLabel(latest).split(' · '),headline=document.createElement('strong');
+ headline.textContent=`VÙNG ${fmt(group.low)}–${fmt(group.high)}`;
+ const state=document.createElement('span');state.textContent=parts.slice(0,2).join(' · ');
+ const reaction=document.createElement('small');reaction.className='cvd-region-reaction';reaction.textContent=parts.slice(2).join(' · ');
+ const values=document.createElement('small');values.textContent=`CVD ngày ${fmtK(group.cvd)} · OI ngày ${group.ready?signed(group.netOi):'WAIT'}${spectrumComparison.stale?' · OI NGÀY CŨ':''} · ${isChartLive()?'LIVE':'DELAYED'}`;
  const confirmation=confirmSpectrumGroup(group,spectrumComparison,rows.SPYUSDT??[],oiBarState.points),confirmLabel=document.createElement('small');confirmLabel.className='oi-region-confirmation';
  const confirmationNames={confirmed:'ĐÃ XÁC NHẬN',conflict:'NẾN ĐANG ĐỐI NGHỊCH',forming:'CHỜ THÊM NẾN',mixed:'CHƯA ĐỒNG THUẬN',WAIT:'CHỜ ĐỦ CVD / OI'};
- confirmLabel.textContent=(spectrumComparison.stale?'DỮ LIỆU CŨ · ':'')+confirmationNames[confirmation.state]+(confirmation.count?` · ${confirmation.support}/${confirmation.count} nến · ${Math.round(confirmation.share*100)}% |ΔOI|`:'');
- const text=headline.textContent+'|'+state.textContent+'|'+values.textContent+'|'+confirmLabel.textContent;
- if(badge.dataset.text!==text){badge.replaceChildren(headline,state,values,confirmLabel);badge.dataset.text=text;}
- badge.dataset.confirmation=confirmation.state;badge.dataset.confirmationCount=String(confirmation.count);badge.dataset.state=group.state;badge.dataset.low=String(group.low);badge.dataset.high=String(group.high);
- badge.title=`Gom ${group.levels} mức giá liền nhau, mỗi mức ${spectrumComparison.binStep??.5}; nhóm quanh giá hiện tại. CVD và OI cùng nến đóng, ngày ${spectrumComparison.day??'—'} NY. ${group.ready?`OI tăng ${fmtK(group.opened)}, giảm ${fmtK(group.closed)}, tổng biến động ${fmtK(group.grossOi)}.`:'Chưa đủ dữ liệu để phân loại OI.'} Xác nhận bằng nến vượt ngưỡng ΔOI trong cùng vùng và cùng nến đối chiếu: ít nhất 2 nến hỗ trợ, tỷ trọng |ΔOI| hỗ trợ ≥60%. Nến tô màu và histogram chung nguồn nên mỗi nến chỉ tính một lần. Tỷ trọng không phải xác suất thắng. Cập nhật theo dữ liệu, không xác định chắc long/short.`;
+ confirmLabel.textContent='NGÀY · '+confirmationNames[confirmation.state]+(confirmation.count?` · ${confirmation.support}/${confirmation.count} nến`:'');
+ const children=[headline,state,reaction,values,confirmLabel],text=children.map(x=>x.textContent).join('|');
+ if(badge.dataset.text!==text){badge.replaceChildren(...children);badge.dataset.text=text;}
+ badge.dataset.confirmation=confirmation.state;badge.dataset.confirmationCount=String(confirmation.count);badge.dataset.state=latest?latest.pct>0?'buy':latest.pct<0?'sell':'neutral':'WAIT';badge.dataset.low=String(group.low);badge.dataset.high=String(group.high);badge.dataset.provisional=String(!!latest?.provisional);badge.dataset.oiState=latest?.oiState??'missing';
+ badge.title=(region?regionFlowDescription(region,fmt):'Chờ CVD theo vùng giá.')+' Lực %, trạng thái OI và phản ứng giá dùng tối đa 96 nến cùng vùng; CVD ngày, OI ngày và xác nhận NGÀY dùng nhóm nến đóng của ngày đối chiếu. Hai cửa sổ có thể khác trạng thái.';
 }
+
 function inspectSpectrum(event){
   if(!chart||!price)return;
   const rect=$('chart').getBoundingClientRect(),y=event.clientY-rect.top,paneHeight=chart.panes()[0]?.getHeight?.()??0;

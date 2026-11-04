@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import {regionFlow,drawRegionFlow,regionFlowDescription} from '../region-flow.mjs';
+import {regionFlow,regionFlowLabel,drawRegionFlow,regionFlowDescription} from '../region-flow.mjs';
 import {pivotFlowLayout,pivotFlowZeroCoordinate} from '../pivot-flow-layout.mjs';
 
-for(const folder of ['netflow-stumpy','netflow-ml'])test(folder+': ứng dụng vẽ, tắt và giữ OI thiếu đúng nguồn',()=>{
+for(const folder of ['netflow-ml'])test(folder+': ứng dụng vẽ, tắt và giữ OI thiếu đúng nguồn',()=>{
  const app=fs.readFileSync(new URL('../../'+folder+'/app.mjs',import.meta.url),'utf8');
  const code=app.slice(app.indexOf('function pivotFlowRealtime('),app.indexOf('\nfunction positionForecastReadout()'));
  const ctx=new Proxy({},{get:(o,k)=>k in o?o[k]:()=>{},set:(o,k,v)=>(o[k]=v,true)});
@@ -18,4 +18,18 @@ for(const folder of ['netflow-stumpy','netflow-ml'])test(folder+': ứng dụng 
  sandbox.drawPivotFlowOverlay();assert.equal(canvas.dataset.status,'visible');assert.equal(canvas.dataset.oiState,'missing');assert.equal(canvas.dataset.live,'false');
  assert.match(elements['region-flow-readout'].textContent,/OI THIẾU/);assert.equal(elements['region-flow-readout'].hidden,false);
  elements['pivot-zones'].checked=false;sandbox.drawPivotFlowOverlay();assert.equal(canvas.dataset.status,'hidden');assert.equal(elements['region-flow-readout'].hidden,true);assert.equal(elements.chart.dataset.regionFlow,undefined);
+});
+
+test('DVP bỏ canvas mini, gộp lực và nến xem trước vào nhãn CVD',()=>{
+ const app=fs.readFileSync(new URL('../app.mjs',import.meta.url),'utf8');
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert(!html.includes('id="pivot-flow-overlay"'));assert(!app.includes('drawPivotFlowOverlay'));
+ const code=app.slice(app.indexOf('function updateSpectrumBadge('),app.indexOf('\nfunction inspectSpectrum('));
+ const badge={dataset:{},replaceChildren(...children){this.children=children;}},elements={'oi-price-group-badge':badge,'oi-spectrum-toggle':{checked:true},symbol:{value:'SPYUSDT'}};
+ const latest={pct:35,oiState:'missing',paired:0,count:3,priceCount:3,low:99.75,high:101.25,efficiency:0,provisional:true,flowReady:true,absorption:true};
+ const sandbox={$:id=>elements[id],document:{createElement:()=>({})},regionFlowLabel,regionFlowDescription,pivotFlowState:{region:{latest,window:96,percentile:.62}},spectrumComparison:{stale:true},spectrumPriceGroup:()=>({low:99.75,high:101.25,cvd:-500,netOi:-20,ready:true}),confirmSpectrumGroup:()=>({state:'WAIT',count:0}),rows:{SPYUSDT:[]},oiBarState:{points:new Map()},fmt:String,fmtK:String,signed:String,isChartLive:()=>false};
+ vm.createContext(sandbox);vm.runInContext(code,sandbox);sandbox.updateSpectrumBadge(100);
+ const text=badge.children.map(x=>x.textContent).join(' · ');
+ assert.match(text,/MUA \+35.0%/);assert.match(text,/OI THIẾU 0\/3/);assert.match(text,/GIÁ NGANG/);assert.match(text,/XEM TRƯỚC/);assert.match(text,/OI NGÀY CŨ/);assert.equal(badge.dataset.provisional,'true');
+ elements['oi-spectrum-toggle'].checked=false;sandbox.updateSpectrumBadge(100);assert.equal(badge.hidden,true);
 });
