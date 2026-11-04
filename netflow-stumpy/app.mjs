@@ -593,16 +593,15 @@ function updateSpectrumBadge(currentPrice){
  const group=spectrumPriceGroup(spectrumComparison,currentPrice);if(!group)return;
  const flow=group.cvd>0?'MUA CHỦ ĐỘNG':group.cvd<0?'BÁN CHỦ ĐỘNG':'CVD CÂN BẰNG';
  const oi=group.netOi>0?'OI TĂNG RÒNG':group.netOi<0?'OI GIẢM RÒNG':'OI RÒNG CÂN BẰNG';
- const headline=document.createElement('strong');headline.textContent=`VÙNG ${fmt(group.low)}–${fmt(group.high)}`;
  const state=document.createElement('span');state.textContent=group.ready?`${flow} · ${oi}`:`${group.count?flow:'CHỜ CVD NGÀY'} · OI WAIT`;
  const values=document.createElement('small');values.textContent=group.ready?`CVD ${fmtK(group.cvd)} · OI ròng ${signed(group.netOi)} · ${spectrumComparison.stale?'OI CŨ · đang cập nhật':isChartLive()?'LIVE':'DELAYED'}`:`${spectrumComparison.day??'—'} NY · ${spectrumComparison.count} nến đóng · ${isChartLive()?'LIVE':'DELAYED'}`;
  const confirmation=confirmSpectrumGroup(group,spectrumComparison,rows.SPYUSDT??[],oiBarState.points),confirmLabel=document.createElement('small');confirmLabel.className='oi-region-confirmation';
  const confirmationNames={confirmed:'ĐÃ XÁC NHẬN',conflict:'NẾN ĐANG ĐỐI NGHỊCH',forming:'CHỜ THÊM NẾN',mixed:'CHƯA ĐỒNG THUẬN',WAIT:'CHỜ ĐỦ CVD / OI'};
  confirmLabel.textContent=(spectrumComparison.stale?'DỮ LIỆU CŨ · ':'')+confirmationNames[confirmation.state]+(confirmation.count?` · ${confirmation.support}/${confirmation.count} nến · ${Math.round(confirmation.share*100)}% |ΔOI|`:'');
- const text=headline.textContent+'|'+state.textContent+'|'+values.textContent+'|'+confirmLabel.textContent;
- if(badge.dataset.text!==text){badge.replaceChildren(headline,state,values,confirmLabel);badge.dataset.text=text;}
+ const text=state.textContent+'|'+values.textContent+'|'+confirmLabel.textContent;
+ if(badge.dataset.text!==text){badge.replaceChildren(state,values,confirmLabel);badge.dataset.text=text;}
  badge.dataset.confirmation=confirmation.state;badge.dataset.confirmationCount=String(confirmation.count);badge.dataset.state=group.state;badge.dataset.low=String(group.low);badge.dataset.high=String(group.high);
- badge.title=`Gom ${group.levels} mức giá liền nhau, mỗi mức ${spectrumComparison.binStep??.5}; nhóm quanh giá hiện tại. CVD và OI cùng nến đóng, ngày ${spectrumComparison.day??'—'} NY. ${group.ready?`OI tăng ${fmtK(group.opened)}, giảm ${fmtK(group.closed)}, tổng biến động ${fmtK(group.grossOi)}.`:'Chưa đủ dữ liệu để phân loại OI.'} Xác nhận bằng nến vượt ngưỡng ΔOI trong cùng vùng và cùng nến đối chiếu: ít nhất 2 nến hỗ trợ, tỷ trọng |ΔOI| hỗ trợ ≥60%. Nến tô màu và histogram chung nguồn nên mỗi nến chỉ tính một lần. Tỷ trọng không phải xác suất thắng. Cập nhật theo dữ liệu, không xác định chắc long/short.`;
+ badge.title=`Vùng ${fmt(group.low)}–${fmt(group.high)}. Gom ${group.levels} mức giá liền nhau, mỗi mức ${spectrumComparison.binStep??.5}; nhóm quanh giá hiện tại. CVD và OI cùng nến đóng, ngày ${spectrumComparison.day??'—'} NY. ${group.ready?`OI tăng ${fmtK(group.opened)}, giảm ${fmtK(group.closed)}, tổng biến động ${fmtK(group.grossOi)}.`:'Chưa đủ dữ liệu để phân loại OI.'} Xác nhận bằng nến vượt ngưỡng ΔOI trong cùng vùng và cùng nến đối chiếu: ít nhất 2 nến hỗ trợ, tỷ trọng |ΔOI| hỗ trợ ≥60%. Nến tô màu và histogram chung nguồn nên mỗi nến chỉ tính một lần. Tỷ trọng không phải xác suất thắng. Cập nhật theo dữ liệu, không xác định chắc long/short.`;
 }
 function inspectSpectrum(event){
   if(!chart||!price)return;

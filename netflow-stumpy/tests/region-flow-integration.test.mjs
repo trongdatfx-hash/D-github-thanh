@@ -29,6 +29,6 @@ test('DVP bỏ nhãn lực vùng và giữ trạng thái CVD cũ',()=>{
  const sandbox={$:id=>elements[id],document:{createElement:()=>({})},spectrumComparison:{stale:true,binStep:.5,day:'2026-11-04'},spectrumPriceGroup:()=>({low:99.75,high:101.25,cvd:-500,netOi:-20,ready:true,state:'sell-oi-decrease',levels:3,opened:0,closed:20,grossOi:20}),confirmSpectrumGroup:()=>({state:'WAIT',count:0}),rows:{SPYUSDT:[]},oiBarState:{points:new Map()},fmt:String,fmtK:String,signed:String,isChartLive:()=>false};
  vm.createContext(sandbox);vm.runInContext(code,sandbox);sandbox.updateSpectrumBadge(100);
  const text=badge.children.map(x=>x.textContent).join(' · ');
- assert.match(text,/BÁN CHỦ ĐỘNG · OI GIẢM RÒNG/);assert.match(text,/OI CŨ/);assert(!text.includes('XEM TRƯỚC'));
+ assert.equal(badge.children.length,3);assert(!text.includes('VÙNG'));assert.match(text,/BÁN CHỦ ĐỘNG · OI GIẢM RÒNG/);assert.match(text,/OI CŨ/);assert(!text.includes('XEM TRƯỚC'));
  elements['oi-spectrum-toggle'].checked=false;sandbox.updateSpectrumBadge(100);assert.equal(badge.hidden,true);
 });
