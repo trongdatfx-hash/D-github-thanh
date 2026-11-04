@@ -57,13 +57,15 @@
 .chart-card:fullscreen #oi-cvd-readout,
 .chart-card.fullscreen-fallback #oi-cvd-readout{display:none!important}
 
-/* Keep CVD and H1 age on a single responsive row above trend age. */
-#h1-cvd-status-row{position:absolute;z-index:8;right:58px;top:10px;width:min(470px,calc(100% - 72px));display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:5px;align-items:stretch;pointer-events:none}
+/* Keep both labels readable, with natural wrapping and all content intact. */
+#h1-cvd-status-row{position:absolute;z-index:8;right:58px;top:10px;width:min(520px,calc(100% - 70px));display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:5px;align-items:stretch;pointer-events:none}
 #h1-cvd-status-row[hidden]{display:none}
-#h1-cvd-status-row>.oi-price-group-badge,#h1-cvd-status-row>#h1-trend-age-readout{position:static;inset:auto;min-width:0;max-width:none;box-sizing:border-box;margin:0;box-shadow:none}
-#h1-cvd-status-row>.oi-price-group-badge{gap:2px;padding:4px 6px;line-height:1.3;justify-content:center;overflow-wrap:anywhere;border-radius:5px}
-#h1-cvd-status-row .oi-price-group-badge span{font-size:11px}
-#h1-cvd-status-row .oi-price-group-badge small{font-size:10px;line-height:1.3}
-#h1-cvd-status-row>#h1-trend-age-readout{padding:4px 6px;border-radius:5px;justify-content:center}
-#h1-cvd-status-row[data-has-h1=false],#h1-cvd-status-row[data-has-cvd=false]{grid-template-columns:minmax(0,1fr);width:min(270px,calc(100% - 72px))}
-@media(max-width:650px){#h1-cvd-status-row{width:calc(100% - 68px);gap:4px}#h1-cvd-status-row .oi-price-group-badge span{font-size:10px}#h1-cvd-status-row .oi-price-group-badge small{font-size:9.5px}#h1-cvd-status-row #h1-trend-age-text{font-size:10px}#h1-cvd-status-row #h1-candle-countdown{font-size:10px;padding:2px 4px}}
+#h1-cvd-status-row>.oi-price-group-badge,#h1-cvd-status-row>#h1-trend-age-readout{position:static;inset:auto;min-width:0;max-width:none;height:auto;max-height:none;box-sizing:border-box;margin:0;box-shadow:none;overflow:visible;white-space:normal;word-break:normal;overflow-wrap:break-word}
+#h1-cvd-status-row>.oi-price-group-badge{gap:3px;padding:5px 7px;line-height:1.35;justify-content:center;border-radius:5px}
+#h1-cvd-status-row .oi-price-group-badge span{font-size:12px;line-height:1.35;white-space:normal}
+#h1-cvd-status-row .oi-price-group-badge small{font-size:11px;line-height:1.35;white-space:normal}
+#h1-cvd-status-row>#h1-trend-age-readout{padding:5px 7px;border-radius:5px;justify-content:center;gap:3px}
+#h1-cvd-status-row #h1-trend-age-text{font-size:12px;line-height:1.35;white-space:normal}
+#h1-cvd-status-row #h1-candle-countdown{font-size:13px}
+#h1-cvd-status-row[data-has-h1=false],#h1-cvd-status-row[data-has-cvd=false]{grid-template-columns:minmax(0,1fr);width:min(310px,calc(100% - 70px))}
+@media(max-width:650px){#h1-cvd-status-row{width:calc(100% - 66px);gap:4px}#h1-cvd-status-row>.oi-price-group-badge,#h1-cvd-status-row>#h1-trend-age-readout{padding:4px 5px}#h1-cvd-status-row .oi-price-group-badge span{font-size:11.5px}#h1-cvd-status-row .oi-price-group-badge small{font-size:11px}#h1-cvd-status-row #h1-trend-age-text{font-size:11px}#h1-cvd-status-row #h1-candle-countdown{font-size:12px;padding:2px 5px}}
