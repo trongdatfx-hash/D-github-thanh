@@ -1,4 +1,4 @@
-import {oiDeltaGates} from './oi-delta-gate.mjs?v=20261104-oi-ten1';
+import {oiDeltaGates} from './oi-delta-gate.mjs?v=20261104-oi-p62-1';
 import {oiSpectrumDay} from './oi-spectrum.mjs?v=20261104-oi-smooth1';
 
 export const OI_GROUP_LABELS={
@@ -22,11 +22,11 @@ export function oiCandleDirection(row, filterPin=true){
   return Math.sign(c-o);
 }
 
-export function oiCandleBars(priceRows,spyHistogram,flowRows,oiByTime,step,now,{filterPin=true,history=false,minOiMultiplier=0}={}){
+export function oiCandleBars(priceRows,spyHistogram,flowRows,oiByTime,step,now,{filterPin=true,history=false,minOiMultiplier=0,oiPercentile=.62}={}){
   const result={data:[],points:new Map(),eligible:0,matched:0,downOiIncrease:0,gateReady:0,groups:{},day:null};
   if(!(step>0)||!Number.isFinite(now)||now<=0)return result;
   result.day=oiSpectrumDay(now);
-  const gates=minOiMultiplier>0?oiDeltaGates(oiByTime,step,now,{multiplier:minOiMultiplier}):null;
+  const gates=minOiMultiplier>0?oiDeltaGates(oiByTime,step,now,{multiplier:minOiMultiplier,percentile:oiPercentile}):null;
   const volume=new Map(spyHistogram.map(x=>[x.t,x.value])),flow=new Map(flowRows.map(x=>[x.t,x.net]));
   for(const row of priceRows){
     const point={time:row.t/1000};result.data.push(point);
@@ -43,7 +43,7 @@ export function oiCandleBars(priceRows,spyHistogram,flowRows,oiByTime,step,now,{
     const gate=gates?.get(row.t),gateReady=!gates||gate?.ready===true,gatePassed=!gates||gate?.passed===true;
     if(gateReady)result.gateReady++;
     const matched=Boolean(kind)&&gatePassed;
-    const info={delta,direction,spyV:v,net:nf,matched,kind,gateReady,gatePassed,threshold:gate?.threshold??null,baseline:gate?.baseline??null,pinAdjusted:direction!==Math.sign(row.c-row.o)};
+    const info={delta,direction,spyV:v,net:nf,matched,kind,gateReady,gatePassed,percentile:oiPercentile,threshold:gate?.threshold??null,baseline:gate?.baseline??null,pinAdjusted:direction!==Math.sign(row.c-row.o)};
     result.points.set(row.t,info);
     if(!matched)continue;
     result.matched++;result.groups[kind]=(result.groups[kind]??0)+1;if(kind==='down-oi-increase')result.downOiIncrease++;

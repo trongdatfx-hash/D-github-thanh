@@ -4,13 +4,20 @@ import {oiDeltaGates} from '../oi-delta-gate.mjs';
 import {oiCandleBars} from '../oi-candle-bars.mjs';
 const step=900000,start=Date.parse('2026-11-03T05:00:00Z');
 function fixture(delta){return new Map(Array.from({length:12},(_,i)=>[start+i*step,{oi:1000+Math.min(i,10)*10+(i===11?delta:0)}]));}
-test('strict threshold uses ten preceding absolute deltas, excluding current spike',()=>{
+test('strict P62 threshold uses ten preceding absolute deltas, excluding current spike',()=>{
   const t=start+11*step,now=t+step;
   for(const [delta,passed] of [[9,false],[10,false],[11,true],[1000,true]]){
     const result=oiDeltaGates(fixture(delta),step,now).get(t);assert.equal(result.baseline,10);assert.equal(result.threshold,10);assert.equal(result.passed,passed);
   }
   assert.equal(oiDeltaGates(fixture(15),step,now,{multiplier:1.5}).get(t).passed,false);
   assert.equal(oiDeltaGates(fixture(16),step,now,{multiplier:1.5}).get(t).passed,true);
+});
+test('P62 uses linear interpolation and resists a single extreme baseline delta',()=>{
+  const t=start+11*step,now=t+step;
+  const make=last=>{let oi=1000;return new Map([0,...[2,3,4,5,6,7,8,9,10,last,8]].map((delta,i)=>{oi+=delta;return [start+i*step,{oi}];}));};
+  const a=oiDeltaGates(make(11),step,now).get(t),b=oiDeltaGates(make(100),step,now).get(t);
+  assert.ok(Math.abs(b.threshold-7.58)<1e-9);assert.equal(a.threshold,b.threshold);assert.equal(b.passed,true);
+  assert.equal(oiDeltaGates(make(100),step,now,{percentile:.8}).get(t).passed,false);
 });
 test('insufficient history, a gap and an unclosed sample never grant the gate',()=>{
   const oi=fixture(20),t=start+11*step;
