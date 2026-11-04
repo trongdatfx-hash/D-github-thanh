@@ -21,12 +21,12 @@ test('downward OI expansion overrides H1 color with a dark purple body and no ou
   primitive.setData([{time:1,open:60,close:40,color:'#18d6a3',oiKind:'down-oi-increase'}]);
   const context={save(){},restore(){},fillRect(){fills.push(this.fillStyle);},strokeRect(){borders++;}};
   primitive.draw({useBitmapCoordinateSpace:fn=>fn({context,horizontalPixelRatio:1,verticalPixelRatio:1,bitmapSize:{width:200,height:200}})});
-  assert.deepEqual(fills,['#5b21b6']);assert.equal(borders,0);
+  assert.deepEqual(fills,['#7c3aed']);assert.equal(borders,0);
   assert.equal(oiBodyContrast('#18d6a3','same-sign').border,'#fff3bf');
 });
 test('increasing OI is borderless on both sides; decreasing OI keeps cream borders',()=>{
   assert.deepEqual(oiBodyContrast('#ff4d70','up-oi-increase'),{body:'#1243be',border:null});
-  assert.deepEqual(oiBodyContrast('#18d6a3','down-oi-increase'),{body:'#5b21b6',border:null});
+  assert.deepEqual(oiBodyContrast('#18d6a3','down-oi-increase'),{body:'#7c3aed',border:null});
   assert.deepEqual(oiBodyContrast('#788391','up-oi-decrease'),{body:'#1351ee',border:'#fff3bf'});
   assert.deepEqual(oiBodyContrast('#788391','down-oi-decrease'),{body:'#8b5cf6',border:'#fff3bf'});
 });

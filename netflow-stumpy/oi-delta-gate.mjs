@@ -1,6 +1,6 @@
 // A candle compares only with preceding closed periods; today's spike never
-// enters its own baseline. Missing periods reset the twenty-delta warmup.
-export function oiDeltaGates(oiByTime,step,now,{window=20,multiplier=1}={}){
+// enters its own baseline. Missing periods reset the ten-delta warmup.
+export function oiDeltaGates(oiByTime,step,now,{window=10,multiplier=1}={}){
   const output=new Map(),history=[];let previous=null,sum=0;
   if(!(step>0)||!Number.isFinite(now)||!Number.isInteger(window)||window<1||!(multiplier>0))return output;
   for(const [t,point] of [...oiByTime].sort((a,b)=>a[0]-b[0])){
