@@ -20,19 +20,15 @@ for(const folder of ['netflow-ml'])test(folder+': ứng dụng vẽ, tắt và g
  elements['pivot-zones'].checked=false;sandbox.drawPivotFlowOverlay();assert.equal(canvas.dataset.status,'hidden');assert.equal(elements['region-flow-readout'].hidden,true);assert.equal(elements.chart.dataset.regionFlow,undefined);
 });
 
-test('DVP giữ nhãn CVD cũ và tách lực vùng gần tuổi H1',()=>{
+test('DVP bỏ nhãn lực vùng và giữ trạng thái CVD cũ',()=>{
  const app=fs.readFileSync(new URL('../app.mjs',import.meta.url),'utf8');
  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
- assert(!html.includes('id="pivot-flow-overlay"'));assert(!app.includes('drawPivotFlowOverlay'));
- const code=app.slice(app.indexOf('function updateRegionFlowBadge('),app.indexOf('\nfunction inspectSpectrum('));
+ assert(!html.includes('id="pivot-flow-overlay"'));assert(!app.includes('region-flow-badge'));assert(!app.includes('regionFlow('));assert(!app.includes('region-flow.mjs'));
+ const code=app.slice(app.indexOf('function updateSpectrumBadge('),app.indexOf('\nfunction inspectSpectrum('));
  const badge={dataset:{},replaceChildren(...children){this.children=children;}},elements={'oi-price-group-badge':badge,'oi-spectrum-toggle':{checked:true},symbol:{value:'SPYUSDT'}};
- elements.chart={append(node){elements[node.id]=node;}};
- const latest={pct:35,oiState:'missing',paired:0,count:3,priceCount:3,low:99.75,high:101.25,efficiency:0,provisional:true,flowReady:true,absorption:true};
- const sandbox={$:id=>elements[id],document:{createElement:()=>({dataset:{},setAttribute(){},replaceChildren(...children){this.children=children;}})},regionFlowLabel,regionFlowDescription,pivotFlowState:{region:{latest,window:96,percentile:.62}},spectrumComparison:{stale:true,binStep:.5,day:'2026-11-04'},spectrumPriceGroup:()=>({low:99.75,high:101.25,cvd:-500,netOi:-20,ready:true,state:'sell-oi-decrease',levels:3,opened:0,closed:20,grossOi:20}),confirmSpectrumGroup:()=>({state:'WAIT',count:0}),rows:{SPYUSDT:[]},oiBarState:{points:new Map()},fmt:String,fmtK:String,signed:String,isChartLive:()=>false,requestAnimationFrame:()=>{},positionForecastReadout:()=>{}};
+ const sandbox={$:id=>elements[id],document:{createElement:()=>({})},spectrumComparison:{stale:true,binStep:.5,day:'2026-11-04'},spectrumPriceGroup:()=>({low:99.75,high:101.25,cvd:-500,netOi:-20,ready:true,state:'sell-oi-decrease',levels:3,opened:0,closed:20,grossOi:20}),confirmSpectrumGroup:()=>({state:'WAIT',count:0}),rows:{SPYUSDT:[]},oiBarState:{points:new Map()},fmt:String,fmtK:String,signed:String,isChartLive:()=>false};
  vm.createContext(sandbox);vm.runInContext(code,sandbox);sandbox.updateSpectrumBadge(100);
- const oldText=badge.children.map(x=>x.textContent).join(' · ');
- assert.match(oldText,/BÁN CHỦ ĐỘNG · OI GIẢM RÒNG/);assert(!oldText.includes('35.0%'));assert(!oldText.includes('XEM TRƯỚC'));
- const flow=elements['region-flow-badge'],text=flow.children.map(x=>x.textContent).join(' · ');
- assert.match(text,/MUA \+35.0%/);assert.match(text,/OI THIẾU 0\/3/);assert.match(text,/GIÁ NGANG/);assert.match(text,/XEM TRƯỚC/);assert.equal(flow.dataset.provisional,'true');
- elements['oi-spectrum-toggle'].checked=false;sandbox.updateSpectrumBadge(100);assert.equal(badge.hidden,true);assert.equal(flow.hidden,true);
+ const text=badge.children.map(x=>x.textContent).join(' · ');
+ assert.match(text,/BÁN CHỦ ĐỘNG · OI GIẢM RÒNG/);assert.match(text,/OI CŨ/);assert(!text.includes('XEM TRƯỚC'));
+ elements['oi-spectrum-toggle'].checked=false;sandbox.updateSpectrumBadge(100);assert.equal(badge.hidden,true);
 });

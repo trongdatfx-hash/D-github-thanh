@@ -1,5 +1,4 @@
 #chart{height:820px}
-#pivot-flow-overlay{position:absolute;inset:0;width:100%;height:100%;z-index:4;pointer-events:none}
 #pivot-zone-readout{display:none!important}
 #strength-readout{inset:0 58px 0 0;display:block}
 #strength-readout span{position:absolute;left:auto;right:0;transform:none}
@@ -57,12 +56,3 @@
 /* Keep the daily CVD/OI explanation out of Full chart in both fullscreen modes. */
 .chart-card:fullscreen #oi-cvd-readout,
 .chart-card.fullscreen-fallback #oi-cvd-readout{display:none!important}
-
-/* Regional pressure stays beside the H1 age stack; CVD day status stays left. */
-#region-flow-badge{position:absolute;z-index:7;right:58px;top:10px;display:flex;flex-direction:column;gap:2px;max-width:min(260px,calc(100% - 76px));box-sizing:border-box;padding:4px 7px;border:1px solid #52667d;border-radius:6px;background:rgba(9,18,31,.94);color:#ccd6e3;line-height:1.35;font-variant-numeric:tabular-nums;pointer-events:auto;cursor:help;text-align:right}
-#region-flow-badge[hidden]{display:none}
-#region-flow-badge strong{font-size:11px;font-weight:700}
-#region-flow-badge small{font-size:10px;color:#aebed0}
-#region-flow-badge[data-state=buy] strong{color:#46ddb0}
-#region-flow-badge[data-state=sell] strong{color:#ed91a2}
-@media(max-width:650px){#region-flow-badge{padding:3px 6px;max-width:calc(100% - 68px)}#region-flow-badge strong{font-size:10px}#region-flow-badge small{font-size:9px}}
