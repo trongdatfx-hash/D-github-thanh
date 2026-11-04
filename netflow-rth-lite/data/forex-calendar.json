@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-11-04T03:14:29.933Z",
+  "updatedAt": "2026-11-04T11:11:39.464Z",
   "events": [
     {
       "title": "Daylight Saving Time Shift",
@@ -489,7 +489,7 @@
       "date": "2026-11-04T08:00:00.000Z",
       "timestamp": 1793779200000,
       "impact": "Low",
-      "actual": "",
+      "actual": "43.1K",
       "forecast": "18.7K",
       "previous": "23.6K"
     },
@@ -499,7 +499,7 @@
       "date": "2026-11-04T08:15:00.000Z",
       "timestamp": 1793780100000,
       "impact": "Low",
-      "actual": "",
+      "actual": "57.2",
       "forecast": "57.6",
       "previous": "58.3"
     },
@@ -509,7 +509,7 @@
       "date": "2026-11-04T08:45:00.000Z",
       "timestamp": 1793781900000,
       "impact": "Low",
-      "actual": "",
+      "actual": "52.0",
       "forecast": "51.4",
       "previous": "51.7"
     },
@@ -519,7 +519,7 @@
       "date": "2026-11-04T08:50:00.000Z",
       "timestamp": 1793782200000,
       "impact": "Low",
-      "actual": "",
+      "actual": "46.2",
       "forecast": "48.4",
       "previous": "48.4"
     },
@@ -529,7 +529,7 @@
       "date": "2026-11-04T08:55:00.000Z",
       "timestamp": 1793782500000,
       "impact": "Low",
-      "actual": "",
+      "actual": "52.5",
       "forecast": "51.7",
       "previous": "51.7"
     },
@@ -539,7 +539,7 @@
       "date": "2026-11-04T09:00:00.000Z",
       "timestamp": 1793782800000,
       "impact": "Low",
-      "actual": "",
+      "actual": "51.4",
       "forecast": "51.7",
       "previous": "51.7"
     },
@@ -549,7 +549,7 @@
       "date": "2026-11-04T09:30:00.000Z",
       "timestamp": 1793784600000,
       "impact": "Low",
-      "actual": "",
+      "actual": "52.8",
       "forecast": "53.1",
       "previous": "53.1"
     },
@@ -559,7 +559,7 @@
       "date": "2026-11-04T10:00:00.000Z",
       "timestamp": 1793786400000,
       "impact": "Medium",
-      "actual": "",
+      "actual": "2.5%",
       "forecast": "2.5%",
       "previous": "2.5%"
     },
@@ -569,7 +569,7 @@
       "date": "2026-11-04T10:00:00.000Z",
       "timestamp": 1793786400000,
       "impact": "Medium",
-      "actual": "",
+      "actual": "4.0%",
       "forecast": "4.0%",
       "previous": "3.8%"
     },
