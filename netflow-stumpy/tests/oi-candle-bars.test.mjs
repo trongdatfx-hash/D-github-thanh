@@ -40,7 +40,7 @@ test('falling price, negative flow and rising OI is a separate historical group'
   assert.equal(run(down,{...opts,oi:false}).matched,0);
   assert.equal(run(down,{...opts,clock:t+step-1}).matched,0);
   const old=run(down,{v:-2,nf:-30,delta:-5});assert.equal(old.points.get(t).kind,'down-oi-decrease');
-  assert.notEqual(old.data[0].color,result.data[0].color);
+  assert.equal(old.data[0].color,result.data[0].color);
   const lowerWick={...down,o:11,c:10.9,h:11.1,l:9};
   assert.equal(run(lowerWick,opts).matched,0);
 });

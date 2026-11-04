@@ -7,7 +7,6 @@ export const OI_GROUP_LABELS={
   'down-oi-increase':'GIẢM · BÁN CHỦ ĐỘNG · OI TĂNG',
   'down-oi-decrease':'GIẢM · BÁN CHỦ ĐỘNG · OI GIẢM'
 };
-const GROUP_COLORS={'up-oi-increase':'#1243be','up-oi-decrease':'#1351ee','down-oi-increase':'#5b21b6','down-oi-decrease':'#8b5cf6'};
 
 // Only a clearly dominant rejection wick overrides the OHLC body direction.
 // The actual SPY V histogram is never rewritten to manufacture agreement.
@@ -48,7 +47,7 @@ export function oiCandleBars(priceRows,spyHistogram,flowRows,oiByTime,step,now,{
     result.points.set(row.t,info);
     if(!matched)continue;
     result.matched++;result.groups[kind]=(result.groups[kind]??0)+1;if(kind==='down-oi-increase')result.downOiIncrease++;
-    point.value=Math.abs(delta);point.color=GROUP_COLORS[kind];
+    point.value=Math.abs(delta);point.color=direction>0?'rgba(26,224,163,.72)':'rgba(255,77,112,.72)';
   }
   return result;
 }
