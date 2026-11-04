@@ -44,25 +44,25 @@ export function regionFlowDescription(state,format=String){
 }
 
 export function drawRegionFlow({context,canvas,state,layout,right,zero,halfHeight,live,format=String,source=''}){
-  const {panelWidth,barWidth,gap,shownCount}=layout,left=right-panelWidth,bars=state.bins.slice(-shownCount),latest=state.latest;
+  const {panelWidth,barWidth,gap,shownCount}=layout,left=right-panelWidth,bars=state.bins.slice(-shownCount),latest=state.latest,plotMax=Math.max(10,...bars.map(b=>Math.abs(b.pct??0))),barsLeft=right-6-bars.length*barWidth-Math.max(0,bars.length-1)*gap;
   context.save();context.fillStyle='rgba(9,18,31,.94)';context.strokeStyle='#7189a5';context.lineWidth=1;
   context.fillRect(left,zero-halfHeight-17,panelWidth,2*halfHeight+50);context.strokeRect(left+.5,zero-halfHeight-16.5,panelWidth-1,2*halfHeight+49);
   context.strokeStyle='#7e92aa';context.setLineDash([2,3]);context.beginPath();context.moveTo(left+3,zero+.5);context.lineTo(right-3,zero+.5);context.stroke();context.setLineDash([]);
   for(let i=0;i<bars.length;i++){
     const b=bars[i];if(!Number.isFinite(b.pct))continue;
-    const x=left+6+i*(barWidth+gap),size=Math.max(1,Math.abs(b.pct)/100*(halfHeight-4)),y=b.pct>=0?zero-size:zero,color=b.pct>=0?'#1ae0a3':'#ff4d70';
-    context.strokeStyle=color;context.fillStyle=color;context.globalAlpha=['increase','decrease'].includes(b.oiState)?1:.38;
+    const x=barsLeft+i*(barWidth+gap),size=Math.max(1,Math.abs(b.pct)/plotMax*(halfHeight-4)),y=b.pct>=0?zero-size:zero,color=b.pct>=0?'#1ae0a3':'#ff4d70';
+    context.strokeStyle=color;context.fillStyle=color;context.globalAlpha=['increase','decrease'].includes(b.oiState)?1:.6;
     if(b.oiState==='decrease')context.strokeRect(x+.5,y+.5,Math.max(1,barWidth-1),Math.max(1,size-1));else context.fillRect(x,y,barWidth,size);
     context.globalAlpha=1;
     if(b.absorption){context.fillStyle='#f6c85f';context.beginPath();context.arc(x+barWidth/2,b.pct>=0?y-3:y+size+3,2,0,2*Math.PI);context.fill();}
     if(live&&b.provisional){context.strokeStyle='#f6c85f';context.setLineDash([2,2]);context.strokeRect(x-.5,y-.5,barWidth+1,size+1);context.setLineDash([]);}
   }
   context.font='700 9px system-ui,sans-serif';context.textBaseline='middle';context.textAlign='left';context.fillStyle='#c5d6eb';
-  context.fillText('CVD × OI · VÙNG',left+5,zero-halfHeight-8,panelWidth-10);
+  context.fillText(`CVD × OI · ±${Math.ceil(plotMax)}%`,left+5,zero-halfHeight-8,panelWidth-10);
   const parts=regionFlowLabel(latest).split(' · ');
   context.fillStyle=latest?.pct>0?'#39f0b9':latest?.pct<0?'#ff718d':'#c5d6eb';
   context.fillText(parts.slice(0,2).join(' · '),left+5,zero+halfHeight+8,panelWidth-10);
   context.fillStyle=latest?.absorption?'#f6c85f':'#b4c4d6';context.fillText(parts.slice(2).join(' · '),left+5,zero+halfHeight+22,panelWidth-10);context.restore();
-  canvas.dataset.status='visible';canvas.dataset.mode='price-region';canvas.dataset.bins=String(bars.length);canvas.dataset.live=String(live);canvas.dataset.oiState=latest?.oiState??'missing';canvas.dataset.absorption=String(!!latest?.absorption);canvas.dataset.barWidth=String(barWidth);canvas.dataset.barSpacing=String(layout.barSpacing);
-  canvas.setAttribute('aria-label',source+'. '+regionFlowDescription(state,format));
+  canvas.dataset.plotMax=String(plotMax);canvas.dataset.status='visible';canvas.dataset.mode='price-region';canvas.dataset.bins=String(bars.length);canvas.dataset.live=String(live);canvas.dataset.oiState=latest?.oiState??'missing';canvas.dataset.absorption=String(!!latest?.absorption);canvas.dataset.barWidth=String(barWidth);canvas.dataset.barSpacing=String(layout.barSpacing);
+  canvas.setAttribute('aria-label',source+'. '+regionFlowDescription(state,format)+` Thang hiển thị tự co giãn ±${Math.ceil(plotMax)}%; số % lực giữ nguyên.`);
 }

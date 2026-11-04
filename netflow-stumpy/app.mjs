@@ -1,4 +1,4 @@
-import {regionFlow,drawRegionFlow,regionFlowDescription} from './region-flow.mjs?v=20261104-region-flow1';
+import {regionFlow,drawRegionFlow,regionFlowDescription} from './region-flow.mjs?v=20261104-region-compact2';
 import {OiFastLoader} from './oi-fast-load.mjs?v=20261104-oi-region-confirm1';
 import {buildSpectrumComparison,drawPairedSpectrum,spectrumPriceGroup,confirmSpectrumGroup} from './paired-spectrum.mjs?v=20261104-oi-stale-fast2';
 import {OiHistory} from './oi-history.mjs?v=20261104-oi-stale-fast2';
@@ -532,9 +532,9 @@ function drawPivotFlowOverlay(){
   if(!$('pivot-zones').checked||$('symbol').value!=='SPYUSDT'||!state?.bins.length)return;
   const paneHeight=chart.panes()[0]?.getHeight?.()??height*.5,position=pivotFlowZeroCoordinate(paneHeight,resistance?price.priceToCoordinate(resistance.low):null,support?price.priceToCoordinate(support.high):null);
   if(!position)return;
-  const scaleWidth=chart.priceScale('right',0)?.width?.()??56,right=width-scaleWidth-7,raw=pivotFlowLayout(chart.timeScale().options().barSpacing,state.bins.length,right-12);
+  const scaleWidth=chart.priceScale('right',0)?.width?.()??56,right=width-scaleWidth-2,raw=pivotFlowLayout(Math.max(3,Math.min(7,chart.timeScale().options().barSpacing)),state.bins.length,right-12);
   if(!raw)return;
-  const layout={...raw,panelWidth:Math.min(right-12,Math.max(raw.panelWidth,width<650?172:220))},zero=position.zero,halfHeight=Math.min(width<650?26:36,zero-22,paneHeight-zero-36);
+  const layout={...raw,panelWidth:Math.min(right-12,Math.max(raw.panelWidth,width<650?156:180))},zero=position.zero,halfHeight=Math.min(width<650?42:50,zero-22,paneHeight-zero-36);
   if(halfHeight<14)return;
   const live=!!pivotFlowState.live&&isChartLive()&&!!lastSuccess&&Date.now()-lastSuccess<15000;
   drawRegionFlow({context,canvas,state,layout,right,zero,halfHeight,live,format:fmt,source:'CVD Composite SPY+QQQ theo giá SPY · OI SPY'});
