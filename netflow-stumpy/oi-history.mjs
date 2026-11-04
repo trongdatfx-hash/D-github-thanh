@@ -39,16 +39,21 @@ async function mergeDatabase(interval,samples,now){
     tx.oncomplete=()=>resolve(merged);tx.onerror=tx.onabort=()=>reject(tx.error);
   });
 }
+// Small synchronous snapshot paints OI before IndexedDB or the network responds.
+function readHot(interval){try{return JSON.parse(globalThis.localStorage?.getItem('netflow-oi-hot:SPYUSDT:'+interval)??'null')?.samples??[];}catch{return [];}}
+function writeHot(interval,samples){try{globalThis.localStorage?.setItem('netflow-oi-hot:SPYUSDT:'+interval,JSON.stringify({version:1,samples:samples.slice(-500)}));}catch{}}
 export class OiHistory {
-  constructor({read=readDatabase,write=mergeDatabase}={}){this.read=read;this.write=write;this.memory=new Map();this.loaded=new Set();this.saved=new Map();}
-  peek(interval,now){return {samples:mergeOiHistory(interval,[this.memory.get(interval)],now),saved:this.saved.get(interval)===true};}
+  constructor({read=readDatabase,write=mergeDatabase,readSnapshot=readHot,writeSnapshot=writeHot}={}){this.read=read;this.write=write;this.readSnapshot=readSnapshot;this.writeSnapshot=writeSnapshot;this.hotLoaded=new Set();this.memory=new Map();this.loaded=new Set();this.saved=new Map();}
+  peek(interval,now){if(!this.hotLoaded.has(interval)){this.hotLoaded.add(interval);try{this.memory.set(interval,mergeOiHistory(interval,[this.readSnapshot(interval),this.memory.get(interval)],now));}catch{}}return {samples:mergeOiHistory(interval,[this.memory.get(interval)],now),saved:this.saved.get(interval)===true};}
   stage(interval,incoming,now){
-    const samples=mergeOiHistory(interval,[this.memory.get(interval),incoming],now);this.memory.set(interval,samples);this.saved.set(interval,false);
+    this.peek(interval,now);
+    const samples=mergeOiHistory(interval,[this.memory.get(interval),incoming],now);this.memory.set(interval,samples);this.saved.set(interval,false);try{this.writeSnapshot(interval,samples);}catch{}
     return {samples,saved:false};
   }
   async load(interval,now){
+    this.peek(interval,now);
     if(!this.loaded.has(interval)){
-      try{const disk=mergeOiHistory(interval,[await this.read(interval)],now),merged=mergeOiHistory(interval,[disk,this.memory.get(interval)],now);this.memory.set(interval,merged);this.saved.set(interval,sameSamples(disk,merged));this.loaded.add(interval);}catch{this.saved.set(interval,false);}
+      try{const disk=mergeOiHistory(interval,[await this.read(interval)],now),merged=mergeOiHistory(interval,[disk,this.memory.get(interval)],now);this.memory.set(interval,merged);this.saved.set(interval,sameSamples(disk,merged));this.loaded.add(interval);try{this.writeSnapshot(interval,merged);}catch{}}catch{this.saved.set(interval,false);}
     }
     return {samples:mergeOiHistory(interval,[this.memory.get(interval)],now),saved:this.saved.get(interval)===true};
   }
