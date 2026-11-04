@@ -77,5 +77,5 @@ export function createOiLayer({chart,price,L,host,getContext,get,render}){
  });
  host.addEventListener('pointerleave',()=>{inspected=null;updateReadout();});
  setInterval(()=>{if(!document.hidden)refresh();},15000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});
- return {refresh,update,redraw:()=>{primitive.redraw();updateBadge();}};
+ return {getOiByTime:()=>{const c=getContext();return active===c.market+':'+c.interval?oiWidthByBar(samples,c.step,c.now):new Map();},refresh,update,redraw:()=>{primitive.redraw();updateBadge();}};
 }
