@@ -1,5 +1,5 @@
-import {OiFastLoader} from './oi-fast-load.mjs?v=20261104-oi-fast1';
-import {buildSpectrumComparison,drawPairedSpectrum,spectrumPriceGroup} from './paired-spectrum.mjs?v=20261104-oi-fast-group1';
+import {OiFastLoader} from './oi-fast-load.mjs?v=20261104-oi-region-confirm1';
+import {buildSpectrumComparison,drawPairedSpectrum,spectrumPriceGroup,confirmSpectrumGroup} from './paired-spectrum.mjs?v=20261104-oi-region-confirm1';
 import {OiHistory} from './oi-history.mjs?v=20261104-oi-fast1';
 import {SpectrumPrimitive} from './spectrum-primitive.mjs?v=20261104-oi-smooth1';
 import {OiBoldCandles} from './oi-bold-candles.mjs?v=20261104-oi-purple-restore1';
@@ -626,10 +626,13 @@ function updateSpectrumBadge(currentPrice){
  const headline=document.createElement('strong');headline.textContent=`VÙNG ${fmt(group.low)}–${fmt(group.high)}`;
  const state=document.createElement('span');state.textContent=group.ready?`${flow} · ${oi}`:`${group.count?flow:'CHỜ CVD NGÀY'} · OI WAIT`;
  const values=document.createElement('small');values.textContent=group.ready?`CVD ${fmtK(group.cvd)} · OI ròng ${signed(group.netOi)} · ${isChartLive()?'LIVE':'DELAYED'}`:`${spectrumComparison.day??'—'} NY · ${spectrumComparison.count} nến đóng · ${isChartLive()?'LIVE':'DELAYED'}`;
- const text=headline.textContent+'|'+state.textContent+'|'+values.textContent;
- if(badge.dataset.text!==text){badge.replaceChildren(headline,state,values);badge.dataset.text=text;}
- badge.dataset.state=group.state;badge.dataset.low=String(group.low);badge.dataset.high=String(group.high);
- badge.title=`Gom ${group.levels} mức giá liền nhau, mỗi mức ${spectrumComparison.binStep??.5}; nhóm quanh giá hiện tại. CVD và OI cùng nến đóng, ngày ${spectrumComparison.day??'—'} NY. ${group.ready?`OI tăng ${fmtK(group.opened)}, giảm ${fmtK(group.closed)}, tổng biến động ${fmtK(group.grossOi)}.`:'Chưa đủ dữ liệu để phân loại OI.'} Cập nhật khi dữ liệu thay đổi; đây là trạng thái dòng lệnh và vị thế, không phải xác định long/short.`;
+ const confirmation=confirmSpectrumGroup(group,spectrumComparison,rows.SPYUSDT??[],oiBarState.points),confirmLabel=document.createElement('small');confirmLabel.className='oi-region-confirmation';
+ const confirmationNames={confirmed:'ĐÃ XÁC NHẬN',conflict:'NẾN ĐANG ĐỐI NGHỊCH',forming:'CHỜ THÊM NẾN',mixed:'CHƯA ĐỒNG THUẬN',WAIT:'CHỜ ĐỦ CVD / OI'};
+ confirmLabel.textContent=confirmationNames[confirmation.state]+(confirmation.count?` · ${confirmation.support}/${confirmation.count} nến · ${Math.round(confirmation.share*100)}% |ΔOI|`:'');
+ const text=headline.textContent+'|'+state.textContent+'|'+values.textContent+'|'+confirmLabel.textContent;
+ if(badge.dataset.text!==text){badge.replaceChildren(headline,state,values,confirmLabel);badge.dataset.text=text;}
+ badge.dataset.confirmation=confirmation.state;badge.dataset.confirmationCount=String(confirmation.count);badge.dataset.state=group.state;badge.dataset.low=String(group.low);badge.dataset.high=String(group.high);
+ badge.title=`Gom ${group.levels} mức giá liền nhau, mỗi mức ${spectrumComparison.binStep??.5}; nhóm quanh giá hiện tại. CVD và OI cùng nến đóng, ngày ${spectrumComparison.day??'—'} NY. ${group.ready?`OI tăng ${fmtK(group.opened)}, giảm ${fmtK(group.closed)}, tổng biến động ${fmtK(group.grossOi)}.`:'Chưa đủ dữ liệu để phân loại OI.'} Xác nhận bằng nến vượt ngưỡng ΔOI trong cùng vùng và cùng nến đối chiếu: ít nhất 2 nến hỗ trợ, tỷ trọng |ΔOI| hỗ trợ ≥60%. Nến tô màu và histogram chung nguồn nên mỗi nến chỉ tính một lần. Tỷ trọng không phải xác suất thắng. Cập nhật theo dữ liệu, không xác định chắc long/short.`;
 }
 function inspectSpectrum(event){
   if(!chart||!price)return;
@@ -739,7 +742,7 @@ function render(fit=false){
   // CVD retains all loaded days; only the OI profile resets at NY midnight.
   const profileBars=cvdBars;
   cvdProfile=continuousCvdSpectrum(profileBars);cvdAnchorTime=cvdBars.at(-1)?.t??p.at(-1)?.t??null;
-  spectrumComparison=buildSpectrumComparison(p,cvdBars,oiProfile,cache?.serverTime??0);updateSpectrumReadout();updateSpectrumBadge(p.at(-1)?.c);
+  spectrumComparison=buildSpectrumComparison(p,cvdBars,oiProfile,cache?.serverTime??0);updateSpectrumReadout();
   const spectrumNode=$('cvd-spectrum');spectrumNode.dataset.renderer='chart-primitive';
   const spectrumDescription=`CVD nhiều ngày làm nền mờ; CVD ngày và OI cạnh nhau cùng hàng giá. Ngày ${spectrumComparison.day??'—'} NY, ${spectrumComparison.count} nến; ${spectrumComparison.pairedReady?'CVD và OI khớp timestamp':'OI WAIT'}. OI xanh = tăng, đỏ = giảm; độ dài chuẩn hóa riêng.`;
   if(spectrumNode.getAttribute('aria-label')!==spectrumDescription)spectrumNode.setAttribute('aria-label',spectrumDescription);
@@ -768,7 +771,7 @@ function render(fit=false){
   setOptions(series.oiCandleBars,{visible:oiBarsEnabled});
   const boldEnabled=$('oi-bold-candles-toggle')?.checked&&$('symbol').value==='SPYUSDT';
   const boldData=boldEnabled?priceData.filter(x=>oiBarState.points.get(x.time*1000)?.matched).map(x=>({...x,oiKind:oiBarState.points.get(x.time*1000).kind})):[];
-  oiBoldCandles.setData(boldData);$('chart').dataset.oiBoldCandlesState=!boldEnabled?'off':oiBarState.gateReady?'ready':'WAIT';$('chart').dataset.oiBoldCandlesCount=String(boldData.length);$('chart').dataset.oiDownIncreaseCount=String(oiBarState.downOiIncrease??0);$('chart').dataset.oiCandleGroups=JSON.stringify(oiBarState.groups);$('chart').dataset.oiThresholdMethod='percentile';$('chart').dataset.oiThresholdPercentile=$('oi-delta-percentile')?.value??'0.62';
+  oiBoldCandles.setData(boldData);$('chart').dataset.oiBoldCandlesState=!boldEnabled?'off':oiBarState.gateReady?'ready':'WAIT';$('chart').dataset.oiBoldCandlesCount=String(boldData.length);$('chart').dataset.oiDownIncreaseCount=String(oiBarState.downOiIncrease??0);$('chart').dataset.oiCandleGroups=JSON.stringify(oiBarState.groups);$('chart').dataset.oiThresholdMethod='percentile';$('chart').dataset.oiThresholdPercentile=$('oi-delta-percentile')?.value??'0.62';updateSpectrumBadge(p.at(-1)?.c);
   $('chart').dataset.oiCandleBarsState=!oiBarsEnabled?'off':oiBarState.gateReady?'ready':'WAIT';
   $('chart').dataset.oiCandleBarsPane=String(series.oiCandleBars.getPane().paneIndex());
   $('chart').dataset.oiCandleBarsMatched=String(oiBarState.matched);$('chart').dataset.oiCandleBarsEligible=String(oiBarState.eligible);

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildSpectrumComparison,spectrumLaneLayout,drawPairedSpectrum,spectrumPriceGroup} from '../paired-spectrum.mjs';
+import {buildSpectrumComparison,spectrumLaneLayout,drawPairedSpectrum,spectrumPriceGroup,confirmSpectrumGroup} from '../paired-spectrum.mjs';
 const step=900000,midnight=Date.parse('2026-11-04T05:00:00Z'),now=midnight+4*step;
 const priceRows=Array.from({length:5},(_,i)=>({t:midnight+(i-1)*step,end:midnight+i*step-1,c:100+i*.5}));
 const flowBars=priceRows.map((r,i)=>({...r,net:i===0?99999:i%2?-10:20}));
@@ -35,4 +35,13 @@ test('fixed groups aggregate three price levels without drifting inside the same
   assert.equal(a.low,100.25);assert.equal(a.high,101.75);assert.equal(a.cvd,25);assert.equal(a.netOi,48);assert.equal(a.state,'buy-oi-increase');assert.deepEqual(a,b);
   assert.equal(spectrumPriceGroup({...comparison,pairedReady:false},101).state,'WAIT');
   assert.equal(spectrumPriceGroup(comparison,120).state,'WAIT');
+});
+test('region confirmation counts each qualified candle once and weights its absolute OI',()=>{
+  const group={ready:true,cvd:10,netOi:5,low:100.25,high:101.75};
+  const comparison={times:[1,2,3],binStep:.5},rows=[{t:1,c:100.5},{t:2,c:101},{t:3,c:101.5},{t:4,c:101}];
+  const points=new Map([[1,{matched:true,kind:'up-oi-increase',delta:30}],[2,{matched:true,kind:'up-oi-increase',delta:30}],[3,{matched:true,kind:'down-oi-increase',delta:40}],[4,{matched:true,kind:'up-oi-increase',delta:9999}]]);
+  assert.deepEqual(confirmSpectrumGroup(group,comparison,rows,points),{state:'confirmed',count:3,support:2,share:.6});
+  points.get(2).matched=false;assert.equal(confirmSpectrumGroup(group,comparison,rows,points).state,'mixed');
+  points.get(1).kind='down-oi-increase';assert.equal(confirmSpectrumGroup(group,comparison,rows,points).state,'conflict');
+  assert.equal(confirmSpectrumGroup({...group,ready:false},comparison,rows,points).state,'WAIT');
 });

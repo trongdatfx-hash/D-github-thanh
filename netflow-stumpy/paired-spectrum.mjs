@@ -15,7 +15,7 @@ export function buildSpectrumComparison(priceRows,flowBars,oiProfile,now,{binSte
   const rows=[...bins.values()].filter(r=>Math.abs(r.price-center)<=range).sort((a,b)=>a.price-b.price).map(r=>({...r,netOi:r.opened-r.closed,grossOi:r.opened+r.closed,rank:0}));
   const top=[...rows].filter(r=>r.grossOi>0).sort((a,b)=>b.grossOi-a.grossOi||Math.abs(a.price-center)-Math.abs(b.price-center)).slice(0,3);
   top.forEach((r,i)=>{r.rank=i+1;});
-  return {rows,day,count:selected.length,oiCount:pairedReady?oiTimes.size:0,pairedReady,maxCvd:Math.max(0,...rows.map(r=>Math.abs(r.cvd))),maxOiGross:Math.max(0,...rows.map(r=>r.grossOi)),binStep};
+  return {rows,day,times:selected.map(r=>r.t),count:selected.length,oiCount:pairedReady?oiTimes.size:0,pairedReady,maxCvd:Math.max(0,...rows.map(r=>Math.abs(r.cvd))),maxOiGross:Math.max(0,...rows.map(r=>r.grossOi)),binStep};
 }
 
 export function spectrumLaneLayout(width,anchor,{showCvd=true,compare=true}={}){
@@ -33,6 +33,23 @@ export function spectrumPriceGroup(comparison,currentPrice,{levels=3}={}){
   const ready=rows.length>0&&comparison.count>0&&comparison.pairedReady;
   const state=!ready?'WAIT':cvd===0||netOi===0?'neutral':`${cvd>0?'buy':'sell'}-oi-${netOi>0?'increase':'decrease'}`;
   return {low,high,levels,count:rows.length,cvd,opened,closed,netOi,grossOi:opened+closed,ready,state};
+}
+
+export function confirmSpectrumGroup(group,comparison,priceRows,oiPoints,{minSamples=2,minShare=.6}={}){
+  const empty={state:'WAIT',count:0,support:0,share:0};
+  if(!group?.ready||group.cvd===0||group.netOi===0)return empty;
+  const times=new Set(comparison.times??[]),step=comparison.binStep??.5;
+  const expected=`${group.cvd>0?'up':'down'}-oi-${group.netOi>0?'increase':'decrease'}`;
+  let count=0,support=0,totalWeight=0,supportWeight=0;
+  for(const row of priceRows){
+    const bin=Math.round(row.c/step)*step,point=oiPoints.get(row.t);
+    if(!times.has(row.t)||bin<group.low||bin>=group.high||!point?.matched||!Number.isFinite(point.delta)||point.delta===0)continue;
+    count++;totalWeight+=Math.abs(point.delta);
+    if(point.kind===expected){support++;supportWeight+=Math.abs(point.delta);}
+  }
+  const share=totalWeight?supportWeight/totalWeight:0,opposed=count-support;
+  const state=support>=minSamples&&share>=minShare?'confirmed':opposed>=minSamples&&1-share>=minShare?'conflict':count<minSamples?'forming':'mixed';
+  return {state,count,support,share};
 }
 
 export function drawPairedSpectrum({context,mediaSize,anchor,priceToY,history,comparison,showCvd=true,compare=true,source='C→S',format=String}){

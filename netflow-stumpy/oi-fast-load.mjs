@@ -20,12 +20,13 @@ export class OiFastLoader {
     };
     // Disk restoration and network start together. Neither storage nor price
     // history can hold up the first usable OI response.
-    void this.history.load(interval,this.now()).then(data=>publish(data,'cache')).catch(()=>{});
+    let receivedTail=false,tailError=null;
+    void this.history.load(interval,this.now()).then(data=>{publish(data,receivedTail?'cache-merged':'cache');if(tailError&&current())this.onState({interval,phase:'error',error:tailError});}).catch(()=>{});
     this.onState({interval,phase:'loading'});
     const run=async()=>{
       try{
         const warm=this.history.peek(interval,this.now()).samples.length>0;
-        const tail=await fetchOi(warm?32:128,5000);if(!current())return;
+        const tail=await fetchOi(warm?32:128,5000);if(!current())return;receivedTail=true;
         const before=this.history.peek(interval,this.now()).samples;
         publish(this.history.stage(interval,tail,this.now()),'tail');persist(tail);
         plan.failures=0;plan.next=this.now()+15000;this.schedule.set(interval,plan);
@@ -38,7 +39,7 @@ export class OiFastLoader {
         }
       }catch(error){
         if(!current())return;
-        plan.failures++;plan.next=this.now()+Math.min(120000,15000*2**plan.failures);this.schedule.set(interval,plan);
+        tailError=error;plan.failures++;plan.next=this.now()+Math.min(120000,15000*2**plan.failures);this.schedule.set(interval,plan);
         this.onState({interval,phase:'error',error});
       }
     };
