@@ -1,3 +1,4 @@
+import {buildSpectrumComparison,drawPairedSpectrum} from './paired-spectrum.mjs?v=20261104-oi-lanes1';
 import {OiHistory} from './oi-history.mjs?v=20261104-oi-history1';
 import {SpectrumPrimitive} from './spectrum-primitive.mjs?v=20261104-oi-smooth1';
 import {OiBoldCandles} from './oi-bold-candles.mjs?v=20261104-oi-purple-restore1';
@@ -36,6 +37,7 @@ let h1CacheAttempt='',h1CacheArchive=null,h1HistoryKnown=false,h1HistoryRevision
 let boxVolumeStrengthMap=new Map(),wlrThicknessMap=new Map(),wlrColorMap=new Map();
 const oiHistory=new OiHistory();
 const oiBoldCandles=new OiBoldCandles();
+let spectrumComparison={rows:[],day:null,count:0,oiCount:0,pairedReady:false,maxCvd:0,maxOiGross:0};
 const spectrumPrimitive=new SpectrumPrimitive(drawCvdSpectrum);
 let oiBarState={points:new Map()};
 let oiProfile={ready:false,bins:[],max:0},oiWidths=new Map(),oiStamp='',oiLastFetch=0,oiRequest=0;
@@ -355,6 +357,8 @@ function init(){
   price=chart.addSeries(L.CandlestickSeries,{title:'',priceFormat:{type:'price',precision:1,minMove:.1},priceLineVisible:true,priceLineColor:'#36ddbd',priceLineWidth:1,priceLineStyle:L.LineStyle.Dashed,lastValueVisible:true,borderVisible:false},0);
   price.attachPrimitive(oiBoldCandles);
   price.attachPrimitive(spectrumPrimitive);
+  const spectrumReadout=document.createElement('div');spectrumReadout.id='oi-cvd-readout';spectrumReadout.className='oi-cvd-readout';spectrumReadout.setAttribute('role','note');spectrumReadout.hidden=true;$('chart').after(spectrumReadout);
+  $('chart').addEventListener('pointermove',inspectSpectrum,{passive:true});$('chart').addEventListener('pointerdown',inspectSpectrum,{passive:true});$('chart').addEventListener('pointerleave',()=>updateSpectrumReadout());
   series.priceMid=chart.addCustomSeries(new VariableWidthLineSeries,{color:'#f6c85f',baseLineVisible:false,priceLineVisible:false,lastValueVisible:false,title:''},0);
   for(const key of ['priceUpper','priceLower'])series[key]=chart.addSeries(L.LineSeries,{color:'#4aa3ff',lineWidth:2,lineStyle:L.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,title:''},0);
   for(const [key,color,width,style,last,title] of [
@@ -590,39 +594,32 @@ function updateCandleCountdown(){
   node.style.right='2ch';node.style.width='auto';
   if(Number.isFinite(y)&&Number.isFinite(paneHeight))node.style.top=`${Math.max(2,Math.min(paneHeight-node.offsetHeight-2,y+11))}px`;
 }
-function cvdSpectrumBounds(){
-  const width=$('chart').clientWidth,anchor=cvdAnchorTime===null?null:chart.timeScale().timeToCoordinate(cvdAnchorTime/1000);
-  if(!Number.isFinite(anchor))return null;
-  const scaleWidth=chart.priceScale('right',0)?.width?.()??56,maxWidth=Math.min(width<650?48:76,Math.max(34,width*.14)),usableRight=width-scaleWidth-5;
-  const xBase=Math.max(maxWidth+5,Math.min(usableRight-maxWidth-5,anchor+maxWidth+8));
-  return {left:xBase-maxWidth,right:xBase+maxWidth,xBase,maxWidth,usableRight};
+function drawCvdSpectrum(scope){
+  const showCvd=$('cvd-spectrum-toggle').checked,compare=$('oi-spectrum-toggle')?.checked&&$('symbol').value==='SPYUSDT';
+  if(cvdAnchorTime===null||(!showCvd&&!compare))return;
+  const anchor=chart.timeScale().timeToCoordinate(cvdAnchorTime/1000);if(!Number.isFinite(anchor))return;
+  drawPairedSpectrum({...scope,anchor,priceToY:value=>price.priceToCoordinate(value),history:cvdProfile,comparison:spectrumComparison,showCvd,compare,source:cvdSourceLabel,format:fmt});
 }
-function drawCvdSpectrum({context,mediaSize}){
-  const width=mediaSize.width,height=mediaSize.height;
-  const showCvd=$('cvd-spectrum-toggle').checked;
-  if((!showCvd&&!oiProfile.ready)||(!cvdProfile.maxAbs&&!oiProfile.max)||cvdAnchorTime===null)return;
-  const bounds=cvdSpectrumBounds();if(!bounds)return;
-  const paneHeight=height,{xBase,maxWidth,usableRight}=bounds,scale=cvdProfile.maxAbs?maxWidth/cvdProfile.maxAbs:0;
-  const visible=cvdProfile.bins.map(bin=>({...bin,y:price.priceToCoordinate(bin.price)})).filter(bin=>Number.isFinite(bin.y)&&bin.y>=0&&bin.y<=paneHeight);
-  if(!visible.length&&!oiProfile.ready)return;
-  context.save();context.setLineDash([3,4]);context.strokeStyle='rgba(151,164,181,.55)';context.lineWidth=1;context.beginPath();context.moveTo(xBase,(visible[0]?.y??12));context.lineTo(xBase,(visible.at(-1)?.y??paneHeight));context.stroke();context.setLineDash([]);
-  let buy=null,sell=null;
-  for(const bin of showCvd?visible:[]){
-    const x=xBase+bin.value*scale,ratio=cvdProfile.maxAbs?Math.abs(bin.value)/cvdProfile.maxAbs:0;
-    context.strokeStyle=bin.value>=0?`rgba(42,120,214,${.4+.5*ratio})`:`rgba(235,104,52,${.4+.5*ratio})`;context.lineWidth=(width<650?2.5:3.5)+(width<650?1:1.5)*ratio;context.beginPath();context.moveTo(xBase,bin.y);context.lineTo(x,bin.y);context.stroke();
-    if(bin.value>0&&(!buy||bin.value>buy.value))buy={...bin,x};if(bin.value<0&&(!sell||bin.value<sell.value))sell={...bin,x};
+function updateSpectrumReadout(level=null){
+  const node=$('oi-cvd-readout');if(!node)return;
+  node.hidden=!$('oi-spectrum-toggle')?.checked||$('symbol').value!=='SPYUSDT';if(node.hidden)return;
+  const matched=spectrumComparison.pairedReady,near=Number.isFinite(level)?spectrumComparison.rows.find(r=>Math.abs(r.price-level)<=.25):null;
+  let text;
+  if(near){
+    const flow=near.cvd>0?'mua chủ động':near.cvd<0?'bán chủ động':'cân bằng taker';
+    const oi=near.netOi>0?'OI tăng ròng':near.netOi<0?'OI giảm ròng':'OI ròng cân bằng';
+    text=`Giá ${fmt(near.price)} · CVD ngày ${fmtK(near.cvd)} (${flow}) · ${matched?`OI +${fmtK(near.opened)} / −${fmtK(near.closed)} · ròng ${signed(near.netOi)} · tổng biến động ${fmtK(near.grossOi)} · ${oi}`:'OI WAIT: chưa đủ dữ liệu đối chiếu'}`;
+  }else{
+    const top=spectrumComparison.rows.filter(r=>r.rank).sort((a,b)=>a.rank-b.rank);
+    text=`CVD ngày ${cvdSourceLabel} · ${spectrumComparison.day??'—'} NY · ${spectrumComparison.count} nến${matched?' khớp OI':' · OI WAIT'}. CVD∞ nền mờ dùng nhiều ngày; ba dải chuẩn hóa riêng. OI xanh = tăng, đỏ = giảm vị thế. ${top.length?'Vùng OI nổi bật: '+top.map(r=>`#${r.rank} ${fmt(r.price)} (ròng ${signed(r.netOi)})`).join(' · ')+'. ':''}Trỏ hoặc chạm chart tại hàng giá để xem chi tiết.`;
   }
-  if(oiProfile.ready&&oiProfile.max){
-    const oiScale=maxWidth/oiProfile.max;context.lineWidth=1.5;
-    for(const bin of oiProfile.bins){const y=price.priceToCoordinate(bin.price);if(!Number.isFinite(y)||y<0||y>paneHeight)continue;
-      if(bin.opened){context.setLineDash([]);context.strokeStyle='#c084fc';context.beginPath();context.moveTo(xBase,y-3);context.lineTo(xBase+bin.opened*oiScale,y-3);context.stroke();}
-      if(bin.closed){context.setLineDash([3,3]);context.strokeStyle='#cbd5e1';context.beginPath();context.moveTo(xBase,y+3);context.lineTo(xBase-bin.closed*oiScale,y+3);context.stroke();}
-    }context.setLineDash([]);
-  }
-
-  context.font=`600 ${width<650?9:10}px Inter,system-ui,sans-serif`;context.textBaseline='bottom';context.textAlign='center';context.fillStyle='rgba(196,210,226,.9)';context.fillText(showCvd?`CVD∞ ${cvdSourceLabel}${oiProfile.ready?' + ΔOI SPY':''} · bin ${cvdProfile.binStep}`:'ΔOI SPY · thang riêng',xBase,Math.max(12,(visible[0]?.y??12)-5));
-  if(width>=650){context.textBaseline='middle';if(buy){context.textAlign='left';context.fillStyle='#70aef4';context.fillText(`▲ ${fmt(buy.price)}`,Math.min(usableRight-42,buy.x+5),buy.y);}if(sell){context.textAlign='right';context.fillStyle='#f28a61';context.fillText(`▼ ${fmt(sell.price)}`,Math.max(42,sell.x-5),sell.y);}}
-  context.restore();
+  if(node.textContent!==text)node.textContent=text;
+}
+function inspectSpectrum(event){
+  if(!chart||!price)return;
+  const rect=$('chart').getBoundingClientRect(),y=event.clientY-rect.top,paneHeight=chart.panes()[0]?.getHeight?.()??0;
+  if(y<0||y>paneHeight)return;
+  updateSpectrumReadout(price.coordinateToPrice(y));
 }
 function drawDaySeparators(){
   const canvas=$('day-separators'),host=$('chart'),width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1;
@@ -725,12 +722,13 @@ function render(fit=false){
   oiProfile=oiEnabled?oiSpectrum(p,oiWidths,STEPS[$('interval').value],cache?.serverTime??0):{ready:false,bins:[],max:0};
   // CVD retains all loaded days; only the OI profile resets at NY midnight.
   const profileBars=cvdBars;
-  cvdProfile=continuousCvdSpectrum(profileBars);cvdAnchorTime=cvdBars.at(-1)?.t??null;
+  cvdProfile=continuousCvdSpectrum(profileBars);cvdAnchorTime=cvdBars.at(-1)?.t??p.at(-1)?.t??null;
+  spectrumComparison=buildSpectrumComparison(p,cvdBars,oiProfile,cache?.serverTime??0);updateSpectrumReadout();
   const spectrumNode=$('cvd-spectrum');spectrumNode.dataset.renderer='chart-primitive';
-  const spectrumDescription=oiProfile.ready?`CVD ${cvdSourceLabel} liên tục nhiều ngày; ΔOI SPY ngày ${oiProfile.day} NY, ${oiProfile.count} nến. Tăng tím bên phải, giảm xám nét đứt bên trái; thang riêng.`:`Phổ CVD ${cvdSourceLabel}; ΔOI chưa có hoặc đang tắt.`;
+  const spectrumDescription=`CVD nhiều ngày làm nền mờ; CVD ngày và OI cạnh nhau cùng hàng giá. Ngày ${spectrumComparison.day??'—'} NY, ${spectrumComparison.count} nến; ${spectrumComparison.pairedReady?'CVD và OI khớp timestamp':'OI WAIT'}. OI xanh = tăng, đỏ = giảm; độ dài chuẩn hóa riêng.`;
   if(spectrumNode.getAttribute('aria-label')!==spectrumDescription)spectrumNode.setAttribute('aria-label',spectrumDescription);
-  $('chart').dataset.oiSpectrumState=!oiEnabled?'off':oiProfile.ready?'ready':'WAIT';$('chart').dataset.oiSpectrumBars=String(oiProfile.count??0);$('chart').dataset.oiSpectrumDay=oiProfile.day??'';$('chart').dataset.cvdSpectrumPeriod='loaded-history';$('chart').dataset.cvdSpectrumBars=String(profileBars.length);
-  const oiStatus=$('oi-spectrum-status');if(oiStatus){oiStatus.textContent=!compositeCvd?'Phổ ΔOI · chỉ SPY':!oiEnabled?'Phổ ΔOI SPY':oiProfile.ready?`Phổ ΔOI SPY · ${oiProfile.day} NY · ${oiProfile.count} nến`:'Phổ ΔOI SPY · WAIT';oiStatus.title=oiProfile.ready?`ΔOI chỉ ngày New York hiện tại; CVD liên tục nhiều ngày · ${new Date(oiProfile.first).toLocaleString('vi-VN')} → ${new Date(oiProfile.last).toLocaleString('vi-VN')}. Tím = OI tăng ròng; xám = giảm ròng. Độ dài dùng thang riêng.`:'Chờ ít nhất hai ΔOI hợp lệ trong ngày New York hiện tại và mẫu mới nhất. CVD luôn giữ lịch sử nhiều ngày.';}
+  $('chart').dataset.oiSpectrumState=!oiEnabled?'off':oiProfile.ready?'ready':'WAIT';$('chart').dataset.oiSpectrumBars=String(oiProfile.count??0);$('chart').dataset.oiSpectrumDay=oiProfile.day??'';$('chart').dataset.cvdSpectrumPeriod='loaded-history';$('chart').dataset.cvdSpectrumBars=String(profileBars.length);$('chart').dataset.spectrumLayout='adjacent-price-aligned';$('chart').dataset.cvdDayBars=String(spectrumComparison.count);$('chart').dataset.spectrumPaired=String(spectrumComparison.pairedReady);
+  const oiStatus=$('oi-spectrum-status');if(oiStatus){oiStatus.textContent=!compositeCvd?'Phổ ΔOI · chỉ SPY':!oiEnabled?'Phổ ΔOI SPY':oiProfile.ready?`Phổ ΔOI SPY · ${oiProfile.day} NY · ${oiProfile.count} nến`:'Phổ ΔOI SPY · WAIT';oiStatus.title=oiProfile.ready?`ΔOI chỉ ngày New York hiện tại; CVD liên tục nhiều ngày · ${new Date(oiProfile.first).toLocaleString('vi-VN')} → ${new Date(oiProfile.last).toLocaleString('vi-VN')}. Hai dải cùng hàng giá và cùng nến đã đóng. OI xanh = tăng, đỏ = giảm; chiều dài toàn thanh OI theo tổng tăng + giảm, số ròng xem khi trỏ/chạm. CVD∞ làm nền mờ, từng dải có thang riêng.`:'Chờ ít nhất hai ΔOI hợp lệ trong ngày New York hiện tại và mẫu mới nhất. CVD luôn giữ lịch sử nhiều ngày.';}
   const closedBefore=cache?.serverTime??Infinity,closedPrice=p.filter(row=>(row.end??row.t)<closedBefore),closedTimes=new Set(closedPrice.map(row=>row.t)),modelPrice=model[$('symbol').value]??p,modelClosedPrice=modelPrice.filter(row=>(row.end??row.t)<closedBefore),modelClosedTimes=new Set(modelClosedPrice.map(row=>row.t));
   const volumeStrengthMap=new Map(volumeStrengthRows.map(x=>[x.t,x]));
   candleColorMap=new Map(p.map(x=>[x.t,strengthAgreementCandleSignal(maps.COMPOSITE?.get(x.t),volumeStrengthMap.get(x.t))]));
@@ -963,7 +961,7 @@ if(init()){
   quantileLayer=createQuantilePrice({chart,host:$('chart'),actions:indicatorTools,getContext:()=>({spy:rows.SPYUSDT??[],qqq:rows.QQQUSDT??[],boxes:strengthBoxLayer?.getState(),symbol:$('symbol').value,interval:$('interval').value,now:Date.now()+serverOffsetMs,live:$('live-indicator').className==='live'&&isChartLive()})});
   const oiSpectrumLabel=document.createElement('label'),oiSpectrumToggle=document.createElement('input'),oiSpectrumStatus=document.createElement('span');
   oiSpectrumToggle.id='oi-spectrum-toggle';oiSpectrumToggle.type='checkbox';oiSpectrumToggle.checked=true;oiSpectrumStatus.id='oi-spectrum-status';oiSpectrumStatus.textContent='Phổ ΔOI SPY · WAIT';
-  oiSpectrumLabel.title='Tím bên phải: OI tăng ròng; xám nét đứt bên trái: OI giảm ròng. Quy ΔOI về giá đóng nến, không phải vị thế còn mở tại từng giá. ΔOI chỉ cộng trong ngày New York hiện tại; CVD dùng liên tục nhiều ngày. Hai thang đo độc lập.';oiSpectrumLabel.append(oiSpectrumToggle,oiSpectrumStatus);$('cvd-spectrum-toggle').closest('label').after(oiSpectrumLabel);
+  oiSpectrumLabel.title='CVD ngày và ΔOI cạnh nhau cùng hàng giá, dùng cùng các nến đóng có đủ dữ liệu. CVD∞ nhiều ngày làm nền mờ. Thanh OI gồm xanh tăng + đỏ giảm, số ròng và tổng biến động xem khi trỏ/chạm chart. Ba vùng OI hoạt động lớn nhất quanh giá hiện tại được tô đậm. Độ dài từng dải chuẩn hóa riêng; không thể so trực tiếp đơn vị CVD và OI.';oiSpectrumLabel.append(oiSpectrumToggle,oiSpectrumStatus);$('cvd-spectrum-toggle').closest('label').after(oiSpectrumLabel);
   oiSpectrumToggle.onchange=()=>render(false);
   const oiBarLabel=document.createElement('label'),oiBarToggle=document.createElement('input'),oiBarStatus=document.createElement('span');
   oiBarToggle.id='oi-candle-bars-toggle';oiBarToggle.type='checkbox';oiBarToggle.checked=true;oiBarStatus.id='oi-candle-bars-status';oiBarStatus.textContent='ΔOI theo nến · WAIT';
