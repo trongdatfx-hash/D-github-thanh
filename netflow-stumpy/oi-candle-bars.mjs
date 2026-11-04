@@ -15,7 +15,7 @@ export function oiCandleDirection(row, filterPin=true){
 }
 
 export function oiCandleBars(priceRows,spyHistogram,flowRows,oiByTime,step,now,{filterPin=true,history=false}={}){
-  const result={data:[],points:new Map(),eligible:0,matched:0,day:null};
+  const result={data:[],points:new Map(),eligible:0,matched:0,downOiIncrease:0,day:null};
   if(!(step>0)||!Number.isFinite(now)||now<=0)return result;
   result.day=oiSpectrumDay(now);
   const volume=new Map(spyHistogram.map(x=>[x.t,x.value])),flow=new Map(flowRows.map(x=>[x.t,x.net]));
@@ -29,11 +29,14 @@ export function oiCandleBars(priceRows,spyHistogram,flowRows,oiByTime,step,now,{
     const delta=current.oi-previous.oi,v=volume.get(row.t),nf=flow.get(row.t);
     if(!Number.isFinite(v)||!Number.isFinite(nf))continue;
     result.eligible++;
-    const direction=oiCandleDirection(row,filterPin),matched=direction!==0&&[v,nf,delta].every(x=>Math.sign(x)===direction);
-    const info={delta,direction,spyV:v,net:nf,matched,pinAdjusted:direction!==Math.sign(row.c-row.o)};
+    const direction=oiCandleDirection(row,filterPin),sameSign=direction!==0&&[v,nf,delta].every(x=>Math.sign(x)===direction);
+    const downOiIncrease=direction<0&&row.c<row.o&&v<0&&nf<0&&delta>0;
+    const matched=sameSign||downOiIncrease,kind=downOiIncrease?'down-oi-increase':sameSign?'same-sign':null;
+    const info={delta,direction,spyV:v,net:nf,matched,kind,pinAdjusted:direction!==Math.sign(row.c-row.o)};
     result.points.set(row.t,info);
     if(!matched)continue;
-    result.matched++;point.value=Math.abs(delta);point.color=direction>0?'rgba(26,224,163,.72)':'rgba(255,77,112,.72)';
+    result.matched++;if(downOiIncrease)result.downOiIncrease++;
+    point.value=Math.abs(delta);point.color=downOiIncrease?'#5b21b6':direction>0?'rgba(26,224,163,.72)':'rgba(255,77,112,.72)';
   }
   return result;
 }

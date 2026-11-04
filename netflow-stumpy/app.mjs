@@ -1,7 +1,7 @@
 import {OiHistory} from './oi-history.mjs?v=20261104-oi-history1';
 import {SpectrumPrimitive} from './spectrum-primitive.mjs?v=20261104-oi-smooth1';
-import {OiBoldCandles} from './oi-bold-candles.mjs?v=20261104-oi-border2';
-import {oiCandleBars} from './oi-candle-bars.mjs?v=20261104-oi-history1';
+import {OiBoldCandles} from './oi-bold-candles.mjs?v=20261104-oi-down-open1';
+import {oiCandleBars} from './oi-candle-bars.mjs?v=20261104-oi-down-open1';
 import {oiSpectrum} from './oi-spectrum.mjs?v=20261104-oi-smooth1';
 import {closedColorSourceKey,readH1ColorCache,saveH1ColorCache,archiveColorRevision} from './h1-color-cache.mjs?v=20261103-day-open1';
 import {h1StripCell} from './h1-h4-strip.mjs?v=20261101-h1h4-align1';
@@ -753,8 +753,8 @@ function render(fit=false){
   writeSeries('oiCandleBars',series.oiCandleBars,oiBarState.data,seriesContext+'|'+$('oi-candle-pin-toggle')?.checked);
   setOptions(series.oiCandleBars,{visible:oiBarsEnabled});
   const boldEnabled=$('oi-bold-candles-toggle')?.checked&&$('symbol').value==='SPYUSDT';
-  const boldData=boldEnabled?priceData.filter(x=>oiBarState.points.get(x.time*1000)?.matched):[];
-  oiBoldCandles.setData(boldData);$('chart').dataset.oiBoldCandlesState=!boldEnabled?'off':oiBarState.eligible?'ready':'WAIT';$('chart').dataset.oiBoldCandlesCount=String(boldData.length);
+  const boldData=boldEnabled?priceData.filter(x=>oiBarState.points.get(x.time*1000)?.matched).map(x=>({...x,oiKind:oiBarState.points.get(x.time*1000).kind})):[];
+  oiBoldCandles.setData(boldData);$('chart').dataset.oiBoldCandlesState=!boldEnabled?'off':oiBarState.eligible?'ready':'WAIT';$('chart').dataset.oiBoldCandlesCount=String(boldData.length);$('chart').dataset.oiDownIncreaseCount=String(oiBarState.downOiIncrease??0);
   $('chart').dataset.oiCandleBarsState=!oiBarsEnabled?'off':oiBarState.eligible?'ready':'WAIT';
   $('chart').dataset.oiCandleBarsPane=String(series.oiCandleBars.getPane().paneIndex());
   $('chart').dataset.oiCandleBarsMatched=String(oiBarState.matched);$('chart').dataset.oiCandleBarsEligible=String(oiBarState.eligible);
@@ -847,7 +847,7 @@ function showTooltip(t){
     geometryEvent?`Dị biệt được xác nhận tại nến này: ${geometryEvent.direction==='bullish'?'phân kỳ tăng':geometryEvent.direction==='bearish'?'phân kỳ giảm':'SPY/QQQ luân phiên dẫn dắt'} · điểm ${geometryEvent.score}/100 · ΔStrength SPY ${signed(geometryEvent.spyDelta)} / QQQ ${signed(geometryEvent.qqqDelta)} / SPY V ${signed(geometryEvent.volumeDelta)} · ΔNetFlow ${signed(geometryEvent.flowDelta)}${geometryEvent.pairSplit?` · Strength SPY và QQQ ngược nhau, giá đang gần nhịp ${geometryEvent.leader==='SPY'?'SPY':geometryEvent.leader==='QQQ'?'QQQ':'hỗn hợp'}`:''}. Đây là mô tả hợp lưu tại thời điểm xác nhận, không phải dự báo chắc chắn.`:null,
     `Strength Giá×Delta ${signed(maps.COMPOSITE?.get(t)?.adjusted)}: delta taker quote SPY chuẩn hóa theo volume 20 nến, chỉ giữ khi cùng chiều thân nến; còn lại 0. Cộng 8 nến, EWMA và chuẩn hóa 500 nến. Composite và các tín hiệu liên quan dùng chuỗi này.`,
     displayedColorText,
-    $('oi-candle-bars-toggle')?.checked&&$('symbol').value==='SPYUSDT'?(()=>{const x=oiBarState.points.get(t);return x?`ΔOI theo nến ${signed(x.delta)} · SPY V ${signed(x.spyV)} · C Taker NF ${signed(x.net)} · ${x.matched?'ĐỒNG DẤU':'không đủ đồng thuận'}${x.pinAdjusted?' · pin bar phản đối chiều thân':''}. Chiều cao cột = |ΔOI|, xanh dương / đỏ âm; OI giảm là giảm tổng vị thế mở.`:'ΔOI theo nến: cần nến đóng và hai mẫu OI liên tiếp trong lịch sử đã tải.';})():null,
+    $('oi-candle-bars-toggle')?.checked&&$('symbol').value==='SPYUSDT'?(()=>{const x=oiBarState.points.get(t);return x?`ΔOI theo nến ${signed(x.delta)} · SPY V ${signed(x.spyV)} · C Taker NF ${signed(x.net)} · ${x.kind==='down-oi-increase'?'GIẢM · BÁN CHỦ ĐỘNG · OI TĂNG':x.matched?'ĐỒNG DẤU':'không đủ đồng thuận'}${x.pinAdjusted?' · pin bar phản đối chiều thân':''}. Chiều cao cột = |ΔOI|; tím đậm = giá giảm, bán chủ động, OI tăng; xanh = cùng dương, đỏ = cùng âm; OI giảm là giảm tổng vị thế mở.`:'ΔOI theo nến: cần nến đóng và hai mẫu OI liên tiếp trong lịch sử đã tải.';})():null,
     `Điểm xác nhận ${state.score??'—'}/100 = Taker ${fmt(state.taker)}/50 + Dải ${fmt(state.pair)}/30 + |Strength| ${fmt(state.strength)}/20. Điểm theo quy tắc, không phải xác suất thắng.`];
   const nodes=text.filter(Boolean).map(value=>{const div=document.createElement('div');div.textContent=value;return div;});
   $('tooltip').replaceChildren(...nodes);
@@ -967,10 +967,10 @@ if(init()){
   oiSpectrumToggle.onchange=()=>render(false);
   const oiBarLabel=document.createElement('label'),oiBarToggle=document.createElement('input'),oiBarStatus=document.createElement('span');
   oiBarToggle.id='oi-candle-bars-toggle';oiBarToggle.type='checkbox';oiBarToggle.checked=true;oiBarStatus.id='oi-candle-bars-status';oiBarStatus.textContent='ΔOI theo nến · WAIT';
-  oiBarLabel.title='Cột sát đáy pane SPY V, cao theo |ΔOI|: chỉ hiện khi chiều OHLC nến SPY, histogram SPY V, C Taker NF và ΔOI cùng dấu. Xanh = cùng dương, đỏ = cùng âm. Nến đóng, dữ liệu OI liên tiếp trong lịch sử đã tải; OI được lưu tối đa 90 ngày trên trình duyệt. Thiếu OI thì để trống. Phổ ΔOI theo giá vẫn chỉ ngày New York hiện tại. Không dùng màu tô H1/tuổi trend làm dấu giá.';oiBarLabel.append(oiBarToggle,oiBarStatus);oiSpectrumLabel.after(oiBarLabel);
+  oiBarLabel.title='Cột sát đáy pane SPY V, cao theo |ΔOI|: xanh = giá, SPY V, C Taker NF, ΔOI cùng dương; đỏ = cùng âm. Thêm nhóm tím đậm: thân nến giảm, SPY V âm, C Taker NF âm, ΔOI dương. Chỉ kiểm tra dấu C Taker NF, chưa đặt ngưỡng độ mạnh. Nến đóng, dữ liệu OI liên tiếp trong lịch sử đã tải; OI được lưu tối đa 90 ngày trên trình duyệt. Thiếu OI thì để trống. Phổ ΔOI theo giá vẫn chỉ ngày New York hiện tại. Không dùng màu tô H1/tuổi trend làm dấu giá.';oiBarLabel.append(oiBarToggle,oiBarStatus);oiSpectrumLabel.after(oiBarLabel);
   const pinLabel=document.createElement('label'),pinToggle=document.createElement('input');pinToggle.id='oi-candle-pin-toggle';pinToggle.type='checkbox';pinToggle.checked=true;pinLabel.title='Thân ≤35% biên độ, râu chính ≥60% và ít nhất gấp đôi râu còn lại: hướng từ chối giá theo râu. Pin ngược thân bị loại vì không đồng dấu SPY V thực tế; không đổi histogram hay màu nến.';pinLabel.append(pinToggle,'Lọc pin bar ΔOI');oiBarLabel.after(pinLabel);
   oiBarToggle.onchange=pinToggle.onchange=()=>render(false);
-  const boldLabel=document.createElement('label'),boldToggle=document.createElement('input');boldToggle.id='oi-bold-candles-toggle';boldToggle.type='checkbox';boldToggle.checked=true;boldLabel.title='Nến đồng thuận OI: thân rộng khoảng 1,5 lần, giới hạn 94% bước nến để tránh chồng lấn. Thân UP xanh dương, DOWN tím, WAIT xám theo màu nến đang hiển thị; giữ viền kem cho cả ba màu; giữ giá mở/đóng và râu nến. Nến đóng đủ OI trong lịch sử đã tải, tự khôi phục từ OI lưu trên trình duyệt; độc lập nút hiện dải ΔOI.';boldLabel.append(boldToggle,'Nến đồng thuận OI đậm');pinLabel.after(boldLabel);boldToggle.onchange=()=>render(false);
+  const boldLabel=document.createElement('label'),boldToggle=document.createElement('input');boldToggle.id='oi-bold-candles-toggle';boldToggle.type='checkbox';boldToggle.checked=true;boldLabel.title='Nến đồng thuận OI: thân rộng khoảng 1,5 lần, giới hạn 94% bước nến để tránh chồng lấn. Thân UP xanh dương, DOWN tím, WAIT xám theo màu nến đang hiển thị; giữ viền kem cho nhóm cũ. Riêng giá giảm + SPY V âm + C Taker NF âm + OI tăng: thân tím đậm #5b21b6, không viền, ưu tiên hơn màu H1/H4; giữ giá mở/đóng và râu nến. Nến đóng đủ OI trong lịch sử đã tải, tự khôi phục từ OI lưu trên trình duyệt; độc lập nút hiện dải ΔOI.';boldLabel.append(boldToggle,'Nến đồng thuận OI đậm');pinLabel.after(boldLabel);boldToggle.onchange=()=>render(false);
   restoreSavedSetup();syncChartFrameButtons();
   // Restore the C histogram once for setups saved before the taker plot cleanup.
   // Subsequent user choices remain under the normal Save setup control.

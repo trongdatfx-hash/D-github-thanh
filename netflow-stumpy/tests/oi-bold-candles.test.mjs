@@ -15,3 +15,12 @@ test('body uses original OHLC and state palette, with no wick or autoscale chang
   primitive.setData([]);primitive.draw({useBitmapCoordinateSpace(){throw Error('disabled must not paint');}});
   primitive.detached();assert.equal(primitive.series,null);
 });
+test('downward OI expansion overrides H1 color with a dark purple body and no outline',()=>{
+  const primitive=new OiBoldCandles(),fills=[];let borders=0;
+  primitive.attached({chart:{timeScale:()=>({options:()=>({barSpacing:10}),timeToCoordinate:()=>20})},series:{priceToCoordinate:p=>100-p},requestUpdate(){}});
+  primitive.setData([{time:1,open:60,close:40,color:'#18d6a3',oiKind:'down-oi-increase'}]);
+  const context={save(){},restore(){},fillRect(){fills.push(this.fillStyle);},strokeRect(){borders++;}};
+  primitive.draw({useBitmapCoordinateSpace:fn=>fn({context,horizontalPixelRatio:1,verticalPixelRatio:1,bitmapSize:{width:200,height:200}})});
+  assert.deepEqual(fills,['#5b21b6']);assert.equal(borders,0);
+  assert.equal(oiBodyContrast('#18d6a3','same-sign').border,'#fff3bf');
+});

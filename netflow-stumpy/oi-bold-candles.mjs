@@ -4,7 +4,8 @@ export function oiBodyWidth(spacing){
   if(!Number.isFinite(spacing)||spacing<2)return 0;
   return Math.min(spacing*.94,Math.max(1,spacing*.65)*1.5);
 }
-export function oiBodyContrast(color){
+export function oiBodyContrast(color,kind){
+  if(kind==='down-oi-increase')return {body:'#5b21b6',border:null};
   const hex=/^#([0-9a-f]{6})$/i.exec(color??'');
   const [r,g,b]=hex?[0,2,4].map(i=>parseInt(hex[1].slice(i,i+2),16)):[0,0,0];
   // Follow the existing candle's UP/DOWN/WAIT tone, including H1/H4 colors.
@@ -31,7 +32,7 @@ export class OiBoldCandles {
         const x=ts.timeToCoordinate(row.time),open=this.series.priceToCoordinate(row.open),close=this.series.priceToCoordinate(row.close);
         if(x===null||open===null||close===null||x*rx<0||x*rx>bitmapSize.width)continue;
         const left=Math.round((x-width/2)*rx),right=Math.round((x+width/2)*rx),top=Math.round(Math.min(open,close)*ry),bottom=Math.round(Math.max(open,close)*ry);
-        const palette=oiBodyContrast(row.color),w=Math.max(1,right-left),h=Math.max(1,bottom-top);
+        const palette=oiBodyContrast(row.color,row.oiKind),w=Math.max(1,right-left),h=Math.max(1,bottom-top);
         context.fillStyle=palette.body;context.fillRect(left,top,w,h);
         // Draw inside the body bounds so neither OHLC height nor spacing changes.
         if(palette.border&&w>=3*rx&&h>=3*ry){

@@ -32,3 +32,15 @@ test('future rows cannot alter earlier bars',()=>{
   const after=oiCandleBars([up,{...down,t:t+step,end:t+2*step-1}],[{t,value:1}],[{t,net:20}],new Map([[t-step,{oi:100}],[t,{oi:105}]]),step,now);
   assert.deepEqual(after.data[0],before.data[0]);assert.equal(after.data[1].value,undefined);
 });
+test('falling price, negative flow and rising OI is a separate historical group',()=>{
+  const opts={v:-2,nf:-30,delta:5,clock:now+86400000,options:{history:true}},result=run(down,opts);
+  assert.equal(result.matched,1);assert.equal(result.downOiIncrease,1);
+  assert.equal(result.points.get(t).kind,'down-oi-increase');assert.equal(result.data[0].value,5);
+  assert.equal(run(down,{...opts,nf:0}).matched,0);
+  assert.equal(run(down,{...opts,oi:false}).matched,0);
+  assert.equal(run(down,{...opts,clock:t+step-1}).matched,0);
+  const old=run(down,{v:-2,nf:-30,delta:-5});assert.equal(old.points.get(t).kind,'same-sign');
+  assert.notEqual(old.data[0].color,result.data[0].color);
+  const lowerWick={...down,o:11,c:10.9,h:11.1,l:9};
+  assert.equal(run(lowerWick,opts).matched,0);
+});
