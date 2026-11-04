@@ -604,7 +604,7 @@ function updateSpectrumBadge(currentPrice){
  const values=document.createElement('small');values.textContent=group.ready?`CVD ${compact(group.cvd)} · ΔOI ${group.netOi>0?'+':''}${compact(group.netOi)}`:`${spectrumComparison.count} nến · OI thiếu`;
  const confirmation=confirmSpectrumGroup(group,spectrumComparison,rows.SPYUSDT??[],oiBarState.points),confirmLabel=document.createElement('small');confirmLabel.className='oi-region-confirmation';
  const confirmationNames={confirmed:'ĐÃ XÁC NHẬN',conflict:'ĐỐI NGHỊCH',forming:'CHỜ THÊM NẾN',mixed:'CHƯA ĐỒNG THUẬN',WAIT:'CHỜ CVD / OI'};
- confirmLabel.textContent=confirmationNames[confirmation.state]+(confirmation.count?` · ${confirmation.support}/${confirmation.count}`:'')+(spectrumComparison.stale?' · OI CŨ':'');
+ confirmLabel.textContent=confirmationNames[confirmation.state]+(confirmation.count?` · ${confirmation.support}/${confirmation.count} · ${Math.round(confirmation.share*100)}% |ΔOI|`:'')+(spectrumComparison.stale?' · OI CŨ':'');
  const text=state.textContent+'|'+values.textContent+'|'+confirmLabel.textContent;
  if(badge.dataset.text!==text){badge.replaceChildren(state,values,confirmLabel);badge.dataset.text=text;}
  badge.dataset.confirmation=confirmation.state;badge.dataset.confirmationCount=String(confirmation.count);badge.dataset.state=group.state;badge.dataset.low=String(group.low);badge.dataset.high=String(group.high);
