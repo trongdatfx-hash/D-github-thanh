@@ -5,7 +5,10 @@ export function oiBodyWidth(spacing){
   return Math.min(spacing*.94,Math.max(1,spacing*.65)*1.5);
 }
 export function oiBodyContrast(color,kind){
+  if(kind==='up-oi-increase')return {body:'#1243be',border:null};
   if(kind==='down-oi-increase')return {body:'#5b21b6',border:null};
+  if(kind==='up-oi-decrease')return {body:'#1351ee',border:'#fff3bf'};
+  if(kind==='down-oi-decrease')return {body:'#8b5cf6',border:'#fff3bf'};
   const hex=/^#([0-9a-f]{6})$/i.exec(color??'');
   const [r,g,b]=hex?[0,2,4].map(i=>parseInt(hex[1].slice(i,i+2),16)):[0,0,0];
   // Follow the existing candle's UP/DOWN/WAIT tone, including H1/H4 colors.

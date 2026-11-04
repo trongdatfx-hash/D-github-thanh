@@ -1,6 +1,14 @@
 import {oiDeltaGates} from './oi-delta-gate.mjs?v=20261104-oi-gate1';
 import {oiSpectrumDay} from './oi-spectrum.mjs?v=20261104-oi-smooth1';
 
+export const OI_GROUP_LABELS={
+  'up-oi-increase':'TĂNG · MUA CHỦ ĐỘNG · OI TĂNG',
+  'up-oi-decrease':'TĂNG · MUA CHỦ ĐỘNG · OI GIẢM',
+  'down-oi-increase':'GIẢM · BÁN CHỦ ĐỘNG · OI TĂNG',
+  'down-oi-decrease':'GIẢM · BÁN CHỦ ĐỘNG · OI GIẢM'
+};
+const GROUP_COLORS={'up-oi-increase':'#1243be','up-oi-decrease':'#1351ee','down-oi-increase':'#5b21b6','down-oi-decrease':'#8b5cf6'};
+
 // Only a clearly dominant rejection wick overrides the OHLC body direction.
 // The actual SPY V histogram is never rewritten to manufacture agreement.
 export function oiCandleDirection(row, filterPin=true){
@@ -16,7 +24,7 @@ export function oiCandleDirection(row, filterPin=true){
 }
 
 export function oiCandleBars(priceRows,spyHistogram,flowRows,oiByTime,step,now,{filterPin=true,history=false,minOiMultiplier=0}={}){
-  const result={data:[],points:new Map(),eligible:0,matched:0,downOiIncrease:0,gateReady:0,day:null};
+  const result={data:[],points:new Map(),eligible:0,matched:0,downOiIncrease:0,gateReady:0,groups:{},day:null};
   if(!(step>0)||!Number.isFinite(now)||now<=0)return result;
   result.day=oiSpectrumDay(now);
   const gates=minOiMultiplier>0?oiDeltaGates(oiByTime,step,now,{multiplier:minOiMultiplier}):null;
@@ -31,16 +39,16 @@ export function oiCandleBars(priceRows,spyHistogram,flowRows,oiByTime,step,now,{
     const delta=current.oi-previous.oi,v=volume.get(row.t),nf=flow.get(row.t);
     if(!Number.isFinite(v)||!Number.isFinite(nf))continue;
     result.eligible++;
-    const direction=oiCandleDirection(row,filterPin),sameSign=direction!==0&&[v,nf,delta].every(x=>Math.sign(x)===direction);
-    const downOiIncrease=direction<0&&row.c<row.o&&v<0&&nf<0&&delta>0;
+    const direction=oiCandleDirection(row,filterPin),agreement=direction!==0&&[v,nf,row.c-row.o].every(x=>Math.sign(x)===direction)&&delta!==0;
+    const kind=agreement?`${direction>0?'up':'down'}-oi-${delta>0?'increase':'decrease'}`:null;
     const gate=gates?.get(row.t),gateReady=!gates||gate?.ready===true,gatePassed=!gates||gate?.passed===true;
     if(gateReady)result.gateReady++;
-    const matched=(sameSign||downOiIncrease)&&gatePassed,kind=downOiIncrease?'down-oi-increase':sameSign?'same-sign':null;
+    const matched=Boolean(kind)&&gatePassed;
     const info={delta,direction,spyV:v,net:nf,matched,kind,gateReady,gatePassed,threshold:gate?.threshold??null,baseline:gate?.baseline??null,pinAdjusted:direction!==Math.sign(row.c-row.o)};
     result.points.set(row.t,info);
     if(!matched)continue;
-    result.matched++;if(downOiIncrease)result.downOiIncrease++;
-    point.value=Math.abs(delta);point.color=downOiIncrease?'#5b21b6':direction>0?'rgba(26,224,163,.72)':'rgba(255,77,112,.72)';
+    result.matched++;result.groups[kind]=(result.groups[kind]??0)+1;if(kind==='down-oi-increase')result.downOiIncrease++;
+    point.value=Math.abs(delta);point.color=GROUP_COLORS[kind];
   }
   return result;
 }

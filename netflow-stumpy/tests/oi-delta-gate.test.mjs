@@ -22,5 +22,5 @@ test('OI threshold filters both old consensus and the new falling-price OI expan
   const t=start+21*step,now=t+step,row={t,end:now-1,o:101,c:100,h:102,l:99};
   const run=delta=>oiCandleBars([row],[{t,value:-1}],[{t,net:-20}],fixture(delta),step,now,{history:true,minOiMultiplier:1});
   assert.equal(run(10).matched,0);assert.equal(run(11).matched,1);assert.equal(run(11).points.get(t).kind,'down-oi-increase');
-  assert.equal(run(-10).matched,0);assert.equal(run(-11).matched,1);assert.equal(run(-11).points.get(t).kind,'same-sign');
+  assert.equal(run(-10).matched,0);assert.equal(run(-11).matched,1);assert.equal(run(-11).points.get(t).kind,'down-oi-decrease');
 });
