@@ -1,10 +1,10 @@
 import {OiFastLoader} from './oi-fast-load.mjs?v=20261104-oi-region-confirm1';
-import {buildSpectrumComparison,drawPairedSpectrum,spectrumPriceGroup,confirmSpectrumGroup} from './paired-spectrum.mjs?v=20261104-oi-region-confirm1';
-import {OiHistory} from './oi-history.mjs?v=20261104-oi-fast1';
+import {buildSpectrumComparison,drawPairedSpectrum,spectrumPriceGroup,confirmSpectrumGroup} from './paired-spectrum.mjs?v=20261104-oi-stale-fast2';
+import {OiHistory} from './oi-history.mjs?v=20261104-oi-stale-fast2';
 import {SpectrumPrimitive} from './spectrum-primitive.mjs?v=20261104-oi-smooth1';
 import {OiBoldCandles} from './oi-bold-candles.mjs?v=20261104-oi-purple-restore1';
 import {oiCandleBars,OI_GROUP_LABELS} from './oi-candle-bars.mjs?v=20261104-oi-p62-1';
-import {oiSpectrum} from './oi-spectrum.mjs?v=20261104-oi-smooth1';
+import {oiSpectrum} from './oi-spectrum.mjs?v=20261104-oi-stale-fast2';
 import {closedColorSourceKey,readH1ColorCache,saveH1ColorCache,archiveColorRevision} from './h1-color-cache.mjs?v=20261103-day-open1';
 import {h1StripCell} from './h1-h4-strip.mjs?v=20261101-h1h4-align1';
 import {createStrengthBoxLayer} from './strength-box-ui.mjs?v=20261031-h1-box-perf1';
@@ -613,7 +613,7 @@ function updateSpectrumReadout(level=null){
     text=`Giá ${fmt(near.price)} · CVD ngày ${fmtK(near.cvd)} (${flow}) · ${matched?`OI +${fmtK(near.opened)} / −${fmtK(near.closed)} · ròng ${signed(near.netOi)} · tổng biến động ${fmtK(near.grossOi)} · ${oi}`:'OI WAIT: chưa đủ dữ liệu đối chiếu'}`;
   }else{
     const top=spectrumComparison.rows.filter(r=>r.rank).sort((a,b)=>a.rank-b.rank);
-    text=`CVD ngày ${cvdSourceLabel} · ${spectrumComparison.day??'—'} NY · ${spectrumComparison.count} nến${matched?' khớp OI':' · OI WAIT'}. CVD∞ nền mờ dùng nhiều ngày; ba dải chuẩn hóa riêng. OI xanh = tăng, đỏ = giảm vị thế. ${top.length?'Vùng OI nổi bật: '+top.map(r=>`#${r.rank} ${fmt(r.price)} (ròng ${signed(r.netOi)})`).join(' · ')+'. ':''}Trỏ hoặc chạm chart tại hàng giá để xem chi tiết.`;
+    text=`CVD ngày ${cvdSourceLabel} · ${spectrumComparison.day??'—'} NY · ${spectrumComparison.count} nến${matched?(spectrumComparison.stale?' · DỮ LIỆU CŨ · đang cập nhật':' khớp OI'):' · OI WAIT'}. CVD∞ nền mờ dùng nhiều ngày; ba dải chuẩn hóa riêng. OI xanh = tăng, đỏ = giảm vị thế. ${top.length?'Vùng OI nổi bật: '+top.map(r=>`#${r.rank} ${fmt(r.price)} (ròng ${signed(r.netOi)})`).join(' · ')+'. ':''}Trỏ hoặc chạm chart tại hàng giá để xem chi tiết.`;
   }
   if(node.textContent!==text)node.textContent=text;
 }
@@ -625,10 +625,10 @@ function updateSpectrumBadge(currentPrice){
  const oi=group.netOi>0?'OI TĂNG RÒNG':group.netOi<0?'OI GIẢM RÒNG':'OI RÒNG CÂN BẰNG';
  const headline=document.createElement('strong');headline.textContent=`VÙNG ${fmt(group.low)}–${fmt(group.high)}`;
  const state=document.createElement('span');state.textContent=group.ready?`${flow} · ${oi}`:`${group.count?flow:'CHỜ CVD NGÀY'} · OI WAIT`;
- const values=document.createElement('small');values.textContent=group.ready?`CVD ${fmtK(group.cvd)} · OI ròng ${signed(group.netOi)} · ${isChartLive()?'LIVE':'DELAYED'}`:`${spectrumComparison.day??'—'} NY · ${spectrumComparison.count} nến đóng · ${isChartLive()?'LIVE':'DELAYED'}`;
+ const values=document.createElement('small');values.textContent=group.ready?`CVD ${fmtK(group.cvd)} · OI ròng ${signed(group.netOi)} · ${spectrumComparison.stale?'OI CŨ · đang cập nhật':isChartLive()?'LIVE':'DELAYED'}`:`${spectrumComparison.day??'—'} NY · ${spectrumComparison.count} nến đóng · ${isChartLive()?'LIVE':'DELAYED'}`;
  const confirmation=confirmSpectrumGroup(group,spectrumComparison,rows.SPYUSDT??[],oiBarState.points),confirmLabel=document.createElement('small');confirmLabel.className='oi-region-confirmation';
  const confirmationNames={confirmed:'ĐÃ XÁC NHẬN',conflict:'NẾN ĐANG ĐỐI NGHỊCH',forming:'CHỜ THÊM NẾN',mixed:'CHƯA ĐỒNG THUẬN',WAIT:'CHỜ ĐỦ CVD / OI'};
- confirmLabel.textContent=confirmationNames[confirmation.state]+(confirmation.count?` · ${confirmation.support}/${confirmation.count} nến · ${Math.round(confirmation.share*100)}% |ΔOI|`:'');
+ confirmLabel.textContent=(spectrumComparison.stale?'DỮ LIỆU CŨ · ':'')+confirmationNames[confirmation.state]+(confirmation.count?` · ${confirmation.support}/${confirmation.count} nến · ${Math.round(confirmation.share*100)}% |ΔOI|`:'');
  const text=headline.textContent+'|'+state.textContent+'|'+values.textContent+'|'+confirmLabel.textContent;
  if(badge.dataset.text!==text){badge.replaceChildren(headline,state,values,confirmLabel);badge.dataset.text=text;}
  badge.dataset.confirmation=confirmation.state;badge.dataset.confirmationCount=String(confirmation.count);badge.dataset.state=group.state;badge.dataset.low=String(group.low);badge.dataset.high=String(group.high);
@@ -739,15 +739,15 @@ function render(fit=false){
   cvdSourceLabel=compositeCvd?'C→S':'Q';$('cvd-spectrum').dataset.source=compositeCvd?'COMPOSITE→SPY':'QQQUSDT';
   const oiEnabled=$('oi-spectrum-toggle')?.checked&&compositeCvd;
   oiProfile=oiEnabled?oiSpectrum(p,oiWidths,STEPS[$('interval').value],cache?.serverTime??0):{ready:false,bins:[],max:0};
-  // CVD retains all loaded days; only the OI profile resets at NY midnight.
+  // Restore the latest paired OI day until new observations arrive.
   const profileBars=cvdBars;
   cvdProfile=continuousCvdSpectrum(profileBars);cvdAnchorTime=cvdBars.at(-1)?.t??p.at(-1)?.t??null;
   spectrumComparison=buildSpectrumComparison(p,cvdBars,oiProfile,cache?.serverTime??0);updateSpectrumReadout();
   const spectrumNode=$('cvd-spectrum');spectrumNode.dataset.renderer='chart-primitive';
   const spectrumDescription=`CVD nhiều ngày làm nền mờ; CVD ngày và OI cạnh nhau cùng hàng giá. Ngày ${spectrumComparison.day??'—'} NY, ${spectrumComparison.count} nến; ${spectrumComparison.pairedReady?'CVD và OI khớp timestamp':'OI WAIT'}. OI xanh = tăng, đỏ = giảm; độ dài chuẩn hóa riêng.`;
   if(spectrumNode.getAttribute('aria-label')!==spectrumDescription)spectrumNode.setAttribute('aria-label',spectrumDescription);
-  $('chart').dataset.oiSpectrumState=!oiEnabled?'off':oiProfile.ready?'ready':'WAIT';$('chart').dataset.oiSpectrumBars=String(oiProfile.count??0);$('chart').dataset.oiSpectrumDay=oiProfile.day??'';$('chart').dataset.cvdSpectrumPeriod='loaded-history';$('chart').dataset.cvdSpectrumBars=String(profileBars.length);$('chart').dataset.spectrumLayout='adjacent-price-aligned';$('chart').dataset.cvdDayBars=String(spectrumComparison.count);$('chart').dataset.spectrumPaired=String(spectrumComparison.pairedReady);
-  const oiStatus=$('oi-spectrum-status');if(oiStatus){oiStatus.textContent=!compositeCvd?'Phổ ΔOI · chỉ SPY':!oiEnabled?'Phổ ΔOI SPY':oiProfile.ready?`Phổ ΔOI SPY · ${oiProfile.day} NY · ${oiProfile.count} nến`:'Phổ ΔOI SPY · WAIT';oiStatus.title=oiProfile.ready?`ΔOI chỉ ngày New York hiện tại; CVD liên tục nhiều ngày · ${new Date(oiProfile.first).toLocaleString('vi-VN')} → ${new Date(oiProfile.last).toLocaleString('vi-VN')}. Hai dải cùng hàng giá và cùng nến đã đóng. OI xanh = tăng, đỏ = giảm; chiều dài toàn thanh OI theo tổng tăng + giảm, số ròng xem khi trỏ/chạm. CVD∞ làm nền mờ, từng dải có thang riêng.`:'Chờ ít nhất hai ΔOI hợp lệ trong ngày New York hiện tại và mẫu mới nhất. CVD luôn giữ lịch sử nhiều ngày.';}
+  $('chart').dataset.oiSpectrumState=!oiEnabled?'off':oiProfile.ready?(oiProfile.stale?'stale':'ready'):'WAIT';$('chart').dataset.oiSpectrumBars=String(oiProfile.count??0);$('chart').dataset.oiSpectrumDay=oiProfile.day??'';$('chart').dataset.cvdSpectrumPeriod='loaded-history';$('chart').dataset.cvdSpectrumBars=String(profileBars.length);$('chart').dataset.spectrumLayout='adjacent-price-aligned';$('chart').dataset.cvdDayBars=String(spectrumComparison.count);$('chart').dataset.spectrumPaired=String(spectrumComparison.pairedReady);
+  const oiStatus=$('oi-spectrum-status');if(oiStatus){oiStatus.textContent=!compositeCvd?'Phổ ΔOI · chỉ SPY':!oiEnabled?'Phổ ΔOI SPY':oiProfile.ready?`Phổ ΔOI SPY · ${oiProfile.day} NY · ${oiProfile.count} nến${oiProfile.stale?' · DỮ LIỆU CŨ · đang cập nhật':''}`:'Phổ ΔOI SPY · WAIT';oiStatus.title=oiProfile.ready?`ΔOI ngày ${oiProfile.day} NY${oiProfile.stale?' · DỮ LIỆU CŨ, đang cập nhật':''}; CVD liên tục nhiều ngày · ${new Date(oiProfile.first).toLocaleString('vi-VN')} → ${new Date(oiProfile.last).toLocaleString('vi-VN')}. Hai dải cùng hàng giá và cùng nến đã đóng. OI xanh = tăng, đỏ = giảm; chiều dài toàn thanh OI theo tổng tăng + giảm, số ròng xem khi trỏ/chạm. CVD∞ làm nền mờ, từng dải có thang riêng.`:'Chờ ít nhất hai ΔOI hợp lệ; dữ liệu đã lưu sẽ hiển thị trong lúc cập nhật. CVD luôn giữ lịch sử nhiều ngày.';}
   const closedBefore=cache?.serverTime??Infinity,closedPrice=p.filter(row=>(row.end??row.t)<closedBefore),closedTimes=new Set(closedPrice.map(row=>row.t)),modelPrice=model[$('symbol').value]??p,modelClosedPrice=modelPrice.filter(row=>(row.end??row.t)<closedBefore),modelClosedTimes=new Set(modelClosedPrice.map(row=>row.t));
   const volumeStrengthMap=new Map(volumeStrengthRows.map(x=>[x.t,x]));
   candleColorMap=new Map(p.map(x=>[x.t,strengthAgreementCandleSignal(maps.COMPOSITE?.get(x.t),volumeStrengthMap.get(x.t))]));
@@ -1027,6 +1027,7 @@ if(init()){
   $('export').onclick=exportCSV;
   const changeCalendarFilter=()=>{delete $('calendar-list').dataset.positioned;renderCalendar();};$('calendar-impact').onchange=changeCalendarFilter;$('calendar-currency').onchange=changeCalendarFilter;$('calendar-refresh').onclick=refreshCalendar;
   ensureStudiesWorker();studiesWorker.postMessage({type:'prefetch'});
+  void refreshOiWidths($('interval').value);
   setLive();refreshCalendar();refresh(true);setInterval(()=>{updateCandleCountdown();if(!isChartLive()){setLive();schedulePivotFlowOverlay();}updateGeometryReadout();if(!document.hidden&&!loading)refresh();},LIVE_REFRESH_MS);
   setInterval(()=>{if(!document.hidden)void refreshOiWidths($('interval').value);},15000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refreshOiWidths($('interval').value);});
