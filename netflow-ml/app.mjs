@@ -1,3 +1,4 @@
+import {createOiLayer} from './oi-ui.mjs?v=20261104-ml-oi1';
 import {h1StripCell} from './h1-h4-strip.mjs?v=20261102-xau-box1';
 import {createStrengthBoxLayer} from './strength-box-ui.mjs?v=20261026-channel-qr1';
 import {createQuantilePrice} from './quantile-price-ui.mjs?v=20261026-channel-qr1';
@@ -11,13 +12,14 @@ import {wlrDisplayColors,WLR_COLOR_DEFAULTS} from './wlr-display-color.mjs?v=202
 import {createSeriesWriter} from './chart-data-cache.mjs?v=20261026-history-perf3';
 import {COMPOSITE_STRENGTH_VERSION,STEPS,composite,strengthAgreementCandleSignal,strengthPhaseLineStyle,directionalVolumeDelta,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,weightedPriceBands,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs?v=20261026-history-perf3';
 import {calculateCommonTakerVolumeStrength} from './common-volume.mjs?v=20261025-dcommon-all1';
-import {load} from './data.mjs?v=20261102-eur1';
+import {load,getJSON} from './data.mjs?v=20261102-eur1';
 import {pivotFlowRealtime} from './pivot-zones.mjs?v=20261025-dcommon-all1';
 import {pivotFlowLayout,pivotFlowZeroCoordinate} from './pivot-flow-layout.mjs?v=20261025-dcommon-all1';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261025-dcommon-all1';
 import {preRthWlrTrend,formatPreRthWlrTrend,trendReadoutState} from './pre-rth-wlr-trend.mjs?v=20261102-xau-box1';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:$('market-symbol')?.value==='EURUSDT'?5:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
+let oiLayer;
 let chart,price,series={},marks,strengthMarks,cache=null,rows={},volumeStrengthRows=[],modelRows={},modelVolumeStrengthRows=[],modelStamp=null,trendRows={},trendVolumeStrengthRows=[],trendStamp=null,trainingMeta=null,maps={},priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',cvdFrame=0,dayBoundaries=[],dayFrame=0,geometryFrame=0,pivotFlowFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},causalChannelState={trends:[],total:0},geometryStatePoints=[],geometryStatePointsKey='',breakoutState=null,geometryBacktest={n:0},controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
 const colors={SPYUSDT:'#5ba8ff',QQQUSDT:'#c194ff',COMPOSITE:'#38dfba'};
 let h1CandleMap=new Map(),h1H4CandleMap=new Map(),h1H4StripFrame=0;
@@ -36,7 +38,7 @@ let studiesWorker=null,studyKey='',studyResultKey='',statsWorker=null,statsReque
 const CALENDAR_REFRESH_MS=5*60*1000;
 const FIT_WINDOW_MS=36*60*60*1000,FIT_HALF_WINDOW_MS=12*60*60*1000,DOUBLE_TAP_MS=360,DOUBLE_TAP_DISTANCE=28,TAP_MOVE_TOLERANCE=14;
 const SETUP_STORAGE_KEY='netflow-xau:chart-setup:v2';
-const SETUP_CONTROL_IDS=['market-symbol','symbol','interval','days','signal','composite','alignment','common-volume-strength','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-trend-age-color','candle-h1-box-color','cvd-spectrum-toggle','show-strength','spy-volume-strength','bands','markers','double-tap-full','geometry-toggle','geometry-provisional','causal-trend-channel','causal-trend-channel-provisional','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
+const SETUP_CONTROL_IDS=['oi-spectrum-toggle','oi-candle-bars-toggle','oi-bold-candles-toggle','oi-candle-pin-toggle','oi-delta-percentile','market-symbol','symbol','interval','days','signal','composite','alignment','common-volume-strength','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-trend-age-color','candle-h1-box-color','cvd-spectrum-toggle','show-strength','spy-volume-strength','bands','markers','double-tap-full','geometry-toggle','geometry-provisional','causal-trend-channel','causal-trend-channel-provisional','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
 let statsMap=new Map(),candleColorMap=new Map(),candleClusterMap=new Map(),rev63State=null,pivotZoneState={ready:false,reason:'history',support:null,resistance:null},pivotFlowState=null,pivotZoneKey='',inspectedTime=null;
 let calendarState={events:[],updatedAt:null,loading:false};
 let pendingSavedTimeRange=null,saveSetupTimer=null,strengthBoxLayer=null,quantileLayer=null;
@@ -336,6 +338,10 @@ function init(){
   window.addEventListener('resize',()=>{applyResponsiveChartOptions();scheduleCvdSpectrum();scheduleDaySeparators();scheduleGeometryOverlay();schedulePivotFlowOverlay();scheduleH1H4Strip();requestAnimationFrame(positionForecastReadout);requestAnimationFrame(positionStrengthReadout);requestAnimationFrame(positionFixedPaneReadouts);requestAnimationFrame(updateCandleCountdown);});
   window.addEventListener('orientationchange',()=>setTimeout(()=>{applyResponsiveChartOptions();window.dispatchEvent(new Event('resize'));},120));
   $('chart').addEventListener('pointermove',schedulePivotFlowOverlay,{passive:true});$('chart').addEventListener('wheel',schedulePivotFlowOverlay,{passive:true});
+  oiLayer=createOiLayer({chart,price,L,host:$('chart'),get:getJSON,render:()=>render(false),getContext:()=>{
+    const market=$('market-symbol').value,interval=$('interval').value,valid=cache?.marketSymbol===market&&cache?.interval===interval;
+    return {market,interval,step:STEPS[interval],now:Date.now()+serverOffsetMs,priceRows:valid?(rows[$('symbol').value]??[]):[],flowRows:valid?(rows.SPYUSDT??[]):[],live:isChartLive(),bins:market==='EURUSDT'?{binStep:.0005,range:.012}:{binStep:.5,range:12}};
+  }});
   bindChartGestures();
   return true;
 }
@@ -414,7 +420,7 @@ function updateAbaBandColors(){
  $('aba-band-color-status').textContent=!on?'Đã tắt màu biên theo kênh causal.':!supported?'Biên theo kênh causal hỗ trợ SPY M15.':`Biên theo kênh trend causal · ${result.channelCount} kênh. Hộp sức mạnh ghi loại hộp thay nhãn A1.`;
 }
 
-function scheduleCvdSpectrum(){if(cvdFrame)return;cvdFrame=requestAnimationFrame(()=>{cvdFrame=requestAnimationFrame(()=>{cvdFrame=0;drawCvdSpectrum();strengthBoxLayer?.schedule();});});}
+function scheduleCvdSpectrum(){oiLayer?.redraw();strengthBoxLayer?.schedule();}
 function scheduleDaySeparators(){if(dayFrame)return;dayFrame=requestAnimationFrame(()=>{dayFrame=requestAnimationFrame(()=>{dayFrame=0;drawDaySeparators();});});}
 function scheduleGeometryOverlay(){if(geometryFrame)return;geometryFrame=requestAnimationFrame(()=>{geometryFrame=requestAnimationFrame(()=>{geometryFrame=0;drawGeometryOverlay();});});}
 function schedulePivotFlowOverlay(){if(pivotFlowFrame)return;pivotFlowFrame=requestAnimationFrame(()=>{pivotFlowFrame=requestAnimationFrame(()=>{pivotFlowFrame=0;drawPivotFlowOverlay();});});}
@@ -462,33 +468,6 @@ function updateCandleCountdown(){
   const y=price.priceToCoordinate(bar.c),paneHeight=chart?.panes?.()[0]?.getHeight?.();
   node.style.right='2ch';node.style.width='auto';
   if(Number.isFinite(y)&&Number.isFinite(paneHeight))node.style.top=`${Math.max(2,Math.min(paneHeight-node.offsetHeight-2,y+11))}px`;
-}
-function cvdSpectrumBounds(){
-  const width=$('chart').clientWidth,anchor=cvdAnchorTime===null?null:chart.timeScale().timeToCoordinate(cvdAnchorTime/1000);
-  if(!Number.isFinite(anchor))return null;
-  const scaleWidth=chart.priceScale('right',0)?.width?.()??56,maxWidth=Math.min(width<650?48:76,Math.max(34,width*.14)),usableRight=width-scaleWidth-5;
-  const xBase=Math.max(maxWidth+5,Math.min(usableRight-maxWidth-5,anchor+maxWidth+8));
-  return {left:xBase-maxWidth,right:xBase+maxWidth,xBase,maxWidth,usableRight};
-}
-function drawCvdSpectrum(){
-  const canvas=$('cvd-spectrum'),host=$('chart'),width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1;
-  const bitmapWidth=Math.round(width*dpr),bitmapHeight=Math.round(height*dpr);if(canvas.width!==bitmapWidth||canvas.height!==bitmapHeight){canvas.width=bitmapWidth;canvas.height=bitmapHeight;}
-  const context=canvas.getContext('2d');context.setTransform(dpr,0,0,dpr,0,0);context.clearRect(0,0,width,height);
-  if(!$('cvd-spectrum-toggle').checked||!cvdProfile.bins.length||!cvdProfile.maxAbs||cvdAnchorTime===null)return;
-  const bounds=cvdSpectrumBounds();if(!bounds)return;
-  const paneHeight=chart.panes()[0]?.getHeight?.()??height*.5,{xBase,maxWidth,usableRight}=bounds,scale=maxWidth/cvdProfile.maxAbs;
-  const visible=cvdProfile.bins.map(bin=>({...bin,y:price.priceToCoordinate(bin.price)})).filter(bin=>Number.isFinite(bin.y)&&bin.y>=0&&bin.y<=paneHeight);
-  if(!visible.length)return;
-  context.save();context.setLineDash([3,4]);context.strokeStyle='rgba(151,164,181,.55)';context.lineWidth=1;context.beginPath();context.moveTo(xBase,visible[0].y);context.lineTo(xBase,visible.at(-1).y);context.stroke();context.setLineDash([]);
-  let buy=null,sell=null;
-  for(const bin of visible){
-    const x=xBase+bin.value*scale,ratio=Math.abs(bin.value)/cvdProfile.maxAbs;
-    context.strokeStyle=bin.value>=0?`rgba(42,120,214,${.4+.5*ratio})`:`rgba(235,104,52,${.4+.5*ratio})`;context.lineWidth=(width<650?2.5:3.5)+(width<650?1:1.5)*ratio;context.beginPath();context.moveTo(xBase,bin.y);context.lineTo(x,bin.y);context.stroke();
-    if(bin.value>0&&(!buy||bin.value>buy.value))buy={...bin,x};if(bin.value<0&&(!sell||bin.value<sell.value))sell={...bin,x};
-  }
-  context.font=`600 ${width<650?9:10}px Inter,system-ui,sans-serif`;context.textBaseline='bottom';context.textAlign='center';context.fillStyle='rgba(196,210,226,.9)';context.fillText(`CVD∞ ${cvdSourceLabel} · bin ${cvdProfile.binStep}`,xBase,Math.max(12,visible[0].y-5));
-  if(width>=650){context.textBaseline='middle';if(buy){context.textAlign='left';context.fillStyle='#70aef4';context.fillText(`▲ ${fmt(buy.price)}`,Math.min(usableRight-42,buy.x+5),buy.y);}if(sell){context.textAlign='right';context.fillStyle='#f28a61';context.fillText(`▼ ${fmt(sell.price)}`,Math.max(42,sell.x-5),sell.y);}}
-  context.restore();
 }
 function drawDaySeparators(){
   const canvas=$('day-separators'),host=$('chart'),width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1;
@@ -585,8 +564,8 @@ function render(fit=false){
   const seriesContext=[$('symbol').value,$('interval').value,$('signal').value,$('days').value,$('candle-agreement-color').checked,trendAgeColor,trendAgeKey,h1BoxColor,$('phase-width').checked,$('wlr-soft-colors').checked].join('|');
   $('chart').dataset.candleH1BoxStates=String(h1CandleMap.size);$('chart').dataset.candleH1BoxColor=h1BoxColor?'active':'off';scheduleH1H4Strip();
   dayBoundaries=dayBoundaryTimes(p);
-  const compositeCvd=$('symbol').value==='SPYUSDT',cvdBars=compositeCvd?projectNetFlowToPrice(p,rows.COMPOSITE??[]):p;
-  cvdSourceLabel=compositeCvd?'C→S':'Q';$('cvd-spectrum').dataset.source=compositeCvd?'COMPOSITE→SPY':'QQQUSDT';
+  const compositeCvd=$('symbol').value==='SPYUSDT',cvdBars=projectNetFlowToPrice(p,rows.SPYUSDT??[]);
+  cvdSourceLabel=$('market-symbol').value;$('cvd-spectrum').dataset.source=cvdSourceLabel;
   cvdProfile=continuousCvdSpectrum(cvdBars,$('market-symbol').value==='EURUSDT'?{binStep:.0005,range:.012}:undefined);cvdAnchorTime=cvdBars.at(-1)?.t??null;
   const closedBefore=cache?.serverTime??Infinity,closedPrice=p.filter(row=>(row.end??row.t)<closedBefore),closedTimes=new Set(closedPrice.map(row=>row.t)),modelPrice=model[$('symbol').value]??p,modelClosedPrice=modelPrice.filter(row=>(row.end??row.t)<closedBefore),modelClosedTimes=new Set(modelClosedPrice.map(row=>row.t));
   const volumeStrengthMap=new Map(volumeStrengthRows.map(x=>[x.t,x]));
@@ -595,7 +574,8 @@ function render(fit=false){
   const clusterColors=$('candle-agreement-color').checked;
   setOptions(price,{priceFormat:$('symbol').value==='SPYUSDT'?($('market-symbol').value==='EURUSDT'?{type:'price',precision:5,minMove:.00001}:{type:'price',precision:1,minMove:.1}):{type:'price',precision:2,minMove:.01}});
   $('chart').dataset.candleTrendAgeColor=trendAgeColor?'historical':'off';$('chart').dataset.candleTrendAgeHistoryBars=String(trendAgeCandleMap.size);$('chart').dataset.candleTrendAgeColoredBars=String([...trendAgeCandleMap.values()].filter(x=>['UP','DOWN'].includes(x.label)).length);
-  writeSeries('price',price,p.map(x=>{const boxState=h1CandleMap.get(x.t),color=h1BoxColor&&boxState?h1BoxCandlePalette(x,boxState):trendAgeColor?trendAgeCandlePalette(x,trendAgeCandleMap.get(x.t)):clusterColors?candleClusterPalette(candleClusterMap.get(x.t)):candlePalette(candleColorMap.get(x.t));return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color:color.body,wickColor:color.wick,borderColor:color.border};}),seriesContext);
+  const priceData=p.map(x=>{const boxState=h1CandleMap.get(x.t),color=h1BoxColor&&boxState?h1BoxCandlePalette(x,boxState):trendAgeColor?trendAgeCandlePalette(x,trendAgeCandleMap.get(x.t)):clusterColors?candleClusterPalette(candleClusterMap.get(x.t)):candlePalette(candleColorMap.get(x.t));return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color:color.body,wickColor:color.wick,borderColor:color.border};});
+  writeSeries('price',price,priceData,seriesContext);
   pivotFlowState=pivotFlowRealtime(pivotZoneState.flow,rows.SPYUSDT??[],rows.COMPOSITE??[],closedBefore,pivotFlowState?.volatility?.key);
   const priceBands=weightedPriceBands(p,STEPS[$('interval').value]),trendThickness=new Map(wlrSlopeThickness(p,maps.COMPOSITE??new Map(),volumeStrengthMap,{step:STEPS[$('interval').value],closedBefore}).map(x=>[x.t,x]));priceBandMap=new Map(priceBands.map(x=>[x.t,x]));wlrThicknessMap=trendThickness;const currentThickness=trendThickness.get(p.at(-1)?.t);$('chart').dataset.wlrThicknessModel='slope-r2-flow-noise';$('chart').dataset.wlrThicknessMax=String(WLR_SLOPE_DEFAULTS.maxWidth);$('chart').dataset.wlrThicknessTrendWeight=String(WLR_SLOPE_DEFAULTS.trendWeight);$('chart').dataset.wlrThicknessWindow=String(WLR_SLOPE_DEFAULTS.window);$('chart').dataset.wlrThicknessPairs=String(currentThickness?.pairs??0);
   updateRev63();
@@ -604,6 +584,7 @@ function render(fit=false){
   const step=STEPS[$('interval').value],spyVolumeDelta=directionalVolumeDelta(rows.SPYUSDT??[],step),commonStrengthRows=calculateCommonTakerVolumeStrength(rows.SPYUSDT??[],rows.QQQUSDT??[],step).rows;
   commonVolumeStrengthMap=new Map(commonStrengthRows.map(x=>[x.t,x]));
   writeSeries('alignment',series.alignment,volumeDeltaBandData(spyVolumeDelta,volumeStrengthMap),seriesContext);
+  oiLayer?.update({priceData,histogram:spyVolumeDelta,history:cvdProfile,anchor:cvdAnchorTime});
   writeSeries('commonVolumeStrength',series.commonVolumeStrength,commonVolumeStrengthData(commonStrengthRows),seriesContext);
   writeSeries('strength',series.strength,lineData(signalRows,'adjusted'),seriesContext);
   writeSeries('volumeStrength',series.volumeStrength,lineData(volumeStrengthRows,'adjusted'),seriesContext);
@@ -699,7 +680,7 @@ function toggle(){
   scheduleAbaBandColors();
   for(const [id,key] of [['composite','COMPOSITE'],['show-strength','strength'],['spy-volume-strength','volumeStrength']])setOptions(series[key],{visible:$(id).checked});
   setOptions(strengthMarks,{visible:$('show-strength').checked});
-  $('cvd-spectrum').style.display=$('cvd-spectrum-toggle').checked?'block':'none';scheduleCvdSpectrum();
+  $('cvd-spectrum').style.display='none';scheduleCvdSpectrum();
   $('day-separators').style.display=$('markers').checked?'block':'none';scheduleDaySeparators();
   $('geometry-overlay').style.display=$('geometry-toggle').checked||$('causal-trend-channel').checked?'block':'none';scheduleGeometryOverlay();updateGeometryReadout();
   setOptions(series.alignment,{visible:$('alignment').checked});
@@ -721,6 +702,7 @@ function acceptChartData(data,fit,live){
  cache=data;serverOffsetMs=data.serverTime-Date.now();lastSuccess=live?new Date():null;render(fit);setLive(live);
 }
 async function refresh(clear=false){
+  oiLayer?.refresh();
   controller?.abort();controller=new AbortController();const gen=++generation;
   loading=true;$('refresh').disabled=true;
   if(clear){resetStudies();cache=null;rows={};volumeStrengthRows=[];boxVolumeStrengthMap=new Map();commonVolumeStrengthMap=new Map();modelRows={};modelVolumeStrengthRows=[];modelStamp=null;trendRows={};trendVolumeStrengthRows=[];trendStamp=null;trainingMeta=null;maps={};lastSuccess=null;inspectedTime=null;pivotZoneKey='';pivotZoneState={ready:false,reason:'history',support:null,resistance:null};pivotFlowState=null;render(true);}
