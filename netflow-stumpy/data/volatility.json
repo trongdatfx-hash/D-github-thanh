@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "checkedAt": 1793742804579,
+  "checkedAt": 1793757536054,
   "quotes": {
     "VIX": {
       "symbol": "^VIX",
@@ -11,7 +11,7 @@
       "changePct": -1.513002364066196,
       "source": "Yahoo Finance",
       "nominalDelayMinutes": 15,
-      "lastSuccessAt": 1793742804579,
+      "lastSuccessAt": 1793757536054,
       "fetchStatus": "ok"
     },
     "VIX9D": {
@@ -23,7 +23,7 @@
       "changePct": -2.2261798753339224,
       "source": "Yahoo Finance",
       "nominalDelayMinutes": 15,
-      "lastSuccessAt": 1793742804579,
+      "lastSuccessAt": 1793757536054,
       "fetchStatus": "ok"
     }
   }
