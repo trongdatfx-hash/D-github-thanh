@@ -1,10 +1,10 @@
-import {oiSpectrumDay} from './oi-spectrum.mjs?v=20261104-oi-smooth1';
+import {oiSpectrumDay} from './oi-spectrum.mjs?v=20261104-oi-stale-fast2';
 
 export function buildSpectrumComparison(priceRows,flowBars,oiProfile,now,{binStep=.5,range=12}={}){
   const empty={rows:[],day:null,count:0,oiCount:0,pairedReady:false,maxCvd:0,maxOiGross:0,binStep};
   if(!Number.isFinite(now)||now<=0||!priceRows.length)return empty;
-  const day=oiSpectrumDay(now),center=priceRows.at(-1).c,flow=new Map(flowBars.map(r=>[r.t,r.net]));
-  const daily=priceRows.filter(r=>r.end<now&&r.t>=now-26*3600000&&oiSpectrumDay(r.t)===day&&Number.isFinite(flow.get(r.t)));
+  const day=oiProfile.ready?oiProfile.day:oiSpectrumDay(now),center=priceRows.at(-1).c,flow=new Map(flowBars.map(r=>[r.t,r.net]));
+  const daily=priceRows.filter(r=>r.end<now&&oiSpectrumDay(r.t)===day&&Number.isFinite(flow.get(r.t)));
   const dailyTimes=new Set(daily.map(r=>r.t)),oiTimes=new Set(oiProfile.times??[]);
   const pairedReady=oiProfile.ready===true&&oiProfile.day===day&&oiTimes.size>0&&[...oiTimes].every(t=>dailyTimes.has(t));
   // When OI is available, compare exactly the same timestamps, even over gaps.
@@ -15,7 +15,7 @@ export function buildSpectrumComparison(priceRows,flowBars,oiProfile,now,{binSte
   const rows=[...bins.values()].filter(r=>Math.abs(r.price-center)<=range).sort((a,b)=>a.price-b.price).map(r=>({...r,netOi:r.opened-r.closed,grossOi:r.opened+r.closed,rank:0}));
   const top=[...rows].filter(r=>r.grossOi>0).sort((a,b)=>b.grossOi-a.grossOi||Math.abs(a.price-center)-Math.abs(b.price-center)).slice(0,3);
   top.forEach((r,i)=>{r.rank=i+1;});
-  return {rows,day,times:selected.map(r=>r.t),count:selected.length,oiCount:pairedReady?oiTimes.size:0,pairedReady,maxCvd:Math.max(0,...rows.map(r=>Math.abs(r.cvd))),maxOiGross:Math.max(0,...rows.map(r=>r.grossOi)),binStep};
+  return {rows,day,stale:pairedReady&&oiProfile.stale===true,last:oiProfile.last,times:selected.map(r=>r.t),count:selected.length,oiCount:pairedReady?oiTimes.size:0,pairedReady,maxCvd:Math.max(0,...rows.map(r=>Math.abs(r.cvd))),maxOiGross:Math.max(0,...rows.map(r=>r.grossOi)),binStep};
 }
 
 export function spectrumLaneLayout(width,anchor,{showCvd=true,compare=true}={}){
@@ -68,7 +68,7 @@ export function drawPairedSpectrum({context,mediaSize,anchor,priceToY,history,co
     if(compare)for(const bin of comparison.rows){const length=comparison.maxCvd?bin.cvd/comparison.maxCvd*lane.halfCvd:0;line(lane.xCvd,lane.xCvd+length,priceToY(bin.price),bin.cvd>=0?'#4b99f5':'#f28a61',bin.rank?5:3);}
   }
   if(compare){
-    context.fillStyle='#c5d6eb';context.fillText(comparison.pairedReady?'OI + / −':'OI WAIT',lane.xOi+lane.oiWidth/2,5);
+    context.fillStyle='#c5d6eb';context.fillText(comparison.pairedReady?(comparison.stale?'OI CŨ':'OI + / −'):'OI WAIT',lane.xOi+lane.oiWidth/2,5);
     context.fillStyle='rgba(9,18,31,.65)';context.fillRect(lane.xOi-3,20,lane.oiWidth+6,Math.max(0,height-20));
     const labels=[];
     for(const row of comparison.rows){
