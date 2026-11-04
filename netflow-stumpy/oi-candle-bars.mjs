@@ -7,7 +7,7 @@ export const OI_GROUP_LABELS={
   'down-oi-increase':'GIẢM · BÁN CHỦ ĐỘNG · OI TĂNG',
   'down-oi-decrease':'GIẢM · BÁN CHỦ ĐỘNG · OI GIẢM'
 };
-const GROUP_COLORS={'up-oi-increase':'#1243be','up-oi-decrease':'#1351ee','down-oi-increase':'#7c3aed','down-oi-decrease':'#8b5cf6'};
+const GROUP_COLORS={'up-oi-increase':'#1243be','up-oi-decrease':'#1351ee','down-oi-increase':'#5b21b6','down-oi-decrease':'#8b5cf6'};
 
 // Only a clearly dominant rejection wick overrides the OHLC body direction.
 // The actual SPY V histogram is never rewritten to manufacture agreement.

@@ -1,7 +1,7 @@
 import {OiHistory} from './oi-history.mjs?v=20261104-oi-history1';
 import {SpectrumPrimitive} from './spectrum-primitive.mjs?v=20261104-oi-smooth1';
-import {OiBoldCandles} from './oi-bold-candles.mjs?v=20261104-oi-ten1';
-import {oiCandleBars,OI_GROUP_LABELS} from './oi-candle-bars.mjs?v=20261104-oi-ten1';
+import {OiBoldCandles} from './oi-bold-candles.mjs?v=20261104-oi-purple-restore1';
+import {oiCandleBars,OI_GROUP_LABELS} from './oi-candle-bars.mjs?v=20261104-oi-purple-restore1';
 import {oiSpectrum} from './oi-spectrum.mjs?v=20261104-oi-smooth1';
 import {closedColorSourceKey,readH1ColorCache,saveH1ColorCache,archiveColorRevision} from './h1-color-cache.mjs?v=20261103-day-open1';
 import {h1StripCell} from './h1-h4-strip.mjs?v=20261101-h1h4-align1';
@@ -973,7 +973,7 @@ if(init()){
   const gateLabel=document.createElement('label'),gateSelect=document.createElement('select');gateSelect.id='oi-delta-threshold';gateSelect.setAttribute('aria-label','Ngưỡng ΔOI');
   for(const [value,text] of [['1','1× nền 10 nến'],['1.5','1,5× nền 10 nến'],['2','2× nền 10 nến']]){const option=document.createElement('option');option.value=value;option.textContent=text;gateSelect.append(option);}
   gateLabel.title='Chỉ đánh dấu thân nến và vẽ cột khi |ΔOI| lớn hơn hệ số × trung bình |ΔOI| của đúng 10 nến đóng liền trước. Không tính nến hiện tại vào nền; thiếu dữ liệu hoặc đứt chuỗi thì chờ đủ nền. Áp dụng cả lịch sử; phổ ΔOI theo giá vẫn tính như cũ.';gateLabel.append('Ngưỡng ΔOI > ',gateSelect);pinLabel.after(gateLabel);gateSelect.onchange=()=>render(false);
-  const boldLabel=document.createElement('label'),boldToggle=document.createElement('input');boldToggle.id='oi-bold-candles-toggle';boldToggle.type='checkbox';boldToggle.checked=true;boldLabel.title='Nến đồng thuận OI: thân rộng khoảng 1,5 lần, giới hạn 94% bước nến. Giá tăng + mua chủ động + OI tăng: xanh đậm #1243be không viền. Giá giảm + bán chủ động + OI tăng: tím đậm #7c3aed không viền. Giá tăng + mua chủ động + OI giảm: xanh #1351ee viền kem. Giá giảm + bán chủ động + OI giảm: tím #8b5cf6 viền kem. Màu 4 nhóm ưu tiên hơn H1/H4; chỉ nến đóng vượt ngưỡng ΔOI. Có khôi phục lịch sử; độc lập nút hiện dải ΔOI.';boldLabel.append(boldToggle,'Nến đồng thuận OI đậm');gateLabel.after(boldLabel);boldToggle.onchange=()=>render(false);
+  const boldLabel=document.createElement('label'),boldToggle=document.createElement('input');boldToggle.id='oi-bold-candles-toggle';boldToggle.type='checkbox';boldToggle.checked=true;boldLabel.title='Nến đồng thuận OI: thân rộng khoảng 1,5 lần, giới hạn 94% bước nến. Giá tăng + mua chủ động + OI tăng: xanh đậm #1243be không viền. Giá giảm + bán chủ động + OI tăng: tím đậm #5b21b6 không viền. Giá tăng + mua chủ động + OI giảm: xanh #1351ee viền kem. Giá giảm + bán chủ động + OI giảm: tím #8b5cf6 viền kem. Màu 4 nhóm ưu tiên hơn H1/H4; chỉ nến đóng vượt ngưỡng ΔOI. Có khôi phục lịch sử; độc lập nút hiện dải ΔOI.';boldLabel.append(boldToggle,'Nến đồng thuận OI đậm');gateLabel.after(boldLabel);boldToggle.onchange=()=>render(false);
   restoreSavedSetup();syncChartFrameButtons();
   // Restore the C histogram once for setups saved before the taker plot cleanup.
   // Subsequent user choices remain under the normal Save setup control.

@@ -6,7 +6,7 @@ export function oiBodyWidth(spacing){
 }
 export function oiBodyContrast(color,kind){
   if(kind==='up-oi-increase')return {body:'#1243be',border:null};
-  if(kind==='down-oi-increase')return {body:'#7c3aed',border:null};
+  if(kind==='down-oi-increase')return {body:'#5b21b6',border:null};
   if(kind==='up-oi-decrease')return {body:'#1351ee',border:'#fff3bf'};
   if(kind==='down-oi-decrease')return {body:'#8b5cf6',border:'#fff3bf'};
   const hex=/^#([0-9a-f]{6})$/i.exec(color??'');
