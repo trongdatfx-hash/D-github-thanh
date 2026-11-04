@@ -1,5 +1,6 @@
 const STEPS={'5m':300000,'15m':900000,'30m':1800000,'1h':3600000};
 const RETENTION=90*86400000;
+const sameSamples=(a,b)=>a.length===b.length&&a.every((row,i)=>row.timestamp===b[i].timestamp&&row.sumOpenInterest===b[i].sumOpenInterest);
 // Persist raw observations, so pin-filter changes can be replayed honestly.
 // Interval and symbol are isolated; no sample fills a missing OI period.
 export function mergeOiHistory(interval,groups,now){
@@ -40,15 +41,21 @@ async function mergeDatabase(interval,samples,now){
 }
 export class OiHistory {
   constructor({read=readDatabase,write=mergeDatabase}={}){this.read=read;this.write=write;this.memory=new Map();this.loaded=new Set();this.saved=new Map();}
+  peek(interval,now){return {samples:mergeOiHistory(interval,[this.memory.get(interval)],now),saved:this.saved.get(interval)===true};}
+  stage(interval,incoming,now){
+    const samples=mergeOiHistory(interval,[this.memory.get(interval),incoming],now);this.memory.set(interval,samples);this.saved.set(interval,false);
+    return {samples,saved:false};
+  }
   async load(interval,now){
     if(!this.loaded.has(interval)){
-      try{this.memory.set(interval,mergeOiHistory(interval,[await this.read(interval),this.memory.get(interval)],now));this.saved.set(interval,true);this.loaded.add(interval);}catch{this.saved.set(interval,false);}
+      try{const disk=mergeOiHistory(interval,[await this.read(interval)],now),merged=mergeOiHistory(interval,[disk,this.memory.get(interval)],now);this.memory.set(interval,merged);this.saved.set(interval,sameSamples(disk,merged));this.loaded.add(interval);}catch{this.saved.set(interval,false);}
     }
     return {samples:mergeOiHistory(interval,[this.memory.get(interval)],now),saved:this.saved.get(interval)===true};
   }
   async append(interval,incoming,now){
-    const old=await this.load(interval,now),samples=mergeOiHistory(interval,[old.samples,incoming],now);this.memory.set(interval,samples);
-    try{const persisted=await this.write(interval,samples,now);this.memory.set(interval,persisted);this.saved.set(interval,true);}
+    this.stage(interval,incoming,now);await this.load(interval,now);
+    const samples=mergeOiHistory(interval,[this.memory.get(interval)],now);
+    try{const persisted=await this.write(interval,samples,now),merged=mergeOiHistory(interval,[persisted,this.memory.get(interval)],now);this.memory.set(interval,merged);this.saved.set(interval,sameSamples(persisted,merged));}
     catch{this.saved.set(interval,false);}
     return {samples:this.memory.get(interval),saved:this.saved.get(interval)};
   }

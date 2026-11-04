@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildSpectrumComparison,spectrumLaneLayout,drawPairedSpectrum} from '../paired-spectrum.mjs';
+import {buildSpectrumComparison,spectrumLaneLayout,drawPairedSpectrum,spectrumPriceGroup} from '../paired-spectrum.mjs';
 const step=900000,midnight=Date.parse('2026-11-04T05:00:00Z'),now=midnight+4*step;
 const priceRows=Array.from({length:5},(_,i)=>({t:midnight+(i-1)*step,end:midnight+i*step-1,c:100+i*.5}));
 const flowBars=priceRows.map((r,i)=>({...r,net:i===0?99999:i%2?-10:20}));
@@ -28,4 +28,11 @@ test('CVD and both OI components paint at the same exact price coordinate',()=>{
   const row={price:100,cvd:-20,opened:100,closed:95,grossOi:195,netOi:5,rank:1};
   drawPairedSpectrum({context,mediaSize:{width:900,height:300},anchor:500,priceToY:()=>100,history:{bins:[],maxAbs:0},comparison:{rows:[row],pairedReady:true,maxCvd:20,maxOiGross:195}});
   for(const color of ['#f28a61','#23e0a4','#ff627d']){const stroke=strokes.find(s=>s.color===color);assert(stroke);assert.equal(stroke.first[1],100);assert.equal(stroke.end[1],100);}
+});
+test('fixed groups aggregate three price levels without drifting inside the same region',()=>{
+  const comparison={binStep:.5,count:10,pairedReady:true,rows:[{price:100.5,cvd:10,opened:30,closed:4},{price:101,cvd:20,opened:20,closed:6},{price:101.5,cvd:-5,opened:10,closed:2},{price:102,cvd:999,opened:999,closed:0}]};
+  const a=spectrumPriceGroup(comparison,100.5),b=spectrumPriceGroup(comparison,101.6);
+  assert.equal(a.low,100.25);assert.equal(a.high,101.75);assert.equal(a.cvd,25);assert.equal(a.netOi,48);assert.equal(a.state,'buy-oi-increase');assert.deepEqual(a,b);
+  assert.equal(spectrumPriceGroup({...comparison,pairedReady:false},101).state,'WAIT');
+  assert.equal(spectrumPriceGroup(comparison,120).state,'WAIT');
 });

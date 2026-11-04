@@ -32,3 +32,11 @@ test('a restored previous-day candle stays marked while daily price profile stay
   assert.equal(result.matched,1);assert.equal(result.data[0].value,10);
   assert.equal(oiSpectrum([row],oi,step,now+86400000).ready,false);
 });
+test('a slow tail save cannot roll back the larger background history already displayed',async()=>{
+  const writes=[];const history=new OiHistory({read:async()=>[],write:(_,data)=>new Promise(resolve=>writes.push(()=>resolve(data)))});
+  await history.load('15m',now);
+  const tail=history.append('15m',[sample(1)],now);await new Promise(resolve=>setImmediate(resolve));
+  const full=history.append('15m',[sample(2),sample(1)],now);await new Promise(resolve=>setImmediate(resolve));
+  writes[0]();await tail;assert.equal(history.peek('15m',now).samples.length,2);assert.equal(history.peek('15m',now).saved,false);
+  writes[1]();await full;assert.equal(history.peek('15m',now).samples.length,2);assert.equal(history.peek('15m',now).saved,true);
+});

@@ -24,6 +24,17 @@ export function spectrumLaneLayout(width,anchor,{showCvd=true,compare=true}={}){
   return {left,right:left+total,xCvd:left+halfCvd,halfCvd,xOi:left+2*halfCvd+gap,oiWidth};
 }
 
+export function spectrumPriceGroup(comparison,currentPrice,{levels=3}={}){
+  const step=comparison.binStep??.5;
+  if(!Number.isFinite(currentPrice)||!Number.isInteger(levels)||levels<1)return null;
+  const bucket=Math.floor(Math.round(currentPrice/step)/levels),first=bucket*levels*step,low=first-step/2,high=low+levels*step;
+  const rows=comparison.rows.filter(row=>Math.floor(Math.round(row.price/step)/levels)===bucket);
+  const cvd=rows.reduce((sum,row)=>sum+row.cvd,0),opened=rows.reduce((sum,row)=>sum+row.opened,0),closed=rows.reduce((sum,row)=>sum+row.closed,0),netOi=opened-closed;
+  const ready=rows.length>0&&comparison.count>0&&comparison.pairedReady;
+  const state=!ready?'WAIT':cvd===0||netOi===0?'neutral':`${cvd>0?'buy':'sell'}-oi-${netOi>0?'increase':'decrease'}`;
+  return {low,high,levels,count:rows.length,cvd,opened,closed,netOi,grossOi:opened+closed,ready,state};
+}
+
 export function drawPairedSpectrum({context,mediaSize,anchor,priceToY,history,comparison,showCvd=true,compare=true,source='C→S',format=String}){
   if(!showCvd&&!compare)return;
   const {width,height}=mediaSize,lane=spectrumLaneLayout(width,anchor,{showCvd,compare});

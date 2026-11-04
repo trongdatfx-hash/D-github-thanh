@@ -1,5 +1,6 @@
-import {buildSpectrumComparison,drawPairedSpectrum} from './paired-spectrum.mjs?v=20261104-oi-lanes1';
-import {OiHistory} from './oi-history.mjs?v=20261104-oi-history1';
+import {OiFastLoader} from './oi-fast-load.mjs?v=20261104-oi-fast1';
+import {buildSpectrumComparison,drawPairedSpectrum,spectrumPriceGroup} from './paired-spectrum.mjs?v=20261104-oi-fast-group1';
+import {OiHistory} from './oi-history.mjs?v=20261104-oi-fast1';
 import {SpectrumPrimitive} from './spectrum-primitive.mjs?v=20261104-oi-smooth1';
 import {OiBoldCandles} from './oi-bold-candles.mjs?v=20261104-oi-purple-restore1';
 import {oiCandleBars,OI_GROUP_LABELS} from './oi-candle-bars.mjs?v=20261104-oi-p62-1';
@@ -36,11 +37,12 @@ let h1CacheAttempt='',h1CacheArchive=null,h1HistoryKnown=false,h1HistoryRevision
 
 let boxVolumeStrengthMap=new Map(),wlrThicknessMap=new Map(),wlrColorMap=new Map();
 const oiHistory=new OiHistory();
+const oiFastLoader=new OiFastLoader({history:oiHistory,get:getJSON,onData:applyOiHistoryData,onState:handleOiLoadState});
 const oiBoldCandles=new OiBoldCandles();
 let spectrumComparison={rows:[],day:null,count:0,oiCount:0,pairedReady:false,maxCvd:0,maxOiGross:0};
 const spectrumPrimitive=new SpectrumPrimitive(drawCvdSpectrum);
 let oiBarState={points:new Map()};
-let oiProfile={ready:false,bins:[],max:0},oiWidths=new Map(),oiStamp='',oiLastFetch=0,oiRequest=0;
+let oiProfile={ready:false,bins:[],max:0},oiWidths=new Map(),oiStamp='',oiAppliedSamples=[],oiWidthClock=-1;
 const flowColors={
   COMPOSITE:{up:'rgba(39,211,164,.82)',down:'rgba(255,91,116,.82)'}
 };
@@ -358,6 +360,7 @@ function init(){
   price.attachPrimitive(oiBoldCandles);
   price.attachPrimitive(spectrumPrimitive);
   const spectrumReadout=document.createElement('div');spectrumReadout.id='oi-cvd-readout';spectrumReadout.className='oi-cvd-readout';spectrumReadout.setAttribute('role','note');spectrumReadout.hidden=true;$('chart').after(spectrumReadout);
+  const groupBadge=document.createElement('div');groupBadge.id='oi-price-group-badge';groupBadge.className='oi-price-group-badge';groupBadge.hidden=true;groupBadge.setAttribute('role','note');$('chart').append(groupBadge);
   $('chart').addEventListener('pointermove',inspectSpectrum,{passive:true});$('chart').addEventListener('pointerdown',inspectSpectrum,{passive:true});$('chart').addEventListener('pointerleave',()=>updateSpectrumReadout());
   series.priceMid=chart.addCustomSeries(new VariableWidthLineSeries,{color:'#f6c85f',baseLineVisible:false,priceLineVisible:false,lastValueVisible:false,title:''},0);
   for(const key of ['priceUpper','priceLower'])series[key]=chart.addSeries(L.LineSeries,{color:'#4aa3ff',lineWidth:2,lineStyle:L.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,title:''},0);
@@ -436,33 +439,32 @@ function priceLineData(data,compositeStrength,volumeStrength,trendThickness){con
 function flowData(data,key){const palette=flowColors[key];return data.map(x=>Number.isFinite(x.net)?{time:x.t/1000,value:x.net,color:x.net>=0?palette.up:palette.down}:{time:x.t/1000});}
 function volumeDeltaBandData(data,volumeStrengthMap){return data.map(x=>({time:x.t/1000,value:volumeDeltaStrengthValue(x.value),color:volumeDeltaStrengthColor(x.value,volumeStrengthMap.get(x.t)?.adjusted)}));}
 function priceDeltaStrengthData(data){return data.map(x=>Number.isFinite(x.adjusted)?{time:x.t/1000,value:x.adjusted,width:$('oi-width-toggle')?.checked?(oiWidths.get(x.t)?.width??2):2}:{time:x.t/1000});}
-async function refreshOiWidths(interval,serverTime){
- if(!STEPS[interval]||Date.now()-oiLastFetch<60000&&oiStamp===interval)return;
- oiLastFetch=Date.now();oiStamp=interval;const request=++oiRequest;
- const active=()=>request===oiRequest&&$('interval').value===interval;
- const apply=(history,failed=false)=>{
-  if(!active())return;
-  oiWidths=oiWidthByBar(history.samples,STEPS[interval],cache?.serverTime??serverTime);
-  const last=rows.COMPOSITE?.filter(x=>x.end<(cache?.serverTime??serverTime)).at(-1)?.t,known=oiWidths.get(last);
-  $('chart').dataset.oiHistorySamples=String(history.samples.length);$('chart').dataset.oiHistorySaved=String(history.saved);
-  $('chart').dataset.oiWidthState=known?.state??'WAIT';
-  $('oi-width-status').textContent=failed?(history.samples.length?'OI lịch sử · API lỗi':'OI WAIT · chưa lấy được'):known?.state&&known.state!=='WAIT'?`OI ${known.state==='increase'?'tăng':known.state==='decrease'?'giảm':'bình thường'} · ${known.width}px`:'OI WAIT';
-  $('oi-width-status').title=`Lịch sử OI SPY: ${history.samples.length} mẫu, giữ tối đa 90 ngày trên trình duyệt này. ${history.saved?'Đã lưu bền vững.':'Chưa lưu được; hiện chỉ giữ trong bộ nhớ phiên này.'} Không cấp trạng thái LIVE cho chart.`;
-  render(false);
- };
- const restored=await oiHistory.load(interval,Date.now());
- if(!active())return;
- if(restored.samples.length)apply(restored);
- try{
-  const samples=await getJSON(`/futures/data/openInterestHist?symbol=SPYUSDT&period=${interval}&limit=500`);
-  if(!active())return;
-  if(!Array.isArray(samples)||samples.some(x=>x.symbol!=='SPYUSDT'))throw Error('OI response invalid');
-  const history=await oiHistory.append(interval,samples,Date.now());
-  apply(history);
- }catch{
-  if(!active())return;
-  apply(await oiHistory.load(interval,Date.now()),true);
- }
+function applyOiHistoryData(data){
+ const {interval,samples,saved,source}=data;if($('interval').value!==interval||oiStamp!==interval)return;
+ const host=$('chart'),changed=samples.length!==oiAppliedSamples.length||samples.some((row,i)=>row.timestamp!==oiAppliedSamples[i]?.timestamp||row.sumOpenInterest!==oiAppliedSamples[i]?.sumOpenInterest);
+ host.dataset.oiHistorySamples=String(samples.length);host.dataset.oiHistorySaved=String(saved);
+ $('oi-width-status').title=`Lịch sử OI SPY: ${samples.length} mẫu, giữ tối đa 90 ngày trên trình duyệt này. ${saved?'Đã lưu bền vững.':'Đang lưu hoặc chỉ giữ trong bộ nhớ phiên này.'} Không cấp trạng thái LIVE cho chart.`;
+ if(source==='saved'&&!changed)return;
+ const now=cache?.interval===interval?cache.serverTime:Date.now()+serverOffsetMs;
+ if(changed||oiWidthClock!==Math.floor(now/STEPS[interval])){oiWidths=oiWidthByBar(samples,STEPS[interval],now);oiWidthClock=Math.floor(now/STEPS[interval]);oiAppliedSamples=samples;}
+ if(samples.length)host.dataset.oiFirstDataMs??=String(Math.round(performance.now()));
+ host.dataset.oiLoadPhase=source;if(source==='tail'||source==='history')delete host.dataset.oiError;
+ const last=rows.COMPOSITE?.filter(x=>x.end<now).at(-1)?.t,known=oiWidths.get(last);
+ host.dataset.oiWidthState=known?.state??'WAIT';
+ $('oi-width-status').textContent=source==='cache'||source==='memory'?(samples.length?'OI lịch sử · đang cập nhật':'OI đang nạp'):known?.state&&known.state!=='WAIT'?`OI ${known.state==='increase'?'tăng':known.state==='decrease'?'giảm':'bình thường'} · ${known.width}px`:'OI WAIT';
+ if(changed&&cache?.interval===interval)render(false);
+}
+function handleOiLoadState({interval,phase,error}){
+ if($('interval').value!==interval||oiStamp!==interval)return;
+ $('chart').dataset.oiLoadPhase=phase;
+ if(phase==='error'){$('oi-width-status').textContent=oiAppliedSamples.length?'OI lịch sử · API lỗi':'OI WAIT · API lỗi/timeout';$('chart').dataset.oiError=error?.message??'OI unavailable';$('oi-width-status').title+=' Nguồn OI: '+(error?.message??'chưa lấy được dữ liệu');}
+ if(phase==='loading'&&!oiAppliedSamples.length)$('oi-width-status').textContent='OI đang nạp';
+ if(phase==='history-error')$('oi-width-status').title+=' Lịch sử bổ sung chưa tải được; đang giữ phần mới và bản lưu.';
+}
+function refreshOiWidths(interval){
+ if(!STEPS[interval])return;
+ if(oiStamp!==interval){oiStamp=interval;oiWidths=new Map();oiAppliedSamples=[];oiWidthClock=-1;delete $('chart').dataset.oiFirstDataMs;$('chart').dataset.oiLoadStartedMs=String(Math.round(performance.now()));}
+ return oiFastLoader.start(interval);
 }
 
 function scheduleAbaBandColors(){
@@ -615,6 +617,20 @@ function updateSpectrumReadout(level=null){
   }
   if(node.textContent!==text)node.textContent=text;
 }
+function updateSpectrumBadge(currentPrice){
+ const badge=$('oi-price-group-badge');if(!badge)return;
+ badge.hidden=!$('oi-spectrum-toggle')?.checked||$('symbol').value!=='SPYUSDT'||!Number.isFinite(currentPrice);if(badge.hidden)return;
+ const group=spectrumPriceGroup(spectrumComparison,currentPrice);if(!group)return;
+ const flow=group.cvd>0?'MUA CHỦ ĐỘNG':group.cvd<0?'BÁN CHỦ ĐỘNG':'CVD CÂN BẰNG';
+ const oi=group.netOi>0?'OI TĂNG RÒNG':group.netOi<0?'OI GIẢM RÒNG':'OI RÒNG CÂN BẰNG';
+ const headline=document.createElement('strong');headline.textContent=`VÙNG ${fmt(group.low)}–${fmt(group.high)}`;
+ const state=document.createElement('span');state.textContent=group.ready?`${flow} · ${oi}`:`${group.count?flow:'CHỜ CVD NGÀY'} · OI WAIT`;
+ const values=document.createElement('small');values.textContent=group.ready?`CVD ${fmtK(group.cvd)} · OI ròng ${signed(group.netOi)} · ${isChartLive()?'LIVE':'DELAYED'}`:`${spectrumComparison.day??'—'} NY · ${spectrumComparison.count} nến đóng · ${isChartLive()?'LIVE':'DELAYED'}`;
+ const text=headline.textContent+'|'+state.textContent+'|'+values.textContent;
+ if(badge.dataset.text!==text){badge.replaceChildren(headline,state,values);badge.dataset.text=text;}
+ badge.dataset.state=group.state;badge.dataset.low=String(group.low);badge.dataset.high=String(group.high);
+ badge.title=`Gom ${group.levels} mức giá liền nhau, mỗi mức ${spectrumComparison.binStep??.5}; nhóm quanh giá hiện tại. CVD và OI cùng nến đóng, ngày ${spectrumComparison.day??'—'} NY. ${group.ready?`OI tăng ${fmtK(group.opened)}, giảm ${fmtK(group.closed)}, tổng biến động ${fmtK(group.grossOi)}.`:'Chưa đủ dữ liệu để phân loại OI.'} Cập nhật khi dữ liệu thay đổi; đây là trạng thái dòng lệnh và vị thế, không phải xác định long/short.`;
+}
 function inspectSpectrum(event){
   if(!chart||!price)return;
   const rect=$('chart').getBoundingClientRect(),y=event.clientY-rect.top,paneHeight=chart.panes()[0]?.getHeight?.()??0;
@@ -723,7 +739,7 @@ function render(fit=false){
   // CVD retains all loaded days; only the OI profile resets at NY midnight.
   const profileBars=cvdBars;
   cvdProfile=continuousCvdSpectrum(profileBars);cvdAnchorTime=cvdBars.at(-1)?.t??p.at(-1)?.t??null;
-  spectrumComparison=buildSpectrumComparison(p,cvdBars,oiProfile,cache?.serverTime??0);updateSpectrumReadout();
+  spectrumComparison=buildSpectrumComparison(p,cvdBars,oiProfile,cache?.serverTime??0);updateSpectrumReadout();updateSpectrumBadge(p.at(-1)?.c);
   const spectrumNode=$('cvd-spectrum');spectrumNode.dataset.renderer='chart-primitive';
   const spectrumDescription=`CVD nhiều ngày làm nền mờ; CVD ngày và OI cạnh nhau cùng hàng giá. Ngày ${spectrumComparison.day??'—'} NY, ${spectrumComparison.count} nến; ${spectrumComparison.pairedReady?'CVD và OI khớp timestamp':'OI WAIT'}. OI xanh = tăng, đỏ = giảm; độ dài chuẩn hóa riêng.`;
   if(spectrumNode.getAttribute('aria-label')!==spectrumDescription)spectrumNode.setAttribute('aria-label',spectrumDescription);
@@ -879,18 +895,21 @@ function showStartupPreview(data){
 }
 function acceptChartData(data,fit,live){
  const step=STEPS[data.interval];
- if(oiStamp&&oiStamp!==data.interval){oiWidths=new Map();oiRequest++;$('oi-width-status').textContent='OI WAIT';$('chart').dataset.oiWidthState='WAIT';}
+ if(oiStamp!==data.interval)void refreshOiWidths(data.interval);
  rows={SPYUSDT:analyze(data.SPYUSDT,step),QQQUSDT:analyze(data.QQQUSDT,step),COMPOSITE:analyze(composite(data.SPYUSDT,data.QQQUSDT,step),step)};
  volumeStrengthRows=analyze(data.SPYUSDT,step,{strength:calculateVolumeStrength(data.SPYUSDT,step)});
  modelRows=rows;modelVolumeStrengthRows=volumeStrengthRows;boxVolumeStrengthMap=new Map(volumeStrengthRows.map(r=>[r.t,r]));
  maps=Object.fromEntries(Object.entries(rows).map(([k,v])=>[k,new Map(v.map(x=>[x.t,x]))]));
- cache=data;chartLiveResponse=Boolean(live&&!data.historical&&!data.partial);serverOffsetMs=data.serverTime-Date.now();lastSuccess=chartLiveResponse?new Date():null;restoreH1Colors(data);render(fit);setLive();
+ cache=data;
+ if(oiWidthClock!==Math.floor(data.serverTime/step)){oiWidths=oiWidthByBar(oiAppliedSamples,step,data.serverTime);oiWidthClock=Math.floor(data.serverTime/step);}
+ chartLiveResponse=Boolean(live&&!data.historical&&!data.partial);serverOffsetMs=data.serverTime-Date.now();lastSuccess=chartLiveResponse?new Date():null;restoreH1Colors(data);render(fit);setLive();
  void refreshOiWidths(data.interval,data.serverTime);
  $('chart').dataset.startupPhase='ready';$('chart').setAttribute('aria-busy','false');
 }
 async function refresh(clear=false){
   controller?.abort();controller=new AbortController();const gen=++generation;
   loading=true;$('refresh').disabled=true;
+  void refreshOiWidths($('interval').value);
  if(clear){resetStudies();cache=null;chartLiveResponse=false;rows={};volumeStrengthRows=[];boxVolumeStrengthMap=new Map();modelRows={};modelVolumeStrengthRows=[];modelStamp=null;trendRows={};trendVolumeStrengthRows=[];trendStamp=null;trainingMeta=null;maps={};lastSuccess=null;inspectedTime=null;pivotZoneKey='';pivotZoneState={ready:false,reason:'history',support:null,resistance:null};pivotFlowState=null;render(true);}
   const interval=$('interval').value,days=+$('days').value;
   if(!cache){$('chart').dataset.startupPhase='loading';$('chart').setAttribute('aria-busy','true');}
@@ -1006,6 +1025,8 @@ if(init()){
   const changeCalendarFilter=()=>{delete $('calendar-list').dataset.positioned;renderCalendar();};$('calendar-impact').onchange=changeCalendarFilter;$('calendar-currency').onchange=changeCalendarFilter;$('calendar-refresh').onclick=refreshCalendar;
   ensureStudiesWorker();studiesWorker.postMessage({type:'prefetch'});
   setLive();refreshCalendar();refresh(true);setInterval(()=>{updateCandleCountdown();if(!isChartLive()){setLive();schedulePivotFlowOverlay();}updateGeometryReadout();if(!document.hidden&&!loading)refresh();},LIVE_REFRESH_MS);
+  setInterval(()=>{if(!document.hidden)void refreshOiWidths($('interval').value);},15000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refreshOiWidths($('interval').value);});
   setInterval(()=>{if(!document.hidden)refreshCalendar();},CALENDAR_REFRESH_MS);
   setInterval(updateCandleCountdown,250);
 }
