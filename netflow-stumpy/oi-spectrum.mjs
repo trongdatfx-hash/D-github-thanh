@@ -4,9 +4,17 @@ export const oiSpectrumDay=t=>nyDayFormat.format(t);
 export function oiSpectrum(priceRows, oiByTime, step, now, {binStep=.5,range=12}={}){
   const empty={ready:false,bins:[],max:0,times:[],count:0};
   if(!(step>0)||!(binStep>0)||!(range>0)||!Number.isFinite(now))return empty;
-  const day=oiSpectrumDay(now),closed=priceRows.filter(r=>r.end<now&&r.t>=now-26*3600000&&oiSpectrumDay(r.t)===day),last=closed.at(-1);
+  const currentDay=oiSpectrumDay(now),allClosed=priceRows.filter(r=>r.end<now),last=allClosed.at(-1);
   if(!last)return empty;
-  const times=[],bins=new Map(),center=priceRows.at(-1)?.c;
+  const groups=new Map(),center=priceRows.at(-1)?.c;
+  for(const row of allClosed){
+    const current=oiByTime.get(row.t),previous=oiByTime.get(row.t-step);
+    if(!current||!previous||![current.oi,previous.oi,row.c].every(Number.isFinite)||current.oi<=0||previous.oi<=0)continue;
+    const day=oiSpectrumDay(row.t);if(!groups.has(day))groups.set(day,[]);groups.get(day).push(row);
+  }
+  const day=[...groups.keys()].sort().reverse().find(day=>groups.get(day).length>=2);
+  if(!day)return empty;
+  const closed=groups.get(day),times=[],bins=new Map();
   for(const row of closed){
     const current=oiByTime.get(row.t),previous=oiByTime.get(row.t-step);
     if(!current||!previous||![current.oi,previous.oi,row.c].every(Number.isFinite)||current.oi<=0||previous.oi<=0)continue;
@@ -14,8 +22,8 @@ export function oiSpectrum(priceRows, oiByTime, step, now, {binStep=.5,range=12}
     const key=Math.round(row.c/binStep),bin=bins.get(key)??{price:key*binStep,opened:0,closed:0};
     bin.opened+=Math.max(0,delta);bin.closed+=Math.max(0,-delta);bins.set(key,bin);
   }
-  // No forward fill across missing periods; stale history must not look current.
-  if(times.at(-1)!==last.t||times.length<2)return empty;
+  // Show the latest real paired observations while the tail loads; never forward fill.
+  const stale=day!==currentDay||times.at(-1)!==last.t;
   const visible=[...bins.values()].filter(b=>Math.abs(b.price-center)<=range).sort((a,b)=>a.price-b.price);
-  return {ready:true,bins:visible,max:visible.reduce((m,b)=>Math.max(m,b.opened,b.closed),0),times,day,timeZone:'America/New_York',count:times.length,first:times[0],last:times.at(-1)};
+  return {ready:true,stale,bins:visible,max:visible.reduce((m,b)=>Math.max(m,b.opened,b.closed),0),times,day,timeZone:'America/New_York',count:times.length,first:times[0],last:times.at(-1)};
 }
