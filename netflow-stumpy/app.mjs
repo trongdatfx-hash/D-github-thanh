@@ -939,9 +939,10 @@ async function toggleFullChart(){
   try{if(!card.requestFullscreen)throw Error('Fullscreen API unavailable');await card.requestFullscreen({navigationUI:'hide'});}catch{card.classList.add('fullscreen-fallback');syncFullChart();}
 }
 function bindChartGestures(){
-  const host=$('chart'),activeTouches=new Set();let start=null,lastTap=null,multiTouch=false;
-  const enter=()=>{if($('double-tap-full').checked&&!isFullChart())void toggleFullChart();};
-  host.addEventListener('dblclick',event=>{if(!$('double-tap-full').checked||isFullChart())return;event.preventDefault();enter();},{capture:true});
+  const host=$('chart'),activeTouches=new Set();let start=null,lastTap=null,multiTouch=false,lastTouchToggle=-Infinity;
+  const canToggle=()=>isFullChart()||$('double-tap-full').checked;
+  const toggle=()=>{if(canToggle())void toggleFullChart();};
+  host.addEventListener('dblclick',event=>{if(performance.now()-lastTouchToggle<700||!canToggle())return;event.preventDefault();toggle();},{capture:true});
   host.addEventListener('pointerdown',event=>{if(event.pointerType!=='touch')return;activeTouches.add(event.pointerId);if(activeTouches.size>1){multiTouch=true;start=null;lastTap=null;return;}start={id:event.pointerId,x:event.clientX,y:event.clientY,moved:false};},{capture:true});
   host.addEventListener('pointermove',event=>{if(event.pointerType!=='touch'||!start||start.id!==event.pointerId)return;if(Math.hypot(event.clientX-start.x,event.clientY-start.y)>TAP_MOVE_TOLERANCE)start.moved=true;},{capture:true});
   const finish=event=>{
@@ -949,7 +950,7 @@ function bindChartGestures(){
     if(multiTouch){if(!activeTouches.size){multiTouch=false;start=null;lastTap=null;}return;}
     if(!start||start.id!==event.pointerId||start.moved){start=null;lastTap=null;return;}
     const tap={time:performance.now(),x:event.clientX,y:event.clientY};start=null;
-    if(lastTap&&tap.time-lastTap.time<=DOUBLE_TAP_MS&&Math.hypot(tap.x-lastTap.x,tap.y-lastTap.y)<=DOUBLE_TAP_DISTANCE){lastTap=null;event.preventDefault();enter();}else lastTap=tap;
+    if(lastTap&&tap.time-lastTap.time<=DOUBLE_TAP_MS&&Math.hypot(tap.x-lastTap.x,tap.y-lastTap.y)<=DOUBLE_TAP_DISTANCE){lastTap=null;event.preventDefault();lastTouchToggle=tap.time;toggle();}else lastTap=tap;
   };
   host.addEventListener('pointerup',finish,{capture:true});host.addEventListener('pointercancel',event=>{if(event.pointerType==='touch'){activeTouches.delete(event.pointerId);start=null;lastTap=null;if(!activeTouches.size)multiTouch=false;}},{capture:true});
 }
@@ -1010,6 +1011,8 @@ if(init()){
   $('h1-box-candle-mode').onclick=()=>{$('candle-h1-box-color').checked=!$('candle-h1-box-color').checked;syncDisplayModeButtons();render(false);};
   $('fit').onclick=()=>fitChart();$('chart-fit').onclick=()=>fitChart();$('chart-fit-half').onclick=()=>fitChart(FIT_HALF_WINDOW_MS);$('chart-save').onclick=saveChartSetup;$('fullscreen').onclick=toggleFullChart;
   document.addEventListener('fullscreenchange',syncFullChart);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.querySelector('.chart-card').classList.contains('fullscreen-fallback')){document.querySelector('.chart-card').classList.remove('fullscreen-fallback');syncFullChart();}});
+  // Automatic viewport mode does not require browser fullscreen permission.
+  chartCard.classList.add('fullscreen-fallback');syncFullChart();
   $('export').onclick=exportCSV;
   const changeCalendarFilter=()=>{delete $('calendar-list').dataset.positioned;renderCalendar();};$('calendar-impact').onchange=changeCalendarFilter;$('calendar-currency').onchange=changeCalendarFilter;$('calendar-refresh').onclick=refreshCalendar;
   ensureStudiesWorker();studiesWorker.postMessage({type:'prefetch'});
