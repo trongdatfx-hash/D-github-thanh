@@ -267,7 +267,7 @@ function restoreH1Colors(data){
 }
 function ensureStudiesWorker(){
   if(!studiesWorker){
-    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261103-h4-age1',import.meta.url),{type:'module'});
+    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261105-trend-spyv-h1-1',import.meta.url),{type:'module'});
     studiesWorker.onmessage=({data})=>{
       if(data.type==='history-ready'){
         h1HistoryKnown=true;h1HistoryRevision=archiveColorRevision(data.archive);
@@ -281,7 +281,7 @@ function ensureStudiesWorker(){
         updateH1TrendAgeReadout();scheduleH1H4Strip();if($('candle-h1-box-color')?.checked||$('spy-volume-h1-smooth')?.checked)render(false);recordH1ColorPaint();return;
       }
       if(data.error){$('chart').dataset.studyStatus='error';$('chart').dataset.studyError=data.error;studyKey='';return;}
-      h1CacheArchive=null;const r=data.result;geometryState=r.geometry;causalChannelState=r.channels;breakoutState=r.breakout;geometryStatePoints=r.points;geometryBacktest=r.backtest;pivotZoneState=r.pivot;rev63State=r.rev63;trendAgeCandleMap=new Map((r.trendAgeHistory??[]).map(state=>[state.t,state]));h1CandleMap=new Map((r.h1CandleColors??[]).map(state=>[state.t,state]));h1H4CandleMap=new Map((r.h1H4CandleColors??[]).map(state=>[state.t,state]));renderWeeklyTrendMap(r.weekly);
+      h1CacheArchive=null;const r=data.result;geometryState=r.geometry;causalChannelState=r.channels;breakoutState=r.breakout;geometryStatePoints=r.points;geometryBacktest=r.backtest;pivotZoneState=r.pivot;rev63State=r.rev63;trendAgeCandleMap=new Map((r.trendAgeHistory??[]).map(state=>[state.t,state]));h1CandleMap=new Map((r.h1CandleColors??[]).map(state=>[state.t,state]));h1H4CandleMap=new Map((r.h1H4CandleColors??[]).map(state=>[state.t,state]));$('chart').dataset.trendAgeVolumeSource=r.trendAgeVolumeSource??'SPY_V_ORIGINAL';renderWeeklyTrendMap(r.weekly);
       $('chart').dataset.h1ColorCache='fresh';studyResultKey=data.key;studyTimingMs=data.computeMs;trainingMeta=data.archive;
       $('chart').dataset.studyStatus='ready';$('chart').dataset.studyComputeMs=String(Math.round(studyTimingMs));
       updateRev63();updatePivotZones();scheduleGeometryOverlay();scheduleSpectrumBadge();scheduleAbaBandColors();strengthBoxLayer?.update();quantileLayer?.update();if($('candle-trend-age-color')?.checked||$('candle-h1-box-color')?.checked||$('spy-volume-h1-smooth')?.checked)render(false);
@@ -295,12 +295,13 @@ function requestStudies(){
   if(!closed.length)return;
   const options={minScore:Number($('geometry-score').value),maxLines:Number($('geometry-lines').value)};
   const sourceKey=closedColorSourceKey(cache);
-  const key=`${symbol}|${interval}|${$('days').value}|${closed[0]?.t}|${closed.at(-1)?.t}|${closed.length}|${options.minScore}|${options.maxLines}|${sourceKey??''}`;
+  const useH1Smooth=Boolean($('spy-volume-h1-smooth')?.checked&&symbol==='SPYUSDT'&&interval==='15m');
+  const key=`${symbol}|${interval}|${$('days').value}|${closed[0]?.t}|${closed.at(-1)?.t}|${closed.length}|${options.minScore}|${options.maxLines}|${sourceKey??''}|ageH1:${Number(useH1Smooth)}`;
   if(key===studyKey)return;studyKey=key;
   ensureStudiesWorker();
   studyColorInput={key,raw:cache,sourceKey};
   $('chart').dataset.studyStatus='loading';$('chart').dataset.studyRequests=String(Number($('chart').dataset.studyRequests??0)+1);
-  studiesWorker.postMessage({key,sourceKey,rows,volumeRows:volumeStrengthRows,symbol,interval,options,now:cache.serverTime,raw:cache});
+  studiesWorker.postMessage({key,sourceKey,rows,volumeRows:volumeStrengthRows,symbol,interval,options,now:cache.serverTime,raw:cache,useH1Smooth});
 }
 function requestStats(){
   if(!cache)return;
@@ -645,6 +646,8 @@ function updateGeometryReadout(){
   node.textContent=formatPreRthWlrTrend(state);
   node.className=`forecast ${(state?.label??'WAIT').toLowerCase()}`;
   const ridge=state?.strengthRegression;node.title=`Âu→RTH WLR M15 · ${state?.reason??'Chờ dữ liệu M15 đã đóng'}. Tuổi hiện tại / trung vị tổng độ dài leg. TUỔI P là phân vị tuổi, không phải phân vị giá WLR. CÒN ~ là trung vị số nến còn lại có điều kiện, không phải trung vị tổng trừ tuổi hiện tại. TREND CÒN là khả năng sống thêm ${state?.horizon??3} nến đã nhận, không phải xác suất giá tăng hoặc tỷ lệ đúng A–B–A. Kaplan–Meier dùng vị trí nến thất bại sau nến đã nhận cuối, có kiểm duyệt phải và kiểm tra đủ thời gian theo dõi. ${state?.active?`Nhóm tuổi ${state.ageGroup?.label??'—'} · điểm ${state.trendScore}/100 · R² giá ${fmt(state.r2)} · độ bền hướng giá ${Math.round((state.persistence??0)*100)}% · SPY V cùng dấu từng nến ${Math.round((state.volumeAlignment??0)*100)}% (chỉ tham khảo) · nến đã nhận vào Flow-Leg ±2σ ${Math.round((state.channelAlignment??0)*100)}% (${state.currentBars}/${state.elapsedBars??state.currentBars} nến được tính) · Composite góp ${Math.round((state.compositeScore??.5)*5)}/5 điểm · Strength ${state.strengthContext??'—'} · Ridge OOS R² ${fmt(ridge?.r2)}, partial C ${fmt(ridge?.partialComposite)}, V ${fmt(ridge?.partialVolume)}, n OOS ${ridge?.oosN??0} · mẫu ${state.sampleN} leg / ${state.uniqueDays??'—'} ngày, còn rủi ro ${state.atRiskN}, kết quả thêm ${state.horizon} nến đã biết ${state.resolvedHorizonN??'—'}, kiểm duyệt phải ${state.censoredN??0}. `:''}SPY V xác nhận dấu+slope ở cấp trend. Phá ±2σ cùng hướng, nến trung tính, một nến SPY V trái dấu hoặc một nến giá ngoài biên bất lợi vẫn thuộc leg và được tái khớp. Chỉ giá hoặc SPY V ngược hướng đủ hai nến đóng liên tiếp mới kết thúc; dốc OLS chỉ dùng chẩn đoán và không cắt tuổi trend. Composite chỉ góp 5% điểm trend; Ridge OOS vẫn là lớp mô tả riêng. Nến đang chạy không được tính; trend còn chạy lúc đóng RTH được xem là kiểm duyệt phải.`;
+  const ageVolumeLabel=$('chart').dataset.trendAgeVolumeSource==='SPY_V_H1_SMOOTH'?'SPY V mượt H1 · thử':'SPY V gốc';
+  node.title=`Nguồn dự báo tuổi trend: ${ageVolumeLabel}. ${node.title}`;
   updateH1TrendAgeReadout();
   requestAnimationFrame(positionForecastReadout);
 }
@@ -981,9 +984,9 @@ if(init()){
   const boldLabel=document.createElement('label'),boldToggle=document.createElement('input');boldToggle.id='oi-bold-candles-toggle';boldToggle.type='checkbox';boldToggle.checked=true;boldLabel.title='Nến đồng thuận OI: thân rộng khoảng 1,5 lần, giới hạn 94% bước nến. Giá tăng + mua chủ động + OI tăng: xanh đậm #1243be không viền. Giá giảm + bán chủ động + OI tăng: tím đậm #5b21b6 không viền. Giá tăng + mua chủ động + OI giảm: xanh #1351ee viền kem. Giá giảm + bán chủ động + OI giảm: tím #8b5cf6 viền kem. Màu 4 nhóm ưu tiên hơn H1/H4; chỉ nến đóng vượt ngưỡng ΔOI. Có khôi phục lịch sử; độc lập nút hiện dải ΔOI.';boldLabel.append(boldToggle,'Nến đồng thuận OI đậm');gateLabel.after(boldLabel);boldToggle.onchange=()=>render(false);
   const spyH1Label=document.createElement('label'),spyH1Toggle=document.createElement('input');
   spyH1Toggle.id='spy-volume-h1-smooth';spyH1Toggle.type='checkbox';spyH1Toggle.checked=true;
-  spyH1Label.title='Thử nghiệm SPY V trên M15: Hộp H1 điều chỉnh EWMA trước chuẩn hóa; nhanh khi cùng hướng, chậm khi trung tính, mở tốc độ khi lực đảo chiều. Hộp đóng chỉ dùng từ lúc xác nhận; preview chỉ tác động điểm đang chạy. Chỉ áp dụng đường hiển thị; nhãn SPY V H1 là giá trị của đường thử nghiệm.';
+  spyH1Label.title='Thử nghiệm SPY V trên M15: Hộp H1 điều chỉnh EWMA trước chuẩn hóa; nhanh khi cùng hướng, chậm khi trung tính, mở tốc độ khi lực đảo chiều. Hộp đóng chỉ dùng từ lúc xác nhận; preview chỉ tác động điểm đang chạy. Khi bật, cả đường hiển thị và dự báo tuổi trend dùng SPY V mượt H1; khi tắt, tuổi trend trở về SPY V gốc.';
   spyH1Label.append(spyH1Toggle,'SPY V mượt H1 · thử');$('spy-volume-strength').closest('label').after(spyH1Label);
-  spyH1Toggle.onchange=()=>render(false);
+  spyH1Toggle.onchange=()=>{studyKey='';render(false);};
   restoreSavedSetup();syncChartFrameButtons();
   // Restore the C histogram once for setups saved before the taker plot cleanup.
   // Subsequent user choices remain under the normal Save setup control.

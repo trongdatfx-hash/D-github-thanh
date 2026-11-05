@@ -1,4 +1,4 @@
-import {analyzeTrendSource,computeStudies} from './studies-core.mjs?v=20261103-h4-age1';
+import {analyzeTrendSource,computeStudies} from './studies-core.mjs?v=20261105-trend-spyv-h1-1';
 import {loadPersistentHistory} from './history-store.mjs?v=20261029-price-delta1';
 let serial=0,trend=null,trendKey='',historyPending=null;
 function historyTask(){
