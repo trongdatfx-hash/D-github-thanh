@@ -190,7 +190,7 @@ export function symmetricPriceRange(range,{floor=1}={}){
   const bound=Math.max(floor,Math.abs(range.minValue),Math.abs(range.maxValue));
   return {minValue:-bound,maxValue:bound};
 }
-export function calculateVolumeStrength(bars,step,{normLen=20,strLen=8,halfLife=2,lookback=500}={}){
+export function calculateVolumeStrength(bars,step,{normLen=20,strLen=8,halfLife=2,lookback=500,alphaForBar=null}={}){
   if(!Array.isArray(bars)||!Object.values(STEPS).includes(step)||![normLen,strLen,lookback].every(x=>Number.isInteger(x)&&x>0)||!Number.isFinite(halfLife)||halfLife<0)throw Error('Tham số Volume Strength không hợp lệ');
   const deltas=directionalVolumeDelta(bars,step,{normLen});let impulses=[],magnitudes=[],ew=null,previous=null;
   const alpha=halfLife>0?1-2**(-1/Math.max(1,halfLife)):1;
@@ -199,7 +199,9 @@ export function calculateVolumeStrength(bars,step,{normLen=20,strLen=8,halfLife=
     impulses.push(delta.value);if(impulses.length>strLen)impulses.shift();
     if(impulses.length<strLen)return null;
     const r=impulses.reduce((s,x)=>s+x,0);
-    ew=ew===null?r:ew+alpha*(r-ew);
+    const adaptive=typeof alphaForBar==='function'?alphaForBar({t:delta.t,r,previous:ew}):alpha;
+    const smoothing=Number.isFinite(adaptive)?Math.max(.01,Math.min(1,adaptive)):alpha;
+    ew=ew===null?r:ew+smoothing*(r-ew);
     const rs=halfLife>0?ew:r;
     magnitudes.push(Math.abs(rs));if(magnitudes.length>lookback)magnitudes.shift();
     if(magnitudes.length<lookback)return null;
