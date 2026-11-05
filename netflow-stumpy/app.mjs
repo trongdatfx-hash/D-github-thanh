@@ -185,6 +185,7 @@ function setupChartActions(){
   live.insertAdjacentElement('afterend',frame);
   const half=document.createElement('button');half.id='chart-fit-half';half.type='button';half.title='Hiển thị các nến trong 0,5 ngày gần nhất';half.textContent='Fit 0.5 ngày';live.insertAdjacentElement('afterend',half);
   const save=document.createElement('button');save.id='chart-save';save.type='button';save.title='Lưu toàn bộ lựa chọn và vùng thời gian đang xem trên trình duyệt này';save.textContent='Lưu setup';save.setAttribute('aria-live','polite');half.insertAdjacentElement('afterend',save);
+  const vix=$('chart-vix-quote');if(vix)live.insertAdjacentElement('afterend',vix);
   const alignmentLabel=$('alignment')?.closest('label');if(alignmentLabel){alignmentLabel.lastChild.textContent='SPY V Δ nến';alignmentLabel.dataset.pane='strength-spy-v';alignmentLabel.title='Histogram Delta / SMA20(volume): vẽ trực tiếp giá trị chuẩn hóa, không chia 2 và không chặn ±1; spike +3 và +5 giữ đúng biên độ. Thang histogram riêng đối xứng quanh 0. Bốn màu: Δ+/V+ xanh lá, Δ−/V+ xanh dương, Δ+/V− hồng nhạt, Δ−/V− đỏ.';}
   if(!$('confirmed-delta-toggle')){const input=document.createElement('input');input.id='confirmed-delta-toggle';input.type='checkbox';input.checked=true;const label=document.createElement('label');label.title='Màu đường: dương xanh cyan, âm hồng, 0 xám sáng. Mọi khung: delta taker quote SPY cùng hướng thân nến; trái hướng hoặc doji là 0. Cộng 8 nến, làm mượt và chuẩn hóa; nến LIVE có thể đổi. Đây cũng là Strength Composite.';label.append(input,'Strength Giá×Delta ···');$('spy-volume-strength').closest('label').insertAdjacentElement('afterend',label);}
   if(!$('oi-width-toggle')){const input=document.createElement('input');input.id='oi-width-toggle';input.type='checkbox';input.checked=true;const label=document.createElement('label');label.title='Độ dày 1/2/4 px theo biến động OI SPYUSDT: chỉ dữ liệu nến đóng, thiếu hoặc trễ giữ 2 px; không đổi giá trị Strength.';label.append(input,'Dày theo OI');$('confirmed-delta-toggle').closest('label').insertAdjacentElement('afterend',label);const state=document.createElement('span');state.id='oi-width-status';state.textContent='OI WAIT';label.append(' · ',state);}
@@ -397,8 +398,9 @@ function init(){
   $('chart').dataset.wlrColorMode='hysteresis-closed-bars';$('chart').dataset.wlrColorEnter=String(WLR_COLOR_DEFAULTS.enter);$('chart').dataset.wlrColorExit=String(WLR_COLOR_DEFAULTS.exit);
   $('chart').dataset.compositeStrengthVersion=COMPOSITE_STRENGTH_VERSION;
   $('chart').dataset.commonVolumeInput='true-taker-quote-delta-70-30';
-  // Keep price at 55%; SPY V is 130% of the lower Strength pane.
-  chart.panes()[0].setStretchFactor(.55);chart.panes()[1].setStretchFactor(.45*1.3/2.3);chart.panes()[2].setStretchFactor(.45/2.3);
+  // Price occupies 60%; the two lower panes share 40%, preserving SPY V / Strength = 1.3.
+  const lowerPaneShare=.40;
+  chart.panes()[0].setStretchFactor(1-lowerPaneShare);chart.panes()[1].setStretchFactor(lowerPaneShare*1.3/2.3);chart.panes()[2].setStretchFactor(lowerPaneShare/2.3);
   marks=L.createSeriesMarkers(price,[]);
   strengthMarks=L.createSeriesMarkers(series.strength,[]);
   chart.subscribeCrosshairMove(p=>{if(!p.sourceEvent)return;inspectedTime=p.time?p.time*1000:null;showTooltip(inspectedTime??rows[$('symbol').value]?.at(-1)?.t);});
@@ -495,7 +497,7 @@ function drawH1H4Strip(){
   canvas.dataset.mode=active?'active':'off';canvas.dataset.states=String(h1H4CandleMap.size);canvas.dataset.visibleBars='0';canvas.dataset.previewBars='0';
   canvas.setAttribute('aria-label',active?'Dải màu phía trên pane SPY V: mỗi ô là một nến H1, tô theo trạng thái Hộp H4; hiện trên chart M15 và H1, viền vàng là H4 XEM TRƯỚC, có thể đổi màu cho cả nhóm; màu đã khóa là tổng kết H4.':'Dải màu H1 theo Hộp H4 hiển thị trên chart SPY M15 hoặc H1 khi bật màu hộp.');
   if(!active||!h1H4CandleMap.size)return;
-  const bounds=paneBounds(1),panes=chart.panes(),gap=panes.length>1?Math.max(0,height-panes.reduce((sum,pane)=>sum+pane.getHeight(),0))/(panes.length-1):0,paneTop=Math.max(0,(bounds?.top??Math.round(height*.55))-gap),scaleWidth=chart.priceScale('right',0)?.width?.()??56,right=Math.max(0,width-scaleWidth),stripHeight=10,y=Math.round(paneTop)+1;
+  const bounds=paneBounds(1),panes=chart.panes(),gap=panes.length>1?Math.max(0,height-panes.reduce((sum,pane)=>sum+pane.getHeight(),0))/(panes.length-1):0,paneTop=Math.max(0,(bounds?.top??Math.round(height*.60))-gap),scaleWidth=chart.priceScale('right',0)?.width?.()??56,right=Math.max(0,width-scaleWidth),stripHeight=10,y=Math.round(paneTop)+1;
   if(right<8||y<0)return;
   context.fillStyle='rgba(9,17,29,.88)';context.fillRect(0,y,right,stripHeight);
   const rawTimes=[...h1H4CandleMap.keys()].sort((x,y)=>x-y),timeScale=chart.timeScale(),fallbackSpacing=Math.max(1,Number(timeScale.options?.().barSpacing)||6);

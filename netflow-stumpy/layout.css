@@ -69,3 +69,15 @@
 #h1-cvd-status-row #h1-candle-countdown{font-size:13px}
 #h1-cvd-status-row[data-has-h1=false],#h1-cvd-status-row[data-has-cvd=false]{grid-template-columns:minmax(0,1fr);width:min(310px,calc(100% - 70px))}
 @media(max-width:650px){#h1-cvd-status-row{width:calc(100% - 66px);gap:4px}#h1-cvd-status-row>.oi-price-group-badge,#h1-cvd-status-row>#h1-trend-age-readout{padding:4px 5px}#h1-cvd-status-row .oi-price-group-badge span{font-size:11.5px}#h1-cvd-status-row .oi-price-group-badge small{font-size:11px}#h1-cvd-status-row #h1-trend-age-text{font-size:11px}#h1-cvd-status-row #h1-candle-countdown{font-size:12px;padding:2px 5px}}
+
+/* Float controls over the chart so candles continue behind their transparent background. */
+.chart-card{position:relative}
+.chart-card .chart-head{position:absolute;inset:0 58px auto 0;z-index:12;background:transparent;padding:6px 8px;pointer-events:none}
+.chart-card .chart-actions{min-width:0;max-width:100%;display:flex;align-items:center;gap:5px;overflow-x:auto;scrollbar-width:thin;pointer-events:auto;background:transparent}
+.chart-card .chart-actions>*{flex:0 0 auto}
+.chart-card .chart-actions button,.chart-card #live-indicator{background:rgba(8,14,24,.16);text-shadow:0 1px 3px #080e18}
+.chart-card #chart-vix-quote{margin:0;font-size:11px;padding:4px 7px}
+.chart-card .chart-head .toggles{pointer-events:auto;background:transparent}
+.chart-card:fullscreen .chart-head,.chart-card.fullscreen-fallback .chart-head{position:absolute;padding:6px 8px}
+.chart-card:fullscreen #chart,.chart-card.fullscreen-fallback #chart{height:100%;width:100%}
+@media(max-width:650px){.chart-card .chart-head{padding:4px;gap:4px}.chart-card .chart-actions{margin-left:0;gap:4px}.chart-card .chart-actions button{font-size:11px;padding:4px 6px}.chart-card #chart-vix-quote{font-size:10px}}

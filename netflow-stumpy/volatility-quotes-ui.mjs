@@ -14,7 +14,8 @@ export function createVolatilityQuotes(panel){
  const compact=document.createElement('button');compact.type='button';compact.id='chart-vix-quote';
  compact.textContent='VIX — · WAIT';compact.setAttribute('aria-label','VIX · báo giá trễ · bấm để cập nhật');
  compact.style.cssText='font-size:12px;line-height:1.3;padding:5px 8px;white-space:normal;font-variant-numeric:tabular-nums';
- document.querySelector('.chart-actions')?.append(compact);
+ const live=document.getElementById('live-indicator');
+ if(live)live.insertAdjacentElement('afterend',compact);else document.querySelector('.chart-actions')?.append(compact);
  let snapshot=null,failed=false,pending=false;
  const format=new Intl.DateTimeFormat('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',dateStyle:'short',timeStyle:'medium'});
  function render(){for(const [name,c] of cards){const state=volatilityQuoteState(snapshot?.quotes?.[name],Date.now(),failed);c.card.dataset.state=state.status.startsWith('DELAYED')?'delayed':state.price===null?'wait':'stale';c.value.textContent=state.price===null?'—':state.price.toFixed(2);c.change.textContent=state.changePct===null?'':`${state.changePct>=0?'+':''}${state.changePct.toFixed(2)}% so phiên trước`;c.status.textContent=state.status;c.stamp.textContent=state.asOf===null?'Chưa có báo giá hợp lệ':`Giờ dữ liệu ${format.format(state.asOf)} · cách hiện tại ${Math.floor(state.lagMinutes)} phút`;}
