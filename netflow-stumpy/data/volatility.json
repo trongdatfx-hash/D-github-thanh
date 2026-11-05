@@ -1,17 +1,17 @@
 {
   "version": 1,
-  "checkedAt": 1793847029222,
+  "checkedAt": 1793873705370,
   "quotes": {
     "VIX": {
       "symbol": "^VIX",
-      "price": 16.61,
-      "asOf": 1793826901000,
-      "previousClose": 20.83,
-      "change": -4.219999999999999,
-      "changePct": -20.259241478636582,
+      "price": 16.8,
+      "asOf": 1793872801000,
+      "previousClose": 16.61,
+      "change": 0.19000000000000128,
+      "changePct": 1.14388922335944,
       "source": "Yahoo Finance",
       "nominalDelayMinutes": 15,
-      "lastSuccessAt": 1793847029222,
+      "lastSuccessAt": 1793873705370,
       "fetchStatus": "ok"
     },
     "VIX9D": {
@@ -23,7 +23,7 @@
       "changePct": -30.828779599271407,
       "source": "Yahoo Finance",
       "nominalDelayMinutes": 15,
-      "lastSuccessAt": 1793847029222,
+      "lastSuccessAt": 1793873705370,
       "fetchStatus": "ok"
     }
   }
