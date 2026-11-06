@@ -424,6 +424,8 @@ function init(){
   chart.timeScale().subscribeVisibleLogicalRangeChange(()=>{scheduleCvdSpectrum();scheduleDaySeparators();scheduleGeometryOverlay();scheduleSpectrumBadge();scheduleH1H4Strip();});
   window.addEventListener('resize',()=>{applyResponsiveChartOptions();scheduleCvdSpectrum();scheduleDaySeparators();scheduleGeometryOverlay();scheduleSpectrumBadge();scheduleH1H4Strip();requestAnimationFrame(positionForecastReadout);requestAnimationFrame(positionStrengthReadout);requestAnimationFrame(positionFixedPaneReadouts);requestAnimationFrame(updateCandleCountdown);});
   window.addEventListener('orientationchange',()=>setTimeout(()=>{applyResponsiveChartOptions();window.dispatchEvent(new Event('resize'));},120));
+  const paneLayoutObserver=new ResizeObserver(()=>{scheduleH1H4Strip();requestAnimationFrame(positionFixedPaneReadouts);});
+  for(const element of [$('chart'),...chart.panes().map(pane=>pane.getHTMLElement())].filter(Boolean))paneLayoutObserver.observe(element);
   $('chart').addEventListener('pointermove',scheduleSpectrumBadge,{passive:true});$('chart').addEventListener('wheel',scheduleSpectrumBadge,{passive:true});
   bindChartGestures();
   return true;
@@ -513,8 +515,11 @@ function drawH1H4Strip(){
   canvas.dataset.mode=active?'active':'off';canvas.dataset.states=String(h1CandleMap.size);canvas.dataset.structureStates=String(h1H4CandleMap.size);canvas.dataset.colorSource='H1';canvas.dataset.visibleBars='0';canvas.dataset.previewBars='0';
   canvas.setAttribute('aria-label',active?'Dải màu phía trên pane SPY V: giữ nguyên hình dáng và các ô H1 của dải cũ, nhưng màu lấy từ Hộp H1; viền vàng là H1 XEM TRƯỚC.':'Dải màu Hộp H1 hiển thị trên chart SPY M15 hoặc H1 khi bật màu hộp.');
   if(!active||!h1H4CandleMap.size||!h1CandleMap.size)return;
-  const bounds=paneBounds(1),panes=chart.panes(),gap=panes.length>1?Math.max(0,height-panes.reduce((sum,pane)=>sum+pane.getHeight(),0))/(panes.length-1):0,paneTop=Math.max(0,(bounds?.top??Math.round(height*.60))-gap),scaleWidth=chart.priceScale('right',0)?.width?.()??56,right=Math.max(0,width-scaleWidth),stripHeight=10,y=Math.round(paneTop)+1;
+  const bounds=paneBounds(1);if(!bounds)return;
+  const scaleWidth=chart.priceScale('right',1)?.width?.()??56,right=Math.max(0,width-scaleWidth),stripHeight=10,y=Math.round(bounds.top);
+  canvas.dataset.paneTop=String(bounds.top);canvas.dataset.stripTop=String(y);canvas.dataset.alignment='spy-pane-top';
   if(right<8||y<0)return;
+  context.save();context.beginPath();context.rect(0,y,right,Math.min(stripHeight,bounds.height));context.clip();
   context.fillStyle='rgba(9,17,29,.88)';context.fillRect(0,y,right,stripHeight);
   const rawTimes=[...h1H4CandleMap.keys()].sort((x,y)=>x-y),timeScale=chart.timeScale(),fallbackSpacing=Math.max(1,Number(timeScale.options?.().barSpacing)||6);
   const times=rawTimes,chartTimes=(rows.SPYUSDT??[]).map(row=>row.t);
@@ -529,8 +534,9 @@ function drawH1H4Strip(){
     if((state?.blockStart===time||(previousBlock!==null&&state?.blockStart!==previousBlock))&&x>=0&&x<=right){context.fillStyle='#ffffff';context.fillRect(Math.round(x)-1,y-1,3,stripHeight+2);}
     previousBlock=state?.blockStart;visibleBars++;
   }
+  context.restore();
   canvas.dataset.visibleBars=String(visibleBars);canvas.dataset.previewBars=String(previewBars);
-  canvas.setAttribute('aria-label',`Dải màu phía trên pane SPY V: ${visibleBars} ô H1 đang hiển thị, màu lấy từ Hộp H1; chart ${interval==='15m'?'M15':'H1'}, ${previewBars} ô XEM TRƯỚC viền vàng · ${isChartLive()?'LIVE':'DELAYED'}. Kích thước, vị trí và vạch phân nhóm H4 vẫn giữ như dải cũ.`);
+  canvas.setAttribute('aria-label',`Dải màu phía trên pane SPY V: ${visibleBars} ô H1 đang hiển thị, màu lấy từ Hộp H1; chart ${interval==='15m'?'M15':'H1'}, ${previewBars} ô XEM TRƯỚC viền vàng · ${isChartLive()?'LIVE':'DELAYED'}. Dải bám sát mép trên pane SPY V; kích thước ô và vạch phân nhóm H4 giữ như dải cũ.`);
 }
 
 function positionForecastReadout(){
@@ -819,8 +825,11 @@ function updateStrengthLabels(){
   requestAnimationFrame(positionStrengthReadout);
 }
 function paneBounds(index){
-  const panes=chart?.panes?.();if(!panes?.[index])return null;const heights=panes.map(pane=>pane.getHeight()),chartHeight=$('chart').clientHeight,total=heights.reduce((sum,height)=>sum+height,0),gap=panes.length>1?Math.max(0,chartHeight-total)/(panes.length-1):0;
-  return {top:heights.slice(0,index).reduce((sum,height)=>sum+height,0)+index*gap,height:heights[index]};
+  const pane=chart?.panes?.()[index],host=$('chart'),element=pane?.getHTMLElement?.();
+  if(!host||!element||!host.contains(element))return null;
+  const hostRect=host.getBoundingClientRect(),rect=element.getBoundingClientRect();
+  if(!Number.isFinite(rect.top)||!(rect.height>0))return null;
+  return {top:rect.top-hostRect.top-(host.clientTop||0),height:rect.height};
 }
 function positionFixedPaneReadouts(){
   for(const [id,index] of [['composite-flow-fixed',2],['spy-volume-fixed',1]]){const node=$(id),bounds=paneBounds(index);if(!node||!bounds)continue;node.style.top=`${Math.round(bounds.top+6)}px`;node.dataset.paneTop=String(Math.round(bounds.top));node.dataset.paneBottom=String(Math.round(bounds.top+bounds.height));}
