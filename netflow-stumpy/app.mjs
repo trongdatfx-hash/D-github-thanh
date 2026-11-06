@@ -884,6 +884,22 @@ function latestFiniteValue(data,key){for(let i=data.length-1;i>=0;i--)if(Number.
 function updateFixedPaneReadouts(){
   const compositeValue=latestFiniteValue(rows.COMPOSITE??[],'net'),compositeNode=$('composite-flow-fixed');compositeNode.textContent=`C Taker NF ${fmtK(compositeValue)}`;compositeNode.className=`pane-fixed-readout ${Number.isFinite(compositeValue)?compositeValue>=0?'positive':'negative':'missing'}`;compositeNode.style.display=$('composite').checked?'block':'none';
   const volumeValue=latestFiniteValue(displayVolumeStrengthRows,'adjusted'),volumeNode=$('spy-volume-fixed');volumeNode.textContent=`SPY V${$('spy-volume-h1-smooth')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m'?' H1':''} ${signed(volumeValue)}`;volumeNode.className=`pane-fixed-readout spy-volume ${Number.isFinite(volumeValue)?volumeValue>=0?'positive':'negative':'missing'}`;volumeNode.style.display=$('spy-volume-strength').checked?'block':'none';
+  compositeNode.title=[
+    'C Taker NF — chênh lệch giao dịch chủ động SPYUSDT + QQQUSDT ở cùng nến.',
+    'Mỗi mã: NF = taker buy quote − taker sell quote = 2 × taker buy quote − tổng quote volume. C Taker NF = NF(SPY) + NF(QQQ).',
+    'Đơn vị USDT; K = nghìn, M = triệu. Dương: bên mua chủ động trội; âm: bên bán chủ động trội. Đây là giá trị của một nến, không phải CVD cộng dồn.',
+    'Không phải dòng tiền ròng vào/ra thị trường và không xác định chắc mở/đóng Long–Short. Giá trị nến đang chạy có thể đổi đến khi đóng.'
+  ].join('\n');
+  const h1Volume=$('spy-volume-h1-smooth')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
+  volumeNode.title=[
+    'SPY V — sức mạnh volume có dấu của SPYUSDT; là chỉ số không có đơn vị.',
+    'Đầu vào ΔV = sign(close − open) × volume / SMA20(volume). Nến tăng mang dấu dương, nến giảm mang dấu âm, doji = 0. Đây là proxy theo thân nến, không phải volume mua trừ bán thực.',
+    'Cộng ΔV của 8 nến → EWMA (bản gốc half-life 2 nến) → S₀ = 2Φ(Rs/σ) − 1; σ = SMA500(|Rs|) × √(π/2), Φ là hàm phân phối chuẩn.',
+    h1Volume?'Đang dùng SPY V mượt H1: Hộp H1 điều chỉnh tốc độ EWMA trên M15; không chuyển sang nến H1. Cùng hướng α=0,65; đảo hướng α=0,48; trái hướng α=0,30; H1 yếu/trung tính α=0,16. Preview chỉ tác động nến đang chạy.':'Đang dùng SPY V gốc: EWMA half-life 2 nến, α≈0,293.',
+    'Sau chuẩn hóa, phân phối từng phiên được ánh xạ về RTH khi đủ mẫu (ít nhất 26 mẫu nguồn và RTH); giá trị hiển thị có thể vượt ±1. Thiếu nền sẽ giữ giá trị gốc hoặc chờ.',
+    'Dương/âm mô tả sức mạnh volume theo hướng nến sau cộng và làm mượt; có thể khác dấu NF của nến mới nhất. Không phải xác suất tăng/giảm. Nến đang chạy có thể thay đổi.'
+  ].join('\n');
+  for(const node of [compositeNode,volumeNode]){node.tabIndex=0;node.setAttribute('aria-label',node.textContent);node.setAttribute('aria-description',node.title);}
   requestAnimationFrame(positionFixedPaneReadouts);
 }
 function updatePivotZones(){

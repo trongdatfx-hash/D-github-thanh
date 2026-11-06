@@ -116,3 +116,7 @@
 .oi-price-group-badge[data-border-state=sell]{border-color:#9c75ea}
 .oi-price-group-badge[data-border-state=neutral]{border-color:#48617d}
 @media(prefers-reduced-motion:reduce){.oi-price-group-badge{transition:none}}
+
+/* Make pane explanations reachable with the pointer and keyboard. */
+#composite-flow-fixed,#spy-volume-fixed{pointer-events:auto;cursor:help;user-select:text}
+#composite-flow-fixed:focus-visible,#spy-volume-fixed:focus-visible{outline:2px solid #7db8e8;outline-offset:2px}
