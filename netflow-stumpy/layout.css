@@ -76,8 +76,7 @@
 .chart-card .chart-actions{min-width:0;max-width:100%;display:flex;align-items:center;gap:5px;overflow-x:auto;scrollbar-width:thin;pointer-events:auto;background:transparent}
 .chart-card .chart-actions>*{flex:0 0 auto}
 .chart-card .chart-actions button,.chart-card #live-indicator{background:rgba(8,14,24,.16);text-shadow:0 1px 3px #080e18}
-.chart-card #chart-vix-quote{margin:0;font-size:11px;padding:4px 7px}
 .chart-card .chart-head .toggles{pointer-events:auto;background:transparent}
 .chart-card:fullscreen .chart-head,.chart-card.fullscreen-fallback .chart-head{position:absolute;padding:6px 8px}
 .chart-card:fullscreen #chart,.chart-card.fullscreen-fallback #chart{height:100%;width:100%}
-@media(max-width:650px){.chart-card .chart-head{padding:4px;gap:4px}.chart-card .chart-actions{margin-left:0;gap:4px}.chart-card .chart-actions button{font-size:11px;padding:4px 6px}.chart-card #chart-vix-quote{font-size:10px}}
+@media(max-width:650px){.chart-card .chart-head{padding:4px;gap:4px}.chart-card .chart-actions{margin-left:0;gap:4px}.chart-card .chart-actions button{font-size:11px;padding:4px 6px}}

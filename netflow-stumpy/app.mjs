@@ -495,9 +495,9 @@ function drawH1H4Strip(){
   if(canvas.width!==bitmapWidth||canvas.height!==bitmapHeight){canvas.width=bitmapWidth;canvas.height=bitmapHeight;}
   const context=canvas.getContext('2d');context.setTransform(dpr,0,0,dpr,0,0);context.clearRect(0,0,width,height);
   const interval=$('interval').value,active=$('symbol').value==='SPYUSDT'&&['15m','1h'].includes(interval)&&$('candle-h1-box-color')?.checked;
-  canvas.dataset.mode=active?'active':'off';canvas.dataset.states=String(h1H4CandleMap.size);canvas.dataset.visibleBars='0';canvas.dataset.previewBars='0';
-  canvas.setAttribute('aria-label',active?'Dải màu phía trên pane SPY V: mỗi ô là một nến H1, tô theo trạng thái Hộp H4; hiện trên chart M15 và H1, viền vàng là H4 XEM TRƯỚC, có thể đổi màu cho cả nhóm; màu đã khóa là tổng kết H4.':'Dải màu H1 theo Hộp H4 hiển thị trên chart SPY M15 hoặc H1 khi bật màu hộp.');
-  if(!active||!h1H4CandleMap.size)return;
+  canvas.dataset.mode=active?'active':'off';canvas.dataset.states=String(h1CandleMap.size);canvas.dataset.structureStates=String(h1H4CandleMap.size);canvas.dataset.colorSource='H1';canvas.dataset.visibleBars='0';canvas.dataset.previewBars='0';
+  canvas.setAttribute('aria-label',active?'Dải màu phía trên pane SPY V: giữ nguyên hình dáng và các ô H1 của dải cũ, nhưng màu lấy từ Hộp H1; viền vàng là H1 XEM TRƯỚC.':'Dải màu Hộp H1 hiển thị trên chart SPY M15 hoặc H1 khi bật màu hộp.');
+  if(!active||!h1H4CandleMap.size||!h1CandleMap.size)return;
   const bounds=paneBounds(1),panes=chart.panes(),gap=panes.length>1?Math.max(0,height-panes.reduce((sum,pane)=>sum+pane.getHeight(),0))/(panes.length-1):0,paneTop=Math.max(0,(bounds?.top??Math.round(height*.60))-gap),scaleWidth=chart.priceScale('right',0)?.width?.()??56,right=Math.max(0,width-scaleWidth),stripHeight=10,y=Math.round(paneTop)+1;
   if(right<8||y<0)return;
   context.fillStyle='rgba(9,17,29,.88)';context.fillRect(0,y,right,stripHeight);
@@ -505,17 +505,17 @@ function drawH1H4Strip(){
   const times=rawTimes,chartTimes=(rows.SPYUSDT??[]).map(row=>row.t);
   let visibleBars=0,previewBars=0,previousBlock=null;
   for(let i=0;i<times.length;i++){
-    const time=times[i],state=h1H4CandleMap.get(time);
+    const time=times[i],state=h1H4CandleMap.get(time),colorState=h1CandleMap.get(time);
     const cell=h1StripCell(time,chartTimes,t=>timeScale.timeToCoordinate(t),fallbackSpacing);
     if(!cell)continue;
     const {x,width:cellWidth}=cell;if(x+cellWidth<0||x>right)continue;
-    const color=h1BoxCandlePalette(null,state);context.fillStyle=color.body;context.fillRect(x,y,cellWidth,stripHeight);
-    if(state?.preview){context.strokeStyle='#f6c85f';context.lineWidth=1;context.strokeRect(x+.5,y+.5,Math.max(0,cellWidth-1),stripHeight-1);previewBars++;}
+    const color=h1BoxCandlePalette(null,colorState??{direction:0,quality:0});context.fillStyle=color.body;context.fillRect(x,y,cellWidth,stripHeight);
+    if(colorState?.preview){context.strokeStyle='#f6c85f';context.lineWidth=1;context.strokeRect(x+.5,y+.5,Math.max(0,cellWidth-1),stripHeight-1);previewBars++;}
     if((state?.blockStart===time||(previousBlock!==null&&state?.blockStart!==previousBlock))&&x>=0&&x<=right){context.fillStyle='#ffffff';context.fillRect(Math.round(x)-1,y-1,3,stripHeight+2);}
     previousBlock=state?.blockStart;visibleBars++;
   }
   canvas.dataset.visibleBars=String(visibleBars);canvas.dataset.previewBars=String(previewBars);
-  canvas.setAttribute('aria-label',`Dải màu phía trên pane SPY V: ${visibleBars} ô H1 đang hiển thị, tô theo trạng thái Hộp H4; chart ${interval==='15m'?'M15':'H1'}, ${previewBars} ô XEM TRƯỚC viền vàng · ${isChartLive()?'LIVE':'DELAYED'}. Màu H4 là tổng kết cả nhóm, không phải tín hiệu tại từng H1.`);
+  canvas.setAttribute('aria-label',`Dải màu phía trên pane SPY V: ${visibleBars} ô H1 đang hiển thị, màu lấy từ Hộp H1; chart ${interval==='15m'?'M15':'H1'}, ${previewBars} ô XEM TRƯỚC viền vàng · ${isChartLive()?'LIVE':'DELAYED'}. Kích thước, vị trí và vạch phân nhóm H4 vẫn giữ như dải cũ.`);
 }
 
 function positionForecastReadout(){

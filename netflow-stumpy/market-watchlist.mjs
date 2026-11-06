@@ -1,4 +1,4 @@
-import {createVolatilityQuotes} from './volatility-quotes-ui.mjs?v=20261105-overlay-vix2';
+import {createVolatilityQuotes} from './volatility-quotes-ui.mjs?v=20261106-h1-strip-vixless1';
 const panel=document.getElementById('market-watchlist');
 const host=panel?.querySelector('[data-market-watchlist-widget]');
 let loaded=false;
