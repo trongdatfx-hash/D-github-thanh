@@ -101,3 +101,11 @@
  #h1-cvd-status-row{right:52px;width:calc(100% - 58px);grid-template-columns:minmax(0,1fr) 82px}
  #h1-cvd-status-row .oi-price-group-badge>small{font-size:10px}
 }
+
+/* Keep reaction beside the existing state, without adding a fourth line. */
+#h1-cvd-status-row .oi-price-group-badge>span{font-size:11.5px;letter-spacing:-.15px}
+@media(max-width:650px){
+ #h1-cvd-status-row{grid-template-columns:minmax(0,1fr) 82px}
+ #h1-cvd-status-row .oi-price-group-badge>span{font-size:10px;letter-spacing:-.25px}
+}
+@media(max-width:350px){#h1-cvd-status-row .oi-price-group-badge>span{font-size:9px}}
