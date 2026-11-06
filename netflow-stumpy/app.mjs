@@ -1,3 +1,4 @@
+import {CvdBadgeBorder} from './cvd-badge-border.mjs?v=20261106-border1';
 import {FlowPriceReaction} from './flow-price-reaction.mjs?v=20261106-reaction-groups2';
 import {CurrentOiLoader,RunningOiState} from './oi-current.mjs?v=20261106-oi-live1';
 import {h1AdaptiveVolumeRows} from './spy-volume-h1.mjs?v=20261105-spyv-h1-1';
@@ -41,6 +42,7 @@ let h1CacheAttempt='',h1CacheArchive=null,h1HistoryKnown=false,h1HistoryRevision
 let boxVolumeStrengthMap=new Map(),wlrThicknessMap=new Map(),wlrColorMap=new Map();
 const oiHistory=new OiHistory();
 const runningOiState=new RunningOiState();
+const cvdBadgeBorder=new CvdBadgeBorder();
 const flowPriceReaction=new FlowPriceReaction();
 const currentOiLoader=new CurrentOiLoader({get:getJSON,now:()=>Date.now()+serverOffsetMs,onData:()=>scheduleSpectrumBadge()});
 const oiFastLoader=new OiFastLoader({history:oiHistory,get:getJSON,onData:applyOiHistoryData,onState:handleOiLoadState});
@@ -662,10 +664,14 @@ function updateSpectrumBadge(currentPrice){
  badge.dataset.confirmation=confirmation.state;badge.dataset.confirmationCount=String(confirmation.count);badge.dataset.groupState=group.state;badge.dataset.low=String(group.low);badge.dataset.high=String(group.high);
  badge.dataset.state=live.ready?(live.flowFresh&&live.cvd!==0&&live.delta!==0?`${live.cvd>0?'buy':'sell'}-oi-${live.delta>0?'increase':'decrease'}`:'neutral'):group.state;
  badge.dataset.currentOi=live.ready?(live.stale?'stale':'running'):'WAIT';
+ const borderFlow=rows.COMPOSITE?.at(-1),borderPrice=rows.SPYUSDT?.at(-1);
+ badge.dataset.borderState=cvdBadgeBorder.update({cvd:borderFlow?.net,quote:borderFlow?.q,time:cache?.serverTime,now,fresh:isChartLive()&&borderFlow?.t===borderPrice?.t&&borderPrice?.t<=now&&borderPrice?.end>=now,key:$('symbol').value+':'+$('interval').value});
+
  badge.setAttribute('aria-label',[state.textContent,values.textContent,confirmLabel.textContent].join('. '));
 
  requestAnimationFrame(positionForecastReadout);
  badge.title=`MUA/BÁN CĐ = mua/bán chủ động; OI ↑/↓ = tăng/giảm tổng vị thế mở. CVD ${fmtK(group.cvd)} USDT; ΔOI ${signed(group.netOi)}. ${isChartLive()?'LIVE':'DELAYED'}. Xác nhận ${confirmation.support??0}/${confirmation.count} nến, ${Math.round((confirmation.share??0)*100)}% |ΔOI| hỗ trợ. Vùng ${fmt(group.low)}–${fmt(group.high)}. Gom ${group.levels} mức giá liền nhau, mỗi mức ${spectrumComparison.binStep??.5}; nhóm quanh giá hiện tại. CVD và OI cùng nến đóng, ngày ${spectrumComparison.day??'—'} NY. ${group.ready?`OI tăng ${fmtK(group.opened)}, giảm ${fmtK(group.closed)}, tổng biến động ${fmtK(group.grossOi)}.`:'Chưa đủ dữ liệu để phân loại OI.'} Xác nhận bằng nến vượt ngưỡng ΔOI trong cùng vùng và cùng nến đối chiếu: ít nhất 2 nến hỗ trợ, tỷ trọng |ΔOI| hỗ trợ ≥60%. Nến tô màu và histogram chung nguồn nên mỗi nến chỉ tính một lần. Tỷ trọng không phải xác suất thắng. Cập nhật theo dữ liệu, không xác định chắc long/short.`;
+ badge.title+=' Màu viền chỉ theo hướng CVD đã lọc: xanh mua, tím bán, xám trung tính. Đổi màu cần ≥3 lần cập nhật chart và ≥9 giây đồng thuận; giữ màu tối thiểu 15 giây, vùng CVD nhỏ có đệm vào 5%/ra 2% volume. OI đổi dấu hoặc trễ không đổi màu viền; trạng thái OI vẫn ghi ngay trên nhãn. Chart thiếu dữ liệu quá 20 giây trả viền xám.';
  badge.title+=' Nhãn 3 dòng: trạng thái hiện tại; CVD nến (USDT) và ΔOI% (khối lượng vị thế); xác nhận NHÓM GIÁ đã đóng và tuổi nguồn OI hiện tại. XN = đã xác nhận, NGƯỢC = đối nghịch, HỖN HỢP = chưa đồng thuận. Dấu * ở ΔOI = tính từ lúc bắt đầu theo dõi, chưa có mốc đầu nến. Xác nhận nhóm giá không xác nhận riêng nến đang chạy. OI hiện tại được hỏi mỗi 3–5 giây, không chờ đóng nến. ΔOI% so với đầu nến; nếu thiếu mốc đầu nến thì so từ lúc bắt đầu theo dõi và ghi rõ. CVD nến dùng Composite tại timestamp SPY hiện tại. OI hiện tại không cộng vào phổ nhóm giá hoặc xác nhận nến. Lỗi API giữ mẫu gần nhất và đánh dấu cũ theo thời gian nguồn.';
  badge.title+=' Phản ứng giá theo nhóm: '+reactionLabel+'. Dùng delta taker RIÊNG SPY và biến động giá quan sát trong cùng nhóm 3 mức giá, mỗi mức '+(spectrumComparison.binStep??.5)+' điểm; giữ tối đa 120 giây bằng chứng, cần ít nhất 30 giây. Khác với CVD Composite tích lũy trên dòng 2 nên có thể khác hướng. ĐẨY GIÁ = giá đi cùng hướng delta; HẤP THỤ = dấu hiệu dòng chủ động mạnh nhưng giá đi ít hoặc ngược hướng, không xác định được lệnh giới hạn. Chỉ gán đoạn quan sát khi cả hai giá ở trong nhóm có vùng đệm; không nội suy giao dịch trong khoảng thiếu dữ liệu. Biên nhóm có đệm 0,25 điểm khi bước giá 0,5; đổi nhóm sau ít nhất 3 cập nhật và 6 giây ở ngoài đệm. Đổi trạng thái cần ít nhất 3 cập nhật và 9 giây đồng thuận; giữ tối thiểu 15 giây, tín hiệu yếu chỉ xóa sau 20 giây. Ngưỡng vào/ra khác nhau để giảm nhấp nháy. Dữ liệu trễ/đứt quãng xóa trạng thái ngay. Sang nến mới liên tiếp vẫn nối bằng số liệu nến cũ đã đóng. Đây là bộ lọc thử nghiệm, không suy ra chính xác mở/đóng long–short.';
  if(reaction.group)badge.title+=' Nhóm phản ứng '+reaction.group.low.toFixed(2)+'–'+reaction.group.high.toFixed(2)+(reaction.held?' · đang giữ trạng thái đã xác nhận trong lúc tín hiệu mới chưa đủ bền.':'.');
