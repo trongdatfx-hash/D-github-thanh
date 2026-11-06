@@ -21,5 +21,8 @@ class QuoteTests(unittest.TestCase):
     def test_previous_close_missing_is_not_a_zero_change(self):
         q = collector.parse_quote(self.payload(chartPreviousClose=None), '^VIX9D', 1793722600000)
         self.assertIsNone(q['changePct'])
+    def test_sp500_symbol_and_url(self):
+        self.assertEqual(collector.SYMBOLS['SP500'], '^GSPC')
+        self.assertIn('%5EGSPC', collector.quote_url('^GSPC'))
 if __name__ == '__main__':
     unittest.main()

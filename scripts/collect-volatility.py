@@ -1,13 +1,17 @@
-"""Best-effort Yahoo delayed VIX/VIX9D snapshots; never manufacture quote times."""
+"""Best-effort Yahoo delayed VIX/VIX9D/SP500 snapshots; never manufacture quote times."""
 import json
 import math
 import time
 import urllib.request
+from urllib.parse import quote
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / 'netflow-stumpy/data/volatility.json'
-SYMBOLS = {'VIX': '^VIX', 'VIX9D': '^VIX9D'}
+SYMBOLS = {'VIX': '^VIX', 'VIX9D': '^VIX9D', 'SP500': '^GSPC'}
+
+def quote_url(symbol):
+    return 'https://query1.finance.yahoo.com/v8/finance/chart/' + quote(symbol, safe='') + '?interval=1m&range=1d'
 
 def parse_quote(payload, symbol, now):
     result = payload.get('chart', {}).get('result')
@@ -35,7 +39,7 @@ def main():
     quotes = {}
     for name, symbol in SYMBOLS.items():
         try:
-            url = 'https://query1.finance.yahoo.com/v8/finance/chart/%5E' + name + '?interval=1m&range=1d'
+            url = quote_url(symbol)
             req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json'})
             with urllib.request.urlopen(req, timeout=20) as response:
                 quote = parse_quote(json.load(response), symbol, now)

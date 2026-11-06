@@ -4,3 +4,9 @@ export function volatilityQuoteState(quote,now=Date.now(),requestFailed=false){
  const lagMinutes=Math.max(0,(now-quote.asOf)/60000),stale=requestFailed||quote.fetchStatus!=='ok'||lagMinutes>35;
  return {status:stale?'DỮ LIỆU CŨ':'DELAYED · ~15 phút',price:quote.price,changePct:Number.isFinite(quote.changePct)?quote.changePct:null,asOf:quote.asOf,lagMinutes};
 }
+
+export function sp500AlertState(quote,now=Date.now(),requestFailed=false,threshold=1.3){
+ const state=volatilityQuoteState(quote,now,requestFailed),move=state.changePct;
+ const volatile=state.status.startsWith('DELAYED')&&Number.isFinite(move)&&Math.abs(move)>threshold;
+ return {...state,volatile,threshold};
+}
