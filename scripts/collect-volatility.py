@@ -25,9 +25,14 @@ def parse_quote(payload, symbol, now):
         raise ValueError('Invalid quote timestamp')
     previous = meta.get('chartPreviousClose', meta.get('previousClose'))
     previous = previous if isinstance(previous, (int, float)) and math.isfinite(previous) and previous > 0 else None
+    session_open = meta.get('regularMarketOpen')
+    session_open = session_open if isinstance(session_open, (int, float)) and math.isfinite(session_open) and session_open > 0 else None
     return {'symbol': symbol, 'price': price, 'asOf': int(stamp * 1000), 'previousClose': previous,
             'change': price - previous if previous else None,
             'changePct': 100 * (price / previous - 1) if previous else None,
+            'sessionOpen': session_open,
+            'sessionChange': price - session_open if session_open else None,
+            'sessionChangePct': 100 * (price / session_open - 1) if session_open else None,
             'source': 'Yahoo Finance', 'nominalDelayMinutes': 15, 'lastSuccessAt': now, 'fetchStatus': 'ok'}
 
 def main():

@@ -1,4 +1,4 @@
-import {sp500AlertState,volatilityQuoteState} from './volatility-quotes.mjs?v=20261106-sp500-alert1';
+import {sp500AlertState,volatilityQuoteState} from './volatility-quotes.mjs?v=20261106-session-open1';
 export function createVolatilityQuotes(panel){
  if(!panel)return;
  const section=document.createElement('section');section.className='volatility-quotes';section.setAttribute('aria-label','VIX và VIX9D · Yahoo Finance · báo giá trễ');
@@ -16,9 +16,9 @@ export function createVolatilityQuotes(panel){
  const format=new Intl.DateTimeFormat('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',dateStyle:'short',timeStyle:'medium'});
  function render(){
   for(const [name,c] of cards){const state=volatilityQuoteState(snapshot?.quotes?.[name],Date.now(),failed);c.card.dataset.state=state.status.startsWith('DELAYED')?'delayed':state.price===null?'wait':'stale';c.value.textContent=state.price===null?'—':state.price.toFixed(2);c.change.textContent=state.changePct===null?'':`${state.changePct>=0?'+':''}${state.changePct.toFixed(2)}% so phiên trước`;c.status.textContent=state.status;c.stamp.textContent=state.asOf===null?'Chưa có báo giá hợp lệ':`Giờ dữ liệu ${format.format(state.asOf)} · cách hiện tại ${Math.floor(state.lagMinutes)} phút`;}
-  const state=sp500AlertState(snapshot?.quotes?.SP500,Date.now(),failed),move=state.changePct,signed=Number.isFinite(move)?`${move>=0?'+':''}${move.toFixed(2)}%`:null;
+  const state=sp500AlertState(snapshot?.quotes?.SP500,Date.now(),failed),move=state.sessionChangePct,signed=Number.isFinite(move)?`${move>=0?'+':''}${move.toFixed(2)}%`:null;
   sp500.hidden=!state.volatile;sp500.textContent=state.volatile?'TT BIẾN ĐỘNG · GIẢM VOLUME':'';sp500.dataset.warning=String(state.volatile);
-  sp500.title=state.asOf===null?'Chưa có dữ liệu SP500 hợp lệ':`Điều kiện nội bộ: SP500 ${signed??'—'}${state.status==='DỮ LIỆU CŨ'?' · dữ liệu cũ':''} · ${format.format(state.asOf)}${state.volatile?' · |%| > 1,3%':''}`;
+  sp500.title=state.asOf===null?'Chưa có dữ liệu SP500 hợp lệ':`Điều kiện nội bộ: SP500 ${signed??'—'} so với giá mở cửa phiên${state.status==='DỮ LIỆU CŨ'?' · dữ liệu cũ':''} · ${format.format(state.asOf)}${state.volatile?' · |% phiên| > 1,3%':''}`;
  }
  async function refresh(){if(pending)return;pending=true;button.disabled=true;sp500.disabled=true;try{const response=await fetch(new URL('./data/volatility.json?v='+Date.now(),import.meta.url),{cache:'no-store',signal:AbortSignal.timeout(15000)});if(!response.ok)throw Error('snapshot unavailable');const data=await response.json();if(data.version!==1||!data.quotes)throw Error('invalid snapshot');for(const name of ['VIX','VIX9D','SP500']){const old=snapshot?.quotes?.[name];if(old?.asOf>data.quotes[name]?.asOf)data.quotes[name]=old;}snapshot=data;failed=false;}catch{failed=true;}finally{pending=false;button.disabled=false;sp500.disabled=false;render();}}
  button.onclick=sp500.onclick=refresh;
