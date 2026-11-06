@@ -1,4 +1,18 @@
-# GPT · Mẫu hiện tại — cấu trúc M15
+# Gửi mẫu vào chat — cấu trúc M15
+
+**Chế độ hiện tại đã chuyển sang phân tích trong cuộc chat/nhóm ChatGPT đang dùng.**
+Nút **Gửi mẫu vào chat → Sao chép mẫu**, rồi quay lại chat, dán và gửi.
+Không cần API key hoặc máy chủ. Nút không tự gửi tin và không tự chọn model ChatGPT.
+Mỗi lần mở nút tạo một mẫu mới nếu pivot chưa từng được lưu; cùng pivot là cập nhật.
+Giới hạn 3 mẫu mới/ngày New York, gộp SPY/QQQ, dùng bộ nhớ trình duyệt 90 ngày
+và Web Locks để tránh nhiều tab cùng vượt giới hạn. Thiết bị khác chưa đồng bộ;
+xóa dữ liệu trình duyệt cũng xóa bộ nhớ và quota. Không có học nền khi đóng web.
+Kết quả 8 nến được cập nhật khi web mở lại và có đủ nến tương ứng, rồi gửi kèm
+gói dữ liệu lần sau để ChatGPT đối chiếu. Bộ nhớ không huấn luyện lại trọng số GPT.
+
+Phần API dưới đây là phương án cũ, đã ngừng sử dụng trong nút trên chart.
+
+## Phương án API cũ (chỉ tham khảo)
 
 Chart có nút **GPT · Mẫu hiện tại** ở góc trái trên, hoạt động cả Full chart.
 GPT-5.6 Terra (`gpt-5.6-terra`, Responses API, reasoning low) là mặc định;

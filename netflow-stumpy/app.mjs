@@ -1,4 +1,4 @@
-import {mountGptPattern} from './gpt-pattern-ui.mjs?v=20261106-gpt1';
+import {mountGptPattern} from './gpt-pattern-ui.mjs?v=20261106-chat1';
 import {CvdBadgeBorder} from './cvd-badge-border.mjs?v=20261106-border1';
 import {FlowPriceReaction} from './flow-price-reaction.mjs?v=20261106-reaction-groups2';
 import {CurrentOiLoader,RunningOiState} from './oi-current.mjs?v=20261106-oi-live1';
