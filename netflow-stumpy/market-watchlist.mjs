@@ -1,4 +1,4 @@
-import {createVolatilityQuotes} from './volatility-quotes-ui.mjs?v=20261106-sp500-alert1';
+import {createVolatilityQuotes} from './volatility-quotes-ui.mjs?v=20261106-market-alert-only1';
 const panel=document.getElementById('market-watchlist');
 const host=panel?.querySelector('[data-market-watchlist-widget]');
 let loaded=false;
