@@ -1,7 +1,7 @@
 import {pattern,STEP} from './gpt-pattern-core.mjs?v=20261106-gpt1';
 import {GPT_PATTERN_ENDPOINT} from './gpt-pattern-config.mjs?v=20261106-gpt1';
 const ENDPOINT_KEY='dvp:gpt-pattern:endpoint:v1',TOKEN_KEY='dvp:gpt-pattern:session-token:v1';
-const read=(storage,key)=>{try{return storage.getItem(key)||'';}catch{return '';}};
+const read=(name,key)=>{try{return globalThis[name].getItem(key)||'';}catch{return '';}};
 export function mountGptPattern({chart,getState}){
   const card=document.querySelector('.chart-card'),host=document.getElementById('chart');if(!host||document.getElementById('gpt-pattern-button'))return;
   const style=document.createElement('style');style.textContent=`
@@ -18,7 +18,7 @@ export function mountGptPattern({chart,getState}){
   dialog.innerHTML='<h3 id="gpt-pattern-title">GPT · Cấu trúc M15</h3><div class="gpt-row"><button type="button" id="gpt-pattern-run">Phân tích vùng đang xem</button><button type="button" id="gpt-pattern-close">Đóng</button></div><p id="gpt-pattern-meta"></p><p id="gpt-pattern-learning" role="status"></p><div id="gpt-pattern-answer" role="status" aria-live="polite"></div><details id="gpt-pattern-settings"><summary>Kết nối GPT</summary><p>Địa chỉ máy chủ phân tích đã triển khai. Khóa OpenAI chỉ lưu ở máy chủ. Mã truy cập dưới đây lưu trong phiên tab này.</p><label>API URL (HTTPS)<input id="gpt-pattern-endpoint" type="url" placeholder="https://dvp-gpt-pattern-api.…workers.dev" autocomplete="off"></label><label>Mã truy cập máy chủ<input id="gpt-pattern-token" type="password" autocomplete="off"></label><button type="button" id="gpt-pattern-save">Lưu kết nối</button></details><p>Học tối đa 3 mẫu mới/ngày New York, gộp SPY/QQQ. Tự ghi mẫu khi chart M15 đang mở và LIVE. Chỉ học nến đóng; theo dõi kết quả sau 8 nến. Bộ nhớ thống kê không thay đổi trọng số GPT.</p>';
   card.append(dialog);
   const el=id=>dialog.querySelector('#gpt-pattern-'+id),endpoint=el('endpoint'),token=el('token'),answer=el('answer'),meta=el('meta'),learning=el('learning'),run=el('run');
-  endpoint.value=read(localStorage,ENDPOINT_KEY)||GPT_PATTERN_ENDPOINT;token.value=read(sessionStorage,TOKEN_KEY);
+  endpoint.value=read('localStorage',ENDPOINT_KEY)||GPT_PATTERN_ENDPOINT;token.value=read('sessionStorage',TOKEN_KEY);
   let lastObserve='',busy=false,observing=false,retryAt=0;
   function connection(){
     const value=endpoint.value.trim();if(!value||!token.value.trim())throw Error('Chưa kết nối GPT. Điền API URL và mã truy cập máy chủ trong mục Kết nối GPT.');
