@@ -1,4 +1,4 @@
-import {FlowPriceReaction} from './flow-price-reaction.mjs?v=20261106-reaction1';
+import {FlowPriceReaction} from './flow-price-reaction.mjs?v=20261106-reaction-groups2';
 import {CurrentOiLoader,RunningOiState} from './oi-current.mjs?v=20261106-oi-live1';
 import {h1AdaptiveVolumeRows} from './spy-volume-h1.mjs?v=20261105-spyv-h1-1';
 import {OiFastLoader} from './oi-fast-load.mjs?v=20261104-oi-region-confirm1';
@@ -650,11 +650,13 @@ function updateSpectrumBadge(currentPrice){
    values.textContent=group.ready?`CVD ${compact(group.cvd)} · ΔOI ${group.netOi>0?'+':''}${compact(group.netOi)}`:'CVD '+(group.count?compact(group.cvd):'—')+' · ΔOI —';
    confirmLabel.textContent=confirmText+' · '+(currentOiLoader.error?'LỖI OI':spectrumComparison.stale?'OI CŨ':'CHỜ OI');
  }
- const reaction=flowPriceReaction.update(rows.SPYUSDT??[],{step:STEPS[$('interval').value],time:cache?.serverTime,now,fresh:isChartLive()});
+ const reaction=flowPriceReaction.update(rows.SPYUSDT??[],{step:STEPS[$('interval').value],time:cache?.serverTime,now,fresh:isChartLive(),binStep:spectrumComparison.binStep??.5,levels:group.levels??3});
  const reactionLabel=reaction.ready?reaction.label:'CHƯA RÕ';
  state.textContent+=' | '+reactionLabel;
  badge.dataset.priceReaction=reaction.state;
  badge.dataset.priceReactionSource='SPYUSDT';
+ badge.dataset.priceReactionGroup=reaction.group?reaction.group.low+'–'+reaction.group.high:'';
+ badge.dataset.priceReactionHeld=String(reaction.held===true);
  const text=state.textContent+'|'+values.textContent+'|'+confirmLabel.textContent;
  if(badge.dataset.text!==text){badge.replaceChildren(state,values,confirmLabel);badge.dataset.text=text;}
  badge.dataset.confirmation=confirmation.state;badge.dataset.confirmationCount=String(confirmation.count);badge.dataset.groupState=group.state;badge.dataset.low=String(group.low);badge.dataset.high=String(group.high);
@@ -665,8 +667,10 @@ function updateSpectrumBadge(currentPrice){
  requestAnimationFrame(positionForecastReadout);
  badge.title=`MUA/BÁN CĐ = mua/bán chủ động; OI ↑/↓ = tăng/giảm tổng vị thế mở. CVD ${fmtK(group.cvd)} USDT; ΔOI ${signed(group.netOi)}. ${isChartLive()?'LIVE':'DELAYED'}. Xác nhận ${confirmation.support??0}/${confirmation.count} nến, ${Math.round((confirmation.share??0)*100)}% |ΔOI| hỗ trợ. Vùng ${fmt(group.low)}–${fmt(group.high)}. Gom ${group.levels} mức giá liền nhau, mỗi mức ${spectrumComparison.binStep??.5}; nhóm quanh giá hiện tại. CVD và OI cùng nến đóng, ngày ${spectrumComparison.day??'—'} NY. ${group.ready?`OI tăng ${fmtK(group.opened)}, giảm ${fmtK(group.closed)}, tổng biến động ${fmtK(group.grossOi)}.`:'Chưa đủ dữ liệu để phân loại OI.'} Xác nhận bằng nến vượt ngưỡng ΔOI trong cùng vùng và cùng nến đối chiếu: ít nhất 2 nến hỗ trợ, tỷ trọng |ΔOI| hỗ trợ ≥60%. Nến tô màu và histogram chung nguồn nên mỗi nến chỉ tính một lần. Tỷ trọng không phải xác suất thắng. Cập nhật theo dữ liệu, không xác định chắc long/short.`;
  badge.title+=' Nhãn 3 dòng: trạng thái hiện tại; CVD nến (USDT) và ΔOI% (khối lượng vị thế); xác nhận NHÓM GIÁ đã đóng và tuổi nguồn OI hiện tại. XN = đã xác nhận, NGƯỢC = đối nghịch, HỖN HỢP = chưa đồng thuận. Dấu * ở ΔOI = tính từ lúc bắt đầu theo dõi, chưa có mốc đầu nến. Xác nhận nhóm giá không xác nhận riêng nến đang chạy. OI hiện tại được hỏi mỗi 3–5 giây, không chờ đóng nến. ΔOI% so với đầu nến; nếu thiếu mốc đầu nến thì so từ lúc bắt đầu theo dõi và ghi rõ. CVD nến dùng Composite tại timestamp SPY hiện tại. OI hiện tại không cộng vào phổ nhóm giá hoặc xác nhận nến. Lỗi API giữ mẫu gần nhất và đánh dấu cũ theo thời gian nguồn.';
- badge.title+=' Phản ứng giá: '+reactionLabel+'. Ước lượng từ delta taker RIÊNG SPY và giá trong cùng cửa sổ 30–60 giây, không dùng spread. Khác với CVD Composite tích lũy trên dòng 2 nên có thể khác hướng. ĐẨY GIÁ = giá đi cùng hướng delta vượt ngưỡng nhiễu; HẤP THỤ = delta lệch mạnh nhưng giá đi ít hoặc ngược hướng, chỉ là dấu hiệu. Lệch mua/bán ≥15%, volume ≥25% mức nền theo thời gian; ngưỡng giá = max(0,01 điểm, 0,05 ATR14 × sqrt(thời gian/khung)). Cần 2 lần cập nhật chart đồng thuận, không chờ nến đóng. Đổi nến hoặc đứt cập nhật cần tích lũy lại ít nhất 30 giây. Không suy ra chính xác mở/đóng long–short.';
- if(reaction.ready)badge.title+=' Cửa sổ '+Math.round(reaction.span/1000)+'s; Δtaker '+signed(reaction.delta)+' USDT; lệch '+Math.round(reaction.imbalance*100)+'%; Δgiá '+signed(reaction.priceChange)+'.';
+ badge.title+=' Phản ứng giá theo nhóm: '+reactionLabel+'. Dùng delta taker RIÊNG SPY và biến động giá quan sát trong cùng nhóm 3 mức giá, mỗi mức '+(spectrumComparison.binStep??.5)+' điểm; giữ tối đa 120 giây bằng chứng, cần ít nhất 30 giây. Khác với CVD Composite tích lũy trên dòng 2 nên có thể khác hướng. ĐẨY GIÁ = giá đi cùng hướng delta; HẤP THỤ = dấu hiệu dòng chủ động mạnh nhưng giá đi ít hoặc ngược hướng, không xác định được lệnh giới hạn. Chỉ gán đoạn quan sát khi cả hai giá ở trong nhóm có vùng đệm; không nội suy giao dịch trong khoảng thiếu dữ liệu. Biên nhóm có đệm 0,25 điểm khi bước giá 0,5; đổi nhóm sau ít nhất 3 cập nhật và 6 giây ở ngoài đệm. Đổi trạng thái cần ít nhất 3 cập nhật và 9 giây đồng thuận; giữ tối thiểu 15 giây, tín hiệu yếu chỉ xóa sau 20 giây. Ngưỡng vào/ra khác nhau để giảm nhấp nháy. Dữ liệu trễ/đứt quãng xóa trạng thái ngay. Sang nến mới liên tiếp vẫn nối bằng số liệu nến cũ đã đóng. Đây là bộ lọc thử nghiệm, không suy ra chính xác mở/đóng long–short.';
+ if(reaction.group)badge.title+=' Nhóm phản ứng '+reaction.group.low.toFixed(2)+'–'+reaction.group.high.toFixed(2)+(reaction.held?' · đang giữ trạng thái đã xác nhận trong lúc tín hiệu mới chưa đủ bền.':'.');
+
+ if(reaction.ready)badge.title+=' Thời gian quan sát trong nhóm '+Math.round(reaction.span/1000)+'s; Δtaker '+signed(reaction.delta)+' USDT; lệch '+Math.round(reaction.imbalance*100)+'%; Δgiá '+signed(reaction.priceChange)+'.';
  else badge.title+=' Chưa đủ điều kiện: '+reaction.reason+'.';
 
 }
