@@ -23,6 +23,12 @@ class QuoteTests(unittest.TestCase):
     def test_previous_close_missing_is_not_a_zero_change(self):
         q = collector.parse_quote(self.payload(chartPreviousClose=None), '^VIX9D', 1793722600000)
         self.assertIsNone(q['changePct'])
+    def test_session_open_uses_first_intraday_candle_when_meta_omits_open(self):
+        payload = self.payload(regularMarketOpen=None)
+        payload['chart']['result'][0]['indicators'] = {'quote': [{'open': [None, 21, 22]}]}
+        q = collector.parse_quote(payload, '^VIX9D', 1793722600000)
+        self.assertEqual(q['sessionOpen'], 21)
+        self.assertEqual(q['sessionOpenSource'], 'firstIntradayCandle')
     def test_session_open_missing_never_falls_back_to_previous_close(self):
         q = collector.parse_quote(self.payload(regularMarketOpen=None), '^VIX9D', 1793722600000)
         self.assertIsNone(q['sessionChangePct'])

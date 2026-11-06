@@ -13,6 +13,14 @@ SYMBOLS = {'VIX': '^VIX', 'VIX9D': '^VIX9D', 'SP500': '^GSPC'}
 def quote_url(symbol):
     return 'https://query1.finance.yahoo.com/v8/finance/chart/' + quote(symbol, safe='') + '?interval=1m&range=1d'
 
+def session_open_from_chart(chart):
+    groups = chart.get('indicators', {}).get('quote', [])
+    opens = groups[0].get('open', []) if groups else []
+    for value in opens:
+        if isinstance(value, (int, float)) and math.isfinite(value) and value > 0:
+            return value
+    return None
+
 def parse_quote(payload, symbol, now):
     result = payload.get('chart', {}).get('result')
     if not result or payload.get('chart', {}).get('error'):
@@ -27,10 +35,14 @@ def parse_quote(payload, symbol, now):
     previous = previous if isinstance(previous, (int, float)) and math.isfinite(previous) and previous > 0 else None
     session_open = meta.get('regularMarketOpen')
     session_open = session_open if isinstance(session_open, (int, float)) and math.isfinite(session_open) and session_open > 0 else None
+    session_open_source = 'regularMarketOpen'
+    if session_open is None:
+        session_open = session_open_from_chart(result[0])
+        session_open_source = 'firstIntradayCandle' if session_open is not None else None
     return {'symbol': symbol, 'price': price, 'asOf': int(stamp * 1000), 'previousClose': previous,
             'change': price - previous if previous else None,
             'changePct': 100 * (price / previous - 1) if previous else None,
-            'sessionOpen': session_open,
+            'sessionOpen': session_open, 'sessionOpenSource': session_open_source,
             'sessionChange': price - session_open if session_open else None,
             'sessionChangePct': 100 * (price / session_open - 1) if session_open else None,
             'source': 'Yahoo Finance', 'nominalDelayMinutes': 15, 'lastSuccessAt': now, 'fetchStatus': 'ok'}
