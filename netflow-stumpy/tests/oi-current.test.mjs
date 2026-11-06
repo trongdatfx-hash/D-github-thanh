@@ -48,13 +48,13 @@ test('reject out of order responses',async()=>{
 test('badge updates running state despite WAIT confirmation and reports source age',()=>{
  const source=readFileSync(new URL('../app.mjs',import.meta.url),'utf8');
  const code=source.slice(source.indexOf('function updateSpectrumBadge(currentPrice){'),source.indexOf('\nfunction inspectSpectrum'));
- class El{constructor(){this.dataset={};}replaceChildren(...children){this.children=children;}}
+ class El{constructor(){this.dataset={};}replaceChildren(...children){this.children=children;}setAttribute(){}}
  const badge=new El(),sample={oi:102,time:910000};
  const group={ready:true,cvd:100,netOi:5,count:2,state:'buy-oi-increase',low:1,high:2,opened:5,closed:0,grossOi:5,levels:3};
  const sandbox={$:id=>id==='oi-price-group-badge'?badge:id==='symbol'?{value:'SPYUSDT'}:{checked:true},
  document:{createElement:()=>new El()},spectrumPriceGroup:()=>group,spectrumComparison:{rows:[],count:2,day:'test'},
  confirmSpectrumGroup:()=>({state:'WAIT',count:0,share:0,support:0}),oiBarState:{points:new Map()},rows:{SPYUSDT:[row],COMPOSITE:[flow]},oiAppliedSamples:[{timestamp:900000,sumOpenInterest:100}],currentOiLoader:{sample},runningOiState:new RunningOiState(),isChartLive:()=>true,serverOffsetMs:0,Date:{now:()=>912000},Intl,requestAnimationFrame:()=>{},positionForecastReadout(){},fmtK:String,signed:String,fmt:String};
  vm.runInNewContext(code+';updateSpectrumBadge(1);',sandbox);
- assert.match(badge.children[0].textContent,/MUA CĐ.*ĐANG CHẠY/);assert.match(badge.children[1].textContent,/2.00%.*2s/);assert.equal(badge.dataset.currentOi,'running');
- sandbox.Date.now=()=>930000;vm.runInNewContext('updateSpectrumBadge(1)',sandbox);assert.match(badge.children[0].textContent,/OI CŨ/);
+ assert.equal(badge.children.length,3);assert.match(badge.children[0].textContent,/MUA CĐ.*OI ↑/);assert.match(badge.children[1].textContent,/2.00%/);assert.match(badge.children[2].textContent,/2s/);assert.equal(badge.dataset.currentOi,'running');
+ sandbox.Date.now=()=>930000;vm.runInNewContext('updateSpectrumBadge(1)',sandbox);assert.match(badge.children[2].textContent,/CŨ/);
 });
