@@ -1,3 +1,4 @@
+import {mountH1ScoreHistogram} from './h1-box-score-ui.mjs?v=20261106-score1';
 import {mountGptPattern} from './gpt-pattern-ui.mjs?v=20261106-chatflow1';
 import {CvdBadgeBorder} from './cvd-badge-border.mjs?v=20261106-border1';
 import {FlowPriceReaction} from './flow-price-reaction.mjs?v=20261106-reaction-groups2';
@@ -37,7 +38,7 @@ const colors={SPYUSDT:'#5ba8ff',QQQUSDT:'#c194ff',COMPOSITE:'#38dfba'};
 const PRICE_DELTA_COLORS={positive:'#36dfff',negative:'#ff78c4',neutral:'#b4c3d7'};
 let displayVolumeStrengthRows=[];
 let trendAgeCandleMap=new Map(),h1CandleMap=new Map(),h1H4CandleMap=new Map(),abaBandPhaseMap=new Map(),abaBandFrame=0;
-let h1H4StripFrame=0;
+let h1H4StripFrame=0,h1ScoreLayer=null;
 let h1CacheAttempt='',h1CacheArchive=null,h1HistoryKnown=false,h1HistoryRevision=null,studyColorInput=null;
 
 let boxVolumeStrengthMap=new Map(),wlrThicknessMap=new Map(),wlrColorMap=new Map();
@@ -435,6 +436,18 @@ function init(){
   const paneLayoutObserver=new ResizeObserver(()=>{scheduleH1H4Strip();requestAnimationFrame(positionFixedPaneReadouts);});
   for(const element of [$('chart'),...chart.panes().map(pane=>pane.getHTMLElement())].filter(Boolean))paneLayoutObserver.observe(element);
   $('chart').addEventListener('pointermove',scheduleSpectrumBadge,{passive:true});$('chart').addEventListener('wheel',scheduleSpectrumBadge,{passive:true});
+  let scoreInputs=null;
+  h1ScoreLayer=mountH1ScoreHistogram({chart,host:$('chart'),storage:colorStorage(),getState:()=>{
+    const active=$('symbol').value==='SPYUSDT'&&$('interval').value==='15m'&&$('candle-h1-box-color')?.checked;
+    if(!active)return {active:false};
+    const bars=rows.SPYUSDT??[],flowRows=rows.COMPOSITE??[],oiMap=oiStamp==='15m'?oiWidths:new Map(),now=cache?.serverTime??Date.now();
+    if(!scoreInputs||scoreInputs.bars!==bars||scoreInputs.flowRows!==flowRows||scoreInputs.oi!==oiMap||scoreInputs.bands!==priceBandMap){
+      const deltaRows=directionalVolumeDelta(bars,STEPS['15m']);
+      const points=oiCandleBars(bars,deltaRows,flowRows,oiMap,STEPS['15m'],now,{filterPin:true,history:true,minOiMultiplier:1,oiPercentile:.62}).points;
+      scoreInputs={bars,flowRows,bands:priceBandMap,deltas:new Map(deltaRows.map(r=>[r.t,r])),flows:new Map(flowRows.map(r=>[r.t,r])),oi:oiMap,oiPoints:points};
+    }
+    return {...scoreInputs,active:true,states:h1CandleMap,now};
+  }});
   bindChartGestures();
   return true;
 }
@@ -513,7 +526,7 @@ function scheduleCvdSpectrum(){spectrumPrimitive.redraw();}
 function scheduleDaySeparators(){if(dayFrame)return;dayFrame=requestAnimationFrame(()=>{dayFrame=requestAnimationFrame(()=>{dayFrame=0;drawDaySeparators();});});}
 function scheduleGeometryOverlay(){if(geometryFrame)return;geometryFrame=requestAnimationFrame(()=>{geometryFrame=requestAnimationFrame(()=>{geometryFrame=0;drawGeometryOverlay();});});}
 function scheduleSpectrumBadge(){updateSpectrumBadge(rows.SPYUSDT?.at(-1)?.c);}
-function scheduleH1H4Strip(){if(h1H4StripFrame)return;h1H4StripFrame=requestAnimationFrame(()=>{h1H4StripFrame=0;drawH1H4Strip();});}
+function scheduleH1H4Strip(){h1ScoreLayer?.schedule();if(h1H4StripFrame)return;h1H4StripFrame=requestAnimationFrame(()=>{h1H4StripFrame=0;drawH1H4Strip();});}
 function drawH1H4Strip(){
   const canvas=$('h1-h4-age-strip'),host=$('chart');if(!canvas||!host)return;
   const width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1,bitmapWidth=Math.round(width*dpr),bitmapHeight=Math.round(height*dpr);

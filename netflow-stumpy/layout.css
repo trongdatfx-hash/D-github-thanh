@@ -120,3 +120,20 @@
 /* Make pane explanations reachable with the pointer and keyboard. */
 #composite-flow-fixed,#spy-volume-fixed{pointer-events:auto;cursor:help;user-select:text}
 #composite-flow-fixed:focus-visible,#spy-volume-fixed:focus-visible{outline:2px solid #7db8e8;outline-offset:2px}
+
+/* Signed H1 evidence histogram on price pane, time-aligned to the H1 strip. */
+#h1-score-histogram{position:absolute;left:0;z-index:5;pointer-events:none;overflow:hidden;font-variant-numeric:tabular-nums}
+#h1-score-histogram[hidden]{display:none}
+#h1-score-histogram .h1-score-heading{position:absolute;left:8px;top:0;padding:1px 4px;border-radius:3px;font:10px/14px system-ui;color:#9fb4ca;background:rgba(9,18,31,.76);pointer-events:auto;cursor:help}
+#h1-score-histogram .h1-score-zero{position:absolute;left:0;right:0;height:1px;background:rgba(156,178,204,.36)}
+#h1-score-histogram .h1-score-zero-label{position:absolute;right:4px;top:-7px;font:10px/14px system-ui;color:#a1b6cd;background:#0e1726}
+#h1-score-histogram .h1-score-bar{position:absolute;box-sizing:border-box;pointer-events:auto;cursor:help;border-radius:2px;background:rgba(143,159,179,.7);color:#aebdcc}
+#h1-score-histogram .h1-score-bar[data-direction=up]{background:rgba(26,224,163,.64);color:#49e5b4}
+#h1-score-histogram .h1-score-bar[data-direction=down]{background:rgba(255,77,112,.66);color:#ff7994}
+#h1-score-histogram .h1-score-bar[data-direction=missing]{background:transparent;border-top:1px dashed #9aabc0}
+#h1-score-histogram .h1-score-bar[data-status=PARTIAL]{opacity:.72;border:1px dashed currentColor}
+#h1-score-histogram .h1-score-bar[data-conflict=true]{outline:1px solid #e5bb69;outline-offset:1px}
+#h1-score-histogram .h1-score-bar:focus-visible{outline:2px solid #85bfff;outline-offset:2px}
+#h1-score-histogram .h1-score-bar>span{position:absolute;left:50%;bottom:calc(100% + 2px);transform:translateX(-50%);font:700 11px/13px system-ui;white-space:nowrap;text-shadow:0 1px 3px #07111e}
+#h1-score-histogram .h1-score-bar[data-direction=down]>span,#h1-score-histogram .h1-score-bar[data-direction=neutral]>span,#h1-score-histogram .h1-score-bar[data-direction=missing]>span{top:calc(100% + 2px);bottom:auto}
+@media(max-width:650px){#h1-score-histogram .h1-score-heading{font-size:9px}#h1-score-histogram .h1-score-bar>span{font-size:10px}}

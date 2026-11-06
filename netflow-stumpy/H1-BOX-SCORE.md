@@ -1,0 +1,47 @@
+# Điểm 8 hộp H1 đã khóa
+
+Trên chart SPYUSDT M15, histogram nhỏ nằm ngay trong pane nến chính,
+gốc 0 ở giữa, cột dương xanh và âm đỏ. Trục điểm cố định −5…+5,
+độc lập thang giá. Tọa độ ngang dùng cùng `h1StripCell` với dải H1 ở pane SPY V:
+mỗi cột ứng với đúng 4 M15 của một H1, không dồn 8 cột vào một góc.
+Kéo/zoom/đổi kích thước sẽ cập nhật tọa độ. Khi xem quá khứ, chọn tối đa 8 hộp
+đã khóa tại mép phải cửa sổ đó. Hộp đang chạy không có cột điểm.
+
+## Công thức v1
+
+Mỗi thành phần có điểm −1, 0 hoặc +1; cộng 5 thành phần thành −5…+5.
+
+1. Vị trí WLR: ít nhất 3/4 M15 đóng trên WLR: +1; dưới: −1; còn lại: 0.
+   Dùng chính WLR giá M15 của chart, được fit trên 50 nến trước mỗi M15.
+2. Dốc WLR: (WLR tại M15 cuối − WLR tại M15 đầu H1) / ATR14 trước H1.
+   Lớn hơn +0,15: +1; nhỏ hơn −0,15: −1; còn lại: 0.
+3. Random walk: lấy độ lớn 64 log-return M15 liên tục trước H1,
+   bootstrap 512 đường, mỗi đường 4 bước với dấu ± cân bằng, xuất phát từ
+   giá mở H1. Close H1 > P80: +1; < P20: −1; còn lại: 0.
+   Seed cố định theo thời gian H1. Không dùng return trong H1 để dựng biên,
+   không ép đường đi qua close thực. Đây là mô hình tham chiếu thử nghiệm.
+4. Volume Delta × Taker NF: cộng 4 giá trị SPY ΔV = sign(close−open)×V/SMA20(V)
+   và cộng 4 C Taker NF (SPY+QQQ). Cùng dương: +1; cùng âm: −1; còn lại: 0.
+   Không coi Volume Delta là chênh lệch volume taker thực.
+5. OI xác nhận: hướng giá H1 phải cùng hướng thành phần 4, tổng ΔOI H1 > 0,
+   có ít nhất 2 M15 OI tăng đồng thuận theo đúng bộ lọc nến OI,
+   và các nến này chiếm ít nhất 60% tổng |ΔOI| của 4 nến. Khi đạt, +1 cho tăng,
+   −1 cho giảm; không đạt: 0. Bộ lọc cố định P62 của 10 |ΔOI| trước mỗi M15,
+   có lọc pin bar. OI giảm không tự nhận là mở Long/Short và không cộng điểm hướng.
+   Histogram OI và nến OI chung nguồn nên chỉ tính một lần.
+
+## Thiếu dữ liệu và khóa điểm
+
+- Hộp H1 phải có đủ 4 M15 liên tục đã đóng, trạng thái màu `preview=false`.
+- Thiếu thành phần: tổng chỉ cộng phần biết, đánh dấu `*`, không phóng lên ±5.
+  Thiếu cả giá: hiển thị `—*`. Tooltip liệt kê phần thiếu, phân biệt với điểm 0.
+- Hộp đã khóa nhưng OI chưa đủ thì điểm còn chờ dữ liệu; cập nhật đến khi đủ
+  rồi lưu điểm hoàn chỉnh trong bộ nhớ trình duyệt, tối đa 512 H1.
+- Điểm đầy đủ đã lưu không đổi khi nến tương lai hoặc dữ liệu OI mới tới.
+  Khi không lưu được cache, phép tính cố định cửa sổ và seed vẫn cho kết quả tái lập
+  trên cùng dữ liệu đầu vào. Xóa cache hoặc sửa dữ liệu nguồn có thể thay đổi bản tái tính.
+- Không chấm H4 thành H1: overlay này chỉ hiện SPY M15. Không đổi màu hộp H1 gốc.
+- Cột có viền vàng khi dấu điểm xung đột với màu hộp; đây không phải xác nhận đảo chiều.
+
+Điểm mô tả mức đồng thuận của các đại lượng có tương quan, không phải xác suất
+và chưa được xác thực hiệu quả giao dịch.
