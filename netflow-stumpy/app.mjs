@@ -1,4 +1,4 @@
-import {mountGptPattern} from './gpt-pattern-ui.mjs?v=20261106-chat1';
+import {mountGptPattern} from './gpt-pattern-ui.mjs?v=20261106-chatflow1';
 import {CvdBadgeBorder} from './cvd-badge-border.mjs?v=20261106-border1';
 import {FlowPriceReaction} from './flow-price-reaction.mjs?v=20261106-reaction-groups2';
 import {CurrentOiLoader,RunningOiState} from './oi-current.mjs?v=20261106-oi-live1';
@@ -1031,7 +1031,11 @@ function bindChartGestures(){
   host.addEventListener('pointerup',finish,{capture:true});host.addEventListener('pointercancel',event=>{if(event.pointerType==='touch'){activeTouches.delete(event.pointerId);start=null;lastTap=null;if(!activeTouches.size)multiTouch=false;}},{capture:true});
 }
 if(init()){
-  mountGptPattern({chart,getState:()=>({symbol:$('symbol').value,interval:$('interval').value,bars:cache?.[$('symbol').value]??[],live:isChartLive()})});
+  mountGptPattern({chart,getState:()=>{
+    const symbol=$('symbol').value,interval=$('interval').value,spyBars=rows.SPYUSDT??[],delta=interval==='15m'?directionalVolumeDelta(spyBars,STEPS['15m']):[];
+    const spyOi=interval==='15m'?oiCandleBars(spyBars,delta,rows.COMPOSITE??[],oiWidths,STEPS['15m'],cache?.serverTime??0,{filterPin:$('oi-candle-pin-toggle')?.checked??true,history:true,minOiMultiplier:1,oiPercentile:Number($('oi-delta-percentile')?.value??.62)}):{points:new Map()};
+    return {symbol,interval,bars:cache?.[symbol]??[],live:isChartLive(),indicatorContext:{spyBars,spyVolumeRows:displayVolumeStrengthRows.length?displayVolumeStrengthRows:volumeStrengthRows,spyVolumeSource:$('chart').dataset.wlrVolumeSource??'unknown',volumeDeltaRows:delta,compositeRows:rows.COMPOSITE??[],oiByTime:oiStamp===interval?oiWidths:new Map(),oiPoints:spyOi.points,comparison:spectrumComparison,spectrumGroup:level=>{const group=spectrumPriceGroup(spectrumComparison,level);return {group,confirmation:confirmSpectrumGroup(group,spectrumComparison,spyBars,spyOi.points)};}}};
+  }});
   updateTrendMethodCopy();
   setupChartActions();
   const chartCard=document.querySelector('.chart-card');

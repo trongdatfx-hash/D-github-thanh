@@ -1,4 +1,4 @@
-import {CHAT_MEMORY_KEY,updateMemory,exportChatSample} from './chat-pattern-export.mjs?v=20261106-chat1';
+import {CHAT_MEMORY_KEY,updateMemory,exportChatSample} from './chat-pattern-export.mjs?v=20261106-chatflow1';
 export function mountGptPattern({chart,getState}){
   const host=document.getElementById('chart'),card=document.querySelector('.chart-card');if(!host||document.getElementById('gpt-pattern-button'))return;
   const style=document.createElement('style');style.textContent=`
@@ -19,11 +19,11 @@ export function mountGptPattern({chart,getState}){
     try {
       const state=getState();if(state.interval!=='15m')throw Error('Chuyển chart sang M15 để lấy mẫu.');
       const visible=chart.timeScale().getVisibleRange();if(!visible||!Number.isFinite(Number(visible.from))||!Number.isFinite(Number(visible.to)))throw Error('Chart chưa có vùng nến hiển thị.');
-      const result=exportChatSample({bars:(state.bars||[]).slice(-2500),symbol:state.symbol,live:state.live,visible:{from:Number(visible.from),to:Number(visible.to)},memory:read()});
+      const result=exportChatSample({bars:(state.bars||[]).slice(-2500),symbol:state.symbol,live:state.live,visible:{from:Number(visible.from),to:Number(visible.to)},memory:read(),indicatorContext:state.indicatorContext});
       localStorage.setItem(CHAT_MEMORY_KEY,JSON.stringify(result.memory));field.value=result.text;copy.disabled=false;
       const fmt=t=>new Date(t).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'});
       meta.textContent=`${state.symbol} · M15 · ${result.current.sequence}\n${fmt(result.current.firstTime)} → ${fmt(result.current.asOf)} · chỉ nến đóng\nĐã lấy ${result.count}/3 mẫu hôm nay NY · ${result.memory.samples.filter(s=>s.outcome).length} mẫu đã có kết quả 8 nến.`;
-      status.textContent='Gói dữ liệu đã sẵn sàng. Sao chép rồi dán vào cuộc chat này; tôi sẽ phân tích khi anh gửi.';
+      status.textContent='Đã kèm SPY V, Taker NF, Volume Delta và OI. '+(result.missingIndicators.length?'Thiếu tại nến cuối: '+result.missingIndicators.join(', ')+'. ':'')+'Sao chép và gửi vào chat để nhận trend hiện tại trong 3 dòng.';
     }catch(error){status.textContent=error.name==='SecurityError'||error.name==='QuotaExceededError'?'Không lưu được bộ nhớ trình duyệt nên chưa lấy mẫu mới. Hãy cho phép lưu dữ liệu trang để giữ giới hạn 3 mẫu/ngày.':error.message;}
   }
   async function create(){

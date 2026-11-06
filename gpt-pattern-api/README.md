@@ -12,7 +12,7 @@ gói dữ liệu lần sau để ChatGPT đối chiếu. Bộ nhớ không huấ
 
 Phần API dưới đây là phương án cũ, đã ngừng sử dụng trong nút trên chart.
 
-## Phương án API cũ (chỉ tham khảo)
+Gói mẫu mới kèm SPY V (gốc/mượt H1 đúng nguồn chart), Taker NF riêng mã và Composite, Volume Delta, ΔOI%, nến OI đồng thuận P62 và phổ OI nhóm giá. Dữ liệu ghép đúng nến đóng, thiếu ghi null; phổ ngày không dùng cho mẫu lịch sử nếu vượt thời điểm mẫu. Phản hồi chỉ còn tối đa 3 dòng: trend hiện tại, lực xác nhận/xung đột, mốc đổi trend.\n\n## Phương án API cũ (chỉ tham khảo)
 
 Chart có nút **GPT · Mẫu hiện tại** ở góc trái trên, hoạt động cả Full chart.
 GPT-5.6 Terra (`gpt-5.6-terra`, Responses API, reasoning low) là mặc định;
