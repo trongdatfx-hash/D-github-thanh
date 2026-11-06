@@ -1,3 +1,4 @@
+import {mountGptPattern} from './gpt-pattern-ui.mjs?v=20261106-gpt1';
 import {CvdBadgeBorder} from './cvd-badge-border.mjs?v=20261106-border1';
 import {FlowPriceReaction} from './flow-price-reaction.mjs?v=20261106-reaction-groups2';
 import {CurrentOiLoader,RunningOiState} from './oi-current.mjs?v=20261106-oi-live1';
@@ -1030,6 +1031,7 @@ function bindChartGestures(){
   host.addEventListener('pointerup',finish,{capture:true});host.addEventListener('pointercancel',event=>{if(event.pointerType==='touch'){activeTouches.delete(event.pointerId);start=null;lastTap=null;if(!activeTouches.size)multiTouch=false;}},{capture:true});
 }
 if(init()){
+  mountGptPattern({chart,getState:()=>({symbol:$('symbol').value,interval:$('interval').value,bars:cache?.[$('symbol').value]??[],live:isChartLive()})});
   updateTrendMethodCopy();
   setupChartActions();
   const chartCard=document.querySelector('.chart-card');
@@ -1100,4 +1102,5 @@ if(init()){
   setInterval(()=>{if(!document.hidden)refreshCalendar();},CALENDAR_REFRESH_MS);
   setInterval(updateCandleCountdown,250);
 }
+
 
