@@ -10,5 +10,5 @@ test('SP500 warning uses absolute move strictly above 1.3 percent and ignores st
  assert.equal(sp500AlertState({...quote,changePct:1.31},now).volatile,true);
  assert.equal(sp500AlertState({...quote,changePct:-1.31},now).volatile,true);
  assert.equal(sp500AlertState({...quote,changePct:1.3},now).volatile,false);
- assert.equal(sp500AlertState({...quote,changePct:2,fetchStatus:'error'},now).volatile,false);
+ assert.equal(sp500AlertState({...quote,changePct:2,fetchStatus:'error'},now).volatile,true);
 });

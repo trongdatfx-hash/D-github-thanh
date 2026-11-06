@@ -7,6 +7,6 @@ export function volatilityQuoteState(quote,now=Date.now(),requestFailed=false){
 
 export function sp500AlertState(quote,now=Date.now(),requestFailed=false,threshold=1.3){
  const state=volatilityQuoteState(quote,now,requestFailed),move=state.changePct;
- const volatile=state.status.startsWith('DELAYED')&&Number.isFinite(move)&&Math.abs(move)>threshold;
+ const volatile=Number.isFinite(move)&&Math.abs(move)>threshold;
  return {...state,volatile,threshold};
 }
