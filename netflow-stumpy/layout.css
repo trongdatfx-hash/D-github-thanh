@@ -76,8 +76,13 @@
 .chart-card .chart-actions{min-width:0;max-width:100%;display:flex;align-items:center;gap:5px;overflow-x:auto;scrollbar-width:thin;pointer-events:auto;background:transparent}
 .chart-card .chart-actions>*{flex:0 0 auto}
 .chart-card .chart-actions button,.chart-card #live-indicator{background:rgba(8,14,24,.16);text-shadow:0 1px 3px #080e18}
-.chart-card #chart-market-volatility-alert{margin:0;padding:4px 8px;border-color:#ffb347;background:rgba(126,53,12,.72);color:#ffd49a;font-size:11px;font-weight:900;letter-spacing:.25px;white-space:normal;box-shadow:0 0 0 1px rgba(255,179,71,.3),0 0 12px rgba(255,116,46,.32)}
+.chart-card #spyusdt-session-change{margin:0;display:inline-flex;align-items:center;align-self:center;padding:4px 8px;border:1px solid #7890a8;border-radius:999px;background:rgba(8,14,24,.32);color:#c9d8e8;font-size:11px;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:.25px;white-space:normal}
+.chart-card #spyusdt-session-change[hidden]{display:none}
+.chart-card #spyusdt-session-change.up{color:#1ae0a3;border-color:#2f806a}
+.chart-card #spyusdt-session-change.down{color:#ff7891;border-color:#9d4558}
+.chart-card #spyusdt-session-change.flat{color:#c9d8e8}
+.chart-card #spyusdt-session-change.warning{border-color:#ffb347;background:rgba(126,53,12,.72);color:#ffd49a;box-shadow:0 0 0 1px rgba(255,179,71,.3),0 0 12px rgba(255,116,46,.32)}
 .chart-card .chart-head .toggles{pointer-events:auto;background:transparent}
 .chart-card:fullscreen .chart-head,.chart-card.fullscreen-fallback .chart-head{position:absolute;padding:6px 8px}
 .chart-card:fullscreen #chart,.chart-card.fullscreen-fallback #chart{height:100%;width:100%}
-@media(max-width:650px){.chart-card .chart-head{padding:4px;gap:4px}.chart-card .chart-actions{margin-left:0;gap:4px}.chart-card .chart-actions button{font-size:11px;padding:4px 6px}.chart-card #chart-market-volatility-alert{font-size:10px}}
+@media(max-width:650px){.chart-card .chart-head{padding:4px;gap:4px}.chart-card .chart-actions{margin-left:0;gap:4px}.chart-card .chart-actions button{font-size:11px;padding:4px 6px}.chart-card #spyusdt-session-change{font-size:10px}}
