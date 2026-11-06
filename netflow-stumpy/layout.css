@@ -152,3 +152,5 @@
  #h1-cvd-status-row #h1-trend-age-text{font-size:11px}
  #h1-cvd-status-row>.oi-price-group-badge>span,#h1-cvd-status-row>.oi-price-group-badge>small{font-size:11px}
 }
+
+#h1-cvd-status-row>#h1-trend-age-readout[hidden],#h1-cvd-status-row>.oi-price-group-badge[hidden]{display:none}
