@@ -137,3 +137,18 @@
 #h1-score-histogram .h1-score-bar>span{position:absolute;left:50%;bottom:calc(100% + 2px);transform:translateX(-50%);font:700 11px/13px system-ui;white-space:nowrap;text-shadow:0 1px 3px #07111e}
 #h1-score-histogram .h1-score-bar[data-direction=down]>span,#h1-score-histogram .h1-score-bar[data-direction=neutral]>span,#h1-score-histogram .h1-score-bar[data-direction=missing]>span{top:calc(100% + 2px);bottom:auto}
 @media(max-width:650px){#h1-score-histogram .h1-score-heading{font-size:9px}#h1-score-histogram .h1-score-bar>span{font-size:10px}}
+
+/* Two compact stacked labels: H1 above Composite CVD/OI. */
+#h1-cvd-status-row{display:flex;flex-direction:column;align-items:stretch;gap:4px;width:min(420px,calc(100% - 70px))}
+#h1-cvd-status-row>#h1-trend-age-readout{order:0;display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:4px 7px}
+#h1-cvd-status-row>.oi-price-group-badge{order:1;display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:2px 9px;width:100%;padding:4px 7px}
+#h1-cvd-status-row #h1-trend-age-text{min-width:0;flex:1;text-align:left;font-size:11.5px;line-height:1.35;white-space:normal}
+#h1-cvd-status-row #h1-candle-countdown{flex:0 0 auto;font-size:12px}
+#h1-cvd-status-row>.oi-price-group-badge>span,#h1-cvd-status-row>.oi-price-group-badge>small{display:inline;min-width:0;white-space:normal;overflow-wrap:break-word;word-break:normal;font-size:11px;line-height:1.4;letter-spacing:normal}
+#h1-cvd-status-row>.oi-price-group-badge>span{font-weight:800}
+@media(max-width:650px){
+ #h1-cvd-status-row{right:52px;width:min(360px,calc(100% - 58px));gap:3px}
+ #h1-cvd-status-row>#h1-trend-age-readout,#h1-cvd-status-row>.oi-price-group-badge{padding:4px 6px}
+ #h1-cvd-status-row #h1-trend-age-text{font-size:11px}
+ #h1-cvd-status-row>.oi-price-group-badge>span,#h1-cvd-status-row>.oi-price-group-badge>small{font-size:11px}
+}

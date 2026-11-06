@@ -1,7 +1,6 @@
 import {mountH1ScoreHistogram} from './h1-box-score-ui.mjs?v=20261106-score1';
 import {mountGptPattern} from './gpt-pattern-ui.mjs?v=20261106-chatflow1';
 import {CvdBadgeBorder} from './cvd-badge-border.mjs?v=20261106-border1';
-import {FlowPriceReaction} from './flow-price-reaction.mjs?v=20261106-reaction-groups2';
 import {CurrentOiLoader,RunningOiState} from './oi-current.mjs?v=20261106-oi-live1';
 import {h1AdaptiveVolumeRows} from './spy-volume-h1.mjs?v=20261105-spyv-h1-1';
 import {OiFastLoader} from './oi-fast-load.mjs?v=20261104-oi-region-confirm1';
@@ -45,7 +44,6 @@ let boxVolumeStrengthMap=new Map(),wlrThicknessMap=new Map(),wlrColorMap=new Map
 const oiHistory=new OiHistory();
 const runningOiState=new RunningOiState();
 const cvdBadgeBorder=new CvdBadgeBorder();
-const flowPriceReaction=new FlowPriceReaction();
 const currentOiLoader=new CurrentOiLoader({get:getJSON,now:()=>Date.now()+serverOffsetMs,onData:()=>scheduleSpectrumBadge()});
 const oiFastLoader=new OiFastLoader({history:oiHistory,get:getJSON,onData:applyOiHistoryData,onState:handleOiLoadState});
 const oiBoldCandles=new OiBoldCandles();
@@ -227,7 +225,7 @@ function setupChartActions(){
     const history=document.createElement('button');history.id='aba-band-history';history.type='button';history.textContent='Xem lịch sử kênh';history.disabled=true;status.insertAdjacentElement('afterend',history);history.onclick=()=>{const times=[...abaBandPhaseMap.keys()].sort((a,b)=>a-b);if(!times.length)return;const last=times.at(-1),first=times.find(t=>t>=last-36*3600000)??times[0];chart.timeScale().setVisibleRange({from:(first-3600000)/1000,to:(last+3600000)/1000});};
   }
   const spySessionChange=$('spyusdt-session-change');if(spySessionChange)live.insertAdjacentElement('afterend',spySessionChange);
-  const hint=document.querySelector('.hint');if(hint){hint.textContent='Nhãn CVD nằm cùng hàng, bên trái tuổi H1: CĐ = chủ động; OI ↑/↓ = tăng/giảm tổng vị thế mở. ';hint.textContent+=' Kênh trend causal dùng setup Flow-Leg: nguồn SPY V phân vị, dead-band ±0,15, tối thiểu 8 nến, R² hiển thị 0,20 và giữ 12 leg. Khi có break, đường lùi tối đa 4 nến M15 liền trước cùng ngày và cùng dấu SPY V làm gốc. Phá ±2σ theo hướng trend vẫn hợp lệ; nến SPY V trung tính hoặc một nến trái dấu vẫn được giữ. Giá phá biên bất lợi, SPY V vượt dead-band đối nghịch hoặc dốc OLS ngược hướng đủ mạnh phải kéo dài hai nến đóng liên tiếp mới đóng leg; nến phá giá đầu được nhận để tái khớp OLS và ±2σ. Hai rail dùng một OLS cuối nên luôn thẳng. Trendline causal chưa đủ pivot xác nhận được giữ hiện bằng nét chấm trong cửa sổ sớm 8 nến, có nhãn HT SỚM hoặc KC SỚM; chúng chưa tham gia thống kê nhóm trend.';}
+  const hint=document.querySelector('.hint');if(hint){hint.textContent='Hai nhãn xếp dọc: Tuổi H1 ở trên, CVD/ΔOI Composite ở dưới: CĐ = chủ động; OI ↑/↓ = tăng/giảm tổng vị thế mở. ';hint.textContent+=' Kênh trend causal dùng setup Flow-Leg: nguồn SPY V phân vị, dead-band ±0,15, tối thiểu 8 nến, R² hiển thị 0,20 và giữ 12 leg. Khi có break, đường lùi tối đa 4 nến M15 liền trước cùng ngày và cùng dấu SPY V làm gốc. Phá ±2σ theo hướng trend vẫn hợp lệ; nến SPY V trung tính hoặc một nến trái dấu vẫn được giữ. Giá phá biên bất lợi, SPY V vượt dead-band đối nghịch hoặc dốc OLS ngược hướng đủ mạnh phải kéo dài hai nến đóng liên tiếp mới đóng leg; nến phá giá đầu được nhận để tái khớp OLS và ±2σ. Hai rail dùng một OLS cuối nên luôn thẳng. Trendline causal chưa đủ pivot xác nhận được giữ hiện bằng nét chấm trong cửa sổ sớm 8 nến, có nhãn HT SỚM hoặc KC SỚM; chúng chưa tham gia thống kê nhóm trend.';}
 }
 function syncDisplayModeButtons(){
   const soft=$('wlr-soft-color-mode');if(soft){const on=$('wlr-soft-colors').checked;soft.querySelector('span').textContent=`Màu WLR dốc + SPY V: ${on?'BẬT':'TẮT'}`;soft.setAttribute('aria-pressed',String(on));soft.title='SPY: dốc WLR 2 nến / σ thay đổi giá 13 nến, EWMA α=0,5. Nhịp sớm: dốc giá 4 nến + SPY V + 2/3 thân nến cùng phía WLR, màu nhạt và nét mỏng tối đa 2,5; chưa phải trend xác nhận. SPY V cùng dấu: xanh/đỏ; Composite đồng thuận: đậm, trung tính: nhạt, đối nghịch: vàng cam. Xám khi thiếu hướng. Sắc độ Composite đổi sau 2 nến đóng liên tiếp; hướng giá đổi ngay theo tín hiệu đã chốt. Tắt để về màu C×V cũ.';}
@@ -566,8 +564,9 @@ function positionForecastReadout(){
  const top=Math.max(8,paneHeight-node.offsetHeight-10);node.style.top=`${top}px`;
  let row=$('h1-cvd-status-row');
  if(!row){row=document.createElement('div');row.id='h1-cvd-status-row';host.append(row);}
+ if(h1Node&&row.firstElementChild!==h1Node)row.prepend(h1Node);
  if(badge&&badge.parentElement!==row)row.append(badge);
- if(h1Node&&h1Node.parentElement!==row)row.append(h1Node);
+ row.dataset.layout='stacked-h1-first';row.setAttribute('role','group');row.setAttribute('aria-label','Tuổi H1 ở trên, trạng thái CVD và OI ở dưới');
  row.hidden=(!badge||badge.hidden)&&(!h1Node||h1Node.hidden);
  row.dataset.hasH1=String(!!h1Node&&!h1Node.hidden);row.dataset.hasCvd=String(!!badge&&!badge.hidden);
  row.style.top=`${Math.max(8,top-row.offsetHeight-5)}px`;
@@ -666,13 +665,6 @@ function updateSpectrumBadge(currentPrice){
    values.textContent=group.ready?`CVD ${compact(group.cvd)} · ΔOI ${group.netOi>0?'+':''}${compact(group.netOi)}`:'CVD '+(group.count?compact(group.cvd):'—')+' · ΔOI —';
    confirmLabel.textContent=confirmText+' · '+(currentOiLoader.error?'LỖI OI':spectrumComparison.stale?'OI CŨ':'CHỜ OI');
  }
- const reaction=flowPriceReaction.update(rows.SPYUSDT??[],{step:STEPS[$('interval').value],time:cache?.serverTime,now,fresh:isChartLive(),binStep:spectrumComparison.binStep??.5,levels:group.levels??3});
- const reactionLabel=reaction.ready?reaction.label:'CHƯA RÕ';
- state.textContent+=' | '+reactionLabel;
- badge.dataset.priceReaction=reaction.state;
- badge.dataset.priceReactionSource='SPYUSDT';
- badge.dataset.priceReactionGroup=reaction.group?reaction.group.low+'–'+reaction.group.high:'';
- badge.dataset.priceReactionHeld=String(reaction.held===true);
  const text=state.textContent+'|'+values.textContent+'|'+confirmLabel.textContent;
  if(badge.dataset.text!==text){badge.replaceChildren(state,values,confirmLabel);badge.dataset.text=text;}
  badge.dataset.confirmation=confirmation.state;badge.dataset.confirmationCount=String(confirmation.count);badge.dataset.groupState=group.state;badge.dataset.low=String(group.low);badge.dataset.high=String(group.high);
@@ -687,11 +679,6 @@ function updateSpectrumBadge(currentPrice){
  badge.title=`MUA/BÁN CĐ = mua/bán chủ động; OI ↑/↓ = tăng/giảm tổng vị thế mở. CVD ${fmtK(group.cvd)} USDT; ΔOI ${signed(group.netOi)}. ${isChartLive()?'LIVE':'DELAYED'}. Xác nhận ${confirmation.support??0}/${confirmation.count} nến, ${Math.round((confirmation.share??0)*100)}% |ΔOI| hỗ trợ. Vùng ${fmt(group.low)}–${fmt(group.high)}. Gom ${group.levels} mức giá liền nhau, mỗi mức ${spectrumComparison.binStep??.5}; nhóm quanh giá hiện tại. CVD và OI cùng nến đóng, ngày ${spectrumComparison.day??'—'} NY. ${group.ready?`OI tăng ${fmtK(group.opened)}, giảm ${fmtK(group.closed)}, tổng biến động ${fmtK(group.grossOi)}.`:'Chưa đủ dữ liệu để phân loại OI.'} Xác nhận bằng nến vượt ngưỡng ΔOI trong cùng vùng và cùng nến đối chiếu: ít nhất 2 nến hỗ trợ, tỷ trọng |ΔOI| hỗ trợ ≥60%. Nến tô màu và histogram chung nguồn nên mỗi nến chỉ tính một lần. Tỷ trọng không phải xác suất thắng. Cập nhật theo dữ liệu, không xác định chắc long/short.`;
  badge.title+=' Màu viền chỉ theo hướng CVD đã lọc: xanh mua, tím bán, xám trung tính. Đổi màu cần ≥3 lần cập nhật chart và ≥9 giây đồng thuận; giữ màu tối thiểu 15 giây, vùng CVD nhỏ có đệm vào 5%/ra 2% volume. OI đổi dấu hoặc trễ không đổi màu viền; trạng thái OI vẫn ghi ngay trên nhãn. Chart thiếu dữ liệu quá 20 giây trả viền xám.';
  badge.title+=' Nhãn 3 dòng: trạng thái hiện tại; CVD nến (USDT) và ΔOI% (khối lượng vị thế); xác nhận NHÓM GIÁ đã đóng và tuổi nguồn OI hiện tại. XN = đã xác nhận, NGƯỢC = đối nghịch, HỖN HỢP = chưa đồng thuận. Dấu * ở ΔOI = tính từ lúc bắt đầu theo dõi, chưa có mốc đầu nến. Xác nhận nhóm giá không xác nhận riêng nến đang chạy. OI hiện tại được hỏi mỗi 3–5 giây, không chờ đóng nến. ΔOI% so với đầu nến; nếu thiếu mốc đầu nến thì so từ lúc bắt đầu theo dõi và ghi rõ. CVD nến dùng Composite tại timestamp SPY hiện tại. OI hiện tại không cộng vào phổ nhóm giá hoặc xác nhận nến. Lỗi API giữ mẫu gần nhất và đánh dấu cũ theo thời gian nguồn.';
- badge.title+=' Phản ứng giá theo nhóm: '+reactionLabel+'. Dùng delta taker RIÊNG SPY và biến động giá quan sát trong cùng nhóm 3 mức giá, mỗi mức '+(spectrumComparison.binStep??.5)+' điểm; giữ tối đa 120 giây bằng chứng, cần ít nhất 30 giây. Khác với CVD Composite tích lũy trên dòng 2 nên có thể khác hướng. ĐẨY GIÁ = giá đi cùng hướng delta; HẤP THỤ = dấu hiệu dòng chủ động mạnh nhưng giá đi ít hoặc ngược hướng, không xác định được lệnh giới hạn. Chỉ gán đoạn quan sát khi cả hai giá ở trong nhóm có vùng đệm; không nội suy giao dịch trong khoảng thiếu dữ liệu. Biên nhóm có đệm 0,25 điểm khi bước giá 0,5; đổi nhóm sau ít nhất 3 cập nhật và 6 giây ở ngoài đệm. Đổi trạng thái cần ít nhất 3 cập nhật và 9 giây đồng thuận; giữ tối thiểu 15 giây, tín hiệu yếu chỉ xóa sau 20 giây. Ngưỡng vào/ra khác nhau để giảm nhấp nháy. Dữ liệu trễ/đứt quãng xóa trạng thái ngay. Sang nến mới liên tiếp vẫn nối bằng số liệu nến cũ đã đóng. Đây là bộ lọc thử nghiệm, không suy ra chính xác mở/đóng long–short.';
- if(reaction.group)badge.title+=' Nhóm phản ứng '+reaction.group.low.toFixed(2)+'–'+reaction.group.high.toFixed(2)+(reaction.held?' · đang giữ trạng thái đã xác nhận trong lúc tín hiệu mới chưa đủ bền.':'.');
-
- if(reaction.ready)badge.title+=' Thời gian quan sát trong nhóm '+Math.round(reaction.span/1000)+'s; Δtaker '+signed(reaction.delta)+' USDT; lệch '+Math.round(reaction.imbalance*100)+'%; Δgiá '+signed(reaction.priceChange)+'.';
- else badge.title+=' Chưa đủ điều kiện: '+reaction.reason+'.';
 
 }
 function inspectSpectrum(event){
