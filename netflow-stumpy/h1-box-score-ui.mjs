@@ -4,7 +4,7 @@ import {h1StripCell} from './h1-h4-strip.mjs?v=20261101-h1h4-align1';
 export function mountH1ScoreHistogram({chart,host,getState,storage=null}){
   const ledger=new H1ScoreLedger(storage),nodes=new Map();let frame=0;
   const root=document.createElement('div');root.id='h1-score-histogram';root.hidden=true;root.setAttribute('role','group');root.setAttribute('aria-label','Điểm 8 hộp H1 đã khóa, từ âm 5 đến dương 5');
-  const heading=document.createElement('span');heading.className='h1-score-heading';heading.textContent='8 H1 · ±5';heading.title='Điểm mô tả 8 hộp H1 đã khóa, căn cùng thời gian với dải H1 trong pane SPY V. Xanh dương điểm dương, đỏ điểm âm; * là thiếu dữ liệu, chưa khóa điểm.';
+  const heading=document.createElement('span');heading.className='h1-score-heading';heading.textContent='8 H1 · ±5';heading.title='Điểm mô tả 8 hộp H1 đã khóa, căn cùng thời gian với dải H1 trong pane SPY V. Xanh: điểm dương; đỏ: điểm âm; * là thiếu dữ liệu, chưa khóa điểm.';
   const zero=document.createElement('div');zero.className='h1-score-zero';
   const label=document.createElement('span');label.className='h1-score-zero-label';label.textContent='0';zero.append(label);root.append(heading,zero);host.append(root);
   function draw(){
