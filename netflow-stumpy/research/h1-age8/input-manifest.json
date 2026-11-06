@@ -1,0 +1,40 @@
+{
+  "sourceCommit": "378e5986c76c1688d623f0257bc5d1a145149299",
+  "sources": [
+    {
+      "month": "2026-04",
+      "sha256": "a194c2581e089231718c02ff0fe43a0de3881f31e813f605ced86197f5963789"
+    },
+    {
+      "month": "2026-05",
+      "sha256": "25c812cb71527a6fdedb0da6abfb708b949a786c33b9ad043547358d824f7fab"
+    },
+    {
+      "month": "2026-06",
+      "sha256": "7cf656c881dcd22239a011e76391e29042b8f50c448f704b05d0155886e74db3"
+    },
+    {
+      "month": "2026-07",
+      "sha256": "946d07a3fb8d5decbc4554cd34e07cf1647b3e017788a85e589e620697c8908e"
+    },
+    {
+      "month": "2026-08",
+      "sha256": "921c8e170815a9e7d86a4fb521d8095def62da13d5f37b2d260bd6a39eedd175"
+    },
+    {
+      "month": "2026-09",
+      "sha256": "24427292f0e03dcf9accac59c10b1cb112c74339207477c3fae6633d4819c4db"
+    },
+    {
+      "month": "2026-10",
+      "sha256": "7199d7a1968441e87a027b5cfd01b402cca277e0edb94c354a407c2d408a942c"
+    },
+    {
+      "month": "2026-11",
+      "sha256": "b482300e6cda183ed5629844e4bd7d32f9d4a98aa50ec848ab7cdc556a63681f"
+    }
+  ],
+  "priceBars": 20291,
+  "first": 1775482200000,
+  "last": 1793835900000
+}

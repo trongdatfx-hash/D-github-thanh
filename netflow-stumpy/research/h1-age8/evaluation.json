@@ -1,0 +1,257 @@
+{
+  "schema": "h1-age8-evaluation-v1",
+  "basis": "NO_OI_4_COMPONENTS",
+  "target": "Remaining consecutive same-color locked H1 boxes, reset at NY day or gap; day/gap endings censored.",
+  "records": 3416,
+  "days": 147,
+  "episodes": 1596,
+  "queries": 2610,
+  "causalAudit": [
+    {
+      "t": 1776052800000,
+      "fast": 1,
+      "full": 1,
+      "match": true
+    },
+    {
+      "t": 1776927600000,
+      "fast": 0,
+      "full": 0,
+      "match": true
+    },
+    {
+      "t": 1777978800000,
+      "fast": 1,
+      "full": 1,
+      "match": true
+    },
+    {
+      "t": 1778853600000,
+      "fast": 0,
+      "full": 0,
+      "match": true
+    },
+    {
+      "t": 1779901200000,
+      "fast": -1,
+      "full": -1,
+      "match": true
+    },
+    {
+      "t": 1780948800000,
+      "fast": -1,
+      "full": -1,
+      "match": true
+    },
+    {
+      "t": 1781823600000,
+      "fast": 1,
+      "full": 1,
+      "match": true
+    },
+    {
+      "t": 1782874800000,
+      "fast": 1,
+      "full": 1,
+      "match": true
+    },
+    {
+      "t": 1783922400000,
+      "fast": 1,
+      "full": 1,
+      "match": true
+    },
+    {
+      "t": 1784797200000,
+      "fast": -1,
+      "full": -1,
+      "match": true
+    },
+    {
+      "t": 1785848400000,
+      "fast": 1,
+      "full": 1,
+      "match": true
+    },
+    {
+      "t": 1786723200000,
+      "fast": -1,
+      "full": -1,
+      "match": true
+    },
+    {
+      "t": 1787770800000,
+      "fast": 0,
+      "full": 0,
+      "match": true
+    },
+    {
+      "t": 1788822000000,
+      "fast": 1,
+      "full": 1,
+      "match": true
+    },
+    {
+      "t": 1789696800000,
+      "fast": 1,
+      "full": 1,
+      "match": true
+    },
+    {
+      "t": 1790744400000,
+      "fast": -1,
+      "full": -1,
+      "match": true
+    },
+    {
+      "t": 1791795600000,
+      "fast": -1,
+      "full": -1,
+      "match": true
+    },
+    {
+      "t": 1792670400000,
+      "fast": 1,
+      "full": 1,
+      "match": true
+    },
+    {
+      "t": 1793808000000,
+      "fast": 1,
+      "full": 1,
+      "match": true
+    }
+  ],
+  "split": {
+    "validationStart": "2026-08-13",
+    "testStart": "2026-09-23"
+  },
+  "variants": [
+    {
+      "k": 24,
+      "summary": {
+        "1": {
+          "n": 477,
+          "baseline": 0.24491469449920786,
+          "encoded8": 0.24877857134016357
+        },
+        "3": {
+          "n": 457,
+          "baseline": 0.07179055440576103,
+          "encoded8": 0.07445711398745757
+        },
+        "queries": 530,
+        "days": 29,
+        "episodes": 316,
+        "MAE": {
+          "n": 458,
+          "baseline": 0.7489082969432315,
+          "encoded8": 0.7620087336244541
+        },
+        "exactCodeSupportMedian": 0
+      },
+      "objective": 0.16348423942347548
+    },
+    {
+      "k": 40,
+      "summary": {
+        "1": {
+          "n": 477,
+          "baseline": 0.24491469449920786,
+          "encoded8": 0.24385353467514428
+        },
+        "3": {
+          "n": 459,
+          "baseline": 0.07149635379700912,
+          "encoded8": 0.07234656910956783
+        },
+        "queries": 530,
+        "days": 29,
+        "episodes": 316,
+        "MAE": {
+          "n": 458,
+          "baseline": 0.7489082969432315,
+          "encoded8": 0.7554585152838428
+        },
+        "exactCodeSupportMedian": 0
+      },
+      "objective": 0.15974915733048656
+    },
+    {
+      "k": 64,
+      "summary": {
+        "1": {
+          "n": 477,
+          "baseline": 0.24491469449920786,
+          "encoded8": 0.2441445360840987
+        },
+        "3": {
+          "n": 459,
+          "baseline": 0.07149635379700912,
+          "encoded8": 0.07162601697199482
+        },
+        "queries": 530,
+        "days": 29,
+        "episodes": 316,
+        "MAE": {
+          "n": 458,
+          "baseline": 0.7489082969432315,
+          "encoded8": 0.7554585152838428
+        },
+        "exactCodeSupportMedian": 0
+      },
+      "objective": 0.15954410844258604
+    }
+  ],
+  "selectedK": 64,
+  "test": {
+    "1": {
+      "n": 469,
+      "baseline": 0.2553331328124844,
+      "encoded8": 0.26204578096693715
+    },
+    "3": {
+      "n": 451,
+      "baseline": 0.12039729180890545,
+      "encoded8": 0.11992701005805287
+    },
+    "queries": 523,
+    "days": 30,
+    "episodes": 278,
+    "MAE": {
+      "n": 446,
+      "baseline": 0.952914798206278,
+      "encoded8": 0.9708520179372198
+    },
+    "exactCodeSupportMedian": 0
+  },
+  "confidence": {
+    "h1": {
+      "days": 30,
+      "baselineMinusEncoded95": [
+        -0.011087269337186132,
+        -0.0022059764325730864
+      ]
+    },
+    "h3": {
+      "days": 29,
+      "baselineMinusEncoded95": [
+        -0.002100506357105574,
+        0.002985902185475991
+      ]
+    },
+    "MAE": {
+      "days": 29,
+      "baselineMinusEncoded95": [
+        -0.06041666666666667,
+        0.02336448598130841
+      ]
+    }
+  },
+  "limitations": [
+    "No historical OI; scores use four available components, not validated full -5..+5.",
+    "Research KM same-age/direction baseline, not a claim of beating the deployed M15 forecast.",
+    "H1 color is recomputed at each hourly close, not a final-history repaint.",
+    "Bootstrap by NY day; overlapping windows still reduce effective sample size."
+  ]
+}
