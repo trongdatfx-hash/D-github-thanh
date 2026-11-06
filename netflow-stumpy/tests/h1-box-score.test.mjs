@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {lockedH1Blocks,randomWalkBounds,scoreH1Box,H1ScoreLedger,scoreTitle,H1_SCORE_VERSION,SCORE_STEP as S,HOUR} from '../h1-box-score.mjs';
+import {lockedH1Blocks,scoreableH1Blocks,randomWalkBounds,scoreH1Box,H1ScoreLedger,scoreTitle,H1_SCORE_VERSION,SCORE_STEP as S,HOUR} from '../h1-box-score.mjs';
 const start=1793959200000;
 function fixture(direction=1){
   const prior=Array.from({length:65},(_,i)=>{const c=200+direction*i*.1;return {t:start-(65-i)*S,o:c-direction*.05,h:c+.2,l:c-.2,c};});
@@ -16,3 +16,34 @@ test('unmatched threshold and conflicting NF do not receive an OI direction poin
 test('only 8 genuinely locked H1 selected; excludes H4, preview, future and hours beyond viewport',()=>{const states=new Map();for(let i=0;i<12;i++){const b=start+i*HOUR;states.set(b,{t:b+3*S,blockStart:b,blockEnd:b+HOUR-1,preview:false,direction:1});}states.set('preview',{t:start+13*HOUR,blockStart:start+13*HOUR,blockEnd:start+14*HOUR-1,preview:true,direction:1});states.set('h4',{t:start,blockStart:start-HOUR,blockEnd:start+3*HOUR-1,preview:false,direction:1});const out=lockedH1Blocks(states,start+12*HOUR,start+10*HOUR-1);assert.equal(out.length,8);assert.equal(out[0].blockStart,start+2*HOUR);assert.equal(out.at(-1).blockStart,start+9*HOUR);});
 test('ledger freezes full score through reload, but never freezes missing OI',()=>{let text=null;const storage={getItem:()=>text,setItem:(_,v)=>{text=v;}};const f=fixture(),ledger=new H1ScoreLedger(storage);const partial=ledger.get(f.block,{...f.input,oi:new Map()});assert.equal(partial.status,'PARTIAL');assert.equal(text,null);const full=ledger.get(f.block,f.input);assert.equal(full.score,5);assert.ok(text.includes(H1_SCORE_VERSION));const reloaded=new H1ScoreLedger(storage);assert.deepEqual(reloaded.get(f.block,{...f.input,oi:new Map(),bands:new Map()}),full);assert.equal(reloaded.get({...f.block,preview:true},f.input),null);});
 test('missing or non-contiguous M15s cannot be treated as a flat zero score',()=>{const f=fixture();f.input.bars=f.input.bars.filter(b=>b.t!==start+S);const r=scoreH1Box(f.block,f.input);assert.equal(r.score,null);assert.equal(r.status,'WAIT_DATA');});
+test('running H1 appears exactly at third M15 close, uses no forming fourth data and never freezes',()=>{
+  const f=fixture(),block={...f.block,preview:true},states=new Map([[start,block]]),now=start+3*S;
+  assert.equal(scoreableH1Blocks(states,f.input.bars,now-1).length,0);
+  assert.equal(scoreableH1Blocks(states,f.input.bars,now).length,1);
+  let writes=0;const ledger=new H1ScoreLedger({getItem:()=>null,setItem:()=>writes++});
+  assert.equal(ledger.get(block,{...f.input,now:now-1}),null);
+  const score=ledger.get(block,{...f.input,now});
+  assert.equal(score.status,'PREVIEW');assert.equal(score.closedBars,3);assert.equal(score.score,5);assert.equal(score.lockedAt,null);assert.equal(writes,0);
+  const fourth=f.input.bars.at(-1);fourth.c=-999;f.input.bands.set(fourth.t,{mid:99999});f.input.flows.set(fourth.t,{net:-999999});f.input.oi.set(fourth.t,{oi:1});
+  assert.deepEqual(ledger.get(block,{...f.input,now:now+S-1}),score);
+  const full=ledger.get(f.block,{...f.input,now:start+HOUR});assert.equal(full.status,'LOCKED');assert.equal(full.closedBars,4);assert.equal(writes,1);assert.notEqual(full.score,score.score);
+  assert.match(scoreTitle(score),/ĐIỂM TẠM/);
+});
+test('three-slot preview must start at H1 open and cannot contain an incomplete source bar',()=>{
+  const f=fixture(),block={...f.block,preview:true,blockEnd:start+3*S-1},now=start+3*S;
+  assert.equal(scoreH1Box(block,{...f.input,now}).closedBars,3);
+  f.sample[1].sourceComplete=false;
+  assert.equal(scoreH1Box(block,{...f.input,now}),null);assert.equal(scoreableH1Blocks(new Map([[start,block]]),f.input.bars,now).length,0);
+  delete f.sample[1].sourceComplete;f.input.bars=f.input.bars.filter(b=>b.t!==start);
+  assert.equal(scoreH1Box(block,{...f.input,now}),null);
+});
+test('preview replaces oldest locked slot, respects viewport and never reuses a future locked cache',()=>{
+  const f=fixture(),states=new Map();for(let i=1;i<=8;i++){const t=start-i*HOUR;states.set(t,{blockStart:t,blockEnd:t+HOUR-1,preview:false,direction:1,t});}
+  const preview={...f.block,preview:true,t:start+3*S};states.set(start,preview);
+  const out=scoreableH1Blocks(states,f.input.bars,start+3*S);assert.equal(out.length,8);assert.equal(out.at(-1).preview,true);assert.equal(out[0].blockStart,start-7*HOUR);
+  assert.equal(scoreableH1Blocks(states,f.input.bars,start+3*S,start+3*S-2).at(-1).preview,false);
+  const ledger=new H1ScoreLedger();ledger.get(f.block,f.input);
+  const r=ledger.get(preview,{...f.input,now:start+3*S});assert.equal(r.status,'PREVIEW');assert.equal(r.closedBars,3);
+  const partial=scoreH1Box(preview,{...f.input,now:start+3*S,oi:new Map()});assert.equal(partial.parts.oi,null);assert.equal(partial.status,'PREVIEW');assert.ok(partial.missing.includes('OI_P62'));
+});
+

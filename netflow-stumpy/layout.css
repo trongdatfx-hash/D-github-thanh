@@ -154,3 +154,5 @@
 }
 
 #h1-cvd-status-row>#h1-trend-age-readout[hidden],#h1-cvd-status-row>.oi-price-group-badge[hidden]{display:none}
+
+#h1-score-histogram .h1-score-bar[data-status=PREVIEW]{opacity:.78;border:1px dashed currentColor}

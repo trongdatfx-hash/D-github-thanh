@@ -1,10 +1,10 @@
-import {H1ScoreLedger,lockedH1Blocks,scoreTitle,SCORE_STEP} from './h1-box-score.mjs?v=20261106-score1';
+import {H1ScoreLedger,scoreableH1Blocks,scoreTitle,SCORE_STEP} from './h1-box-score.mjs?v=20261106-score3closed1';
 import {h1StripCell} from './h1-h4-strip.mjs?v=20261101-h1h4-align1';
 
 export function mountH1ScoreHistogram({chart,host,getState,storage=null}){
   const ledger=new H1ScoreLedger(storage),nodes=new Map();let frame=0;
-  const root=document.createElement('div');root.id='h1-score-histogram';root.hidden=true;root.setAttribute('role','group');root.setAttribute('aria-label','Điểm 8 hộp H1 đã khóa, từ âm 5 đến dương 5');
-  const heading=document.createElement('span');heading.className='h1-score-heading';heading.textContent='8 H1 · ±5';heading.title='Điểm mô tả 8 hộp H1 đã khóa, căn cùng thời gian với dải H1 trong pane SPY V. Xanh: điểm dương; đỏ: điểm âm; * là thiếu dữ liệu, chưa khóa điểm.';
+  const root=document.createElement('div');root.id='h1-score-histogram';root.hidden=true;root.setAttribute('role','group');root.setAttribute('aria-label','Điểm 8 hộp H1, bắt đầu từ 3 nến M15 đã đóng, từ âm 5 đến dương 5');
+  const heading=document.createElement('span');heading.className='h1-score-heading';heading.textContent='8 H1 · ±5';heading.title='Điểm mô tả tối đa 8 hộp H1, căn cùng thời gian với dải H1 trong pane SPY V. Hộp hiện tại có điểm tạm sau 3 M15 đóng, khóa sau nến thứ tư nếu đủ dữ liệu. Xanh: điểm dương; đỏ: điểm âm; ~ là điểm tạm 3/4; * là thiếu dữ liệu.';
   const zero=document.createElement('div');zero.className='h1-score-zero';
   const label=document.createElement('span');label.className='h1-score-zero-label';label.textContent='0';zero.append(label);root.append(heading,zero);host.append(root);
   function draw(){
@@ -17,7 +17,7 @@ export function mountH1ScoreHistogram({chart,host,getState,storage=null}){
     if(box.height<180||plotWidth<40){root.hidden=true;return;}
     root.hidden=false;root.style.top=top+'px';root.style.width=plotWidth+'px';root.style.height=height+'px';zero.style.top=baseline+'px';
     const range=chart.timeScale().getVisibleRange(),visibleTo=range&&Number.isFinite(Number(range.to))?Number(range.to)*1000+SCORE_STEP-1:Infinity;
-    const blocks=lockedH1Blocks(state.states,state.now,visibleTo),times=state.bars.map(b=>b.t),spacing=chart.timeScale().options().barSpacing;
+    const blocks=scoreableH1Blocks(state.states,state.bars,state.now,visibleTo),times=state.bars.map(b=>b.t),spacing=chart.timeScale().options().barSpacing;
     const used=new Set(),positions=[];let visible=0;
     for(const block of blocks){
       const cell=h1StripCell(block.blockStart,times,t=>chart.timeScale().timeToCoordinate(t),spacing);if(!cell||cell.x+cell.width<0||cell.x>plotWidth)continue;
@@ -27,14 +27,16 @@ export function mountH1ScoreHistogram({chart,host,getState,storage=null}){
       const x=cell.x+cell.width*.2,w=Math.max(1,cell.width*.6),y=value>0?baseline-barHeight:baseline;
       node.style.left=x+'px';node.style.width=w+'px';node.style.top=y+'px';node.style.height=barHeight+'px';
       node.dataset.direction=value===null?'missing':value>0?'up':value<0?'down':'neutral';node.dataset.status=score.status;node.dataset.start=String(block.blockStart);node.dataset.score=value===null?'':String(value);node.dataset.cellCenter=String(cell.x+cell.width/2);node.dataset.boxDirection=String(block.direction);
-      const text=node.firstElementChild;text.textContent=(value===null?'—':value>0?'+'+value:String(value))+(score.status==='LOCKED'?'':'*');text.hidden=cell.width<12;
+      node.dataset.closedBars=String(score.closedBars??4);
+      const text=node.firstElementChild;text.textContent=(score.status==='PREVIEW'?'~':'')+(value===null?'—':value>0?'+'+value:String(value))+(score.missing.length?'*':'');text.hidden=cell.width<12;
       const title=scoreTitle(score);if(node.title!==title)node.title=title;node.setAttribute('aria-label',title);node.dataset.conflict=String(value!==null&&value!==0&&block.direction!==0&&Math.sign(value)!==block.direction);
-      positions.push({start:block.blockStart,x:cell.x,width:cell.width,center:cell.x+cell.width/2,score:value,status:score.status});
+      positions.push({start:block.blockStart,x:cell.x,width:cell.width,center:cell.x+cell.width/2,score:value,status:score.status,closedBars:score.closedBars??4,missing:score.missing.length});
     }
     for(const [key,node] of nodes)if(!used.has(key)){node.remove();nodes.delete(key);}
     root.dataset.visible=String(visible);root.dataset.selected=String(blocks.length);root.dataset.positions=JSON.stringify(positions);root.dataset.pane='0';root.dataset.baseline=String(top+baseline);root.dataset.alignment='same-h1StripCell';
-    heading.textContent=visible?`8 H1 · ±5${positions.some(p=>p.status!=='LOCKED')?' · * thiếu dữ liệu':''}`:'8 H1 · chờ hộp đã khóa';
+    heading.textContent=visible?`8 H1 · ±5${positions.some(p=>p.status==='PREVIEW')?' · ~ tạm 3/4':''}${positions.some(p=>p.missing)?' · * thiếu':''}`:'8 H1 · chờ ≥3 M15 đóng';
   }
   const schedule=()=>{if(!frame)frame=requestAnimationFrame(draw);};
   schedule();return {schedule};
 }
+
