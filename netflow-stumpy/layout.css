@@ -164,7 +164,7 @@
 #h1-cvd-status-row>.oi-price-group-badge[hidden]{display:none!important}
 .h1-matrix-settings{font-size:11px}.h1-matrix-settings label{display:inline-flex;gap:4px;align-items:center;margin:4px 8px 4px 0}
 
-/* Collapsible settings remain reachable inside automatic Full chart. */
+/* Settings are available only outside Full chart. */
 .chart-card .chart-head{position:relative}
 .chart-card:fullscreen .chart-head,.chart-card.fullscreen-fallback .chart-head{position:absolute}
 #chart-settings{position:static;flex:0 0 auto}
@@ -177,10 +177,10 @@
 
 .chart-head:has(#chart-settings[open]){z-index:50}
 
-/* Settings toolbar outside the chart; reserve its own strip in automatic Full. */
+/* Settings toolbar stays outside the chart in normal view. */
 #chart-settings{position:relative;display:block;flex:none;width:fit-content;margin:8px 0 8px auto;z-index:60}
 #chart-settings-panel{left:auto;right:0;top:calc(100% + 6px);width:min(960px,calc(100vw - 24px))}
-body.chart-fullscreen #chart-settings{position:fixed;top:4px;right:8px;margin:0;z-index:10001}
-body.chart-fullscreen .chart-card.fullscreen-fallback{inset:42px 0 0;height:calc(100dvh - 42px)}
+body.chart-fullscreen #chart-settings{display:none!important}
+body.chart-fullscreen .chart-card.fullscreen-fallback{inset:0;height:100dvh;width:100vw}
 
-body.chart-fullscreen::before{content:'';position:fixed;inset:0 0 auto;height:42px;background:#080e18;z-index:10000;pointer-events:none}
+body.chart-fullscreen::before{display:none}

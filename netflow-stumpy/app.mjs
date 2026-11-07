@@ -1046,13 +1046,13 @@ function fitChart(windowMs=FIT_WINDOW_MS){
   scheduleCvdSpectrum();scheduleDaySeparators();scheduleGeometryOverlay();
 }
 function isFullChart(){const card=document.querySelector('.chart-card');return document.fullscreenElement===card||card.classList.contains('fullscreen-fallback');}
-function syncFullChart(){const active=isFullChart();$('fullscreen').textContent=active?'✕ Thu nhỏ':'⛶ Full chart';$('fullscreen').setAttribute('aria-pressed',String(active));document.body.classList.toggle('chart-fullscreen',active);applyResponsiveChartOptions();setTimeout(()=>{window.dispatchEvent(new Event('resize'));scheduleCvdSpectrum();scheduleDaySeparators();scheduleGeometryOverlay();},50);}
+function syncFullChart(){const active=isFullChart();$('fullscreen').textContent=active?'✕ Thu nhỏ':'⛶ Full chart';$('fullscreen').setAttribute('aria-pressed',String(active));document.body.classList.toggle('chart-fullscreen',active);if(active&&$('chart-settings'))$('chart-settings').open=false;applyResponsiveChartOptions();setTimeout(()=>{window.dispatchEvent(new Event('resize'));scheduleCvdSpectrum();scheduleDaySeparators();scheduleGeometryOverlay();},50);}
 async function toggleFullChart(){
   const card=document.querySelector('.chart-card');
   if(document.fullscreenElement===card){await document.exitFullscreen();return;}
   if(card.classList.contains('fullscreen-fallback')){card.classList.remove('fullscreen-fallback');syncFullChart();return;}
-  // Page-level Full chart keeps the settings toolbar outside the candle frame.
-  card.classList.add('fullscreen-fallback');syncFullChart();
+  // A user gesture can request native fullscreen; automatic entry uses viewport layout.
+  try{if(!card.requestFullscreen)throw Error('Fullscreen API unavailable');await card.requestFullscreen({navigationUI:'hide'});}catch{card.classList.add('fullscreen-fallback');syncFullChart();}
 }
 function bindChartGestures(){
   const host=$('chart'),activeTouches=new Set();let start=null,lastTap=null,multiTouch=false,lastTouchToggle=-Infinity;
