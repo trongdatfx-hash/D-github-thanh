@@ -19,7 +19,7 @@ function builder(part,options,index){
 test('matrix uses only locked 4/4 H1 available by timestamp; stale groups cannot confirm',()=>{
   const r=records(),asOf=T+12*H;
   const m=geometryMatrixAt([...r,{...r[11],status:'PREVIEW',closedBars:3,parts:{position:-1,slope:-1,deltaNF:-1,oi:-1}}],asOf);
-  assert.equal(m.latestEnd,asOf-1);assert(m.columns.every(c=>c.t<asOf));assert(matrixLineEvidence(m,1).confirmed);
+  assert.equal(m.latestEnd,asOf-1);assert(m.columns.every(c=>c.t<asOf));assert.equal(matrixLineEvidence(m,1).confirmed,false); // No actual price gate supplied.
   const stale=geometryMatrixAt(r.slice(0,8),asOf);assert.equal(matrixLineEvidence(stale,1).confirmed,false);
 });
 test('total score and RW alignment bonus are not counted as extra votes',()=>{
@@ -36,13 +36,18 @@ test('armed line retains anchors and slope after candidates refit on breakout ba
   assert(a&&b);assert.equal(a.startValue,100.8);assert.equal(b.startValue,a.startValue);assert.equal(b.slope,a.slope);assert.deepEqual(b.anchors,a.anchors);
   assert(after.points.some(p=>p.key==='true_break'));assert(after.points.every(p=>p.armedAt<=p.at));
 });
-test('missing OI keeps price break pending; never claims confirmed breakout',()=>{
+test('missing OI does not block two closed M15 price confirmation',()=>{
   const result=replayMatrixGeometry(source(62),records(30,null),{maxLines:4},builder);
-  assert.equal(result.points.length,0);assert(result.lines.some(l=>l.setupState==='BREAK_WAIT'));assert(result.lines.some(l=>l.setupLabel.includes('chờ xn')));
+  assert(result.points.some(p=>p.key==='true_break'));assert(result.lines.some(l=>l.setupLabel==='Phá ↑ · xn'));assert(result.points.every(p=>p.confirmationRule==='TWO_M15_PRICE_ONLY'));
 });
-test('price crossing with opposing taker flow is pending, never still labelled compression',()=>{
+test('opposing taker and volume directions do not block two closed price breaks',()=>{
   const s=source(62);s.flow=s.flow.map(r=>({...r,nf:-1,adjusted:-1}));
-  const r=replayMatrixGeometry(s,records(),{maxLines:4},builder);assert.equal(r.points.length,0);assert(r.lines.some(l=>l.setupState==='BREAK_WAIT'&&l.setupLabel==='Phá ↑ · chờ xn'));
+  s.volume=s.volume.map(r=>({...r,adjusted:-1}));const r=replayMatrixGeometry(s,records(),{maxLines:4},builder);assert(r.points.some(p=>p.key==='true_break'&&p.flowAligned===false));assert(r.lines.some(l=>l.setupLabel==='Phá ↑ · xn'));
+});
+test('no taker/OI data can confirm after two closes, but never after one close',()=>{
+  const r=records(30,null).map(x=>({...x,parts:{...x.parts,deltaNF:null}}));
+  const one=source(61);one.flow=[];one.volume=[];assert.equal(replayMatrixGeometry(one,r,{maxLines:4},builder).points.length,0);
+  const two=source(62);two.flow=[];two.volume=[];assert(replayMatrixGeometry(two,r,{maxLines:4},builder).points.some(p=>p.key==='true_break'));
 });
 test('50/50 budget keeps wedge pairs atomic and never reallocates unused slots',()=>{
   for(const maxLines of [4,8,12]){const r=replayMatrixGeometry(source(60),records(),{maxLines},builder);assert(r.lines.filter(l=>l.source!=='pattern').length<=maxLines/2);assert(r.patterns.length*2<=maxLines/2);assert(r.patterns.every(p=>p.rails.length===2));assert(r.lines.length<=maxLines);}
@@ -61,7 +66,7 @@ test('real fixture runs bounded matrix replay with missing OI and excludes previ
   const input={price,flow,spy:price,qqq:[],volume:[],h1CandleColors:states,oiByTime:new Map()};
   const score=geometryScoreRecords({...input,now});assert(score.every(r=>r.closedBars===4&&r.status!=='PREVIEW'));
   const result=analyzeMatrixGeometry(input,{maxLines:4,minScore:55,matrixOptions:{window:9,size:3,groups:2}});
-  assert.equal(result.matrixVersion,'matrix-lines-v1');assert(result.lines.length<=4);assert(result.replayBars<=600);assert(result.points.every(p=>p.key==='false_break'));
+  assert.equal(result.matrixVersion,'matrix-lines-v1');assert(result.lines.length<=4);assert(result.replayBars<=600);assert(result.points.every(p=>p.armedAt<=p.at&&p.confirmationRule==='TWO_M15_PRICE_ONLY'));
 });
 test('live resume keeps frozen anchors when the 800-bar window slides',()=>{
   const shifted=n=>{const s=source(n,Infinity);s.price=s.price.map((b,i)=>{const c=Math.max(98,99+(i-800)*.025);return {...b,o:c-.06,h:c+.3,l:c-.3,c};});return s;};
@@ -78,4 +83,5 @@ test('studies worker core supports matrix mode and restores classic selection wh
   const result=computeStudies(input);assert.equal(result.geometry.matrixVersion,'matrix-lines-v1');assert.deepEqual(result.points,result.geometry.points);assert(result.geometry.lines.length<=4);
   const restored=computeStudies({...input,options:{...input.options,matrixGeometry:false}});assert.equal(restored.geometry.matrixVersion,undefined);assert(restored.geometry.lines.length<=4);
 });
+
 

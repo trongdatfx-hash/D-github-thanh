@@ -2,7 +2,7 @@ import {continuousH4Age} from './h4-trend-age.mjs?v=20261103-h4-age1';
 import {aggregateHourlyRows} from './h1-h4-strip.mjs?v=20261101-h1h4-align1';
 import {trendSessionAt,trendSessionRows} from './trend-session.mjs?v=20261029-price-delta1';
 import {analyze,composite,calculateVolumeStrength,STEPS,sessionAt} from './engine.mjs?v=20261029-price-delta1';
-import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeometry} from './geometry.mjs?v=20261103-pivot-wedge1';
+import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeometry} from './geometry.mjs?v=20261108-price-break-only1';
 import {pivotZones} from './pivot-zones.mjs?v=20261029-price-delta1';
 import {causalTrendChannels} from './causal-trend-channel.mjs?v=20261029-price-delta1';
 import {channelStrengthBoxes} from './channel-strength-boxes.mjs?v=20261029-weekly-map1';
@@ -10,7 +10,7 @@ import {weeklyTrendForecast,h1CandleColorStates} from './weekly-trend-map.mjs?v=
 import {preRthWlrTrend,historicalTrendAgeStates} from './pre-rth-wlr-trend.mjs?v=20261103-spy-restore1';
 import {chartFeatureRows} from './analogs-features.mjs?v=20261029-price-delta1';
 import {h1AdaptiveVolumeRows} from './spy-volume-h1.mjs?v=20261105-spyv-h1-1';
-import {analyzeMatrixGeometry} from './matrix-geometry.mjs?v=20261107-matrix-2m15-1';
+import {analyzeMatrixGeometry} from './matrix-geometry.mjs?v=20261108-price-break-only1';
 
 const H1_MS=STEPS['1h'];
 function aggregateHourlySignals(rows=[],hourlyRows=[]){
@@ -74,5 +74,6 @@ export function computeStudies({rows,volumeRows,symbol,interval,options,now,tren
   rev63.dataInfo=dataInfo;displayRev63.dataInfo=dataInfo;
   return {geometry,channels,breakout,points,backtest,pivot,rev63:displayRev63,trendAgeHistory,h1CandleColors,h1H4CandleColors,weekly,trendAgeVolumeSource:ageVolumeState.source};
 }
+
 
 

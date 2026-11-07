@@ -1,4 +1,4 @@
-import {analyzeGeometry,causalAtr,classifyBreakoutRetest} from './geometry.mjs?v=20261107-matrix-lines1';
+import {analyzeGeometry,causalAtr,classifyBreakoutRetest} from './geometry.mjs?v=20261108-price-break-only1';
 import {weightedPriceBands,directionalVolumeDelta} from './engine.mjs?v=20261105-spyv-h1-1';
 import {lockedH1Blocks,scoreH1Box,h1ScoreBars} from './h1-box-score.mjs?v=20261107-outside-fast1';
 import {buildH1Matrix,matrixOptions} from './h1-matrix-state.mjs?v=20261107-matrix-2m15-1';
@@ -34,7 +34,7 @@ export function matrixLineEvidence(matrix,direction){
   let signed=0,known=0;
   for(const c of columns)for(const [key,w] of Object.entries(weights))if(finite(c.values[key])){signed+=w*direction*c.values[key];known+=w;}
   const priceGate=matrix.group?.priceConfirmation;
-  const confirmed=matrix.fresh&&matrix.group?.state===(direction>0?'UP':'DOWN')&&(!priceGate||(priceGate.confirmed&&priceGate.direction===direction));
+  const confirmed=matrix.fresh&&priceGate?.confirmed===true&&priceGate.direction===direction;
   const weak=matrix.group?.state===(direction>0?'UP_WEAK':'DOWN_WEAK');
   const missingOI=!columns.length||columns.some(c=>!finite(c.values.oi));
   return {direction,signed:matrix.fresh&&known?signed/known:0,coverage:known/Math.max(1,columns.length),confirmed,weak,missingOI,fresh:matrix.fresh,state:matrix.group?.state??'WAIT',text:matrix.group?.text??'Chưa đủ hộp'};
@@ -66,7 +66,6 @@ function duplicate(a,b,index,scale){return a.type===b.type&&a.rails.length===b.r
 function labelFor(line,evidence,pressure,armed){
   const base=line.kind==='resistance'?'KC':'HT',arrow=line.kind==='resistance'?'↑':'↓';
   if(!evidence.fresh)return `${base} · ${armed?'chờ phá · ':''}thiếu H1`;
-  if(evidence.missingOI)return `${base} · ${armed?'chờ phá · ':''}thiếu OI`;
   if(evidence.weak)return `${base} · lực suy yếu`;
   return evidence.confirmed&&pressure.ready?`${base} · nén ${arrow}`:`${base} · ${armed?'chờ phá':'theo dõi'}`;
 }
@@ -75,7 +74,7 @@ function annotate(f,bars,index,atr,matrix,armed=false){
   const rails=projected.rails.map(l=>{
     const evidence=matrixLineEvidence(matrix,l.kind==='resistance'?1:-1),pressure=breakoutPressure(l,bars.slice(0,index+1),atr.slice(0,index+1));
     const geometryScore=l.geometryScore??l.score,rankScore=Math.max(0,Math.min(100,Math.round(.8*geometryScore+20*(.5+.5*evidence.signed))));
-    return {...l,geometryScore,rankScore,score:geometryScore,matrixEvidence:evidence,pressure,setupLabel:f.type==='wedge'?`Nêm · ${armed?'chờ phá':'theo dõi'}${evidence.missingOI?' · thiếu OI':''}`:labelFor(l,evidence,pressure,armed),setupState:armed?'ARMED':'WATCH',armedAt:f.armedAt??null};
+    return {...l,geometryScore,rankScore,score:geometryScore,matrixEvidence:evidence,pressure,setupLabel:f.type==='wedge'?`Nêm · ${armed?'chờ phá':'theo dõi'}`:labelFor(l,evidence,pressure,armed),setupState:armed?'ARMED':'WATCH',armedAt:f.armedAt??null};
   });
   return {...projected,rails,rank:Math.max(...rails.map(l=>l.rankScore)),ready:rails.some(l=>l.pressure.ready)};
 }
@@ -119,12 +118,12 @@ export function replayMatrixGeometry(input,records,options={},candidateBuilder=n
       if(crossed||i-f.armedIndex>96||(f.terminalIndex!==undefined&&i-f.terminalIndex>8)||(f.pendingBreak&&i-f.pendingIndex>8)){armed.splice(j,1);continue;}
       const breached=f.rails.find(l=>(l.kind==='resistance'?1:-1)*(bars[i].c-at(l,i))>.35*scale);
       if(breached&&!f.event){f.pendingBreak=true;f.pendingDirection=breached.kind==='resistance'?1:-1;f.pendingTime??=time;f.pendingIndex??=i;}
-      const result=classifyBreakoutRetest(prefix,f.rails,confirmDirections(input,time));
+      const result=classifyBreakoutRetest(prefix,f.rails,{...confirmDirections(input,time),requireFlow:false,allowStrongBreak:false});
       if(result&&['true_break','strong_break','false_break'].includes(result.key)&&f.lastEvent!==result.key){
         const evidence=matrixLineEvidence(matrix,result.breakDirection);
         if(result.key!=='false_break'&&!evidence.confirmed){f.pendingBreak=true;f.pendingDirection=result.breakDirection;continue;}
         f.lastEvent=result.key;f.terminalIndex=i;f.terminalTime=time;f.pendingBreak=false;
-        const event={...result,label:result.key==='false_break'?'Phá giả':`Phá ${result.direction>0?'↑':'↓'} · xn`,at:time,index:i+offset,lineValue:result.lineValue,matrixState:evidence.state,matrixAsOf:matrix.asOf,armedAt:f.armedAt,confidence:undefined};
+        const event={...result,label:result.key==='false_break'?'Phá giả':`Phá ${result.direction>0?'↑':'↓'} · xn`,at:time,index:i+offset,lineValue:result.lineValue,matrixState:evidence.state,matrixAsOf:matrix.asOf,armedAt:f.armedAt,confidence:undefined,confirmationRule:'TWO_M15_PRICE_ONLY'};
         events.push(event);f.event=event;
       }
     }
@@ -165,4 +164,5 @@ export function analyzeMatrixGeometry(input,options={}){
   const replay=replayMatrixGeometry(input,records,options);
   return {...base,...replay,referenceLines:replay.lines,provisionalLines:[],matrixVersion:MATRIX_GEOMETRY_VERSION,scoreRecords:records.length,summary:{...base.summary,support:replay.lines.filter(l=>l.kind==='support').length,resistance:replay.lines.filter(l=>l.kind==='resistance').length}};
 }
+
 

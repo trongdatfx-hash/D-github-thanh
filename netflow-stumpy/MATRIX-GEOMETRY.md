@@ -19,7 +19,7 @@
 ## Phá, xác nhận và hết hạn
 
 - Giá đóng ngoài biên .35 ATR ghi **Phá ↑/↓ · chờ xn**, kể cả dòng taker đang xung đột.
-- Xác nhận dùng line đã khóa trên nến trước: hai đóng ngoài biên + điều kiện dòng/volume của detector hiện hành + nhóm ma trận mới nhất đúng hướng và đủ OI. Nhãn **Phá ↑/↓ · xn**; không gọi đây là xác suất. Nêm vẫn có nhánh breakout mạnh theo bộ lọc volume/range/thân nến cũ, nhưng cũng phải qua ma trận.
+- Xác nhận dùng line đã khóa trên nến trước: hai M15 đóng ngoài biên line và cùng phía ngoài vùng nhóm H1 liền trước. Không đòi OI, C Taker, Strength Composite hay SPY V đồng thuận. Không nâng một nến mạnh thành xn trước nến thứ hai. Nhãn **Phá ↑/↓ · xn**; không phải xác suất.
 - Đóng trở lại sau phá được ghi **Phá giả** theo detector cũ, không cần bịa hướng vị thế OI.
 - Line chờ phá hết hạn sau 96 M15; trạng thái phá/chờ xn được giữ tối đa 8 M15. Nêm hết hạn khi hai biên đã giao nhau.
 - Khởi động replay tối đa 600 M15 với tối đa 200 nến làm nền hình học. Các cập nhật tiếp theo chỉ tiến phần nến mới trong worker. Chỉ giữ bốn thông báo gần nhất từ chính line của bộ chọn này.
@@ -28,4 +28,4 @@
 
 `node --test netflow-stumpy/tests/matrix-geometry.test.mjs netflow-stumpy/tests/geometry.test.mjs`
 
-Bao phủ thời điểm khóa, loại preview, thiếu OI, taker xung đột, không đếm trùng điểm, quota và cặp nêm, giữ neo sau breakout, giữ khóa khi cửa sổ 800 nến dịch chuyển, loại dữ liệu tương lai, fixture thực và tắt/bật bộ chọn qua studies core. Chưa có kết luận cải thiện tỷ lệ dự báo.
+Bao phủ thời điểm khóa, loại preview, thiếu OI vẫn xn, taker xung đột vẫn xn sau hai đóng, không đếm trùng điểm, quota và cặp nêm, giữ neo sau breakout, giữ khóa khi cửa sổ 800 nến dịch chuyển, loại dữ liệu tương lai, fixture thực và tắt/bật bộ chọn qua studies core. Chưa có kết luận cải thiện tỷ lệ dự báo.

@@ -1,4 +1,4 @@
-import {analyzeTrendSource,computeStudies} from './studies-core.mjs?v=20261107-matrix-2m15-1';
+import {analyzeTrendSource,computeStudies} from './studies-core.mjs?v=20261108-price-break-only1';
 import {loadPersistentHistory} from './history-store.mjs?v=20261029-price-delta1';
 let serial=0,trend=null,trendKey='',historyPending=null;
 let matrixReplayState=null,matrixReplayKey='';
@@ -33,6 +33,7 @@ self.onmessage=async({data})=>{
   }catch(error){if(token===serial)self.postMessage({key:data.key,error:error.message});}
 };
 function merge(a=[],b=[]){const map=new Map(a.map(r=>[r.t,r]));for(const row of b)map.set(row.t,row);return [...map.values()].sort((x,y)=>x.t-y.t);}
+
 
 
 

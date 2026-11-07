@@ -6,6 +6,6 @@
 - Nhóm lịch sử chỉ dùng các M15 đóng trong chính nhóm. Nhóm mới nhất được cập nhật thêm M15 đã đóng sau giờ cuối nhóm, vì chưa có đủ H1 mới để dịch cửa sổ ma trận. Không chờ khóa H1 mới mới kiểm tra giá.
 - Đây là xác nhận trạng thái giá HIỆN TẠI: giá trở lại trong vùng thì về chờ phá. Một nến ngoài vùng ghi chờ 2 M15 (1/2).
 - Giá quyết định hướng nhãn xn, có thể ngược WLR trước đó. C Taker/OI ghi riêng ✓, ×, ?? hoặc thiếu; không chặn nhãn xn giá khi thiếu OI. C Taker vẫn là đồng thuận ΔV SPY × C Taker NF SPY+QQQ, không có dữ liệu mới hay giả định vị thế Long/Short.
-- `forceState` và `forceText` giữ kết luận lực cũ. `priceConfirmation` chứa vùng, thời điểm khóa vùng, hai timestamp và hướng phá. Trendline 50/50 vẫn đòi hỏi lực/OI của mô hình cũ, đồng thời không được xn phá nếu chưa có hai đóng vượt vùng nhóm.
+- `forceState` và `forceText` giữ kết luận lực cũ. `priceConfirmation` chứa vùng, thời điểm khóa vùng, hai timestamp và hướng phá. Trendline theo ma trận cũng chỉ dùng hai đóng cửa để xác nhận phá, không đòi đồng thuận OI/C Taker/SPY V. Các hàng lực và điểm xếp hạng ứng viên vẫn giữ để mô tả.
 
 Kiểm tra: `node --test netflow-stumpy/tests/matrix-price-confirmation.test.mjs netflow-stumpy/tests/h1-matrix-state.test.mjs`

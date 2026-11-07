@@ -77,6 +77,14 @@ test('breakout and retest classification uses only a previously known line and t
   const reclaimed=broken.map(x=>({...x}));Object.assign(reclaimed[19],{o:98,h:101.4,l:97.8,c:101});
   const falseBreak=classifyBreakoutRetest(reclaimed,[line],{strengthDirection:1,flowDirection:1});assert.equal(falseBreak.key,'false_break');assert.equal(falseBreak.direction,1);assert.equal(falseBreak.breakDirection,-1);
 });
+test('price-only mode removes flow gating and cannot promote a single strong breakout candle',()=>{
+  const bars=Array.from({length:20},(_,i)=>({t:i*900000,o:99,h:99.3,l:98.7,c:99,v:100}));
+  const line={kind:'resistance',source:'pattern',score:80,knownAt:bars[10].t,startIndex:0,startValue:100,slope:0};
+  const first=bars.map(b=>({...b}));Object.assign(first[19],{o:99,h:103.1,l:98.9,c:103,v:1000});
+  assert.equal(classifyBreakoutRetest(first,[line],{requireFlow:false,allowStrongBreak:false}),null);
+  const second=first.map(b=>({...b}));Object.assign(second[18],{o:99,h:102.3,l:98.9,c:102,v:1000});
+  assert.equal(classifyBreakoutRetest(second,[line],{strengthDirection:-1,flowDirection:-1,volumeDirection:-1,requireFlow:false,allowStrongBreak:false}).key,'true_break');
+});
 
 test('four latest line-cross notifications are causal and direction-aware',()=>{
   const read=path=>JSON.parse(fs.readFileSync(new URL(path,import.meta.url),'utf8').replace(/^\uFEFF/,'')),now=read('../../netflow-ml/tests/fixtures/time.json').serverTime;
@@ -85,3 +93,4 @@ test('four latest line-cross notifications are causal and direction-aware',()=>{
   assert.equal(points.length,4);assert(points.every(point=>['true_break','false_break'].includes(point.key)&&[-1,1].includes(point.breakDirection)&&Number.isFinite(point.lineValue)));
   for(const point of points){const end=point.index+1,at=point.at,prefix={price:price.slice(0,end),spy:spy.filter(row=>row.t<=at),qqq:qqq.filter(row=>row.t<=at),flow:flow.filter(row=>row.t<=at)};assert.deepEqual(recentCausalLineStates(prefix,options,1).at(-1),point);}
 });
+

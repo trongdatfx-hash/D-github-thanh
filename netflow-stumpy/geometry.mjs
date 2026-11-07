@@ -227,7 +227,7 @@ export function analyzeGeometry({price,spy=[],qqq=[],flow=[],volume=[],h1CandleC
 const lineAt=(line,index)=>line.startValue+line.slope*(index-line.startIndex);
 const rowAt=(rows,time)=>rows.findLast?.(row=>row.t===time)??[...rows].reverse().find(row=>row.t===time);
 
-export function classifyBreakoutRetest(price,lines,{strengthDirection=0,flowDirection=0,volumeDirection=0,touchToleranceAtr=.28,breakToleranceAtr=.35}={}){
+export function classifyBreakoutRetest(price,lines,{strengthDirection=0,flowDirection=0,volumeDirection=0,touchToleranceAtr=.28,breakToleranceAtr=.35,requireFlow=true,allowStrongBreak=true}={}){
   if(!Array.isArray(price)||!Array.isArray(lines)||price.length<2)return null;
   const atr=causalAtr(price),currentIndex=price.length-1,previousIndex=currentIndex-1,current=price[currentIndex],previous=price[previousIndex],scale=atr[currentIndex],previousScale=atr[previousIndex];
   if(!finite(scale)||scale<=0||!finite(previousScale)||previousScale<=0)return null;
@@ -243,11 +243,11 @@ export function classifyBreakoutRetest(price,lines,{strengthDirection=0,flowDire
 
     const baseline=price.slice(Math.max(0,currentIndex-20),currentIndex).map(b=>b.v).filter(v=>finite(v)&&v>0),relativeVolume=finite(current.v)&&baseline.length>=10?current.v/mean(baseline):null;
     const body=Math.abs(current.c-current.o),range=current.h-current.l,closePosition=range>0?(breakDirection>0?(current.c-current.l)/range:(current.h-current.c)/range):0;
-    const strongBreak=line.source==='pattern'&&!previousBeyond&&currentBeyond&&flowAligned&&relativeVolume>=1.5&&range>=1.2*previousScale&&body>=.6*previousScale&&closePosition>=.75;
+    const strongBreak=allowStrongBreak&&line.source==='pattern'&&!previousBeyond&&currentBeyond&&(flowAligned||!requireFlow)&&relativeVolume>=1.5&&range>=1.2*previousScale&&body>=.6*previousScale&&closePosition>=.75;
     let key=null,direction=0,priority=0;
     if(strongBreak){key='strong_break';direction=breakDirection;priority=4;}
     else if(previousBeyond&&reclaimed){key='false_break';direction=holdDirection;priority=3;}
-    else if(previousBeyond&&currentBeyond&&flowAligned){key='true_break';direction=breakDirection;priority=2;}
+    else if(previousBeyond&&currentBeyond&&(flowAligned||!requireFlow)){key='true_break';direction=breakDirection;priority=2;}
     else if(held){key=isSupport?'hold_support':'hold_resistance';direction=holdDirection;priority=1;}
     if(!key)continue;
     const distanceAtr=Math.abs(current.c-currentLine)/scale,structure=Math.max(.45,Math.min(1,(line.score??64)/100)),confirmation=['true_break','strong_break'].includes(key)?1:key==='false_break' ? .88 : .65;
@@ -286,3 +286,4 @@ export function backtestGeometry(price,events,{horizon=4,minMoveAtr=.35,atrPerio
   const wins=samples.filter(sample=>sample.win).length;
   return {horizon,minMoveAtr,n:samples.length,wins,winRate:samples.length?100*wins/samples.length:null,meanMoveAtr:samples.length?mean(samples.map(sample=>sample.moveAtr)):null,samples};
 }
+
