@@ -56,13 +56,19 @@ export function confirmSpectrumGroup(group,comparison,priceRows,oiPoints,{minSam
   return {state,count,support,share};
 }
 
-export function drawPairedSpectrum({context,mediaSize,anchor,priceToY,history,comparison,showCvd=true,compare=true,source='C→S',format=String}){
+export function drawPairedSpectrum({context,mediaSize,anchor,priceToY,history,comparison,showCvd=true,compare=true,source='C→S',format=String,large=null}){
   if(!showCvd&&!compare)return;
   const {width,height}=mediaSize,lane=spectrumLaneLayout(width,anchor,{showCvd,compare});
   const line=(x1,x2,y,color,size)=>{if(!Number.isFinite(y)||y<22||y>height-4||x1===x2)return;context.strokeStyle=color;context.lineWidth=size;context.beginPath();context.moveTo(x1,y);context.lineTo(x2,y);context.stroke();};
   context.save();context.beginPath();context.rect(0,0,width,height);context.clip();
   context.font=`600 ${width<650?8:9}px Inter,system-ui,sans-serif`;context.textBaseline='top';context.textAlign='center';context.fillStyle='#c5d6eb';
-  if(showCvd){
+  if(showCvd&&large){
+    context.fillText('Taker lớn P95',lane.xCvd,5);
+    context.font='600 8px Inter,system-ui,sans-serif';context.fillStyle=large.stale?'#ffc67d':'#c5d6eb';
+    context.fillText(large.stale?'TRỄ / THIẾU':large.ready?'MỘT PHẦN NGÀY':'CHỜ M15 ĐÓNG',lane.xCvd,16);
+    context.strokeStyle='rgba(157,181,209,.25)';context.lineWidth=1;context.beginPath();context.moveTo(lane.xCvd,30);context.lineTo(lane.xCvd,height);context.stroke();
+    for(const r of large.rows){const y=priceToY(r.price);if(y<32)continue;const scale=large.maxTotal?lane.halfCvd/large.maxTotal:0;line(lane.xCvd-r.sell*scale,lane.xCvd,y,'#ff627d',4);line(lane.xCvd,lane.xCvd+r.buy*scale,y,'#23e0a4',4);}
+  }else if(showCvd){
     context.fillText(compare?(comparison.flowSource==='spy-candle-volume'?'CVD ngày ΔV':'CVD ngày'):'CVD∞ '+source,lane.xCvd,5);
     context.strokeStyle='rgba(157,181,209,.25)';context.lineWidth=1;context.beginPath();context.moveTo(lane.xCvd,20);context.lineTo(lane.xCvd,height);context.stroke();
     for(const bin of history.bins){
@@ -90,3 +96,4 @@ export function drawPairedSpectrum({context,mediaSize,anchor,priceToY,history,co
   }
   context.restore();return lane;
 }
+
