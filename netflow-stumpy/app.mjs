@@ -573,7 +573,7 @@ function positionForecastReadout(){
  const matrix=$('h1-matrix-readout');if(matrix&&matrix.parentElement!==row)row.prepend(matrix);
  row.dataset.layout='matrix-h1-oi';row.setAttribute('role','group');row.setAttribute('aria-label','Trạng thái nhóm ma trận và Hộp H1 có ΔOI');
  row.hidden=(!h1Node||h1Node.hidden)&&(!matrix||matrix.hidden);
- row.dataset.hasH1=String(!!h1Node&&!h1Node.hidden);row.dataset.hasCvd='false';
+ row.dataset.hasH1=String(!!h1Node&&!h1Node.hidden);delete row.dataset.hasCvd;
  row.style.top=`${Math.max(8,top-row.offsetHeight-5)}px`;
 }
 function updateH1MatrixReadout(matrix){
