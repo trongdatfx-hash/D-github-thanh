@@ -13,6 +13,10 @@ on:
       - 'netflow-stumpy/tests/h1-score-line.test.mjs'
       - 'netflow-stumpy/tests/spy-volume-h1-mirror.test.mjs'
       - 'netflow-stumpy/h1-matrix-state.mjs'
+      - 'netflow-stumpy/large-taker-spectrum.mjs'
+      - 'netflow-stumpy/paired-spectrum.mjs'
+      - 'netflow-stumpy/tests/matrix-price-confirmation.test.mjs'
+      - 'netflow-stumpy/tests/large-taker-spectrum.test.mjs'
       - 'netflow-stumpy/oi-candle-bars.mjs'
       - 'netflow-stumpy/tests/matrix-geometry.test.mjs'
       - '.github/workflows/matrix-geometry.yml'
@@ -31,4 +35,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test netflow-stumpy/tests/matrix-geometry.test.mjs netflow-stumpy/tests/geometry.test.mjs netflow-stumpy/tests/h1-box-score.test.mjs netflow-stumpy/tests/spy-volume-h1-mirror.test.mjs netflow-stumpy/tests/h1-score-line.test.mjs
+      - run: node --test netflow-stumpy/tests/matrix-geometry.test.mjs netflow-stumpy/tests/geometry.test.mjs netflow-stumpy/tests/h1-box-score.test.mjs netflow-stumpy/tests/spy-volume-h1-mirror.test.mjs netflow-stumpy/tests/h1-score-line.test.mjs netflow-stumpy/tests/h1-matrix-state.test.mjs netflow-stumpy/tests/matrix-price-confirmation.test.mjs netflow-stumpy/tests/large-taker-spectrum.test.mjs

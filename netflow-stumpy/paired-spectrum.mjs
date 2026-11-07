@@ -63,7 +63,7 @@ export function drawPairedSpectrum({context,mediaSize,anchor,priceToY,history,co
   context.save();context.beginPath();context.rect(0,0,width,height);context.clip();
   context.font=`600 ${width<650?8:9}px Inter,system-ui,sans-serif`;context.textBaseline='top';context.textAlign='center';context.fillStyle='#c5d6eb';
   if(showCvd&&large){
-    context.fillText('Taker lớn P95',lane.xCvd,5);
+    context.fillText('Taker '+(large.percentileLabel??'P95'),lane.xCvd,5);
     context.font='600 8px Inter,system-ui,sans-serif';context.fillStyle=large.stale?'#ffc67d':'#c5d6eb';
     context.fillText(large.stale?'TRỄ / THIẾU':large.ready?'MỘT PHẦN NGÀY':'CHỜ M15 ĐÓNG',lane.xCvd,16);
     context.strokeStyle='rgba(157,181,209,.25)';context.lineWidth=1;context.beginPath();context.moveTo(lane.xCvd,30);context.lineTo(lane.xCvd,height);context.stroke();
@@ -96,4 +96,5 @@ export function drawPairedSpectrum({context,mediaSize,anchor,priceToY,history,co
   }
   context.restore();return lane;
 }
+
 

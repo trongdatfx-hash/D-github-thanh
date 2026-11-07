@@ -1,5 +1,5 @@
 import {H1ScoreLedger,h1ScoreBars,lockedH1Blocks,scoreableH1Blocks,scoreTitle,SCORE_STEP} from './h1-box-score.mjs?v=20261107-outside-fast1';
-import {buildH1Matrix} from './h1-matrix-state.mjs?v=20261107-matrix-short-label1';
+import {buildH1Matrix} from './h1-matrix-state.mjs?v=20261107-matrix-2m15-1';
 import {h1StripCell} from './h1-h4-strip.mjs?v=20261101-h1h4-align1';
 
 export function mountH1ScoreHistogram({chart,host,getState,storage=null,onMatrix=()=>{}}){
@@ -14,7 +14,7 @@ export function mountH1ScoreHistogram({chart,host,getState,storage=null,onMatrix
     const matrixBlocks=lockedH1Blocks(state.states,state.now,Infinity,state.matrixOptions?.window??9);
     const getScore=block=>ledger.get(block,{...state,bars:h1ScoreBars(state.bars,block.blockStart)});
     const matrixScores=new Map(matrixBlocks.map(b=>[b.blockStart,getScore(b)]));
-    const matrix=buildH1Matrix([...matrixScores.values()],state.matrixOptions);
+    const matrix=buildH1Matrix([...matrixScores.values()],state.matrixOptions,{priceRows:state.bars,now:state.now});
     const matrixNumbers=new Map(matrix.columns.map((c,i)=>[c.t,i+1]));onMatrix(matrix);
     const pane=chart.panes()[0]?.getHTMLElement?.();if(!pane||!host.contains(pane)){root.hidden=true;return;}
     const box=pane.getBoundingClientRect(),hostBox=host.getBoundingClientRect(),paneTop=box.top-hostBox.top-(host.clientTop||0);
@@ -53,6 +53,7 @@ export function mountH1ScoreHistogram({chart,host,getState,storage=null,onMatrix
     return [...records,...preview];
   }};
 }
+
 
 
 

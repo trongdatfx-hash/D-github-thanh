@@ -18,7 +18,23 @@ test('loader follows aggregate ids and suppresses duplicate backfill',async()=>{
 test('spectrum renderer keeps OI, replaces CVD and renders both taker sides',()=>{
   const labels=[],lines=[];let current=[];const context={save(){},restore(){},beginPath(){current=[];},rect(){},clip(){},fillRect(){},fillText(s){labels.push(s);},moveTo(x,y){current.push([x,y]);},lineTo(x,y){current.push([x,y]);},stroke(){lines.push({points:current,color:this.strokeStyle});}};
   drawPairedSpectrum({context,mediaSize:{width:360,height:350},anchor:100,priceToY:()=>100,history:{bins:[],maxAbs:0},comparison:{rows:[{price:735,opened:20,closed:10,grossOi:30}],maxOiGross:30,pairedReady:true},large:{rows:[{price:735,buy:100,sell:200}],maxTotal:300,ready:true,stale:false}});
-  assert(labels.includes('Taker lớn P95'));assert(labels.includes('OI + / −'));assert(!labels.includes('CVD ngày'));
+  assert(labels.includes('Taker P95'));assert(labels.includes('OI + / −'));assert(!labels.includes('CVD ngày'));
   assert(lines.some(l=>l.color==='#ff627d'&&l.points[0][0]<l.points[1][0]));assert(lines.some(l=>l.color==='#23e0a4'&&l.points[0][0]<l.points[1][0]));
 });
 test('loader matches chart getJSON relative path and AbortSignal contract',async()=>{let checked=false;const l=new LargeTakerLoader({get:async(path,signal)=>{assert(path.startsWith('/fapi/v1/aggTrades?'));assert(signal instanceof AbortSignal);checked=true;return [];},now:()=>t});l.active=true;await l.poll();assert.equal(checked,true);assert.equal(l.error,null);});
+test('P61 P85 P90 P95 are frozen from the same prior baseline and give nested real trade counts',()=>{
+  const b=new LargeTakerBook({minSamples:100});b.ingest(Array.from({length:100},(_,i)=>trade(i+1,t+i,i+1)),t+step);
+  b.ingest(Array.from({length:100},(_,i)=>trade(i+101,t+step+i,i+1)),t+2*step);
+  const profiles=[.61,.85,.90,.95].map(percentile=>b.profile({percentile,now:t+2*step}));assert.deepEqual(profiles.map(p=>p.large),[39,15,10,5]);assert.deepEqual(profiles.map(p=>p.percentileLabel),['P61','P85','P90','P95']);assert.equal(b.profile({now:t+2*step}).large,10);
+  const saved=JSON.stringify(b.save());b.profile({percentile:.61,now:t+2*step});assert.equal(JSON.stringify(b.save()),saved);
+});
+test('loader bootstraps one hour and falls back to last trades when the hour is empty',async()=>{
+  const urls=[],l=new LargeTakerLoader({get:async url=>{urls.push(url);return urls.length===1?[]:[trade(1,t-3*step)];},now:()=>t});l.active=true;await l.poll();assert.match(urls[0],/startTime=/);assert(!urls[1].includes('startTime'));assert.equal(l.book.lastId,1);
+});
+test('selecting P61 changes only tier, does not erase data or make network calls',()=>{
+  let calls=0;const l=new LargeTakerLoader({get:async()=>{calls++;return [];},now:()=>t});l.book=seeded();const id=l.book.lastId;l.setPercentile(.61);assert.equal(l.snapshot().percentileLabel,'P61');assert.equal(l.book.lastId,id);assert.equal(calls,0);l.setPercentile(.77);assert.equal(l.snapshot().percentileLabel,'P90');
+});
+test('older available NY day is explicitly marked stale and never called live',()=>{
+  const l=new LargeTakerLoader({get:async()=>[],now:()=>t+86400000});l.book=seeded();l.book.ingest([trade(5,t+step,100)],t+2*step);const r=l.snapshot();assert(r.dayOld);assert(r.stale);assert.match(r.status,/CŨ/);assert.equal(r.large,1);
+});
+

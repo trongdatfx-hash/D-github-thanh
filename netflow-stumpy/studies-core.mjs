@@ -10,7 +10,7 @@ import {weeklyTrendForecast,h1CandleColorStates} from './weekly-trend-map.mjs?v=
 import {preRthWlrTrend,historicalTrendAgeStates} from './pre-rth-wlr-trend.mjs?v=20261103-spy-restore1';
 import {chartFeatureRows} from './analogs-features.mjs?v=20261029-price-delta1';
 import {h1AdaptiveVolumeRows} from './spy-volume-h1.mjs?v=20261105-spyv-h1-1';
-import {analyzeMatrixGeometry} from './matrix-geometry.mjs?v=20261107-matrix-lines1';
+import {analyzeMatrixGeometry} from './matrix-geometry.mjs?v=20261107-matrix-2m15-1';
 
 const H1_MS=STEPS['1h'];
 function aggregateHourlySignals(rows=[],hourlyRows=[]){
@@ -74,4 +74,5 @@ export function computeStudies({rows,volumeRows,symbol,interval,options,now,tren
   rev63.dataInfo=dataInfo;displayRev63.dataInfo=dataInfo;
   return {geometry,channels,breakout,points,backtest,pivot,rev63:displayRev63,trendAgeHistory,h1CandleColors,h1H4CandleColors,weekly,trendAgeVolumeSource:ageVolumeState.source};
 }
+
 

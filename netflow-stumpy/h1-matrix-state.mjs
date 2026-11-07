@@ -21,7 +21,7 @@ export function classifyMatrixGroup(columns,previous=[]){
   if(adjacent&&p.complete&&p.direction===d&&p.n('deltaNF',d)>=p.needed&&p.n('oi',d)>=p.needed&&e.n('deltaNF',d)<p.n('deltaNF',d)&&e.n('oi',d)<p.n('oi',d))return {state:d>0?'UP_WEAK':'DOWN_WEAK',text:`Lực ${d>0?'tăng':'giảm'} suy yếu`};
   return {state:'UNCONFIRMED',text:`${word} chưa đủ xn`};
 }
-export function buildH1Matrix(records,options={}){
+export function buildH1Matrix(records,options={},priceContext=null){
   const o=matrixOptions(options),columns=[...new Map(records.filter(r=>r&&r.status!=='PREVIEW'&&r.status!=='WAIT_DATA'&&r.closedBars!==3).map(r=>[r.blockStart,r])).values()].sort((a,b)=>a.blockStart-b.blockStart).slice(-o.window).map(r=>({t:r.blockStart,values:{...r.parts,rwAdjustment:r.bonus?.randomWalkAlignment??null},missing:r.missing??[]}));
   const groups=[];
   for(let back=o.groups-1;back>=0;back--){
@@ -29,7 +29,42 @@ export function buildH1Matrix(records,options={}){
     const result=current.length===o.size?classifyMatrixGroup(current,previous):{state:'WAIT',text:'Chưa đủ hộp'};
     groups.push({...result,firstBox:current.length?start+1:null,lastBox:current.length?end:null,from:current[0]?.t??null,to:current.at(-1)?.t??null,count:current.length});
   }
-  return {options:o,rows:MATRIX_ROWS,columns,groups};
+  const matrix={options:o,rows:MATRIX_ROWS,columns,groups};
+  return priceContext?confirmMatrixPrice(matrix,priceContext.priceRows??[],priceContext.now):matrix;
+}
+
+// Price confirmation is separate from the matrix's original force state.
+// A fixed previous H1 group defines the zone before the first candidate M15.
+export function confirmMatrixPrice(matrix,priceRows,now){
+  const H=3600000,M=900000,finite=Number.isFinite,size=matrix.options.size;
+  const bars=[...new Map(priceRows.filter(b=>finite(b.t)&&finite(b.c)&&b.sourceComplete!==false&&(b.end??b.t+M-1)===b.t+M-1&&(b.end??b.t+M-1)<now).map(b=>[b.t,b])).values()].sort((a,b)=>a.t-b.t),byTime=new Map(bars.map(b=>[b.t,b]));
+  const groups=matrix.groups.map((g,index)=>{
+    const start=(g.firstBox??0)-1,current=start>=0?matrix.columns.slice(start,start+size):[],previous=start>=size?matrix.columns.slice(start-size,start):[];
+    const inferred=evidence(current).direction;
+    let zone=null;
+    if(finite(now)&&current.length===size&&previous.length===size&&contiguous(current)&&contiguous(previous)&&previous.at(-1).t+H===current[0].t){
+      const from=previous[0].t,knownAt=current[0].t,source=Array.from({length:size*4},(_,i)=>byTime.get(from+i*M));
+      if(knownAt<=now&&source.every(b=>b&&[b.h,b.l].every(finite)&&b.h>=b.l&&(b.end??b.t+M-1)<knownAt)){
+        zone={low:Math.min(...source.map(b=>b.l)),high:Math.max(...source.map(b=>b.h)),from,to:knownAt,knownAt,firstBox:start-size+1,lastBox:start};
+      }
+    }
+    const limit=index===matrix.groups.length-1?now:Math.min(now,(g.to??-Infinity)+H);
+    const recent=zone?bars.filter(b=>b.t>=g.from&&b.t+M<=limit).slice(-2):[];
+    const pending=recent.length?(recent.at(-1).c>zone.high?1:recent.at(-1).c<zone.low?-1:0):0;
+    const consecutive=recent.length===2&&recent[1].t-recent[0].t===M;
+    const direction=consecutive&&recent.every(b=>b.c>zone.high)?1:consecutive&&recent.every(b=>b.c<zone.low)?-1:0;
+    const confirmation={confirmed:direction!==0,direction,pendingDirection:pending,count:direction?2:pending?1:0,zone,asOf:recent.at(-1)?recent.at(-1).t+M:null,times:recent.map(b=>b.t),reason:!zone?'MISSING_ZONE':!consecutive?'WAIT_TWO_CLOSED':direction?'CONFIRMED':'WAIT_BREAK'};
+    const d=direction||pending||inferred,word=d>0?'Tăng':d<0?'Giảm':'??',needed=Math.ceil(current.length*2/3);
+    const force=(key)=>{
+      if(!current.length||current.some(c=>!finite(c.values[key])))return 'thiếu';
+      if(!d)return '??';
+      const n=x=>current.filter(c=>c.values[key]===x).length;
+      return n(d)>=needed?'✓':n(-d)>=needed?'×':'??';
+    };
+    const priceText=!zone?`${word} · chờ biên nhóm trước`:direction?`${word} · xn 2 M15`:pending?`${word} · chờ 2 M15 (1/2)`:`${word} · chờ phá`;
+    return {...g,forceState:g.state,forceText:g.text,priceConfirmation:confirmation,text:`${priceText} · C Taker ${force('deltaNF')} · OI ${force('oi')}`};
+  });
+  return {...matrix,groups,confirmationRule:'previous-H1-group-two-M15-closes'};
 }
 export function hasTrendPrediction(state){return !!state?.active&&state.reliable===true&&Number.isFinite(state.continuation);}
 export function cvdConfirmationText(confirmation){
@@ -48,4 +83,5 @@ export function mountMatrixSettings(host,storage,onChange){
   }
   host.append(panel);return ()=>options;
 }
+
 

@@ -1,7 +1,7 @@
 import {analyzeGeometry,causalAtr,classifyBreakoutRetest} from './geometry.mjs?v=20261107-matrix-lines1';
 import {weightedPriceBands,directionalVolumeDelta} from './engine.mjs?v=20261105-spyv-h1-1';
 import {lockedH1Blocks,scoreH1Box,h1ScoreBars} from './h1-box-score.mjs?v=20261107-outside-fast1';
-import {buildH1Matrix,matrixOptions} from './h1-matrix-state.mjs?v=20261107-matrix-short-label1';
+import {buildH1Matrix,matrixOptions} from './h1-matrix-state.mjs?v=20261107-matrix-2m15-1';
 import {oiCandleBars} from './oi-candle-bars.mjs?v=20261104-oi-p62-1';
 
 export const MATRIX_GEOMETRY_VERSION='matrix-lines-v1';
@@ -20,9 +20,9 @@ export function geometryScoreRecords({price=[],flow=[],h1CandleColors=[],oiByTim
   return lockedH1Blocks(new Map(h1CandleColors.map(s=>[s.t,s])),now,Infinity,220).map(block=>scoreH1Box(block,{...inputs,bars:h1ScoreBars(bars,block.blockStart)})).filter(Boolean);
 }
 
-export function geometryMatrixAt(records,asOf,options={}){
+export function geometryMatrixAt(records,asOf,options={},priceRows=null){
   const eligible=records.filter(r=>r.status!=='PREVIEW'&&r.closedBars===4&&r.blockEnd<asOf&&(r.asOf??r.blockEnd+1)<=asOf);
-  const matrix=buildH1Matrix(eligible,options),group=matrix.groups.at(-1);
+  const matrix=buildH1Matrix(eligible,options,priceRows?{priceRows,now:asOf}:null),group=matrix.groups.at(-1);
   const expectedEnd=Math.floor(asOf/H1)*H1-1,last=eligible.at(-1);
   const fresh=last?.blockEnd===expectedEnd;
   return {...matrix,group,fresh,asOf,latestEnd:last?.blockEnd??null};
@@ -33,7 +33,8 @@ export function matrixLineEvidence(matrix,direction){
   const weights={position:.25,slope:.2,deltaNF:.25,oi:.2,randomWalk:.1};
   let signed=0,known=0;
   for(const c of columns)for(const [key,w] of Object.entries(weights))if(finite(c.values[key])){signed+=w*direction*c.values[key];known+=w;}
-  const confirmed=matrix.fresh&&matrix.group?.state===(direction>0?'UP':'DOWN');
+  const priceGate=matrix.group?.priceConfirmation;
+  const confirmed=matrix.fresh&&matrix.group?.state===(direction>0?'UP':'DOWN')&&(!priceGate||(priceGate.confirmed&&priceGate.direction===direction));
   const weak=matrix.group?.state===(direction>0?'UP_WEAK':'DOWN_WEAK');
   const missingOI=!columns.length||columns.some(c=>!finite(c.values.oi));
   return {direction,signed:matrix.fresh&&known?signed/known:0,coverage:known/Math.max(1,columns.length),confirmed,weak,missingOI,fresh:matrix.fresh,state:matrix.group?.state??'WAIT',text:matrix.group?.text??'Chưa đủ hộp'};
@@ -89,7 +90,7 @@ export function replayMatrixGeometry(input,records,options={},candidateBuilder=n
   const full=input.price,offset=Math.max(0,full.length-800),bars=full.slice(offset),atr=causalAtr(bars);
   const limit=Math.max(4,Number(options.maxLines)||4),classicBudget=Math.ceil(limit/2),wedgeBudget=Math.floor(Math.floor(limit/2)/2);
   const quotas={classic:classicBudget,wedge:wedgeBudget},armed=[],seen=new Set(),events=[];
-  let pool=[],lastRefresh=-1,lastMatrixKey='',matrix=null;
+  let pool=[],lastRefresh=-1,matrix=null;
   const first=Math.max(24,bars.length-600);
   const saved=options.replayState,positions=new Map(bars.map((b,i)=>[b.t,i]));let start=first;
   // Worker memory carries armed anchors across live updates, including when
@@ -104,11 +105,11 @@ export function replayMatrixGeometry(input,records,options={},candidateBuilder=n
     for(const id of saved.seen)seen.add(id);
     events.push(...saved.points.filter(e=>positions.has(e.at)).map(e=>({...e,index:positions.get(e.at)+offset})));
     start=Math.max(first,positions.get(saved.lastTime)+1);
-    matrix=geometryMatrixAt(records,(bars.at(-1).end??bars.at(-1).t+M15-1)+1,options.matrixOptions);
+    matrix=geometryMatrixAt(records,(bars.at(-1).end??bars.at(-1).t+M15-1)+1,options.matrixOptions,full);
   }
   for(let i=start;i<bars.length;i++){
     const asOf=(bars[i].end??bars[i].t+M15-1)+1,key=Math.floor(asOf/H1);
-    if(key!==lastMatrixKey){matrix=geometryMatrixAt(records,asOf,options.matrixOptions);lastMatrixKey=key;}
+    matrix=geometryMatrixAt(records,asOf,options.matrixOptions,full);
     const scale=atr[i];if(!(scale>0))continue;
     const prefix=bars.slice(0,i+1),time=bars[i].t;
     // Read state before creating new lines: a breakout can only concern a line
@@ -164,3 +165,4 @@ export function analyzeMatrixGeometry(input,options={}){
   const replay=replayMatrixGeometry(input,records,options);
   return {...base,...replay,referenceLines:replay.lines,provisionalLines:[],matrixVersion:MATRIX_GEOMETRY_VERSION,scoreRecords:records.length,summary:{...base.summary,support:replay.lines.filter(l=>l.kind==='support').length,resistance:replay.lines.filter(l=>l.kind==='resistance').length}};
 }
+
