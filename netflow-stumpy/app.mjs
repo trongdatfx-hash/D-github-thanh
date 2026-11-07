@@ -431,9 +431,8 @@ function init(){
   $('chart').dataset.wlrColorMode='hysteresis-closed-bars';$('chart').dataset.wlrColorEnter=String(WLR_COLOR_DEFAULTS.enter);$('chart').dataset.wlrColorExit=String(WLR_COLOR_DEFAULTS.exit);
   $('chart').dataset.compositeStrengthVersion=COMPOSITE_STRENGTH_VERSION;
   $('chart').dataset.commonVolumeInput='true-taker-quote-delta-70-30';
-  // Price occupies 60%; the two lower panes share 40%, preserving SPY V / Strength = 1.3.
-  const lowerPaneShare=.40;
-  chart.panes()[0].setStretchFactor(1-lowerPaneShare);chart.panes()[1].setStretchFactor(lowerPaneShare*1.3/2.3);chart.panes()[2].setStretchFactor(lowerPaneShare/2.3);
+  // Pane heights: price 67%, SPY V 26%, C Taker NF 7% (lower panes total 33%).
+  chart.panes()[0].setStretchFactor(.67);chart.panes()[1].setStretchFactor(.26);chart.panes()[2].setStretchFactor(.07);
   marks=L.createSeriesMarkers(price,[]);
   strengthMarks=L.createSeriesMarkers(series.strength,[]);
   chart.subscribeCrosshairMove(p=>{if(!p.sourceEvent)return;inspectedTime=p.time?p.time*1000:null;showTooltip(inspectedTime??rows[$('symbol').value]?.at(-1)?.t);});
