@@ -46,19 +46,19 @@ test('preview replaces oldest locked slot, respects viewport and never reuses a 
   const r=ledger.get(preview,{...f.input,now:start+3*S});assert.equal(r.status,'PREVIEW');assert.equal(r.closedBars,3);
   const partial=scoreH1Box(preview,{...f.input,now:start+3*S,oi:new Map()});assert.equal(partial.parts.oi,null);assert.equal(partial.status,'PREVIEW');assert.ok(partial.missing.includes('OI_P62'));
 });
-test('RW alignment rewards either WLR or locked H1 color once, in the tail direction',()=>{
+test('RW alignment rewards WLR first and uses locked H1 only for neutral WLR',()=>{
   for(const d of [-1,1]){
     const f=fixture(d),both=scoreH1Box(f.block,f.input);
     assert.equal(both.bonus.randomWalkAlignment,d);assert.equal(both.rawScore,6*d);assert.equal(both.score,5*d);
-    assert.equal(both.details.randomWalk.alignment.matchedWLR,true);assert.equal(both.details.randomWalk.alignment.matchedBox,true);
+    assert.equal(both.details.randomWalk.alignment.matchedWLR,true);assert.equal(both.details.randomWalk.alignment.matchedBox,false);assert.equal(both.details.randomWalk.alignment.referenceSource,'WLR');
     const wlrOnly=scoreH1Box({...f.block,direction:-d},f.input);
     assert.equal(wlrOnly.bonus.randomWalkAlignment,d);assert.equal(wlrOnly.details.randomWalk.alignment.matchedBox,false);
     for(const b of f.sample)f.input.bands.set(b.t,{mid:200});
     const colorOnly=scoreH1Box(f.block,f.input);
     assert.equal(colorOnly.parts.slope,0);assert.equal(colorOnly.bonus.randomWalkAlignment,d);
     const neither=scoreH1Box({...f.block,direction:-d},f.input);
-    assert.equal(neither.parts.randomWalk,d);assert.equal(neither.bonus.randomWalkAlignment,0);
-    assert.equal(neither.rawScore,Object.values(neither.parts).reduce((a,b)=>a+b,0));
+    assert.equal(neither.parts.randomWalk,d);assert.equal(neither.bonus.randomWalkAlignment,-d);
+    assert.equal(neither.rawScore,Object.values(neither.parts).reduce((a,b)=>a+b,0)-d);
   }
 });
 test('central RW quantiles and missing RW history cannot earn alignment bonus',()=>{
@@ -74,11 +74,42 @@ test('preview never derives the RW color bonus from a forming H1 color',()=>{
   assert.equal(a.bonus.randomWalkAlignment,0);assert.equal(a.score,b.score);assert.equal(a.details.randomWalk.alignment.boxEligible,false);
   assert.equal(scoreH1Box(f.block,f.input).bonus.randomWalkAlignment,1);
 });
-test('v2 ledger retains saturated score and raw bonus, ignores old formula caches',()=>{
+test('v3 ledger retains saturated score and raw bonus, ignores old formula caches',()=>{
   let saved=null;const storage={getItem:()=>saved,setItem:(_,value)=>{saved=value;}},f=fixture(),first=new H1ScoreLedger(storage).get(f.block,f.input);
   assert.equal(first.rawScore,6);assert.equal(first.score,5);assert.deepEqual(new H1ScoreLedger(storage).get(f.block,{...f.input,oi:new Map()}),first);
   const old=JSON.parse(saved);old.version='h1-score-rw64-p62-v1';saved=JSON.stringify(old);
   assert.equal(new H1ScoreLedger(storage).get(f.block,{...f.input,oi:new Map()}).status,'PARTIAL');
 });
+test('opposing WLR neutralizes P80 and P20 RW points, even when H1 color supports RW',()=>{
+  for(const d of [-1,1]){
+    const f=fixture(d);f.sample.forEach((b,i)=>f.input.bands.set(b.t,{mid:500-d*i}));
+    const r=scoreH1Box(f.block,f.input),a=r.details.randomWalk.alignment;
+    assert.equal(r.parts.randomWalk,d);assert.equal(r.parts.slope,-d);assert.equal(r.bonus.randomWalkAlignment,-d);
+    assert.equal(r.parts.randomWalk+r.bonus.randomWalkAlignment,0);assert.equal(a.referenceSource,'WLR');assert.equal(a.opposed,true);assert.equal(a.matchedBox,false);
+    assert.equal(r.rawScore,r.parts.position+r.parts.slope+r.parts.deltaNF+r.parts.oi);
+    assert.equal(scoreH1Box({...f.block,direction:-d},f.input).score,r.score);
+    assert.match(scoreTitle(r),/nghịch chiều/);
+  }
+});
+test('only known neutral WLR allows H1 fallback; missing WLR remains unknown',()=>{
+  for(const d of [-1,1]){
+    const f=fixture(d);for(const b of f.sample)f.input.bands.set(b.t,{mid:200});
+    const yes=scoreH1Box(f.block,f.input),no=scoreH1Box({...f.block,direction:-d},f.input),gray=scoreH1Box({...f.block,direction:0},f.input);
+    assert.equal(yes.details.randomWalk.alignment.referenceSource,'H1');assert.equal(yes.bonus.randomWalkAlignment,d);
+    assert.equal(no.bonus.randomWalkAlignment,-d);assert.equal(gray.bonus.randomWalkAlignment,0);
+    const missing=scoreH1Box(f.block,{...f.input,bands:new Map()});assert.equal(missing.parts.slope,null);assert.equal(missing.bonus.randomWalkAlignment,0);assert.ok(missing.missing.includes('WLR'));
+  }
+});
+test('cached records cannot preserve an adjustment that violates WLR priority',()=>{
+  let saved=null;const storage={getItem:()=>saved,setItem:(_,s)=>{saved=s;}},f=fixture();
+  f.sample.forEach((b,i)=>f.input.bands.set(b.t,{mid:500-i}));
+  const r=new H1ScoreLedger(storage).get(f.block,f.input);assert.equal(r.bonus.randomWalkAlignment,-1);
+  assert.deepEqual(new H1ScoreLedger(storage).get(f.block,{...f.input,oi:new Map()}),r);
+  const corrupt=JSON.parse(saved);const row=corrupt.records[0];row.bonus.randomWalkAlignment=1;row.rawScore+=2;row.score=Math.max(-5,Math.min(5,row.rawScore));saved=JSON.stringify(corrupt);
+  assert.equal(new H1ScoreLedger(storage).get(f.block,{...f.input,oi:new Map()}).status,'PARTIAL');
+  saved=JSON.stringify({...corrupt,version:'h1-score-rw64-p62-align-v2'});
+  assert.equal(new H1ScoreLedger(storage).get(f.block,{...f.input,oi:new Map()}).status,'PARTIAL');
+});
+
 
 

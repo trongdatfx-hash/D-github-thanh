@@ -10,10 +10,10 @@ khi đủ 3 M15 liên tục đã đóng kể từ đầu H1. Hộp này nằm tr
 thay cho hộp cũ nhất. Chưa đủ 3 M15 thì chưa có điểm cho hộp hiện tại.
 Ký hiệu `~` và viền nét đứt là điểm tạm 3/4, không lưu thành điểm đã khóa.
 
-## Công thức v2 — thưởng RW thuận chiều
+## Công thức v3 — ưu tiên WLR, thưởng thuận / trung hòa nghịch
 
-Mỗi thành phần gốc có điểm −1, 0 hoặc +1. Cộng 5 thành phần và điểm thưởng
-RW thuận chiều, sau đó giới hạn điểm hiển thị trong −5…+5. Tooltip giữ cả
+Mỗi thành phần gốc có điểm −1, 0 hoặc +1. Cộng 5 thành phần và điểm điều chỉnh
+RW theo hướng tham chiếu, sau đó giới hạn điểm hiển thị trong −5…+5. Tooltip giữ cả
 tổng thô trước giới hạn để thấy rõ phần thưởng (ví dụ tổng +6 hiển thị +5).
 
 1. Vị trí WLR: ít nhất 3 M15 đóng trên WLR: +1; dưới: −1; còn lại: 0.
@@ -27,9 +27,20 @@ tổng thô trước giới hạn để thấy rõ phần thưởng (ví dụ t�
    > P80: +1; < P20: −1; còn lại: 0.
    Seed cố định theo thời gian H1. Không dùng return trong H1 để dựng biên,
    không ép đường đi qua close thực. Đây là mô hình tham chiếu thử nghiệm.
-   **Thưởng thuận chiều:** RW +1 và dốc WLR tăng hoặc hộp H1 xanh: thêm +1.
-   RW −1 và dốc WLR giảm hoặc hộp H1 đỏ: thêm −1. Khớp cả hai vẫn chỉ thưởng
-   một lần. Dốc WLR dùng cùng ngưỡng ±0,15 ATR ở mục 2; WLR phẳng không khớp.
+   **Hướng tham chiếu:** ưu tiên dốc WLR theo ngưỡng ±0,15 ATR ở mục 2.
+   Chỉ khi WLR đã biết và trung tính (điểm dốc = 0) mới dùng màu hộp H1 đã khóa.
+   Thiếu WLR hoặc ATR không được coi là trung tính, không dùng màu hộp thay thế.
+   Khi có hướng tham chiếu, chỉ điều chỉnh một lần:
+
+   | RW | Hướng tham chiếu | Điều chỉnh | Phần RW sau điều chỉnh |
+   | --- | --- | ---: | ---: |
+   | Vượt P80: +1 | Tăng | +1 | +2 |
+   | Vượt P80: +1 | Giảm | −1 | 0 |
+   | Dưới P20: −1 | Giảm | −1 | −2 |
+   | Dưới P20: −1 | Tăng | +1 | 0 |
+
+   WLR có hướng thì màu hộp không được thưởng hoặc phạt thêm, dù cùng hay trái
+   hướng. Hộp xám khi WLR trung tính không tạo hướng tham chiếu.
    Close nằm giữa hoặc đúng P20/P80 có RW 0, không thưởng. Thiếu RW không thưởng.
    Với điểm tạm 3/4, chỉ xét dốc WLR của 3 nến đóng, chưa xét màu H1 vì màu
    preview có thể dùng nến thứ tư đang chạy. Màu chỉ đủ điều kiện khi H1 khóa.
@@ -59,13 +70,14 @@ tổng thô trước giới hạn để thấy rõ phần thưởng (ví dụ t�
 - Điểm đầy đủ đã lưu không đổi khi nến tương lai hoặc dữ liệu OI mới tới.
   Khi không lưu được cache, phép tính cố định cửa sổ và seed vẫn cho kết quả tái lập
   trên cùng dữ liệu đầu vào. Xóa cache hoặc sửa dữ liệu nguồn có thể thay đổi bản tái tính.
-- Công thức v2 dùng phiên bản và khóa cache riêng. Điểm v1 không được dùng lại
-  thành điểm v2; các hộp được tính lại theo công thức mới khi có dữ liệu nguồn.
+- Công thức v3 dùng phiên bản và khóa cache riêng. Điểm v1/v2 không được dùng lại
+  thành điểm v3; các hộp được tính lại theo công thức mới khi có dữ liệu nguồn.
 - Không chấm H4 thành H1: overlay này chỉ hiện SPY M15. Không đổi màu hộp H1 gốc.
 - Cột có viền vàng khi dấu điểm xung đột với màu hộp; đây không phải xác nhận đảo chiều.
 
-Điểm thưởng là tăng trọng số cho sự đồng thuận, không phải bằng chứng độc lập:
+Điểm điều chỉnh là trọng số cho sự đồng thuận/xung đột, không phải bằng chứng độc lập:
 WLR, màu hộp và RW đều có liên hệ với giá. Điểm không phải xác suất
 và chưa được xác thực hiệu quả giao dịch.
+
 
 

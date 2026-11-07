@@ -1,4 +1,4 @@
-import {mountH1ScoreHistogram} from './h1-box-score-ui.mjs?v=20261107-rw-align2';
+import {mountH1ScoreHistogram} from './h1-box-score-ui.mjs?v=20261107-rw-align3';
 import {mountGptPattern} from './gpt-pattern-ui.mjs?v=20261106-chatflow1';
 import {CvdBadgeBorder} from './cvd-badge-border.mjs?v=20261106-border1';
 import {CurrentOiLoader,RunningOiState} from './oi-current.mjs?v=20261106-oi-live1';

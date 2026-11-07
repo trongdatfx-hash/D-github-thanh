@@ -1,4 +1,4 @@
-import {H1ScoreLedger,scoreableH1Blocks,scoreTitle,SCORE_STEP} from './h1-box-score.mjs?v=20261107-rw-align2';
+import {H1ScoreLedger,scoreableH1Blocks,scoreTitle,SCORE_STEP} from './h1-box-score.mjs?v=20261107-rw-align3';
 import {h1StripCell} from './h1-h4-strip.mjs?v=20261101-h1h4-align1';
 
 export function mountH1ScoreHistogram({chart,host,getState,storage=null}){
@@ -39,5 +39,6 @@ export function mountH1ScoreHistogram({chart,host,getState,storage=null}){
   const schedule=()=>{if(!frame)frame=requestAnimationFrame(draw);};
   schedule();return {schedule};
 }
+
 
 
