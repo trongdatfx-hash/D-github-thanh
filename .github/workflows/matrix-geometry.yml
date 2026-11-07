@@ -1,0 +1,29 @@
+name: Matrix geometry causal checks
+on:
+  push:
+    paths:
+      - 'netflow-stumpy/matrix-geometry.mjs'
+      - 'netflow-stumpy/geometry.mjs'
+      - 'netflow-stumpy/studies-core.mjs'
+      - 'netflow-stumpy/studies-worker.mjs'
+      - 'netflow-stumpy/h1-box-score.mjs'
+      - 'netflow-stumpy/h1-matrix-state.mjs'
+      - 'netflow-stumpy/oi-candle-bars.mjs'
+      - 'netflow-stumpy/tests/matrix-geometry.test.mjs'
+      - '.github/workflows/matrix-geometry.yml'
+  pull_request:
+    paths:
+      - 'netflow-stumpy/**'
+      - '.github/workflows/matrix-geometry.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  causal-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test netflow-stumpy/tests/matrix-geometry.test.mjs netflow-stumpy/tests/geometry.test.mjs

@@ -10,6 +10,7 @@ import {weeklyTrendForecast,h1CandleColorStates} from './weekly-trend-map.mjs?v=
 import {preRthWlrTrend,historicalTrendAgeStates} from './pre-rth-wlr-trend.mjs?v=20261103-spy-restore1';
 import {chartFeatureRows} from './analogs-features.mjs?v=20261029-price-delta1';
 import {h1AdaptiveVolumeRows} from './spy-volume-h1.mjs?v=20261105-spyv-h1-1';
+import {analyzeMatrixGeometry} from './matrix-geometry.mjs?v=20261107-matrix-lines1';
 
 const H1_MS=STEPS['1h'];
 function aggregateHourlySignals(rows=[],hourlyRows=[]){
@@ -28,7 +29,7 @@ export function trendAgeVolumeRows(trend,h1CandleColors,{useH1Smooth=false,now=D
   const states=new Map((h1CandleColors??[]).map(state=>[state.t,state]));
   return {rows:h1AdaptiveVolumeRows(trend.rawSpy,states,{step:STEPS['15m'],now}),source:'SPY_V_H1_SMOOTH'};
 }
-export function computeStudies({rows,volumeRows,symbol,interval,options,now,trend=null,onH1Ready=null,useH1Smooth=false}){
+export function computeStudies({rows,volumeRows,symbol,interval,options,now,trend=null,onH1Ready=null,useH1Smooth=false,geometryOi=new Map(),matrixReplayState=null}){
   const p=rows[symbol]??[],closedPrice=p.filter(r=>(r.end??r.t)<now),times=new Set(closedPrice.map(r=>r.t));
   const input={price:closedPrice,spy:(rows.SPYUSDT??[]).filter(r=>times.has(r.t)),qqq:(rows.QQQUSDT??[]).filter(r=>times.has(r.t)),flow:(rows.COMPOSITE??[]).filter(r=>times.has(r.t)),volume:volumeRows.filter(r=>times.has(r.t))};
   const tRows=trend?.rows[symbol]??[],closedTrend=trendSessionRows(tRows.filter(r=>(r.end??r.t)<now)),trendTimes=new Set(closedTrend.map(r=>r.t)),trendVolume=(trend?.volume??[]).filter(r=>trendTimes.has(r.t));
@@ -55,12 +56,13 @@ export function computeStudies({rows,volumeRows,symbol,interval,options,now,tren
   const ageVolumeState=trendAgeVolumeRows(trend,h1CandleColors,{useH1Smooth,now}),ageVolume=ageVolumeState.rows;
   const ageChannelState=useH1Smooth?causalTrendChannels(closedTrend.map(r=>r.session==='EURO'?{...r,session:'PRE'}:r),{volumeRows:ageVolume,maxHistory:Infinity}):channelState;
   const ageTrendHistory=interval==='15m'&&symbol==='SPYUSDT'?historicalTrendAgeStates({priceRows:tRows,strengthRows:trend?.rows.COMPOSITE??[],volumeRows:ageVolume,channelTrends:ageChannelState.episodes,now,fromTime:-Infinity}):allTrendAgeHistory;
-  const geometry=analyzeGeometry({...input,h1CandleColors},options),channels=causalTrendChannels(closedPrice,{volumeRows:input.volume,maxHistory:12});
+  const matrixEnabled=options.matrixGeometry===true&&symbol==='SPYUSDT'&&interval==='15m';
+  const geometry=matrixEnabled?analyzeMatrixGeometry({...input,h1CandleColors,oiByTime:geometryOi},{...options,replayState:matrixReplayState}):analyzeGeometry({...input,h1CandleColors},options),channels=causalTrendChannels(closedPrice,{volumeRows:input.volume,maxHistory:12});
   // Same causal leg rules, lower display age only. Preview predicts whether a
   // 4–7 bar live candidate will survive to the normal eight-bar display age.
   const early=causalTrendChannels(closedPrice,{volumeRows:input.volume,minLegBars:4,maxHistory:12});
   channels.early=early.episodes.filter(c=>c.provisional&&c.bars>=4&&c.bars<8&&c.insideEndTime===closedPrice.at(-1)?.t).map(c=>({...c,early:true,targetMinBars:8}));
-  const breakout=analyzeBreakoutRetest(input,options),points=recentCausalLineStates(input,{...options,stateLookbackBars:600},4),backtest=backtestGeometry(closedPrice,geometry.events,{horizon:4,minMoveAtr:.35});
+  const breakout=matrixEnabled?geometry.breakout:analyzeBreakoutRetest(input,options),points=matrixEnabled?geometry.points:recentCausalLineStates(input,{...options,stateLookbackBars:600},4),backtest=backtestGeometry(closedPrice,geometry.events,{horizon:4,minMoveAtr:.35});
   const model=interval==='15m'&&trend?trend:{rows,volume:volumeRows},modelPrice=(model.rows[symbol]??p).filter(r=>(r.end??r.t)<now),modelTimes=new Set(modelPrice.map(r=>r.t));
   const pivot=pivotZones({price:modelPrice,composite:(model.rows.COMPOSITE??[]).filter(r=>modelTimes.has(r.t)),volume:model.volume.filter(r=>modelTimes.has(r.t))},STEPS[interval]);
   const rev63=preRthWlrTrend({priceRows:tRows,strengthRows:trend?.rows.COMPOSITE??[],volumeRows:ageVolume,channelTrends:ageChannelState.episodes??ageChannelState.trends,requireChannel:true,now});
@@ -76,3 +78,4 @@ export function computeStudies({rows,volumeRows,symbol,interval,options,now,tren
   rev63.dataInfo=dataInfo;displayRev63.dataInfo=dataInfo;
   return {geometry,channels,breakout,points,backtest,pivot,rev63:displayRev63,trendAgeHistory,h1CandleColors,h1H4CandleColors,weekly,trendAgeVolumeSource:ageVolumeState.source};
 }
+
