@@ -9,6 +9,8 @@ on:
       - 'netflow-stumpy/h1-box-score.mjs'
       - 'netflow-stumpy/h1-box-score-ui.mjs'
       - 'netflow-stumpy/spy-volume-h1-mirror.mjs'
+      - 'netflow-stumpy/h1-score-line.mjs'
+      - 'netflow-stumpy/tests/h1-score-line.test.mjs'
       - 'netflow-stumpy/tests/spy-volume-h1-mirror.test.mjs'
       - 'netflow-stumpy/h1-matrix-state.mjs'
       - 'netflow-stumpy/oi-candle-bars.mjs'
@@ -29,4 +31,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test netflow-stumpy/tests/matrix-geometry.test.mjs netflow-stumpy/tests/geometry.test.mjs netflow-stumpy/tests/h1-box-score.test.mjs netflow-stumpy/tests/spy-volume-h1-mirror.test.mjs
+      - run: node --test netflow-stumpy/tests/matrix-geometry.test.mjs netflow-stumpy/tests/geometry.test.mjs netflow-stumpy/tests/h1-box-score.test.mjs netflow-stumpy/tests/spy-volume-h1-mirror.test.mjs netflow-stumpy/tests/h1-score-line.test.mjs
