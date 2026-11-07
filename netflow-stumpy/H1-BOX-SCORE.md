@@ -1,12 +1,12 @@
-# Điểm 8 hộp H1 — bắt đầu sau 3 M15 đóng
+# Điểm 36 hộp H1 — bắt đầu sau 3 M15 đóng
 
 Trên chart SPYUSDT M15, histogram nhỏ nằm ngay trong pane nến chính,
 gốc 0 ở giữa, cột dương xanh và âm đỏ. Trục điểm cố định −5…+5,
 độc lập thang giá. Tọa độ ngang dùng cùng `h1StripCell` với dải H1 ở pane SPY V:
-mỗi cột ứng với đúng 4 M15 của một H1, không dồn 8 cột vào một góc.
-Kéo/zoom/đổi kích thước sẽ cập nhật tọa độ. Khi xem quá khứ, chọn tối đa 8 hộp
+mỗi cột ứng với đúng 4 M15 của một H1, không dồn 36 cột vào một góc.
+Kéo/zoom/đổi kích thước sẽ cập nhật tọa độ. Khi xem quá khứ, chọn tối đa 36 hộp
 đủ điều kiện tại mép phải cửa sổ đó. Hộp đang chạy bắt đầu có cột điểm tạm
-khi đủ 3 M15 liên tục đã đóng kể từ đầu H1. Hộp này nằm trong giới hạn 8 cột,
+khi đủ 3 M15 liên tục đã đóng kể từ đầu H1. Hộp này nằm trong giới hạn 36 cột,
 thay cho hộp cũ nhất. Chưa đủ 3 M15 thì chưa có điểm cho hộp hiện tại.
 Ký hiệu `~` và viền nét đứt là điểm tạm 3/4, không lưu thành điểm đã khóa.
 

@@ -20,7 +20,7 @@ export function lockedH1Blocks(states,now=Date.now(),visibleTo=Infinity){
     if(s?.preview!==false||!finite(s.blockStart)||s.blockEnd!==s.blockStart+HOUR-1||s.blockEnd>=now||s.blockEnd>visibleTo||![-1,0,1].includes(s.direction))continue;
     const old=groups.get(s.blockStart);if(!old||s.t>old.t)groups.set(s.blockStart,s);
   }
-  return [...groups.values()].sort((a,b)=>a.blockStart-b.blockStart).slice(-8);
+  return [...groups.values()].sort((a,b)=>a.blockStart-b.blockStart).slice(-36);
 }
 // Signed symmetric bootstrap: 64 PRIOR M15 log-change magnitudes, 3 or 4 steps,
 // 512 deterministic paths. Starts at H1 open; no conditioning on the H1 close.
@@ -76,7 +76,7 @@ export function scoreH1Box(block,{bars=[],bands=new Map(),deltas=new Map(),flows
   const known=Object.values(parts).filter(finite),rawScore=known.length?sum(known)+bonus.randomWalkAlignment:null,score=rawScore===null?null:bounded(rawScore);
   return {version:H1_SCORE_VERSION,blockStart:start,blockEnd:end-1,boxDirection:block.direction,score,rawScore,bonus,parts,details,missing,available:known.length,closedBars:count,asOf:sample.at(-1).t+SCORE_STEP,status:preview?'PREVIEW':missing.length?'PARTIAL':'LOCKED',lockedAt:preview||missing.length?null:end};
 }
-// Latest eight scored slots include the running hour only after three closed M15.
+// Latest 36 scored slots include the running hour only after three closed M15.
 export function scoreableH1Blocks(states,bars,now=Date.now(),visibleTo=Infinity){
   const groups=new Map(lockedH1Blocks(states,now,visibleTo).map(b=>[b.blockStart,b]));
   const closed=new Set(bars.filter(b=>b.t+SCORE_STEP<=now&&b.sourceComplete!==false&&[b.o,b.h,b.l,b.c].every(finite)).map(b=>b.t));
@@ -85,7 +85,7 @@ export function scoreableH1Blocks(states,bars,now=Date.now(),visibleTo=Infinity)
     if(![0,1,2].every(i=>closed.has(b.blockStart+i*SCORE_STEP)))continue;
     const old=groups.get(b.blockStart);if(!old||b.t>old.t)groups.set(b.blockStart,b);
   }
-  return [...groups.values()].sort((a,b)=>a.blockStart-b.blockStart).slice(-8);
+  return [...groups.values()].sort((a,b)=>a.blockStart-b.blockStart).slice(-36);
 }
 const MEMORY_KEY='dvp:h1-box-score:rw64-p62-align-v3';
 export class H1ScoreLedger {
