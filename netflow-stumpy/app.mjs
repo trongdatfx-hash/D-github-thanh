@@ -74,7 +74,7 @@ let studiesWorker=null,studyKey='',studyResultKey='',statsWorker=null,statsReque
 const CALENDAR_REFRESH_MS=5*60*1000;
 const FIT_WINDOW_MS=36*60*60*1000,FIT_HALF_WINDOW_MS=12*60*60*1000,DOUBLE_TAP_MS=360,DOUBLE_TAP_DISTANCE=28,TAP_MOVE_TOLERANCE=14;
 const SETUP_STORAGE_KEY='netflow-rth-lite:chart-setup:v1';
-const SETUP_CONTROL_IDS=['symbol','interval','days','signal','composite','alignment','confirmed-delta-toggle','oi-width-toggle','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-trend-age-color','candle-h1-box-color','cvd-spectrum-toggle','large-taker-toggle','oi-spectrum-toggle','oi-candle-bars-toggle','oi-candle-pin-toggle','oi-delta-percentile','oi-bold-candles-toggle','show-strength','spy-volume-strength','spy-volume-h1-smooth','bands','markers','double-tap-full','geometry-toggle','geometry-matrix-toggle','geometry-provisional','causal-trend-channel','causal-trend-channel-provisional','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
+const SETUP_CONTROL_IDS=['symbol','interval','days','signal','composite','alignment','confirmed-delta-toggle','oi-width-toggle','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-trend-age-color','candle-h1-box-color','cvd-spectrum-toggle','large-taker-toggle','oi-spectrum-toggle','oi-candle-bars-toggle','oi-candle-pin-toggle','oi-delta-percentile','oi-bold-candles-toggle','show-strength','spy-volume-strength','spy-volume-h1-smooth','bands','markers','double-tap-full','geometry-toggle','geometry-matrix-toggle','geometry-provisional','causal-trend-channel','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
 let statsMap=new Map(),candleColorMap=new Map(),candleClusterMap=new Map(),rev63State=null,pivotZoneState={ready:false,reason:'history',support:null,resistance:null},pivotZoneKey='',inspectedTime=null;
 let calendarState={events:[],updatedAt:null,loading:false};
 let pendingSavedTimeRange=null,saveSetupTimer=null,strengthBoxLayer=null,quantileLayer=null;
@@ -209,7 +209,7 @@ function setupChartActions(){
   if(!$('causal-trend-channel')){const input=document.createElement('input');input.id='causal-trend-channel';input.type='checkbox';input.checked=true;const label=document.createElement('label');label.title='Flow-Leg: SPY V khóa hướng khi mở · chỉ giá hoặc SPY V bất lợi 2 nến đóng liên tiếp mới kết thúc · dốc OLS chỉ dùng chẩn đoán, không cắt tuổi trend · tối thiểu 8 nến · kênh đã đóng: UP vàng, DOWN trắng · kênh đang sống nét chấm: UP cyan, DOWN trắng';label.append(input,'Kênh trend causal');$('geometry-toggle').closest('label').insertAdjacentElement('afterend',label);}
   $('geometry-toggle').parentElement.title='50% line nối pivot hỗ trợ/kháng cự + 50% line biên nêm giá (2 line/nêm). Không đủ mẫu đạt điểm thì để trống; HT/KC SỚM có nút bật tắt riêng.';
   if(!$('geometry-provisional')){const input=document.createElement('input');input.id='geometry-provisional';input.type='checkbox';input.checked=true;const label=document.createElement('label');label.title='Hiện/ẩn riêng các Trendline causal sớm HT SỚM và KC SỚM; chỉ có tác dụng khi Trendline causal đang bật';label.append(input,'Trendline causal nét chấm');$('geometry-toggle').closest('label').insertAdjacentElement('afterend',label);}
-  $('geometry-pivots').closest('label').title='Ưu tiên điểm xoay từ màu Hộp H1 đã khóa cho Pivot, phân kỳ và mẫu nêm tăng/giảm; khi chưa đủ ít nhất 2 đỉnh và 2 đáy H1, tự dùng pivot giá M15. Trendline chỉ dùng điểm đã xác nhận causal.';if(!$('causal-trend-channel-provisional')){const input=document.createElement('input');input.id='causal-trend-channel-provisional';input.type='checkbox';input.checked=true;const label=document.createElement('label');label.title='Hiện/ẩn riêng Kênh Flow-Leg đang sống; chỉ có tác dụng khi Kênh trend causal đang bật';label.append(input,'Kênh trend causal nét chấm');$('causal-trend-channel').closest('label').insertAdjacentElement('afterend',label);}
+  $('geometry-pivots').closest('label').title='Ưu tiên điểm xoay từ màu Hộp H1 đã khóa cho Pivot, phân kỳ và mẫu nêm tăng/giảm; khi chưa đủ ít nhất 2 đỉnh và 2 đáy H1, tự dùng pivot giá M15. Trendline chỉ dùng điểm đã xác nhận causal.';
   $('geometry-overlay').setAttribute('aria-label','Trendline đã xác nhận, trendline sớm nét chấm, pivot, phân kỳ, Kênh trend causal và bốn thông báo cắt line gần nhất');
   fit.insertAdjacentElement('afterend',live);
   const frame=document.createElement('span');frame.id='chart-frame-switch';frame.style.cssText='display:inline-flex;gap:3px;align-items:center';frame.setAttribute('aria-label','Khung biểu đồ');
@@ -300,7 +300,7 @@ function restoreH1Colors(data){
 }
 function ensureStudiesWorker(){
   if(!studiesWorker){
-    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261107-matrix-lines1',import.meta.url),{type:'module'});
+    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261107-channel-no-dots1',import.meta.url),{type:'module'});
     studiesWorker.onmessage=({data})=>{
       if(data.type==='history-ready'){
         h1HistoryKnown=true;h1HistoryRevision=archiveColorRevision(data.archive);
@@ -522,7 +522,7 @@ function scheduleAbaBandColors(){
 function updateAbaBandColors(){
  if(!series.priceUpper||!series.priceLower)return;
  const on=Boolean($('aba-band-colors')?.checked),supported=$('symbol').value==='SPYUSDT'&&$('interval').value==='15m',enabled=on&&supported&&$('causal-trend-channel').checked,bands=[...priceBandMap.values()];
- const channels=enabled?(causalChannelState.trends??[]).filter(c=>!c.provisional||$('causal-trend-channel-provisional').checked):[],result=causalChannelAba({channels,bands,now:cache?.serverTime??0});
+ const channels=enabled?(causalChannelState.trends??[]).filter(c=>!c.provisional):[],result=causalChannelAba({channels,bands,now:cache?.serverTime??0});
  abaBandPhaseMap=result.phases;
  $('aba-band-history').disabled=!abaBandPhaseMap.size;
  for(const [name,field] of [['priceUpper','upper'],['priceLower','lower']])writeSeries(name,series[name],bands.map(r=>Number.isFinite(r[field])?{time:r.t/1000,value:r[field],color:result.phases.has(r.t)?wlrColorMap.get(r.t)?.color??'#91a5bd':'rgba(145,165,189,.35)'}:{time:r.t/1000}),[$('symbol').value,$('interval').value,enabled,$('wlr-soft-colors').checked].join('|'));
@@ -717,15 +717,15 @@ function drawGeometryOverlay(){
   const canvas=$('geometry-overlay'),host=$('chart'),width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1;
   const bitmapWidth=Math.round(width*dpr),bitmapHeight=Math.round(height*dpr);if(canvas.width!==bitmapWidth||canvas.height!==bitmapHeight){canvas.width=bitmapWidth;canvas.height=bitmapHeight;}
   const context=canvas.getContext('2d');context.setTransform(dpr,0,0,dpr,0,0);context.clearRect(0,0,width,height);canvas.dataset.lines=String(geometryState.lines?.length??0);canvas.dataset.provisionalLines=String(geometryState.provisionalLines?.length??0);canvas.dataset.pivots=String(geometryState.pivots?.length??0);canvas.dataset.states=String(geometryStatePoints.length);canvas.dataset.causalTrends=String(causalChannelState.trends?.length??0);canvas.dataset.pivotSource=geometryState.pivotSource??'M15_PRICE';
-  const showGeometry=$('geometry-toggle').checked,showGeometryProvisional=$('geometry-provisional').checked,showCausal=$('causal-trend-channel').checked,showCausalProvisional=$('causal-trend-channel-provisional').checked;if(!showGeometry&&!showCausal)return;
+  const showGeometry=$('geometry-toggle').checked,showGeometryProvisional=$('geometry-provisional').checked,showCausal=$('causal-trend-channel').checked;if(!showGeometry&&!showCausal)return;
   const paneHeight=chart.panes()[0]?.getHeight?.()??height*.5,scaleWidth=chart.priceScale('right',0)?.width?.()??56,right=width-scaleWidth;
   context.save();context.beginPath();context.rect(0,0,right,paneHeight);context.clip();canvas.dataset.clipHeight=String(paneHeight);context.lineJoin='round';context.lineCap='round';
   if(showCausal){
     for(const trend of causalChannelState.trends??[]){
-      if(trend.provisional&&!showCausalProvisional)continue;
+      if(trend.provisional)continue;
       const path=(trend.renderPoints??trend.points??[]).map(point=>({point,x:chart.timeScale().timeToCoordinate(point.time/1000),upper:price.priceToCoordinate(point.upper),lower:price.priceToCoordinate(point.lower),center:price.priceToCoordinate(point.center)})).filter(item=>[item.x,item.upper,item.lower,item.center].every(Number.isFinite)),x1=path[0]?.x,x2=path.at(-1)?.x,confirmPoint=path.find(item=>item.point.time===trend.confirmationTime);
       if(path.length<2||Math.max(x1,x2)<0||Math.min(x1,x2)>right)continue;
-      const alpha=Math.max(.35,Math.min(.98,trend.qualityOpacity??.78)),rgb=trend.direction<0?'248,250,252':trend.absorbing?'251,146,60':trend.provisional?'34,211,238':'250,204,21',color=`rgba(${rgb},${alpha})`,secondaryColor=`rgba(${rgb},${Math.max(.24,alpha*.58)})`,primaryKey=trend.direction>0?'lower':'upper',secondaryKey=trend.direction>0?'upper':'lower',dash=trend.provisional?[5,4]:trend.absorbing?[9,5]:[];
+      const alpha=Math.max(.35,Math.min(.98,trend.qualityOpacity??.78)),rgb=trend.direction<0?'248,250,252':trend.absorbing?'251,146,60':'250,204,21',color=`rgba(${rgb},${alpha})`,secondaryColor=`rgba(${rgb},${Math.max(.24,alpha*.58)})`,primaryKey=trend.direction>0?'lower':'upper',secondaryKey=trend.direction>0?'upper':'lower',dash=trend.absorbing?[9,5]:[];
       const strokeRail=(key,stroke,width)=>{context.strokeStyle=stroke;context.lineWidth=width;context.setLineDash(dash);context.beginPath();for(let i=0;i<path.length;i++)i?context.lineTo(path[i].x,path[i][key]):context.moveTo(path[i].x,path[i][key]);context.stroke();};
       strokeRail(secondaryKey,secondaryColor,1.35);strokeRail(primaryKey,color,Math.max(2,Math.min(5,trend.lineWidth??2)));
       const startY=path[0].center;
@@ -1063,7 +1063,7 @@ if(init()){
   const matrixLineLabel=document.createElement('label'),matrixLineToggle=document.createElement('input');matrixLineToggle.id='geometry-matrix-toggle';matrixLineToggle.type='checkbox';matrixLineToggle.checked=true;matrixLineLabel.title='Thử trên SPY M15: H1 đã khóa và ma trận xếp hạng 50% line breakout, 50% biên nêm. Khóa điểm neo khi chờ phá; thiếu OI không xác nhận phá. Chỉ 4/4 M15 đóng. Tắt để dùng bộ chọn 50/50 cũ.';matrixLineLabel.append(matrixLineToggle,'Trendline 50/50 · ma trận H1');indicatorTools.append(matrixLineLabel);matrixLineToggle.onchange=()=>{studyKey='';render(false);};
   const chartNotes=document.createElement('details');chartNotes.id='chart-notes';const notesSummary=document.createElement('summary');notesSummary.textContent='Giải thích và trạng thái chỉ báo';chartNotes.append(notesSummary);chartCard.after(chartNotes);
   for(const node of chartCard.querySelectorAll('#tooltip,.hint'))chartNotes.append(node);
-  strengthBoxLayer=createStrengthBoxLayer({chart,host:$('chart'),actions:indicatorTools,getContext:()=>({rows:rows[$('symbol').value]??[],symbol:$('symbol').value,interval:$('interval').value,step:STEPS[$('interval').value],now:cache?.serverTime??0,price,composite:maps.COMPOSITE??new Map(),compositeRevision:studyResultKey,volume:boxVolumeStrengthMap,earlyChannels:studyResultKey===studyKey&&$('causal-trend-channel').checked&&$('causal-trend-channel-provisional').checked?(causalChannelState.early??[]):[],channels:studyResultKey===studyKey&&$('causal-trend-channel').checked?(causalChannelState.trends??[]).filter(c=>!c.provisional||$('causal-trend-channel-provisional').checked):[]}),onChange:()=>quantileLayer?.update()});
+  strengthBoxLayer=createStrengthBoxLayer({chart,host:$('chart'),actions:indicatorTools,getContext:()=>({rows:rows[$('symbol').value]??[],symbol:$('symbol').value,interval:$('interval').value,step:STEPS[$('interval').value],now:cache?.serverTime??0,price,composite:maps.COMPOSITE??new Map(),compositeRevision:studyResultKey,volume:boxVolumeStrengthMap,channels:studyResultKey===studyKey&&$('causal-trend-channel').checked?(causalChannelState.trends??[]).filter(c=>!c.provisional):[]}),onChange:()=>quantileLayer?.update()});
   quantileLayer=createQuantilePrice({chart,host:$('chart'),actions:indicatorTools,getContext:()=>({spy:rows.SPYUSDT??[],qqq:rows.QQQUSDT??[],boxes:strengthBoxLayer?.getState(),symbol:$('symbol').value,interval:$('interval').value,now:Date.now()+serverOffsetMs,live:$('live-indicator').className==='live'&&isChartLive()})});
   const oiSpectrumLabel=document.createElement('label'),oiSpectrumToggle=document.createElement('input'),oiSpectrumStatus=document.createElement('span');
   oiSpectrumToggle.id='oi-spectrum-toggle';oiSpectrumToggle.type='checkbox';oiSpectrumToggle.checked=true;oiSpectrumStatus.id='oi-spectrum-status';oiSpectrumStatus.textContent='Phổ ΔOI SPY · WAIT';
@@ -1108,7 +1108,7 @@ if(init()){
   syncDisplayModeButtons();
   $('refresh').onclick=()=>refresh();$('interval').onchange=()=>{syncChartFrameButtons();updateH1TrendAgeReadout();updateGeometryReadout();refresh(true);};$('days').onchange=()=>refresh(true);
   for(const id of ['symbol','signal'])$(id).onchange=()=>{resetStudies();render(false);setLive();};
-  for(const id of ['composite','alignment','price-bands','pivot-zones','cvd-spectrum-toggle','show-strength','spy-volume-strength','bands','markers','geometry-toggle','geometry-provisional','causal-trend-channel','causal-trend-channel-provisional','geometry-pivots'])$(id).onchange=toggle;
+  for(const id of ['composite','alignment','price-bands','pivot-zones','cvd-spectrum-toggle','show-strength','spy-volume-strength','bands','markers','geometry-toggle','geometry-provisional','causal-trend-channel','geometry-pivots'])$(id).onchange=toggle;
   $('confirmed-delta-toggle').onchange=toggle;$('oi-width-toggle').onchange=()=>render(false);
   for(const id of ['geometry-score','geometry-lines'])$(id).onchange=()=>render(false);
   $('wlr-soft-color-mode').onclick=()=>{const input=$('wlr-soft-colors');input.checked=!input.checked;syncDisplayModeButtons();render(false);};

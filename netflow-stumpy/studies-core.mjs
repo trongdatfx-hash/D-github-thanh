@@ -58,10 +58,6 @@ export function computeStudies({rows,volumeRows,symbol,interval,options,now,tren
   const ageTrendHistory=interval==='15m'&&symbol==='SPYUSDT'?historicalTrendAgeStates({priceRows:tRows,strengthRows:trend?.rows.COMPOSITE??[],volumeRows:ageVolume,channelTrends:ageChannelState.episodes,now,fromTime:-Infinity}):allTrendAgeHistory;
   const matrixEnabled=options.matrixGeometry===true&&symbol==='SPYUSDT'&&interval==='15m';
   const geometry=matrixEnabled?analyzeMatrixGeometry({...input,h1CandleColors,oiByTime:geometryOi},{...options,replayState:matrixReplayState}):analyzeGeometry({...input,h1CandleColors},options),channels=causalTrendChannels(closedPrice,{volumeRows:input.volume,maxHistory:12});
-  // Same causal leg rules, lower display age only. Preview predicts whether a
-  // 4–7 bar live candidate will survive to the normal eight-bar display age.
-  const early=causalTrendChannels(closedPrice,{volumeRows:input.volume,minLegBars:4,maxHistory:12});
-  channels.early=early.episodes.filter(c=>c.provisional&&c.bars>=4&&c.bars<8&&c.insideEndTime===closedPrice.at(-1)?.t).map(c=>({...c,early:true,targetMinBars:8}));
   const breakout=matrixEnabled?geometry.breakout:analyzeBreakoutRetest(input,options),points=matrixEnabled?geometry.points:recentCausalLineStates(input,{...options,stateLookbackBars:600},4),backtest=backtestGeometry(closedPrice,geometry.events,{horizon:4,minMoveAtr:.35});
   const model=interval==='15m'&&trend?trend:{rows,volume:volumeRows},modelPrice=(model.rows[symbol]??p).filter(r=>(r.end??r.t)<now),modelTimes=new Set(modelPrice.map(r=>r.t));
   const pivot=pivotZones({price:modelPrice,composite:(model.rows.COMPOSITE??[]).filter(r=>modelTimes.has(r.t)),volume:model.volume.filter(r=>modelTimes.has(r.t))},STEPS[interval]);
