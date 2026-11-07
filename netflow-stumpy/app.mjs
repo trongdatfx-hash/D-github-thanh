@@ -1,7 +1,7 @@
 import {mountChartSettings} from './chart-settings.mjs?v=20261107-outside-fast1';
-import {mountH1ScoreHistogram} from './h1-box-score-ui.mjs?v=20261107-outside-fast1';
+import {mountH1ScoreHistogram} from './h1-box-score-ui.mjs?v=20261107-nf-names1';
 import {pivotMatrixStyle} from './pivot-matrix-style.mjs?v=20261107-pivot-matrix1';
-import {matrixOptions,mountMatrixSettings,hasTrendPrediction,cvdConfirmationText} from './h1-matrix-state.mjs?v=20261107-matrix-fix2';
+import {matrixOptions,mountMatrixSettings,hasTrendPrediction,cvdConfirmationText} from './h1-matrix-state.mjs?v=20261107-nf-names1';
 import {mountGptPattern} from './gpt-pattern-ui.mjs?v=20261106-chatflow1';
 import {CvdBadgeBorder} from './cvd-badge-border.mjs?v=20261106-border1';
 import {CurrentOiLoader,RunningOiState} from './oi-current.mjs?v=20261106-oi-live1';
@@ -587,7 +587,7 @@ function updateH1MatrixReadout(matrix){
  node.textContent=(stale?'H1 CŨ · ':'')+groups.map(g=>`${g.firstBox===null?'H—':`H${g.firstBox}–${g.lastBox}`}: ${g.text}`).join(' | ');
  node.dataset.matrix=JSON.stringify(matrix);node.dataset.states=groups.map(g=>g.state).join('|');
  const time=t=>Number.isFinite(t)?new Date(t).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'}):'—';
- node.title=`Ma trận ${matrix.columns.length}/${matrix.options.window} hộp H1 đã đóng; ${matrix.options.size} hộp/nhóm. Đánh số H1 cũ nhất → H${matrix.columns.length} mới nhất trong cửa sổ ma trận, không tính hộp đang chạy. `+groups.map(g=>`H${g.firstBox??'—'}–${g.lastBox??'—'} · ${time(g.from)} → ${time(g.to===null?null:g.to+3600000)}: ${g.text}`).join('\n')+'\nĐọc ba nhóm GIÁ, ΔV×NF, OI; RW chỉ là trọng số, không phải bằng chứng độc lập. Suy yếu cần nhóm liền trước đã được ủng hộ và cả dòng tiền lẫn OI mất hỗ trợ. Thiếu dữ liệu không coi là 0. Đây là trạng thái lực lịch sử, không xác nhận đảo trend hoặc dự báo tuổi.';
+ node.title=`Ma trận ${matrix.columns.length}/${matrix.options.window} hộp H1 đã đóng; ${matrix.options.size} hộp/nhóm. Đánh số H1 cũ nhất → H${matrix.columns.length} mới nhất trong cửa sổ ma trận, không tính hộp đang chạy. `+groups.map(g=>`H${g.firstBox??'—'}–${g.lastBox??'—'} · ${time(g.from)} → ${time(g.to===null?null:g.to+3600000)}: ${g.text}`).join('\n')+'\nĐọc ba nhóm GIÁ, ΔV×C Taker NF (SPY+QQQ), OI; RW chỉ là trọng số, không phải bằng chứng độc lập. Suy yếu cần nhóm liền trước đã được ủng hộ và cả ΔV×C Taker NF lẫn OI mất hỗ trợ. Thiếu dữ liệu không coi là 0. Đây là trạng thái lực lịch sử, không xác nhận đảo trend hoặc dự báo tuổi.';
  requestAnimationFrame(positionForecastReadout);
 }
 function currentH1TrendAge(){
