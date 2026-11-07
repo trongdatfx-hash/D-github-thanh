@@ -184,3 +184,11 @@ body.chart-fullscreen #chart-settings{display:none!important}
 body.chart-fullscreen .chart-card.fullscreen-fallback{inset:0;height:100dvh;width:100vw}
 
 body.chart-fullscreen::before{display:none}
+
+/* OI arrow and percentage precede the H1 box readout on one line. */
+#h1-cvd-status-row>#h1-trend-age-readout{flex-wrap:nowrap;overflow:hidden;white-space:nowrap}
+#h1-cvd-status-row #h1-oi-status{display:inline-flex;gap:3px;flex:0 0 auto;white-space:nowrap;font-size:12px;font-weight:600;color:#d6e4f4}
+#h1-cvd-status-row #h1-oi-percent[data-tone=up]{color:#46e6af}
+#h1-cvd-status-row #h1-oi-percent[data-tone=down]{color:#ff8299}
+#h1-cvd-status-row #h1-trend-age-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#h1-cvd-status-row #h1-candle-countdown{white-space:nowrap}
