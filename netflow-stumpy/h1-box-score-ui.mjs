@@ -3,7 +3,7 @@ import {buildH1Matrix} from './h1-matrix-state.mjs?v=20261107-matrix-short-label
 import {h1StripCell} from './h1-h4-strip.mjs?v=20261101-h1h4-align1';
 
 export function mountH1ScoreHistogram({chart,host,getState,storage=null,onMatrix=()=>{}}){
-  const ledger=new H1ScoreLedger(storage),nodes=new Map();let frame=0;
+  const ledger=new H1ScoreLedger(storage),nodes=new Map();let frame=0,mirrorCache=null;
   const root=document.createElement('div');root.id='h1-score-histogram';root.hidden=true;root.setAttribute('role','group');root.setAttribute('aria-label','Điểm 36 hộp H1, bắt đầu từ 3 nến M15 đã đóng, từ âm 5 đến dương 5');
   const heading=document.createElement('span');heading.className='h1-score-heading';heading.textContent='36 H1 · ±5';heading.title='Điểm mô tả tối đa 36 hộp H1, căn cùng thời gian với dải H1 trong pane SPY V. Hộp hiện tại có điểm tạm sau 3 M15 đóng, khóa sau nến thứ tư nếu đủ dữ liệu. Xanh: điểm dương; đỏ: điểm âm; ~ là điểm tạm 3/4; * là thiếu dữ liệu.';
   const zero=document.createElement('div');zero.className='h1-score-zero';
@@ -44,7 +44,12 @@ export function mountH1ScoreHistogram({chart,host,getState,storage=null,onMatrix
     heading.textContent=visible?`36 H1 · ±5${positions.some(p=>p.status==='PREVIEW')?' · ~ tạm 3/4':''}${positions.some(p=>p.missing)?' · * thiếu':''}`:'36 H1 · chờ ≥3 M15 đóng';
   }
   const schedule=()=>{if(!frame)frame=requestAnimationFrame(draw);};
-  schedule();return {schedule};
+  schedule();return {schedule,getLockedScores(limit=512){
+    const state=getState({forMirror:true});if(!state.active||!state.bars?.length)return [];
+    const blocks=lockedH1Blocks(state.states,state.now,Infinity,limit),key=[state.bars[0]?.t,state.bars.findLast(b=>b.end<state.now)?.t,blocks.length,blocks.at(-1)?.t,state.scoreRevision??'',limit].join('|');
+    if(mirrorCache?.key===key)return mirrorCache.records;
+    const records=blocks.map(block=>ledger.get(block,{...state,bars:h1ScoreBars(state.bars,block.blockStart)})).filter(Boolean);mirrorCache={key,records};return records;
+  }};
 }
 
 

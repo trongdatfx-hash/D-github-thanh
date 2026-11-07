@@ -1,7 +1,8 @@
+import {h1ScoreMirror} from './spy-volume-h1-mirror.mjs?v=20261107-spy-mirror1';
 import {LargeTakerLoader,largeTakerDetail} from './large-taker-spectrum.mjs?v=20261107-large-taker2';
 import {h1OiLabel,OiPercentColor} from './h1-oi-label.mjs?v=20261107-h1-label-arrows1';
 import {mountChartSettings} from './chart-settings.mjs?v=20261107-outside-fast1';
-import {mountH1ScoreHistogram} from './h1-box-score-ui.mjs?v=20261107-matrix-short-label1';
+import {mountH1ScoreHistogram} from './h1-box-score-ui.mjs?v=20261107-spy-mirror1';
 import {pivotMatrixStyle} from './pivot-matrix-style.mjs?v=20261107-pivot-matrix1';
 import {matrixOptions,mountMatrixSettings,hasTrendPrediction,cvdConfirmationText} from './h1-matrix-state.mjs?v=20261107-matrix-short-label1';
 import {mountGptPattern} from './gpt-pattern-ui.mjs?v=20261106-chatflow1';
@@ -74,7 +75,7 @@ let studiesWorker=null,studyKey='',studyResultKey='',statsWorker=null,statsReque
 const CALENDAR_REFRESH_MS=5*60*1000;
 const FIT_WINDOW_MS=36*60*60*1000,FIT_HALF_WINDOW_MS=12*60*60*1000,DOUBLE_TAP_MS=360,DOUBLE_TAP_DISTANCE=28,TAP_MOVE_TOLERANCE=14;
 const SETUP_STORAGE_KEY='netflow-rth-lite:chart-setup:v1';
-const SETUP_CONTROL_IDS=['symbol','interval','days','signal','composite','alignment','confirmed-delta-toggle','oi-width-toggle','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-trend-age-color','candle-h1-box-color','cvd-spectrum-toggle','large-taker-toggle','oi-spectrum-toggle','oi-candle-bars-toggle','oi-candle-pin-toggle','oi-delta-percentile','oi-bold-candles-toggle','show-strength','spy-volume-strength','spy-volume-h1-smooth','bands','markers','double-tap-full','geometry-toggle','geometry-matrix-toggle','geometry-provisional','causal-trend-channel','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
+const SETUP_CONTROL_IDS=['symbol','interval','days','signal','composite','alignment','confirmed-delta-toggle','oi-width-toggle','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-trend-age-color','candle-h1-box-color','cvd-spectrum-toggle','large-taker-toggle','oi-spectrum-toggle','oi-candle-bars-toggle','oi-candle-pin-toggle','oi-delta-percentile','oi-bold-candles-toggle','show-strength','spy-volume-strength','spy-volume-h1-smooth','spy-volume-h1-mirror','bands','markers','double-tap-full','geometry-toggle','geometry-matrix-toggle','geometry-provisional','causal-trend-channel','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
 let statsMap=new Map(),candleColorMap=new Map(),candleClusterMap=new Map(),rev63State=null,pivotZoneState={ready:false,reason:'history',support:null,resistance:null},pivotZoneKey='',inspectedTime=null;
 let calendarState={events:[],updatedAt:null,loading:false};
 let pendingSavedTimeRange=null,saveSetupTimer=null,strengthBoxLayer=null,quantileLayer=null;
@@ -311,13 +312,13 @@ function ensureStudiesWorker(){
       if(data.partial==='h1'){
         h1CacheArchive=null;h1CandleMap=new Map((data.result?.h1CandleColors??[]).map(state=>[state.t,state]));h1H4CandleMap=new Map((data.result?.h1H4CandleColors??[]).map(state=>[state.t,state]));$('chart').dataset.h1ColorCache='fresh';
         if(studyColorInput?.key===data.key)saveH1ColorCache(colorStorage(),studyColorInput.raw,{sourceKey:studyColorInput.sourceKey,archiveRevision:archiveColorRevision(data.archive),h1:data.result?.h1CandleColors??[],strip:data.result?.h1H4CandleColors??[]});
-        updateH1TrendAgeReadout();scheduleH1H4Strip();if($('candle-h1-box-color')?.checked||$('spy-volume-h1-smooth')?.checked)render(false);recordH1ColorPaint();return;
+        updateH1TrendAgeReadout();scheduleH1H4Strip();if($('candle-h1-box-color')?.checked||$('spy-volume-h1-smooth')?.checked||$('spy-volume-h1-mirror')?.checked)render(false);recordH1ColorPaint();return;
       }
       if(data.error){$('chart').dataset.studyStatus='error';$('chart').dataset.studyError=data.error;studyKey='';return;}
       h1CacheArchive=null;const r=data.result;geometryState=r.geometry;causalChannelState=r.channels;breakoutState=r.breakout;geometryStatePoints=r.points;geometryBacktest=r.backtest;pivotZoneState=r.pivot;rev63State=r.rev63;trendAgeCandleMap=new Map((r.trendAgeHistory??[]).map(state=>[state.t,state]));h1CandleMap=new Map((r.h1CandleColors??[]).map(state=>[state.t,state]));h1H4CandleMap=new Map((r.h1H4CandleColors??[]).map(state=>[state.t,state]));$('chart').dataset.trendAgeVolumeSource=r.trendAgeVolumeSource??'SPY_V_ORIGINAL';renderWeeklyTrendMap(r.weekly);
       $('chart').dataset.h1ColorCache='fresh';studyResultKey=data.key;studyTimingMs=data.computeMs;trainingMeta=data.archive;
       $('chart').dataset.studyStatus='ready';$('chart').dataset.studyComputeMs=String(Math.round(studyTimingMs));$('chart').dataset.geometryMatrixVersion=geometryState.matrixVersion??'off';$('chart').dataset.geometryMatrixState=geometryState.matrix?.state??'WAIT';
-      updateRev63();updatePivotZones();scheduleGeometryOverlay();scheduleSpectrumBadge();scheduleAbaBandColors();strengthBoxLayer?.update();quantileLayer?.update();if($('candle-trend-age-color')?.checked||$('candle-h1-box-color')?.checked||$('spy-volume-h1-smooth')?.checked)render(false);
+      updateRev63();updatePivotZones();scheduleGeometryOverlay();scheduleSpectrumBadge();scheduleAbaBandColors();strengthBoxLayer?.update();quantileLayer?.update();if($('candle-trend-age-color')?.checked||$('candle-h1-box-color')?.checked||$('spy-volume-h1-smooth')?.checked||$('spy-volume-h1-mirror')?.checked)render(false);
     };
     studiesWorker.onerror=()=>{$('chart').dataset.studyStatus='error';studyKey='';studiesWorker?.terminate();studiesWorker=null;h1HistoryKnown=false;h1HistoryRevision=null;};
   }
@@ -415,6 +416,7 @@ function init(){
   series.oiCandleBars.priceScale().applyOptions({autoScale:true,scaleMargins:{top:.80,bottom:0}});
   series.volumeStrength=chart.addSeries(L.BaselineSeries,{baseValue:{type:'price',price:0},topLineColor:'#f6c85f',topFillColor1:'rgba(246,200,95,.12)',topFillColor2:'rgba(246,200,95,0)',bottomLineColor:'#f3f6fb',bottomFillColor1:'rgba(243,246,251,0)',bottomFillColor2:'rgba(243,246,251,.09)',lineWidth:3,title:'',priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:4,autoscaleInfoProvider:()=>({priceRange:{minValue:-1,maxValue:1}})},1);
   series.confirmedDelta=chart.addCustomSeries(new OiDottedSeries,{priceScaleId:'right',color:PRICE_DELTA_COLORS.positive,priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},autoscaleInfoProvider:symmetricAutoscale},1);
+  series.volumeMirror=chart.addSeries(L.LineSeries,{priceScaleId:'right',color:'rgba(210,194,174,.55)',lineWidth:1,lineStyle:L.LineStyle.Solid,title:'',priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},autoscaleInfoProvider:()=>({priceRange:{minValue:-1,maxValue:1}})},1);
   series.volumeStrength.createPriceLine({price:0,color:'#6f8299',lineWidth:1,lineStyle:L.LineStyle.Solid,axisLabelVisible:true,title:'0'});
   series.volumeStrength.priceScale().applyOptions({scaleMargins:{top:.08,bottom:.08}});
   // A requested pane index can be clamped while panes are still being created.
@@ -445,8 +447,8 @@ function init(){
   for(const element of [$('chart'),...chart.panes().map(pane=>pane.getHTMLElement())].filter(Boolean))paneLayoutObserver.observe(element);
   $('chart').addEventListener('pointermove',scheduleSpectrumBadge,{passive:true});$('chart').addEventListener('wheel',scheduleSpectrumBadge,{passive:true});
   let scoreInputs=null;
-  h1ScoreLayer=mountH1ScoreHistogram({chart,host:$('chart'),storage:colorStorage(),onMatrix:updateH1MatrixReadout,getState:()=>{
-    const active=$('symbol').value==='SPYUSDT'&&$('interval').value==='15m'&&$('candle-h1-box-color')?.checked;
+  h1ScoreLayer=mountH1ScoreHistogram({chart,host:$('chart'),storage:colorStorage(),onMatrix:updateH1MatrixReadout,getState:({forMirror=false}={})=>{
+    const active=$('symbol').value==='SPYUSDT'&&$('interval').value==='15m'&&(forMirror||$('candle-h1-box-color')?.checked);
     if(!active)return {active:false};
     const bars=rows.SPYUSDT??[],flowRows=rows.COMPOSITE??[],oiMap=oiStamp==='15m'?oiWidths:new Map(),now=cache?.serverTime??Date.now();
     if(!scoreInputs||scoreInputs.bars!==bars||scoreInputs.flowRows!==flowRows||scoreInputs.oi!==oiMap||scoreInputs.bands!==priceBandMap){
@@ -454,7 +456,7 @@ function init(){
       const points=oiCandleBars(bars,deltaRows,flowRows,oiMap,STEPS['15m'],now,{filterPin:true,history:true,minOiMultiplier:1,oiPercentile:.62}).points;
       scoreInputs={bars,flowRows,bands:priceBandMap,deltas:new Map(deltaRows.map(r=>[r.t,r])),flows:new Map(flowRows.map(r=>[r.t,r])),oi:oiMap,oiPoints:points};
     }
-    return {...scoreInputs,active:true,states:h1CandleMap,now,matrixOptions:getH1MatrixOptions()};
+    return {...scoreInputs,active:true,states:h1CandleMap,now,scoreRevision:geometryOiRevision+'|'+studyResultKey,matrixOptions:getH1MatrixOptions()};
   }});
   bindChartGestures();
   return true;
@@ -829,6 +831,10 @@ function render(fit=false){
   writeSeries('confirmedDelta',series.confirmedDelta,priceDeltaStrengthData(rows.COMPOSITE??[]),seriesContext);
   writeSeries('strength',series.strength,lineData(signalRows,'adjusted'),seriesContext);
   writeSeries('volumeStrength',series.volumeStrength,lineData(displayVolumeStrengthRows,'adjusted'),seriesContext);
+  const mirrorEnabled=$('spy-volume-h1-mirror')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
+  const mirrorRows=mirrorEnabled?h1ScoreMirror(volumeStrengthRows,h1ScoreLayer?.getLockedScores()??[],{now:cache?.serverTime??Date.now(),step:STEPS['15m']}):[];
+  writeSeries('volumeMirror',series.volumeMirror,mirrorRows.map(r=>Number.isFinite(r.adjusted)?{time:r.t/1000,value:r.adjusted}:{time:r.t/1000}),seriesContext+'|mirror-original-h1');
+  $('chart').dataset.spyMirrorSource='SPY_V_ORIGINAL';$('chart').dataset.spyMirrorWeight=mirrorRows.at(-1)?.h1Score===null?'baseline':mirrorRows.length?'locked-H1':'off';
   setMarkers(strengthMarks,signalRows.filter(x=>Number.isFinite(x.adjusted)&&x.adjusted>.95).map(x=>({time:x.t/1000,position:'inBar',color:'#7dffd9',shape:'circle',text:''})));
   for(const key of ['mid','upper','lower'])writeSeries(key,series[key],lineData(signalRows,key),seriesContext);
   let previousDay=null,previousSession=null;
@@ -947,6 +953,8 @@ function showTooltip(t){
 function toggle(){
   strengthBoxLayer?.update();quantileLayer?.update();
   scheduleAbaBandColors();
+  setOptions(series.volumeMirror,{visible:!!$('spy-volume-h1-mirror')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m'});
+  const mirrorButton=$('spy-volume-mirror-button');if(mirrorButton){mirrorButton.lastChild.textContent=`SPY V gương H1: ${$('spy-volume-h1-mirror').checked?'BẬT':'TẮT'}`;mirrorButton.setAttribute('aria-pressed',String($('spy-volume-h1-mirror').checked));}
   for(const [id,key] of [['composite','COMPOSITE'],['show-strength','strength'],['spy-volume-strength','volumeStrength']])setOptions(series[key],{visible:$(id).checked});
   setOptions(strengthMarks,{visible:$('show-strength').checked});
   $('cvd-spectrum').style.display=($('cvd-spectrum-toggle').checked||$('oi-spectrum-toggle')?.checked)?'block':'none';scheduleCvdSpectrum();
@@ -1088,6 +1096,7 @@ if(init()){
   spyH1Label.title='Thử nghiệm SPY V trên M15: Hộp H1 điều chỉnh EWMA trước chuẩn hóa; nhanh khi cùng hướng, chậm khi trung tính, mở tốc độ khi lực đảo chiều. Hộp đóng chỉ dùng từ lúc xác nhận; preview chỉ tác động điểm đang chạy. Khi bật, đường SPY V, màu WLR dốc + SPY V, độ dày WLR Dốc/σ + khóa mềm và dự báo tuổi trend cùng dùng SPY V mượt H1; khi tắt, các mục này trở về SPY V gốc.';
   spyH1Label.append(spyH1Toggle,'SPY V mượt H1 · thử');$('spy-volume-strength').closest('label').after(spyH1Label);
   spyH1Toggle.onchange=()=>{studyKey='';render(false);};
+  const mirrorInput=document.createElement('input'),mirrorButton=document.createElement('button');mirrorInput.id='spy-volume-h1-mirror';mirrorInput.type='checkbox';mirrorInput.checked=true;mirrorInput.hidden=true;mirrorButton.id='spy-volume-mirror-button';mirrorButton.type='button';mirrorButton.className='display-mode-button';mirrorButton.append(mirrorInput,'SPY V gương H1: BẬT');mirrorButton.title='SPY M15 · gương qua mốc 0 của SPY V GỐC, làm trơn EWMA có trọng số 1 + |điểm hộp H1| (1–6), half-life 2 M15. Chỉ điểm H1 đủ 4 nến đã khóa từ giờ trước; thiếu điểm dùng trọng số 1. Không dùng SPY V mượt H1, không thay WLR hay ma trận.';spyH1Label.after(mirrorButton);mirrorButton.onclick=()=>{mirrorInput.checked=!mirrorInput.checked;render(false);};
   restoreSavedSetup();syncChartFrameButtons();
   // Restore the C histogram once for setups saved before the taker plot cleanup.
   // Subsequent user choices remain under the normal Save setup control.
