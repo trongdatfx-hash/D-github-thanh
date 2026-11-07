@@ -1,7 +1,11 @@
 import {oiSpectrumDay} from './oi-spectrum.mjs?v=20261104-oi-stale-fast2';
 
-export function buildSpectrumComparison(priceRows,flowBars,oiProfile,now,{binStep=.5,range=12}={}){
-  const empty={rows:[],day:null,count:0,oiCount:0,pairedReady:false,maxCvd:0,maxOiGross:0,binStep};
+export function spyCandleVolumeFlow(bars){
+  return bars.filter(b=>[b.o,b.c,b.v].every(Number.isFinite)&&b.v>=0).map(b=>({...b,net:Math.sign(b.c-b.o)*b.v}));
+}
+
+export function buildSpectrumComparison(priceRows,flowBars,oiProfile,now,{binStep=.5,range=12,flowSource='taker'}={}){
+  const empty={rows:[],day:null,count:0,oiCount:0,pairedReady:false,maxCvd:0,maxOiGross:0,binStep,flowSource};
   if(!Number.isFinite(now)||now<=0||!priceRows.length)return empty;
   const day=oiProfile.ready?oiProfile.day:oiSpectrumDay(now),center=priceRows.at(-1).c,flow=new Map(flowBars.map(r=>[r.t,r.net]));
   const daily=priceRows.filter(r=>r.end<now&&oiSpectrumDay(r.t)===day&&Number.isFinite(flow.get(r.t)));
@@ -15,7 +19,7 @@ export function buildSpectrumComparison(priceRows,flowBars,oiProfile,now,{binSte
   const rows=[...bins.values()].filter(r=>Math.abs(r.price-center)<=range).sort((a,b)=>a.price-b.price).map(r=>({...r,netOi:r.opened-r.closed,grossOi:r.opened+r.closed,rank:0}));
   const top=[...rows].filter(r=>r.grossOi>0).sort((a,b)=>b.grossOi-a.grossOi||Math.abs(a.price-center)-Math.abs(b.price-center)).slice(0,3);
   top.forEach((r,i)=>{r.rank=i+1;});
-  return {rows,day,stale:pairedReady&&oiProfile.stale===true,last:oiProfile.last,times:selected.map(r=>r.t),count:selected.length,oiCount:pairedReady?oiTimes.size:0,pairedReady,maxCvd:Math.max(0,...rows.map(r=>Math.abs(r.cvd))),maxOiGross:Math.max(0,...rows.map(r=>r.grossOi)),binStep};
+  return {rows,day,stale:pairedReady&&oiProfile.stale===true,last:oiProfile.last,times:selected.map(r=>r.t),count:selected.length,oiCount:pairedReady?oiTimes.size:0,pairedReady,maxCvd:Math.max(0,...rows.map(r=>Math.abs(r.cvd))),maxOiGross:Math.max(0,...rows.map(r=>r.grossOi)),binStep,flowSource};
 }
 
 export function spectrumLaneLayout(width,anchor,{showCvd=true,compare=true}={}){
@@ -59,7 +63,7 @@ export function drawPairedSpectrum({context,mediaSize,anchor,priceToY,history,co
   context.save();context.beginPath();context.rect(0,0,width,height);context.clip();
   context.font=`600 ${width<650?8:9}px Inter,system-ui,sans-serif`;context.textBaseline='top';context.textAlign='center';context.fillStyle='#c5d6eb';
   if(showCvd){
-    context.fillText(compare?'CVD ngày':'CVD∞ '+source,lane.xCvd,5);
+    context.fillText(compare?(comparison.flowSource==='spy-candle-volume'?'CVD ngày ΔV':'CVD ngày'):'CVD∞ '+source,lane.xCvd,5);
     context.strokeStyle='rgba(157,181,209,.25)';context.lineWidth=1;context.beginPath();context.moveTo(lane.xCvd,20);context.lineTo(lane.xCvd,height);context.stroke();
     for(const bin of history.bins){
       const y=priceToY(bin.price),length=history.maxAbs?bin.value/history.maxAbs*lane.halfCvd:0;

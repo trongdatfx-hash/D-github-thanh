@@ -1,7 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildSpectrumComparison,spectrumLaneLayout,drawPairedSpectrum,spectrumPriceGroup,confirmSpectrumGroup} from '../paired-spectrum.mjs';
+import {spyCandleVolumeFlow,buildSpectrumComparison,spectrumLaneLayout,drawPairedSpectrum,spectrumPriceGroup,confirmSpectrumGroup} from '../paired-spectrum.mjs';
 const step=900000,midnight=Date.parse('2026-11-04T05:00:00Z'),now=midnight+4*step;
+test('SPY daily proxy uses raw signed volume, not taker NF or SMA normalized values',()=>{
+ const bars=[{t:midnight-step,end:midnight-1,o:1,c:2,v:99999,net:-9},{t:midnight,end:midnight+step-1,o:1,c:2,v:100,net:-500},{t:midnight+step,end:midnight+2*step-1,o:2,c:1,v:40,net:700},{t:midnight+2*step,end:midnight+3*step-1,o:1,c:1,v:80,net:999},{t:midnight+3*step,end:midnight+4*step-1,o:1,c:2,v:123456,net:9}];
+ const flow=spyCandleVolumeFlow(bars);assert.deepEqual(flow.map(x=>x.net),[99999,100,-40,0,123456]);
+ const result=buildSpectrumComparison(bars,flow,{ready:false},midnight+3*step,{range:200,flowSource:'spy-candle-volume'});
+ assert.equal(result.rows.reduce((s,r)=>s+r.cvd,0),60);assert.equal(result.count,3);assert.equal(result.flowSource,'spy-candle-volume');
+ const oi={ready:true,day:'2026-11-04',times:[midnight+step],bins:[{price:1,opened:10,closed:0}]};
+ const paired=buildSpectrumComparison(bars,flow,oi,midnight+3*step,{range:200,flowSource:'spy-candle-volume'});assert.equal(paired.count,1);assert.equal(paired.rows.reduce((s,r)=>s+r.cvd,0),-40);
+ assert.equal(spyCandleVolumeFlow([{o:1,c:2,v:NaN}]).length,0);
+});
 const priceRows=Array.from({length:5},(_,i)=>({t:midnight+(i-1)*step,end:midnight+i*step-1,c:100+i*.5}));
 const flowBars=priceRows.map((r,i)=>({...r,net:i===0?99999:i%2?-10:20}));
 const times=priceRows.slice(1).map(r=>r.t),bins=priceRows.slice(1).map((r,i)=>({price:r.c,opened:100+i*10,closed:95})),oiProfile={ready:true,day:'2026-11-04',times,bins};
@@ -45,3 +54,4 @@ test('region confirmation counts each qualified candle once and weights its abso
   points.get(1).kind='down-oi-increase';assert.equal(confirmSpectrumGroup(group,comparison,rows,points).state,'conflict');
   assert.equal(confirmSpectrumGroup({...group,ready:false},comparison,rows,points).state,'WAIT');
 });
+

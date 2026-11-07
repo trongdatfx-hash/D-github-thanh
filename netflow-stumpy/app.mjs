@@ -1,13 +1,13 @@
 import {mountChartSettings} from './chart-settings.mjs?v=20261107-outside-fast1';
-import {mountH1ScoreHistogram} from './h1-box-score-ui.mjs?v=20261107-nf-names1';
+import {mountH1ScoreHistogram} from './h1-box-score-ui.mjs?v=20261107-spy-delta-day1';
 import {pivotMatrixStyle} from './pivot-matrix-style.mjs?v=20261107-pivot-matrix1';
-import {matrixOptions,mountMatrixSettings,hasTrendPrediction,cvdConfirmationText} from './h1-matrix-state.mjs?v=20261107-nf-names1';
+import {matrixOptions,mountMatrixSettings,hasTrendPrediction,cvdConfirmationText} from './h1-matrix-state.mjs?v=20261107-spy-delta-day1';
 import {mountGptPattern} from './gpt-pattern-ui.mjs?v=20261106-chatflow1';
 import {CvdBadgeBorder} from './cvd-badge-border.mjs?v=20261106-border1';
 import {CurrentOiLoader,RunningOiState} from './oi-current.mjs?v=20261106-oi-live1';
 import {h1AdaptiveVolumeRows} from './spy-volume-h1.mjs?v=20261105-spyv-h1-1';
 import {OiFastLoader} from './oi-fast-load.mjs?v=20261104-oi-region-confirm1';
-import {buildSpectrumComparison,drawPairedSpectrum,spectrumPriceGroup,confirmSpectrumGroup} from './paired-spectrum.mjs?v=20261104-oi-stale-fast2';
+import {spyCandleVolumeFlow,buildSpectrumComparison,drawPairedSpectrum,spectrumPriceGroup,confirmSpectrumGroup} from './paired-spectrum.mjs?v=20261107-spy-delta-day1';
 import {OiHistory} from './oi-history.mjs?v=20261104-oi-stale-fast2';
 import {SpectrumPrimitive} from './spectrum-primitive.mjs?v=20261104-oi-smooth1';
 import {OiBoldCandles} from './oi-bold-candles.mjs?v=20261104-oi-purple-restore1';
@@ -587,7 +587,7 @@ function updateH1MatrixReadout(matrix){
  node.textContent=(stale?'H1 CŨ · ':'')+groups.map(g=>`${g.firstBox===null?'H—':`H${g.firstBox}–${g.lastBox}`}: ${g.text}`).join(' | ');
  node.dataset.matrix=JSON.stringify(matrix);node.dataset.states=groups.map(g=>g.state).join('|');
  const time=t=>Number.isFinite(t)?new Date(t).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'}):'—';
- node.title=`Ma trận ${matrix.columns.length}/${matrix.options.window} hộp H1 đã đóng; ${matrix.options.size} hộp/nhóm. Đánh số H1 cũ nhất → H${matrix.columns.length} mới nhất trong cửa sổ ma trận, không tính hộp đang chạy. `+groups.map(g=>`H${g.firstBox??'—'}–${g.lastBox??'—'} · ${time(g.from)} → ${time(g.to===null?null:g.to+3600000)}: ${g.text}`).join('\n')+'\nĐọc ba nhóm GIÁ, ΔV×C Taker NF (SPY+QQQ), OI; RW chỉ là trọng số, không phải bằng chứng độc lập. Suy yếu cần nhóm liền trước đã được ủng hộ và cả ΔV×C Taker NF lẫn OI mất hỗ trợ. Thiếu dữ liệu không coi là 0. Đây là trạng thái lực lịch sử, không xác nhận đảo trend hoặc dự báo tuổi.';
+ node.title=`Ma trận ${matrix.columns.length}/${matrix.options.window} hộp H1 đã đóng; ${matrix.options.size} hộp/nhóm. Đánh số H1 cũ nhất → H${matrix.columns.length} mới nhất trong cửa sổ ma trận, không tính hộp đang chạy. `+groups.map(g=>`H${g.firstBox??'—'}–${g.lastBox??'—'} · ${time(g.from)} → ${time(g.to===null?null:g.to+3600000)}: ${g.text}`).join('\n')+'\nĐọc ba nhóm GIÁ, C Taker, OI; C Taker là tên ngắn của đồng thuận ΔV SPY với C Taker NF (SPY+QQQ); RW chỉ là trọng số, không phải bằng chứng độc lập. Suy yếu cần nhóm liền trước đã được ủng hộ và cả C Taker lẫn OI mất hỗ trợ. Thiếu dữ liệu không coi là 0. Đây là trạng thái lực lịch sử, không xác nhận đảo trend hoặc dự báo tuổi.';
  requestAnimationFrame(positionForecastReadout);
 }
 function currentH1TrendAge(){
@@ -646,15 +646,16 @@ function drawCvdSpectrum(scope){
 function updateSpectrumReadout(level=null){
   const node=$('oi-cvd-readout');if(!node)return;
   node.hidden=!$('oi-spectrum-toggle')?.checked||$('symbol').value!=='SPYUSDT';if(node.hidden)return;
+  const deltaVolume=spectrumComparison.flowSource==='spy-candle-volume';
   const matched=spectrumComparison.pairedReady,near=Number.isFinite(level)?spectrumComparison.rows.find(r=>Math.abs(r.price-level)<=.25):null;
   let text;
   if(near){
-    const flow=near.cvd>0?'mua chủ động':near.cvd<0?'bán chủ động':'cân bằng taker';
+    const flow=deltaVolume?(near.cvd>0?'ΔV thân nến dương':near.cvd<0?'ΔV thân nến âm':'ΔV cân bằng'):(near.cvd>0?'mua chủ động':near.cvd<0?'bán chủ động':'cân bằng taker');
     const oi=near.netOi>0?'OI tăng ròng':near.netOi<0?'OI giảm ròng':'OI ròng cân bằng';
     text=`Giá ${fmt(near.price)} · CVD ngày ${fmtK(near.cvd)} (${flow}) · ${matched?`OI +${fmtK(near.opened)} / −${fmtK(near.closed)} · ròng ${signed(near.netOi)} · tổng biến động ${fmtK(near.grossOi)} · ${oi}`:'OI WAIT: chưa đủ dữ liệu đối chiếu'}`;
   }else{
     const top=spectrumComparison.rows.filter(r=>r.rank).sort((a,b)=>a.rank-b.rank);
-    text=`CVD ngày ${cvdSourceLabel} · ${spectrumComparison.day??'—'} NY · ${spectrumComparison.count} nến${matched?(spectrumComparison.stale?' · DỮ LIỆU CŨ · đang cập nhật':' khớp OI'):' · OI WAIT'}. CVD∞ nền mờ dùng nhiều ngày; ba dải chuẩn hóa riêng. OI xanh = tăng, đỏ = giảm vị thế. ${top.length?'Vùng OI nổi bật: '+top.map(r=>`#${r.rank} ${fmt(r.price)} (ròng ${signed(r.netOi)})`).join(' · ')+'. ':''}Trỏ hoặc chạm chart tại hàng giá để xem chi tiết.`;
+    text=`CVD ngày ${deltaVolume?'ΔV SPY = sign(close−open)×volume gốc':cvdSourceLabel} · ${spectrumComparison.day??'—'} NY · ${spectrumComparison.count} nến${matched?(spectrumComparison.stale?' · DỮ LIỆU CŨ · đang cập nhật':' khớp OI'):' · OI WAIT'}. CVD∞ nền mờ vẫn dùng C Taker NF nhiều ngày; các dải khác đơn vị, chuẩn hóa riêng. OI xanh = tăng, đỏ = giảm vị thế. ${top.length?'Vùng OI nổi bật: '+top.map(r=>`#${r.rank} ${fmt(r.price)} (ròng ${signed(r.netOi)})`).join(' · ')+'. ':''}Trỏ hoặc chạm chart tại hàng giá để xem chi tiết.`;
   }
   if(node.textContent!==text)node.textContent=text;
 }
@@ -662,25 +663,28 @@ function updateSpectrumBadge(currentPrice){
  const badge=$('oi-price-group-badge');if(!badge)return;
  badge.hidden=!$('oi-spectrum-toggle')?.checked||$('symbol').value!=='SPYUSDT'||!Number.isFinite(currentPrice);if(badge.hidden)return;
  const group=spectrumPriceGroup(spectrumComparison,currentPrice);if(!group)return;
- const flow=group.cvd>0?'MUA CĐ':group.cvd<0?'BÁN CĐ':'CVD CÂN BẰNG';
+ const deltaVolume=spectrumComparison.flowSource==='spy-candle-volume',groupSource=deltaVolume?'ΔV SPY':'CVD';
+ const flow=deltaVolume?(group.cvd>0?'ΔV SPY +':group.cvd<0?'ΔV SPY −':'ΔV SPY ='):(group.cvd>0?'MUA CĐ':group.cvd<0?'BÁN CĐ':'CVD CÂN BẰNG');
  const oi=group.netOi>0?'OI ↑':group.netOi<0?'OI ↓':'OI =';
  const state=document.createElement('span');state.textContent=group.ready?`${flow} · ${oi}`:`${group.count?flow:'CHỜ CVD'} · CHỜ OI`;
  const compact=value=>Number.isFinite(value)?new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:1}).format(value):'—';
- const values=document.createElement('small');values.textContent=group.ready?`CVD ${compact(group.cvd)} · ΔOI ${group.netOi>0?'+':''}${compact(group.netOi)}`:`${spectrumComparison.count} nến · OI thiếu`;
+ const values=document.createElement('small');values.textContent=group.ready?`${groupSource} ${compact(group.cvd)} · ΔOI ${group.netOi>0?'+':''}${compact(group.netOi)}`:`${spectrumComparison.count} nến · OI thiếu`;
  const confirmation=confirmSpectrumGroup(group,spectrumComparison,rows.SPYUSDT??[],oiBarState.points),confirmLabel=document.createElement('small');confirmLabel.className='oi-region-confirmation';
  const confirmationNames={confirmed:'ĐÃ XÁC NHẬN',conflict:'ĐỐI NGHỊCH',forming:'CHỜ THÊM NẾN',mixed:'CHƯA ĐỒNG THUẬN',WAIT:'CHỜ CVD / OI'};
  confirmLabel.textContent=confirmationNames[confirmation.state]+(confirmation.count?` · ${confirmation.support}/${confirmation.count} · ${Math.round(confirmation.share*100)}% |ΔOI|`:'')+(spectrumComparison.stale?' · OI CŨ':'');
  const now=Date.now()+serverOffsetMs;
  const live=runningOiState.read(currentOiLoader.sample,oiAppliedSamples,(rows.SPYUSDT??[]).at(-1),(rows.COMPOSITE??[]).at(-1),now,{chartFresh:isChartLive()});
- const liveFlow=live.flowFresh?(live.cvd>0?'MUA CĐ':live.cvd<0?'BÁN CĐ':'CVD ='):'CVD CHẬM';
+ const liveFlow=live.flowFresh?(live.cvd>0?'MUA CĐ':live.cvd<0?'BÁN CĐ':'C Taker NF ='):'C Taker NF CHẬM';
  const confirmText=cvdConfirmationText(confirmation);
  if(live.ready){
    state.textContent=liveFlow+' · '+(live.delta>0?'OI ↑':live.delta<0?'OI ↓':'OI =');
-   values.textContent='CVD '+(live.flowFresh?compact(live.cvd):'—')+' · ΔOI'+(live.partial?'*':'')+' '+(live.pct>0?'+':'')+live.pct.toFixed(2)+'%';
+   values.textContent='C Taker NF '+(live.flowFresh?compact(live.cvd):'—')+' · ΔOI'+(live.partial?'*':'')+' '+(live.pct>0?'+':'')+live.pct.toFixed(2)+'%';
    const age=Math.floor(live.age/1000),ageText=age>=60?Math.floor(age/60)+'p':age+'s';
    confirmLabel.textContent=(confirmText?confirmText+' · ':'')+(live.stale?'CŨ ':'')+ageText+(currentOiLoader.error?' · LỖI':'');
  }else{
-   values.textContent=group.ready?`CVD ${compact(group.cvd)} · ΔOI ${group.netOi>0?'+':''}${compact(group.netOi)}`:'CVD '+(group.count?compact(group.cvd):'—')+' · ΔOI —';
+   const currentFlow=rows.COMPOSITE?.at(-1),currentPriceBar=rows.SPYUSDT?.at(-1),takerFresh=isChartLive()&&currentFlow?.t===currentPriceBar?.t&&Number.isFinite(currentFlow?.net);
+   state.textContent=takerFresh?(currentFlow.net>0?'MUA CĐ':currentFlow.net<0?'BÁN CĐ':'C Taker NF ='):'CHỜ C Taker NF';
+   values.textContent='C Taker NF '+(takerFresh?compact(currentFlow.net):'—')+' · ΔOI —';
    confirmLabel.textContent=(confirmText?confirmText+' · ':'')+(currentOiLoader.error?'LỖI OI':spectrumComparison.stale?'OI CŨ':'CHỜ OI');
  }
  const text=state.textContent+'|'+values.textContent+'|'+confirmLabel.textContent;
@@ -694,9 +698,10 @@ function updateSpectrumBadge(currentPrice){
  badge.setAttribute('aria-label',[state.textContent,values.textContent,confirmLabel.textContent].join('. '));
 
  requestAnimationFrame(positionForecastReadout);
- badge.title=`MUA/BÁN CĐ = mua/bán chủ động; OI ↑/↓ = tăng/giảm tổng vị thế mở. CVD ${fmtK(group.cvd)} USDT; ΔOI ${signed(group.netOi)}. ${isChartLive()?'LIVE':'DELAYED'}. Xác nhận ${confirmation.support??0}/${confirmation.count} nến, ${Math.round((confirmation.share??0)*100)}% |ΔOI| hỗ trợ. Vùng ${fmt(group.low)}–${fmt(group.high)}. Gom ${group.levels} mức giá liền nhau, mỗi mức ${spectrumComparison.binStep??.5}; nhóm quanh giá hiện tại. CVD và OI cùng nến đóng, ngày ${spectrumComparison.day??'—'} NY. ${group.ready?`OI tăng ${fmtK(group.opened)}, giảm ${fmtK(group.closed)}, tổng biến động ${fmtK(group.grossOi)}.`:'Chưa đủ dữ liệu để phân loại OI.'} Xác nhận bằng nến vượt ngưỡng ΔOI trong cùng vùng và cùng nến đối chiếu: ít nhất 2 nến hỗ trợ, tỷ trọng |ΔOI| hỗ trợ ≥60%. Nến tô màu và histogram chung nguồn nên mỗi nến chỉ tính một lần. Tỷ trọng không phải xác suất thắng. Cập nhật theo dữ liệu, không xác định chắc long/short.`;
+ badge.title=`MUA/BÁN CĐ = mua/bán chủ động; OI ↑/↓ = tăng/giảm tổng vị thế mở. Phổ ngày ${groupSource} ${fmtK(group.cvd)} ${deltaVolume?'đơn vị volume SPYUSDT':'USDT'}; ΔOI ${signed(group.netOi)}. ${isChartLive()?'LIVE':'DELAYED'}. Xác nhận ${confirmation.support??0}/${confirmation.count} nến, ${Math.round((confirmation.share??0)*100)}% |ΔOI| hỗ trợ. Vùng ${fmt(group.low)}–${fmt(group.high)}. Gom ${group.levels} mức giá liền nhau, mỗi mức ${spectrumComparison.binStep??.5}; nhóm quanh giá hiện tại. CVD và OI cùng nến đóng, ngày ${spectrumComparison.day??'—'} NY. ${group.ready?`OI tăng ${fmtK(group.opened)}, giảm ${fmtK(group.closed)}, tổng biến động ${fmtK(group.grossOi)}.`:'Chưa đủ dữ liệu để phân loại OI.'} Xác nhận bằng nến vượt ngưỡng ΔOI trong cùng vùng và cùng nến đối chiếu: ít nhất 2 nến hỗ trợ, tỷ trọng |ΔOI| hỗ trợ ≥60%. Nến tô màu và histogram chung nguồn nên mỗi nến chỉ tính một lần. Tỷ trọng không phải xác suất thắng. Cập nhật theo dữ liệu, không xác định chắc long/short.`;
  badge.title+=' Màu viền chỉ theo hướng CVD đã lọc: xanh mua, tím bán, xám trung tính. Đổi màu cần ≥3 lần cập nhật chart và ≥9 giây đồng thuận; giữ màu tối thiểu 15 giây, vùng CVD nhỏ có đệm vào 5%/ra 2% volume. OI đổi dấu hoặc trễ không đổi màu viền; trạng thái OI vẫn ghi ngay trên nhãn. Chart thiếu dữ liệu quá 20 giây trả viền xám.';
- badge.title+=' Nhãn một dòng: trạng thái, CVD nến, ΔOI%, xác nhận nếu có và tuổi nguồn. Không hiện thông tin ngược trên nhãn. XN = đã xác nhận; HỖN HỢP = chưa đồng thuận. Dấu * ở ΔOI = tính từ lúc bắt đầu theo dõi, chưa có mốc đầu nến. Xác nhận nhóm giá không xác nhận riêng nến đang chạy. OI hiện tại được hỏi mỗi 3–5 giây, không chờ đóng nến. ΔOI% so với đầu nến; nếu thiếu mốc đầu nến thì so từ lúc bắt đầu theo dõi và ghi rõ. CVD nến dùng Composite tại timestamp SPY hiện tại. OI hiện tại không cộng vào phổ nhóm giá hoặc xác nhận nến. Lỗi API giữ mẫu gần nhất và đánh dấu cũ theo thời gian nguồn.';
+ badge.title+=' Phổ CVD ngày dùng sign(close−open) × volume gốc SPY, doji = 0, không chia SMA20, không phải delta taker và không có QQQ. Gom theo giá đóng nến SPY; chỉ nến đóng, cùng timestamp OI khi đủ dữ liệu. CVD∞ và CVD nến đang chạy vẫn dùng C Taker NF SPY+QQQ, đơn vị USDT.';
+ badge.title+=' Nhãn một dòng: trạng thái, C Taker NF nến (USDT), ΔOI%, xác nhận nếu có và tuổi nguồn. Không hiện thông tin ngược trên nhãn. XN = đã xác nhận; HỖN HỢP = chưa đồng thuận. Dấu * ở ΔOI = tính từ lúc bắt đầu theo dõi, chưa có mốc đầu nến. Xác nhận nhóm giá không xác nhận riêng nến đang chạy. OI hiện tại được hỏi mỗi 3–5 giây, không chờ đóng nến. ΔOI% so với đầu nến; nếu thiếu mốc đầu nến thì so từ lúc bắt đầu theo dõi và ghi rõ. C Taker NF nến dùng SPY+QQQ tại timestamp SPY hiện tại; trường ΔOI chỉ hiện khi nguồn OI hiện tại đủ dữ liệu. OI hiện tại không cộng vào phổ nhóm giá hoặc xác nhận nến. Lỗi API giữ mẫu gần nhất và đánh dấu cũ theo thời gian nguồn.';
 
 }
 function inspectSpectrum(event){
@@ -812,7 +817,7 @@ function render(fit=false){
   // Restore the latest paired OI day until new observations arrive.
   const profileBars=cvdBars;
   cvdProfile=continuousCvdSpectrum(profileBars);cvdAnchorTime=cvdBars.at(-1)?.t??p.at(-1)?.t??null;
-  spectrumComparison=buildSpectrumComparison(p,cvdBars,oiProfile,cache?.serverTime??0);updateSpectrumReadout();
+  spectrumComparison=buildSpectrumComparison(p,compositeCvd?spyCandleVolumeFlow(p):cvdBars,oiProfile,cache?.serverTime??0,{flowSource:compositeCvd?'spy-candle-volume':'taker'});updateSpectrumReadout();
   const spectrumNode=$('cvd-spectrum');spectrumNode.dataset.renderer='chart-primitive';
   const spectrumDescription=`CVD nhiều ngày làm nền mờ; CVD ngày và OI cạnh nhau cùng hàng giá. Ngày ${spectrumComparison.day??'—'} NY, ${spectrumComparison.count} nến; ${spectrumComparison.pairedReady?'CVD và OI khớp timestamp':'OI WAIT'}. OI xanh = tăng, đỏ = giảm; độ dài chuẩn hóa riêng.`;
   if(spectrumNode.getAttribute('aria-label')!==spectrumDescription)spectrumNode.setAttribute('aria-label',spectrumDescription);
