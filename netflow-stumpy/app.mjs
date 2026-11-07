@@ -1,4 +1,5 @@
 import {mountH1ScoreHistogram} from './h1-box-score-ui.mjs?v=20261107-matrix-fix2';
+import {pivotMatrixStyle} from './pivot-matrix-style.mjs?v=20261107-pivot-matrix1';
 import {matrixOptions,mountMatrixSettings,hasTrendPrediction,cvdConfirmationText} from './h1-matrix-state.mjs?v=20261107-matrix-fix2';
 import {mountGptPattern} from './gpt-pattern-ui.mjs?v=20261106-chatflow1';
 import {CvdBadgeBorder} from './cvd-badge-border.mjs?v=20261106-border1';
@@ -40,6 +41,8 @@ let displayVolumeStrengthRows=[];
 let trendAgeCandleMap=new Map(),h1CandleMap=new Map(),h1H4CandleMap=new Map(),abaBandPhaseMap=new Map(),abaBandFrame=0;
 let h1H4StripFrame=0,h1ScoreLayer=null;
 let getH1MatrixOptions=()=>matrixOptions();
+let latestH1Matrix=null;
+const pivotMatrixStyleKeys=new WeakMap();
 let h1CacheAttempt='',h1CacheArchive=null,h1HistoryKnown=false,h1HistoryRevision=null,studyColorInput=null;
 
 let boxVolumeStrengthMap=new Map(),wlrThicknessMap=new Map(),wlrColorMap=new Map();
@@ -390,8 +393,8 @@ function init(){
   series.priceMid=chart.addCustomSeries(new VariableWidthLineSeries,{color:'#f6c85f',baseLineVisible:false,priceLineVisible:false,lastValueVisible:false,title:''},0);
   for(const key of ['priceUpper','priceLower'])series[key]=chart.addSeries(L.LineSeries,{color:'#4aa3ff',lineWidth:2,lineStyle:L.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,title:''},0);
   for(const [key,color,width,style,last,title] of [
-    ['pivotResistanceLow','rgba(255,180,84,.55)',1,L.LineStyle.Dashed,false,''],['pivotResistanceHigh','rgba(255,180,84,.55)',1,L.LineStyle.Dashed,false,''],['pivotResistanceMid','#ffb454',3,L.LineStyle.Solid,true,'KC'],
-    ['pivotSupportLow','rgba(91,200,255,.55)',1,L.LineStyle.Dashed,false,''],['pivotSupportHigh','rgba(91,200,255,.55)',1,L.LineStyle.Dashed,false,''],['pivotSupportMid','#5bc8ff',3,L.LineStyle.Solid,true,'HT']
+    ['pivotResistanceMid','#ffb454',1,L.LineStyle.Solid,true,'KC'],
+    ['pivotSupportMid','#5bc8ff',1,L.LineStyle.Solid,true,'HT']
   ])series[key]=chart.addSeries(L.LineSeries,{color,lineWidth:width,lineStyle:style,priceLineVisible:false,lastValueVisible:last,crosshairMarkerVisible:false,title},0);
   series.COMPOSITE=chart.addSeries(L.HistogramSeries,{priceScaleId:'taker-flow-strength-overlay',base:0,color:flowColors.COMPOSITE.up,title:'',priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',formatter:fmtK},autoscaleInfoProvider:symmetricAutoscale},2);
   series.COMPOSITE.priceScale().applyOptions({autoScale:true,scaleMargins:LOWER_PANE_SCALE_MARGINS});
@@ -575,6 +578,7 @@ function positionForecastReadout(){
  row.style.top=`${Math.max(8,top-row.offsetHeight-5)}px`;
 }
 function updateH1MatrixReadout(matrix){
+ latestH1Matrix=matrix;updatePivotZones();
  let node=$('h1-matrix-readout');
  if(!node){node=document.createElement('div');node.id='h1-matrix-readout';node.setAttribute('role','status');$('chart').append(node);}
  node.hidden=!matrix;if(!matrix){requestAnimationFrame(positionForecastReadout);return;}
@@ -920,7 +924,12 @@ function updatePivotZones(){
   const enabled=$('pivot-zones').checked,node=$('pivot-zone-readout');
   for(const [kind,prefix] of [['resistance','pivotResistance'],['support','pivotSupport']]){
     const zone=enabled?pivotZoneState[kind]:null;
-    for(const [suffix,value] of [['Low',zone?.low],['Mid',zone?.level],['High',zone?.high]])writeSeries(prefix+suffix,series[prefix+suffix],zone&&Number.isFinite(value)?[{time:zone.start/1000,value},{time:zone.end/1000,value}]:[],String(enabled));
+    const assessment=pivotMatrixStyle(zone,$('symbol').value==='SPYUSDT'&&$('interval').value==='15m'?latestH1Matrix:null,rows.SPYUSDT??[],Date.now()+serverOffsetMs);
+    const line=series[prefix+'Mid'];if(!line)continue;
+    const styleKey=assessment.state+'|'+assessment.width;
+    if(pivotMatrixStyleKeys.get(line)!==styleKey){line.applyOptions({lineWidth:assessment.width,lineStyle:assessment.dashed?L.LineStyle.Dashed:L.LineStyle.Solid});pivotMatrixStyleKeys.set(line,styleKey);}
+    $('chart').dataset[prefix+'Matrix']=JSON.stringify(assessment);
+    writeSeries(prefix+'Mid',line,zone&&Number.isFinite(zone.level)?[{time:zone.start/1000,value:zone.level},{time:zone.end/1000,value:zone.level}]:[],String(enabled));
   }
   node.style.display='none';node.setAttribute('aria-hidden','true');node.replaceChildren();
 }
@@ -1137,6 +1146,7 @@ if(init()){
   setInterval(()=>{if(!document.hidden)refreshCalendar();},CALENDAR_REFRESH_MS);
   setInterval(updateCandleCountdown,250);
 }
+
 
 
 
