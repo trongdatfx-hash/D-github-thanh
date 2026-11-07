@@ -163,3 +163,16 @@
 #h1-cvd-status-row>.oi-price-group-badge{display:block!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis;overflow-wrap:normal!important;word-break:normal;font-size:11px;line-height:1.4}
 #h1-cvd-status-row>.oi-price-group-badge[hidden]{display:none!important}
 .h1-matrix-settings{font-size:11px}.h1-matrix-settings label{display:inline-flex;gap:4px;align-items:center;margin:4px 8px 4px 0}
+
+/* Collapsible settings remain reachable inside automatic Full chart. */
+.chart-card .chart-head{position:relative}
+.chart-card:fullscreen .chart-head,.chart-card.fullscreen-fallback .chart-head{position:absolute}
+#chart-settings{position:static;flex:0 0 auto}
+#chart-settings>summary{list-style:disclosure-closed;cursor:pointer;color:#d6e4f4;background:#142338;border:1px solid #38546e;border-radius:5px;padding:6px 10px;font:600 12px/1.4 system-ui;white-space:nowrap}
+#chart-settings[open]>summary{list-style:disclosure-open}
+#chart-settings-panel{position:absolute;z-index:40;top:100%;left:8px;right:8px;max-height:min(60svh,420px);overflow-y:auto;overscroll-behavior:contain;padding:10px;box-sizing:border-box;background:#0f1c2d;border:1px solid #38546e;border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+#chart-settings:not([open])>#chart-settings-panel{display:none}
+#chart-settings-panel .chart-options{margin:0;padding:5px 0}
+#chart-settings-panel .chart-indicator-tools{margin-top:8px;border-top:1px solid #38546e}
+
+.chart-head:has(#chart-settings[open]){z-index:50}
