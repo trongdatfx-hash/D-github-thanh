@@ -4,6 +4,13 @@ import {load} from '../data.mjs';
 const step=900000,base=1793001600000;
 const symbols=['SPYUSDT','QQQUSDT'];
 const info={symbols:symbols.map(symbol=>({symbol,status:'TRADING',quoteAsset:'USDT',contractType:'PERPETUAL'}))};
+test('selected-symbol price preview paints before slow QQQ while full result still waits',async()=>{
+ let release;const waiting=new Promise(r=>release=r),mock=api(base),previews=[];let complete=false;
+ const get=async path=>{if(path.includes('symbol=QQQUSDT'))await waiting;return mock.get(path);};
+ const task=load('15m',7,{get,storage:null,previewSymbol:'SPYUSDT',onPreview:d=>previews.push(d)}).then(d=>{complete=true;return d;});
+ await new Promise(r=>setImmediate(r));assert.equal(previews.length,1);assert.equal(previews[0].partial,true);assert.ok(previews[0].SPYUSDT.length);assert.equal(previews[0].QQQUSDT,undefined);assert.equal(complete,false);
+ release();const result=await task;assert.ok(result.QQQUSDT.length);assert.equal(result.partial,undefined);assert.equal(previews.length,1);
+});
 function memory(){let value=null;return {getItem:()=>value,setItem:(k,v)=>{value=v},set:v=>{value=v}};}
 function api(now,{waitInfo=null,badInfo=false,fail=false}={}){
  const calls=[];let transferred=0;
@@ -103,3 +110,4 @@ test('failed and aborted loads cannot emit a late preview',async()=>{
   await new Promise(r=>setImmediate(r));assert.equal(previews.length,0);
  }
 });
+

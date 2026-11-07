@@ -176,3 +176,11 @@
 #chart-settings-panel .chart-indicator-tools{margin-top:8px;border-top:1px solid #38546e}
 
 .chart-head:has(#chart-settings[open]){z-index:50}
+
+/* Settings toolbar outside the chart; reserve its own strip in automatic Full. */
+#chart-settings{position:relative;display:block;flex:none;width:fit-content;margin:8px 0 8px auto;z-index:60}
+#chart-settings-panel{left:auto;right:0;top:calc(100% + 6px);width:min(960px,calc(100vw - 24px))}
+body.chart-fullscreen #chart-settings{position:fixed;top:4px;right:8px;margin:0;z-index:10001}
+body.chart-fullscreen .chart-card.fullscreen-fallback{inset:42px 0 0;height:calc(100dvh - 42px)}
+
+body.chart-fullscreen::before{content:'';position:fixed;inset:0 0 auto;height:42px;background:#080e18;z-index:10000;pointer-events:none}

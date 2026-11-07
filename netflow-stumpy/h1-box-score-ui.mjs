@@ -1,4 +1,4 @@
-import {H1ScoreLedger,lockedH1Blocks,scoreableH1Blocks,scoreTitle,SCORE_STEP} from './h1-box-score.mjs?v=20261107-matrix-label1';
+import {H1ScoreLedger,h1ScoreBars,lockedH1Blocks,scoreableH1Blocks,scoreTitle,SCORE_STEP} from './h1-box-score.mjs?v=20261107-outside-fast1';
 import {buildH1Matrix} from './h1-matrix-state.mjs?v=20261107-matrix-fix2';
 import {h1StripCell} from './h1-h4-strip.mjs?v=20261101-h1h4-align1';
 
@@ -12,7 +12,8 @@ export function mountH1ScoreHistogram({chart,host,getState,storage=null,onMatrix
     frame=0;const state=getState();
     if(!state.active||!state.bars?.length){root.hidden=true;onMatrix(null);return;}
     const matrixBlocks=lockedH1Blocks(state.states,state.now,Infinity,state.matrixOptions?.window??9);
-    const matrixScores=new Map(matrixBlocks.map(b=>[b.blockStart,ledger.get(b,state)]));
+    const getScore=block=>ledger.get(block,{...state,bars:h1ScoreBars(state.bars,block.blockStart)});
+    const matrixScores=new Map(matrixBlocks.map(b=>[b.blockStart,getScore(b)]));
     const matrix=buildH1Matrix([...matrixScores.values()],state.matrixOptions);
     const matrixNumbers=new Map(matrix.columns.map((c,i)=>[c.t,i+1]));onMatrix(matrix);
     const pane=chart.panes()[0]?.getHTMLElement?.();if(!pane||!host.contains(pane)){root.hidden=true;return;}
@@ -26,7 +27,7 @@ export function mountH1ScoreHistogram({chart,host,getState,storage=null,onMatrix
     const used=new Set(),positions=[];let visible=0;
     for(const block of blocks){
       const cell=h1StripCell(block.blockStart,times,t=>chart.timeScale().timeToCoordinate(t),spacing);if(!cell||cell.x+cell.width<0||cell.x>plotWidth)continue;
-      const score=matrixScores.has(block.blockStart)?matrixScores.get(block.blockStart):ledger.get(block,state);if(!score)continue;used.add(block.blockStart);visible++;
+      const score=matrixScores.has(block.blockStart)?matrixScores.get(block.blockStart):getScore(block);if(!score)continue;used.add(block.blockStart);visible++;
       let node=nodes.get(block.blockStart);if(!node){node=document.createElement('div');node.className='h1-score-bar';node.tabIndex=0;const text=document.createElement('span');node.append(text);nodes.set(block.blockStart,node);root.append(node);}
       const value=score.score,amount=value===null?0:Math.abs(value),barHeight=value===null||value===0?2:amount*(height/2-18)/5;
       const x=cell.x+cell.width*.2,w=Math.max(1,cell.width*.6),y=value>0?baseline-barHeight:baseline;
@@ -45,6 +46,7 @@ export function mountH1ScoreHistogram({chart,host,getState,storage=null,onMatrix
   const schedule=()=>{if(!frame)frame=requestAnimationFrame(draw);};
   schedule();return {schedule};
 }
+
 
 
 

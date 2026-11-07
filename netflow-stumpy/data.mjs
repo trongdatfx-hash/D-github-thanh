@@ -56,7 +56,7 @@ async function fetchRange(symbol,interval,start,end,step,get,signal,onLatest){
   });
   return pages.flat();
 }
-export async function load(interval,days,{signal,get=getJSON,previous=null,storage=browserStorage(),onPreview=null}={}){
+export async function load(interval,days,{signal,get=getJSON,previous=null,storage=browserStorage(),onPreview=null,previewSymbol=null}={}){
   let active=true;
   const step=STEPS[interval];if(!step||![7,14,30].includes(days))throw Error('Khung thời gian/lịch sử không hợp lệ');
   const canCacheInfo=get===getJSON&&infoCache&&Date.now()-infoCachedAt<INFO_TTL;
@@ -75,15 +75,15 @@ export async function load(interval,days,{signal,get=getJSON,previous=null,stora
     const compatible=previous&&!previous.historical&&!previous.partial&&previous.interval===interval&&previous.days===days&&previous.serverTime<=serverTime;
     const source=compatible?previous:readHistory(storage,interval,days,serverTime);
     const reusable=!!source;
-    const previewRows=new Map();
+    const previewRows=new Map();let previewPublished=false;
     const previewLatest=!reusable&&typeof onPreview==='function'?async(symbol,raw)=>{
       const bars=parseKlines(raw,serverTime,step,{includeOpen:true});
       if(!bars.length)return;
       previewRows.set(symbol,bars);
-      if(previewRows.size!==SYMBOLS.length)return;
+      if(SYMBOLS.includes(previewSymbol)?!previewRows.has(previewSymbol):previewRows.size!==SYMBOLS.length)return;
       const contracts=await contractsTask;
       signal?.throwIfAborted();
-      if(!active)return;
+      if(!active||previewPublished)return;previewPublished=true;
       // Price-only preview. It must never seed history, indicators or LIVE state.
       onPreview({contracts,serverTime,interval,days,partial:true,...Object.fromEntries(previewRows)});
     }:null;
@@ -107,3 +107,4 @@ export async function load(interval,days,{signal,get=getJSON,previous=null,stora
     return result;
   }finally{active=false;}
 }
+

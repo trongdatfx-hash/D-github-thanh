@@ -1,5 +1,5 @@
-import {mountChartSettings} from './chart-settings.mjs?v=20261107-chart-settings1';
-import {mountH1ScoreHistogram} from './h1-box-score-ui.mjs?v=20261107-matrix-fix2';
+import {mountChartSettings} from './chart-settings.mjs?v=20261107-outside-fast1';
+import {mountH1ScoreHistogram} from './h1-box-score-ui.mjs?v=20261107-outside-fast1';
 import {pivotMatrixStyle} from './pivot-matrix-style.mjs?v=20261107-pivot-matrix1';
 import {matrixOptions,mountMatrixSettings,hasTrendPrediction,cvdConfirmationText} from './h1-matrix-state.mjs?v=20261107-matrix-fix2';
 import {mountGptPattern} from './gpt-pattern-ui.mjs?v=20261106-chatflow1';
@@ -27,7 +27,7 @@ import {wlrDisplayColors,WLR_COLOR_DEFAULTS} from './wlr-display-color.mjs?v=202
 import {createSeriesWriter} from './chart-data-cache.mjs?v=20261029-price-delta1';
 import {COMPOSITE_STRENGTH_VERSION,STEPS,composite,strengthAgreementCandleSignal,strengthPhaseLineStyle,directionalVolumeDelta,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,weightedPriceBands,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs?v=20261105-spyv-h1-1';
 import {spyUsdtSessionChange} from './spy-session-change.mjs?v=20261106-spyusdt-session-change1';
-import {load} from './data.mjs?v=20261029-price-delta1';
+import {load} from './data.mjs?v=20261107-outside-fast1';
 import {getJSON} from './data.mjs?v=20261029-price-delta1';
 import {oiWidthByBar} from './oi-width.mjs?v=20261029-oi-width1';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261029-price-delta1';
@@ -1015,7 +1015,7 @@ async function refresh(clear=false){
   if(!cache){$('chart').dataset.startupPhase='loading';$('chart').setAttribute('aria-busy','true');}
   status(`Đang xác minh SPYUSDT/QQQUSDT và tải ${interval} · ${days} ngày…`);
   try{
-    const data=await load(interval,days,{signal:controller.signal,previous:cache,onPreview:data=>{if(gen===generation&&!cache)showStartupPreview(data);}});if(gen!==generation)return;
+    const data=await load(interval,days,{signal:controller.signal,previous:cache,previewSymbol:$('symbol').value,onPreview:data=>{if(gen===generation&&!cache)showStartupPreview(data);}});if(gen!==generation)return;
     acceptChartData(data,clear,true);
     const modelText=interval==='15m'?' · Nghiên cứu lịch sử chạy nền':'';
     status(`SPYUSDT + QQQUSDT · TRADING / ${data.contracts.map(x=>x.contractType).join(' + ')} · ${rows.SPYUSDT.length}/${rows.QQQUSDT.length} nến, gồm nến đang chạy · ${rows.COMPOSITE.length} timestamp chung${modelText} · ${data.incremental?'cập nhật realtime ~3 giây':'tải lịch sử song song'} · cập nhật ${lastSuccess.toLocaleTimeString('vi-VN')} · ${rows.COMPOSITE.length?'Dữ liệu thật Binance':'Composite chưa có dữ liệu giao nhau'}`);
@@ -1052,7 +1052,8 @@ async function toggleFullChart(){
   const card=document.querySelector('.chart-card');
   if(document.fullscreenElement===card){await document.exitFullscreen();return;}
   if(card.classList.contains('fullscreen-fallback')){card.classList.remove('fullscreen-fallback');syncFullChart();return;}
-  try{if(!card.requestFullscreen)throw Error('Fullscreen API unavailable');await card.requestFullscreen({navigationUI:'hide'});}catch{card.classList.add('fullscreen-fallback');syncFullChart();}
+  // Page-level Full chart keeps the settings toolbar outside the candle frame.
+  card.classList.add('fullscreen-fallback');syncFullChart();
 }
 function bindChartGestures(){
   const host=$('chart'),activeTouches=new Set();let start=null,lastTap=null,multiTouch=false,lastTouchToggle=-Infinity;
@@ -1147,6 +1148,7 @@ if(init()){
   setInterval(()=>{if(!document.hidden)refreshCalendar();},CALENDAR_REFRESH_MS);
   setInterval(updateCandleCountdown,250);
 }
+
 
 
 

@@ -1,7 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {lockedH1Blocks,scoreableH1Blocks,randomWalkBounds,scoreH1Box,H1ScoreLedger,scoreTitle,H1_SCORE_VERSION,SCORE_STEP as S,HOUR} from '../h1-box-score.mjs';
+import {h1ScoreBars,lockedH1Blocks,scoreableH1Blocks,randomWalkBounds,scoreH1Box,H1ScoreLedger,scoreTitle,H1_SCORE_VERSION,SCORE_STEP as S,HOUR} from '../h1-box-score.mjs';
 const start=1793959200000;
+test('bounded score window preserves full-history score including gaps and three-bar preview',()=>{
+ for(const direction of [-1,1]){
+  const f=fixture(direction),older=Array.from({length:20000},(_,i)=>({...f.prior[0],t:f.prior[0].t-(20000-i)*S}));f.input.bars=[...older,...f.input.bars];
+  const bounded=h1ScoreBars(f.input.bars,start);assert.equal(bounded.length,69);
+  assert.deepEqual(scoreH1Box(f.block,{...f.input,bars:bounded}),scoreH1Box(f.block,f.input));
+  const block={...f.block,preview:true},input={...f.input,now:start+3*S};assert.deepEqual(scoreH1Box(block,{...input,bars:bounded}),scoreH1Box(block,input));
+  f.input.bars=f.input.bars.filter(b=>b.t!==start-10*S);assert.deepEqual(scoreH1Box(f.block,{...f.input,bars:h1ScoreBars(f.input.bars,start)}),scoreH1Box(f.block,f.input));
+ }
+});
 function fixture(direction=1){
   const prior=Array.from({length:65},(_,i)=>{const c=200+direction*i*.1;return {t:start-(65-i)*S,o:c-direction*.05,h:c+.2,l:c-.2,c};});
   const sample=Array.from({length:4},(_,i)=>{const o=prior.at(-1).c+direction*i;return {t:start+i*S,o,h:Math.max(o,o+direction)+.1,l:Math.min(o,o+direction)-.1,c:o+direction};});
@@ -110,6 +119,7 @@ test('cached records cannot preserve an adjustment that violates WLR priority',(
   saved=JSON.stringify({...corrupt,version:'h1-score-rw64-p62-align-v2'});
   assert.equal(new H1ScoreLedger(storage).get(f.block,{...f.input,oi:new Map()}).status,'PARTIAL');
 });
+
 
 
 

@@ -1,6 +1,12 @@
 // H1 score v3: descriptive evidence, never a probability or a trading signal.
 export const H1_SCORE_VERSION='h1-score-rw64-p62-align-v3';
 export const SCORE_STEP=900000,HOUR=3600000;
+// Sorted source bars: 65 prior closes (64 returns), plus at most four H1 bars.
+// Binary search avoids filtering/sorting the full history for every score.
+export function h1ScoreBars(bars,start){
+  const lowerBound=t=>{let lo=0,hi=bars.length;while(lo<hi){const mid=(lo+hi)>>>1;if(bars[mid].t<t)lo=mid+1;else hi=mid;}return lo;};
+  return bars.slice(Math.max(0,lowerBound(start)-65),lowerBound(start+HOUR));
+}
 const mean=a=>a.reduce((s,x)=>s+x,0)/a.length;
 const sum=a=>a.reduce((s,x)=>s+x,0);
 const finite=Number.isFinite;
@@ -108,6 +114,7 @@ export function scoreTitle(r){
   const phase=r.status==='PREVIEW'?'ĐIỂM TẠM · 3/4 M15 ĐÓNG':r.status==='LOCKED'?'ĐIỂM ĐÃ KHÓA':'HỘP ĐÃ KHÓA, ĐIỂM CHƯA ĐỦ DỮ LIỆU';
   return [`H1 ${time(r.blockStart)} → ${time(r.blockEnd+1)} · ${phase}`,`Điểm ${r.score===null?'—':val(r.score)} / ±5${r.missing.length?' · thiếu '+r.missing.join(', '):''}`,`WLR vị trí ${val(r.parts.position)} · dốc ${val(r.parts.slope)} | RW ${val(r.parts.randomWalk)} · điều chỉnh ${val(r.bonus?.randomWalkAlignment??0)} | ΔV×NF ${val(r.parts.deltaNF)} | OI ${val(r.parts.oi)}`,`WLR: ≥3/${n} close cùng phía; dốc WLR qua ${n} nến đóng vượt ±0,15 ATR14 trước hộp.`,`RW: P20/P80 của 512 đường ${n} bước, độ lớn log-return lấy từ 64 M15 trước hộp, dấu ± cân bằng; không ép giá đích.`,`ΔV×NF: dấu tổng ${n} M15 SPY ΔV và C Taker NF (SPY+QQQ). OI: cùng hướng giá, ΔV, NF; tổng ΔOI>0; ≥2 nến OI tăng đồng thuận vượt P62, chiếm ≥60% |ΔOI|.`,r.details?.randomWalk?`RW P20 ${r.details.randomWalk.p20.toFixed(2)} · P80 ${r.details.randomWalk.p80.toFixed(2)} · điều chỉnh ${val(r.bonus?.randomWalkAlignment??0)} (${r.details.randomWalk.alignment?.referenceSource==='WLR'?'ưu tiên WLR':r.details.randomWalk.alignment?.referenceSource==='H1'?'WLR trung tính → màu H1':'chưa có hướng tham chiếu'}${r.details.randomWalk.alignment?.aligned?' · thuận chiều':r.details.randomWalk.alignment?.opposed?' · nghịch chiều':''})`:'RW thiếu nến.',r.details?.oi?`ΔOI ${n} M15 ${r.details.oi.netDelta.toFixed(2)} · ${r.details.oi.support}/${n} nến ủng hộ · ${(100*r.details.oi.share).toFixed(0)}% |ΔOI|`:'OI thiếu hoặc chưa đủ nền P62.',`RW: close > P80 là +1, close < P20 là −1, ở giữa là 0. Ưu tiên dốc WLR (vượt ±0,15 ATR): thuận chiều thưởng +1/−1 cùng hướng RW; nghịch chiều đưa phần RW về 0 (P80 điều chỉnh −1, P20 điều chỉnh +1). Chỉ khi WLR trung tính mới dùng màu H1 đã khóa với cùng quy tắc; chỉ điều chỉnh một lần. WLR thiếu không được coi là trung tính. Điểm tạm chỉ xét WLR. Tổng thô ${val(r.rawScore)} → hiển thị ${val(r.score)} trong ±5. Đây là trọng số đồng thuận, không phải bằng chứng độc lập.`, '~: điểm tạm sau 3 M15 đóng, tính lại khi M15 thứ tư đóng; không lưu thành điểm khóa. *: thiếu dữ liệu, chỉ cộng thành phần có sẵn. Điểm mô tả lực, không phải xác suất.'].join('\n');
 }
+
 
 
 
