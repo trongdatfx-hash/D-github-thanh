@@ -21,3 +21,4 @@ test('spectrum renderer keeps OI, replaces CVD and renders both taker sides',()=
   assert(labels.includes('Taker lớn P95'));assert(labels.includes('OI + / −'));assert(!labels.includes('CVD ngày'));
   assert(lines.some(l=>l.color==='#ff627d'&&l.points[0][0]<l.points[1][0]));assert(lines.some(l=>l.color==='#23e0a4'&&l.points[0][0]<l.points[1][0]));
 });
+test('loader matches chart getJSON relative path and AbortSignal contract',async()=>{let checked=false;const l=new LargeTakerLoader({get:async(path,signal)=>{assert(path.startsWith('/fapi/v1/aggTrades?'));assert(signal instanceof AbortSignal);checked=true;return [];},now:()=>t});l.active=true;await l.poll();assert.equal(checked,true);assert.equal(l.error,null);});

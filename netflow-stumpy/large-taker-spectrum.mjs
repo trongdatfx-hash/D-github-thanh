@@ -58,8 +58,8 @@ export class LargeTakerLoader{
     try{
       // Bounded backfill; remaining pages continue on next poll. Initial view is partial.
       for(let page=0;page<5&&this.active;page++){
-        const id=this.book.lastId,url='https://fapi.binance.com/fapi/v1/aggTrades?symbol=SPYUSDT&limit=1000'+(id===null?'':'&fromId='+(id+1));
-        const data=await this.get(url,{timeoutMs:6000});
+        const id=this.book.lastId,url='/fapi/v1/aggTrades?symbol=SPYUSDT&limit=1000'+(id===null?'':'&fromId='+(id+1));
+        const data=await this.get(url,AbortSignal.timeout(6000));
         if(!this.active)break;
         if(!Array.isArray(data))throw new Error('Phản hồi aggTrade không hợp lệ');
         const added=this.book.ingest(data,this.now());if(data.length<1000||!added)break;
