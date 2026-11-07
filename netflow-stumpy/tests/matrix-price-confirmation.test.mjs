@@ -25,7 +25,7 @@ test('forming or incomplete second candle and gaps cannot satisfy two closes',()
 test('price confirmation is independent of missing or opposing flow/OI evidence',()=>{
   const r=records(6);for(const a of r.slice(3)){a.parts.oi=null;a.parts.deltaNF=1;a.status='PARTIAL';}
   const p=bars(6);setClose(p,22,89);setClose(p,23,88);const g=latest(r,p);
-  assert(g.priceConfirmation.confirmed);assert.equal(g.forceState,'MISSING');assert.match(g.text,/C Taker ×/);assert.match(g.text,/OI thiếu/);
+  assert(g.priceConfirmation.confirmed);assert.equal(g.forceState,'MISSING');assert.match(g.text,/C Taker ×/);assert.equal(g.text.includes('OI'),false);
 });
 test('confirmed upward price may oppose the WLR bias and remains labelled by price',()=>{
   const p=bars(6);setClose(p,22,101);setClose(p,23,102);const g=latest(records(6),p);assert.equal(g.priceConfirmation.direction,1);assert.match(g.text,/Tăng · xn 2 M15/);assert.match(g.text,/C Taker ×/);

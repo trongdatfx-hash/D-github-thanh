@@ -62,7 +62,7 @@ export function confirmMatrixPrice(matrix,priceRows,now){
       return n(d)>=needed?'✓':n(-d)>=needed?'×':'??';
     };
     const priceText=!zone?`${word} · chờ biên nhóm trước`:direction?`${word} · xn 2 M15`:pending?`${word} · chờ 2 M15 (1/2)`:`${word} · chờ phá`;
-    return {...g,forceState:g.state,forceText:g.text,priceConfirmation:confirmation,text:`${priceText} · C Taker ${force('deltaNF')} · OI ${force('oi')}`};
+    return {...g,forceState:g.state,forceText:g.text,priceConfirmation:confirmation,text:`${priceText} · C Taker ${force('deltaNF')}`};
   });
   return {...matrix,groups,confirmationRule:'previous-H1-group-two-M15-closes'};
 }
