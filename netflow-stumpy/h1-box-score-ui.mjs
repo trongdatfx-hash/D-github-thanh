@@ -1,4 +1,4 @@
-import {H1ScoreLedger,scoreableH1Blocks,scoreTitle,SCORE_STEP} from './h1-box-score.mjs?v=20261106-score3closed1';
+import {H1ScoreLedger,scoreableH1Blocks,scoreTitle,SCORE_STEP} from './h1-box-score.mjs?v=20261107-rw-align2';
 import {h1StripCell} from './h1-h4-strip.mjs?v=20261101-h1h4-align1';
 
 export function mountH1ScoreHistogram({chart,host,getState,storage=null}){
@@ -27,7 +27,7 @@ export function mountH1ScoreHistogram({chart,host,getState,storage=null}){
       const x=cell.x+cell.width*.2,w=Math.max(1,cell.width*.6),y=value>0?baseline-barHeight:baseline;
       node.style.left=x+'px';node.style.width=w+'px';node.style.top=y+'px';node.style.height=barHeight+'px';
       node.dataset.direction=value===null?'missing':value>0?'up':value<0?'down':'neutral';node.dataset.status=score.status;node.dataset.start=String(block.blockStart);node.dataset.score=value===null?'':String(value);node.dataset.cellCenter=String(cell.x+cell.width/2);node.dataset.boxDirection=String(block.direction);
-      node.dataset.closedBars=String(score.closedBars??4);
+      node.dataset.closedBars=String(score.closedBars??4);node.dataset.rwBonus=String(score.bonus?.randomWalkAlignment??0);node.dataset.rawScore=score.rawScore===null?'':String(score.rawScore);
       const text=node.firstElementChild;text.textContent=(score.status==='PREVIEW'?'~':'')+(value===null?'—':value>0?'+'+value:String(value))+(score.missing.length?'*':'');text.hidden=cell.width<12;
       const title=scoreTitle(score);if(node.title!==title)node.title=title;node.setAttribute('aria-label',title);node.dataset.conflict=String(value!==null&&value!==0&&block.direction!==0&&Math.sign(value)!==block.direction);
       positions.push({start:block.blockStart,x:cell.x,width:cell.width,center:cell.x+cell.width/2,score:value,status:score.status,closedBars:score.closedBars??4,missing:score.missing.length});
@@ -39,4 +39,5 @@ export function mountH1ScoreHistogram({chart,host,getState,storage=null}){
   const schedule=()=>{if(!frame)frame=requestAnimationFrame(draw);};
   schedule();return {schedule};
 }
+
 

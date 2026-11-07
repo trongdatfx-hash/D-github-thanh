@@ -11,7 +11,7 @@ function fixture(direction=1){
 test('strong upward and downward evidence reach +5 and -5 symmetrically',()=>{for(const d of [-1,1]){const f=fixture(d),r=scoreH1Box(f.block,f.input);assert.equal(r.score,5*d);assert.equal(r.status,'LOCKED');assert.deepEqual(r.missing,[]);assert.ok(Object.values(r.parts).every(x=>x===d));}});
 test('future bars, future OI and current open H1 never affect a completed H1',()=>{const f=fixture(),a=scoreH1Box(f.block,f.input);f.input.bars.push({t:start+HOUR,o:999,h:10000,l:1,c:999});f.input.oi.set(start+HOUR,{oi:999999});assert.deepEqual(scoreH1Box(f.block,f.input),a);assert.equal(scoreH1Box({...f.block,preview:true},f.input),null);assert.equal(scoreH1Box(f.block,{...f.input,now:start+HOUR-1}),null);});
 test('RW boundaries use only preceding data and reproducible seed',()=>{const f=fixture(),a=randomWalkBounds(f.prior,f.sample[0].o,start),b=randomWalkBounds([...f.prior],f.sample[0].o,start);assert.deepEqual(a,b);assert.equal(a.paths,512);assert.ok(a.p20<a.p80);assert.equal(randomWalkBounds(f.prior.slice(1),200,start),null);const g=[...f.prior];g.splice(10,1);assert.equal(randomWalkBounds(g,200,start),null);});
-test('missing OI is partial, whereas known OI decrease is zero confirmation',()=>{const f=fixture();f.input.oi.delete(start+S);const partial=scoreH1Box(f.block,f.input);assert.equal(partial.score,4);assert.equal(partial.parts.oi,null);assert.equal(partial.status,'PARTIAL');assert.match(scoreTitle(partial),/OI_P62/);const g=fixture();for(const [i,b] of g.sample.entries())g.input.oi.set(b.t,{oi:990-10*i});const r=scoreH1Box(g.block,g.input);assert.equal(r.parts.oi,0);assert.equal(r.status,'LOCKED');assert.equal(r.score,4);});
+test('missing OI is partial, whereas known OI decrease is zero confirmation',()=>{const f=fixture();f.input.oi.delete(start+S);const partial=scoreH1Box(f.block,f.input);assert.equal(partial.score,5);assert.equal(partial.available,4);assert.equal(partial.bonus.randomWalkAlignment,1);assert.equal(partial.parts.oi,null);assert.equal(partial.status,'PARTIAL');assert.match(scoreTitle(partial),/OI_P62/);const g=fixture();for(const [i,b] of g.sample.entries())g.input.oi.set(b.t,{oi:990-10*i});const r=scoreH1Box(g.block,g.input);assert.equal(r.parts.oi,0);assert.equal(r.status,'LOCKED');assert.equal(r.score,5);assert.equal(r.parts.oi,0);});
 test('unmatched threshold and conflicting NF do not receive an OI direction point',()=>{const f=fixture();for(const p of f.input.oiPoints.values())p.matched=false;assert.equal(scoreH1Box(f.block,f.input).parts.oi,0);const g=fixture();for(const p of g.input.flows.values())p.net=-100;const r=scoreH1Box(g.block,g.input);assert.equal(r.parts.deltaNF,0);assert.equal(r.parts.oi,0);});
 test('only 8 genuinely locked H1 selected; excludes H4, preview, future and hours beyond viewport',()=>{const states=new Map();for(let i=0;i<12;i++){const b=start+i*HOUR;states.set(b,{t:b+3*S,blockStart:b,blockEnd:b+HOUR-1,preview:false,direction:1});}states.set('preview',{t:start+13*HOUR,blockStart:start+13*HOUR,blockEnd:start+14*HOUR-1,preview:true,direction:1});states.set('h4',{t:start,blockStart:start-HOUR,blockEnd:start+3*HOUR-1,preview:false,direction:1});const out=lockedH1Blocks(states,start+12*HOUR,start+10*HOUR-1);assert.equal(out.length,8);assert.equal(out[0].blockStart,start+2*HOUR);assert.equal(out.at(-1).blockStart,start+9*HOUR);});
 test('ledger freezes full score through reload, but never freezes missing OI',()=>{let text=null;const storage={getItem:()=>text,setItem:(_,v)=>{text=v;}};const f=fixture(),ledger=new H1ScoreLedger(storage);const partial=ledger.get(f.block,{...f.input,oi:new Map()});assert.equal(partial.status,'PARTIAL');assert.equal(text,null);const full=ledger.get(f.block,f.input);assert.equal(full.score,5);assert.ok(text.includes(H1_SCORE_VERSION));const reloaded=new H1ScoreLedger(storage);assert.deepEqual(reloaded.get(f.block,{...f.input,oi:new Map(),bands:new Map()}),full);assert.equal(reloaded.get({...f.block,preview:true},f.input),null);});
@@ -46,4 +46,39 @@ test('preview replaces oldest locked slot, respects viewport and never reuses a 
   const r=ledger.get(preview,{...f.input,now:start+3*S});assert.equal(r.status,'PREVIEW');assert.equal(r.closedBars,3);
   const partial=scoreH1Box(preview,{...f.input,now:start+3*S,oi:new Map()});assert.equal(partial.parts.oi,null);assert.equal(partial.status,'PREVIEW');assert.ok(partial.missing.includes('OI_P62'));
 });
+test('RW alignment rewards either WLR or locked H1 color once, in the tail direction',()=>{
+  for(const d of [-1,1]){
+    const f=fixture(d),both=scoreH1Box(f.block,f.input);
+    assert.equal(both.bonus.randomWalkAlignment,d);assert.equal(both.rawScore,6*d);assert.equal(both.score,5*d);
+    assert.equal(both.details.randomWalk.alignment.matchedWLR,true);assert.equal(both.details.randomWalk.alignment.matchedBox,true);
+    const wlrOnly=scoreH1Box({...f.block,direction:-d},f.input);
+    assert.equal(wlrOnly.bonus.randomWalkAlignment,d);assert.equal(wlrOnly.details.randomWalk.alignment.matchedBox,false);
+    for(const b of f.sample)f.input.bands.set(b.t,{mid:200});
+    const colorOnly=scoreH1Box(f.block,f.input);
+    assert.equal(colorOnly.parts.slope,0);assert.equal(colorOnly.bonus.randomWalkAlignment,d);
+    const neither=scoreH1Box({...f.block,direction:-d},f.input);
+    assert.equal(neither.parts.randomWalk,d);assert.equal(neither.bonus.randomWalkAlignment,0);
+    assert.equal(neither.rawScore,Object.values(neither.parts).reduce((a,b)=>a+b,0));
+  }
+});
+test('central RW quantiles and missing RW history cannot earn alignment bonus',()=>{
+  const f=fixture(),bounds=randomWalkBounds(f.prior,f.sample[0].o,start);
+  for(const close of [bounds.p20,(bounds.p20+bounds.p80)/2,bounds.p80]){
+    f.sample[3].c=close;const r=scoreH1Box(f.block,f.input);assert.equal(r.parts.randomWalk,0);assert.equal(r.bonus.randomWalkAlignment,0);
+  }
+  f.input.bars=f.input.bars.slice(1);const r=scoreH1Box(f.block,f.input);assert.equal(r.parts.randomWalk,null);assert.equal(r.bonus.randomWalkAlignment,0);assert.ok(r.missing.includes('RW64'));
+});
+test('preview never derives the RW color bonus from a forming H1 color',()=>{
+  const f=fixture(),preview={...f.block,preview:true};for(const b of f.sample)f.input.bands.set(b.t,{mid:200});
+  const input={...f.input,now:start+3*S},a=scoreH1Box(preview,input),b=scoreH1Box({...preview,direction:-1},input);
+  assert.equal(a.bonus.randomWalkAlignment,0);assert.equal(a.score,b.score);assert.equal(a.details.randomWalk.alignment.boxEligible,false);
+  assert.equal(scoreH1Box(f.block,f.input).bonus.randomWalkAlignment,1);
+});
+test('v2 ledger retains saturated score and raw bonus, ignores old formula caches',()=>{
+  let saved=null;const storage={getItem:()=>saved,setItem:(_,value)=>{saved=value;}},f=fixture(),first=new H1ScoreLedger(storage).get(f.block,f.input);
+  assert.equal(first.rawScore,6);assert.equal(first.score,5);assert.deepEqual(new H1ScoreLedger(storage).get(f.block,{...f.input,oi:new Map()}),first);
+  const old=JSON.parse(saved);old.version='h1-score-rw64-p62-v1';saved=JSON.stringify(old);
+  assert.equal(new H1ScoreLedger(storage).get(f.block,{...f.input,oi:new Map()}).status,'PARTIAL');
+});
+
 
