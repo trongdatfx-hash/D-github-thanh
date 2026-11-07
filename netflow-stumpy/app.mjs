@@ -1,4 +1,5 @@
-import {mountH1ScoreHistogram} from './h1-box-score-ui.mjs?v=20261107-score36-1';
+import {mountH1ScoreHistogram} from './h1-box-score-ui.mjs?v=20261107-matrix-label1';
+import {mountMatrixSettings,hasTrendPrediction,cvdConfirmationText} from './h1-matrix-state.mjs?v=20261107-matrix-label1';
 import {mountGptPattern} from './gpt-pattern-ui.mjs?v=20261106-chatflow1';
 import {CvdBadgeBorder} from './cvd-badge-border.mjs?v=20261106-border1';
 import {CurrentOiLoader,RunningOiState} from './oi-current.mjs?v=20261106-oi-live1';
@@ -435,7 +436,8 @@ function init(){
   for(const element of [$('chart'),...chart.panes().map(pane=>pane.getHTMLElement())].filter(Boolean))paneLayoutObserver.observe(element);
   $('chart').addEventListener('pointermove',scheduleSpectrumBadge,{passive:true});$('chart').addEventListener('wheel',scheduleSpectrumBadge,{passive:true});
   let scoreInputs=null;
-  h1ScoreLayer=mountH1ScoreHistogram({chart,host:$('chart'),storage:colorStorage(),getState:()=>{
+  const getMatrixOptions=mountMatrixSettings($('chart-indicator-tools'),colorStorage(),()=>h1ScoreLayer?.schedule());
+  h1ScoreLayer=mountH1ScoreHistogram({chart,host:$('chart'),storage:colorStorage(),onMatrix:updateH1MatrixReadout,getState:()=>{
     const active=$('symbol').value==='SPYUSDT'&&$('interval').value==='15m'&&$('candle-h1-box-color')?.checked;
     if(!active)return {active:false};
     const bars=rows.SPYUSDT??[],flowRows=rows.COMPOSITE??[],oiMap=oiStamp==='15m'?oiWidths:new Map(),now=cache?.serverTime??Date.now();
@@ -444,7 +446,7 @@ function init(){
       const points=oiCandleBars(bars,deltaRows,flowRows,oiMap,STEPS['15m'],now,{filterPin:true,history:true,minOiMultiplier:1,oiPercentile:.62}).points;
       scoreInputs={bars,flowRows,bands:priceBandMap,deltas:new Map(deltaRows.map(r=>[r.t,r])),flows:new Map(flowRows.map(r=>[r.t,r])),oi:oiMap,oiPoints:points};
     }
-    return {...scoreInputs,active:true,states:h1CandleMap,now};
+    return {...scoreInputs,active:true,states:h1CandleMap,now,matrixOptions:getMatrixOptions()};
   }});
   bindChartGestures();
   return true;
@@ -564,12 +566,25 @@ function positionForecastReadout(){
  const top=Math.max(8,paneHeight-node.offsetHeight-10);node.style.top=`${top}px`;
  let row=$('h1-cvd-status-row');
  if(!row){row=document.createElement('div');row.id='h1-cvd-status-row';host.append(row);}
- if(h1Node&&row.firstElementChild!==h1Node)row.prepend(h1Node);
+ if(h1Node&&h1Node.parentElement!==row)row.append(h1Node);
+ const matrix=$('h1-matrix-readout');if(matrix&&matrix.parentElement!==row)row.prepend(matrix);
  if(badge&&badge.parentElement!==row)row.append(badge);
- row.dataset.layout='stacked-h1-first';row.setAttribute('role','group');row.setAttribute('aria-label','Tuổi H1 ở trên, trạng thái CVD và OI ở dưới');
- row.hidden=(!badge||badge.hidden)&&(!h1Node||h1Node.hidden);
+ row.dataset.layout='matrix-h1-cvd';row.setAttribute('role','group');row.setAttribute('aria-label','Trạng thái nhóm ma trận, tuổi H1, CVD và OI');
+ row.hidden=(!badge||badge.hidden)&&(!h1Node||h1Node.hidden)&&(!matrix||matrix.hidden);
  row.dataset.hasH1=String(!!h1Node&&!h1Node.hidden);row.dataset.hasCvd=String(!!badge&&!badge.hidden);
  row.style.top=`${Math.max(8,top-row.offsetHeight-5)}px`;
+}
+function updateH1MatrixReadout(matrix){
+ let node=$('h1-matrix-readout');
+ if(!node){node=document.createElement('div');node.id='h1-matrix-readout';node.setAttribute('role','status');$('chart').append(node);}
+ node.hidden=!matrix;if(!matrix){requestAnimationFrame(positionForecastReadout);return;}
+ const groups=matrix.groups,n=groups.length;
+ const last=matrix.columns.at(-1)?.t,stale=Number.isFinite(last)&&Date.now()+serverOffsetMs>last+2*3600000;
+ node.textContent=(stale?'H1 CŨ · ':'')+groups.map((g,i)=>`${i===n-1?'Mới':n===2?'Trước':'Nhóm '+(i+1)}: ${g.text}`).join(' | ');
+ node.dataset.matrix=JSON.stringify(matrix);node.dataset.states=groups.map(g=>g.state).join('|');
+ const time=t=>Number.isFinite(t)?new Date(t).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'}):'—';
+ node.title=`Ma trận ${matrix.columns.length}/${matrix.options.window} hộp H1 đã đóng; ${matrix.options.size} hộp/nhóm. `+groups.map(g=>`${time(g.from)} → ${time(g.to===null?null:g.to+3600000)}: ${g.text}`).join('\n')+'\nĐọc ba nhóm GIÁ, ΔV×NF, OI; RW chỉ là trọng số, không phải bằng chứng độc lập. Suy yếu cần nhóm liền trước đã được ủng hộ và cả dòng tiền lẫn OI mất hỗ trợ. Thiếu dữ liệu không coi là 0. Đây là trạng thái lực lịch sử, không xác nhận đảo trend hoặc dự báo tuổi.';
+ requestAnimationFrame(positionForecastReadout);
 }
 function currentH1TrendAge(){
   const blocks=new Map();for(const state of h1CandleMap.values()){if(!Number.isFinite(state.blockStart))continue;const old=blocks.get(state.blockStart);if(!old||state.t>old.t)blocks.set(state.blockStart,state);}
@@ -654,19 +669,18 @@ function updateSpectrumBadge(currentPrice){
  const now=Date.now()+serverOffsetMs;
  const live=runningOiState.read(currentOiLoader.sample,oiAppliedSamples,(rows.SPYUSDT??[]).at(-1),(rows.COMPOSITE??[]).at(-1),now,{chartFresh:isChartLive()});
  const liveFlow=live.flowFresh?(live.cvd>0?'MUA CĐ':live.cvd<0?'BÁN CĐ':'CVD ='):'CVD CHẬM';
- const shortConfirm={confirmed:'XN',conflict:'NGƯỢC',forming:'CHỜ XN',mixed:'HỖN HỢP',WAIT:'CHỜ XN'};
- const confirmText=shortConfirm[confirmation.state]+(confirmation.count&&['confirmed','conflict'].includes(confirmation.state)?` ${confirmation.support}/${confirmation.count} · ${Math.round(confirmation.share*100)}%`:'');
+ const confirmText=cvdConfirmationText(confirmation);
  if(live.ready){
    state.textContent=liveFlow+' · '+(live.delta>0?'OI ↑':live.delta<0?'OI ↓':'OI =');
    values.textContent='CVD '+(live.flowFresh?compact(live.cvd):'—')+' · ΔOI'+(live.partial?'*':'')+' '+(live.pct>0?'+':'')+live.pct.toFixed(2)+'%';
    const age=Math.floor(live.age/1000),ageText=age>=60?Math.floor(age/60)+'p':age+'s';
-   confirmLabel.textContent=confirmText+' · '+(live.stale?'CŨ ':'')+ageText+(currentOiLoader.error?' · LỖI':'');
+   confirmLabel.textContent=(confirmText?confirmText+' · ':'')+(live.stale?'CŨ ':'')+ageText+(currentOiLoader.error?' · LỖI':'');
  }else{
    values.textContent=group.ready?`CVD ${compact(group.cvd)} · ΔOI ${group.netOi>0?'+':''}${compact(group.netOi)}`:'CVD '+(group.count?compact(group.cvd):'—')+' · ΔOI —';
-   confirmLabel.textContent=confirmText+' · '+(currentOiLoader.error?'LỖI OI':spectrumComparison.stale?'OI CŨ':'CHỜ OI');
+   confirmLabel.textContent=(confirmText?confirmText+' · ':'')+(currentOiLoader.error?'LỖI OI':spectrumComparison.stale?'OI CŨ':'CHỜ OI');
  }
  const text=state.textContent+'|'+values.textContent+'|'+confirmLabel.textContent;
- if(badge.dataset.text!==text){badge.replaceChildren(state,values,confirmLabel);badge.dataset.text=text;}
+ if(badge.dataset.text!==text){badge.textContent=[state.textContent,values.textContent,confirmLabel.textContent].filter(Boolean).join(' · ');badge.dataset.text=text;}
  badge.dataset.confirmation=confirmation.state;badge.dataset.confirmationCount=String(confirmation.count);badge.dataset.groupState=group.state;badge.dataset.low=String(group.low);badge.dataset.high=String(group.high);
  badge.dataset.state=live.ready?(live.flowFresh&&live.cvd!==0&&live.delta!==0?`${live.cvd>0?'buy':'sell'}-oi-${live.delta>0?'increase':'decrease'}`:'neutral'):group.state;
  badge.dataset.currentOi=live.ready?(live.stale?'stale':'running'):'WAIT';
@@ -678,7 +692,7 @@ function updateSpectrumBadge(currentPrice){
  requestAnimationFrame(positionForecastReadout);
  badge.title=`MUA/BÁN CĐ = mua/bán chủ động; OI ↑/↓ = tăng/giảm tổng vị thế mở. CVD ${fmtK(group.cvd)} USDT; ΔOI ${signed(group.netOi)}. ${isChartLive()?'LIVE':'DELAYED'}. Xác nhận ${confirmation.support??0}/${confirmation.count} nến, ${Math.round((confirmation.share??0)*100)}% |ΔOI| hỗ trợ. Vùng ${fmt(group.low)}–${fmt(group.high)}. Gom ${group.levels} mức giá liền nhau, mỗi mức ${spectrumComparison.binStep??.5}; nhóm quanh giá hiện tại. CVD và OI cùng nến đóng, ngày ${spectrumComparison.day??'—'} NY. ${group.ready?`OI tăng ${fmtK(group.opened)}, giảm ${fmtK(group.closed)}, tổng biến động ${fmtK(group.grossOi)}.`:'Chưa đủ dữ liệu để phân loại OI.'} Xác nhận bằng nến vượt ngưỡng ΔOI trong cùng vùng và cùng nến đối chiếu: ít nhất 2 nến hỗ trợ, tỷ trọng |ΔOI| hỗ trợ ≥60%. Nến tô màu và histogram chung nguồn nên mỗi nến chỉ tính một lần. Tỷ trọng không phải xác suất thắng. Cập nhật theo dữ liệu, không xác định chắc long/short.`;
  badge.title+=' Màu viền chỉ theo hướng CVD đã lọc: xanh mua, tím bán, xám trung tính. Đổi màu cần ≥3 lần cập nhật chart và ≥9 giây đồng thuận; giữ màu tối thiểu 15 giây, vùng CVD nhỏ có đệm vào 5%/ra 2% volume. OI đổi dấu hoặc trễ không đổi màu viền; trạng thái OI vẫn ghi ngay trên nhãn. Chart thiếu dữ liệu quá 20 giây trả viền xám.';
- badge.title+=' Nhãn 3 dòng: trạng thái hiện tại; CVD nến (USDT) và ΔOI% (khối lượng vị thế); xác nhận NHÓM GIÁ đã đóng và tuổi nguồn OI hiện tại. XN = đã xác nhận, NGƯỢC = đối nghịch, HỖN HỢP = chưa đồng thuận. Dấu * ở ΔOI = tính từ lúc bắt đầu theo dõi, chưa có mốc đầu nến. Xác nhận nhóm giá không xác nhận riêng nến đang chạy. OI hiện tại được hỏi mỗi 3–5 giây, không chờ đóng nến. ΔOI% so với đầu nến; nếu thiếu mốc đầu nến thì so từ lúc bắt đầu theo dõi và ghi rõ. CVD nến dùng Composite tại timestamp SPY hiện tại. OI hiện tại không cộng vào phổ nhóm giá hoặc xác nhận nến. Lỗi API giữ mẫu gần nhất và đánh dấu cũ theo thời gian nguồn.';
+ badge.title+=' Nhãn một dòng: trạng thái, CVD nến, ΔOI%, xác nhận nếu có và tuổi nguồn. Không hiện thông tin ngược trên nhãn. XN = đã xác nhận; HỖN HỢP = chưa đồng thuận. Dấu * ở ΔOI = tính từ lúc bắt đầu theo dõi, chưa có mốc đầu nến. Xác nhận nhóm giá không xác nhận riêng nến đang chạy. OI hiện tại được hỏi mỗi 3–5 giây, không chờ đóng nến. ΔOI% so với đầu nến; nếu thiếu mốc đầu nến thì so từ lúc bắt đầu theo dõi và ghi rõ. CVD nến dùng Composite tại timestamp SPY hiện tại. OI hiện tại không cộng vào phổ nhóm giá hoặc xác nhận nến. Lỗi API giữ mẫu gần nhất và đánh dấu cũ theo thời gian nguồn.';
 
 }
 function inspectSpectrum(event){
@@ -707,7 +721,7 @@ function geometryLineText(line){
 }
 function updateGeometryReadout(){
   const state=trendReadoutState(rev63State,{now:Date.now()+serverOffsetMs,live:isChartLive()});
-  const node=$('geometry-readout');if(!node)return;node.style.display=$('symbol').value==='SPYUSDT'&&$('interval').value==='15m'?'block':'none';if(node.style.display==='none')return;
+  const node=$('geometry-readout');if(!node)return;const show=$('symbol').value==='SPYUSDT'&&$('interval').value==='15m'&&hasTrendPrediction(state);node.hidden=!show;node.style.display=show?'block':'none';if(!show){updateH1TrendAgeReadout();requestAnimationFrame(positionForecastReadout);return;}
   node.textContent=formatPreRthWlrTrend(state);
   node.className=`forecast ${(state?.label??'WAIT').toLowerCase()}`;
   const ridge=state?.strengthRegression;node.title=`Âu→RTH WLR M15 · ${state?.reason??'Chờ dữ liệu M15 đã đóng'}. Tuổi hiện tại / trung vị tổng độ dài leg. TUỔI P là phân vị tuổi, không phải phân vị giá WLR. CÒN ~ là trung vị số nến còn lại có điều kiện, không phải trung vị tổng trừ tuổi hiện tại. TREND CÒN là khả năng sống thêm ${state?.horizon??3} nến đã nhận, không phải xác suất giá tăng hoặc tỷ lệ đúng A–B–A. Kaplan–Meier dùng vị trí nến thất bại sau nến đã nhận cuối, có kiểm duyệt phải và kiểm tra đủ thời gian theo dõi. ${state?.active?`Nhóm tuổi ${state.ageGroup?.label??'—'} · điểm ${state.trendScore}/100 · R² giá ${fmt(state.r2)} · độ bền hướng giá ${Math.round((state.persistence??0)*100)}% · SPY V cùng dấu từng nến ${Math.round((state.volumeAlignment??0)*100)}% (chỉ tham khảo) · nến đã nhận vào Flow-Leg ±2σ ${Math.round((state.channelAlignment??0)*100)}% (${state.currentBars}/${state.elapsedBars??state.currentBars} nến được tính) · Composite góp ${Math.round((state.compositeScore??.5)*5)}/5 điểm · Strength ${state.strengthContext??'—'} · Ridge OOS R² ${fmt(ridge?.r2)}, partial C ${fmt(ridge?.partialComposite)}, V ${fmt(ridge?.partialVolume)}, n OOS ${ridge?.oosN??0} · mẫu ${state.sampleN} leg / ${state.uniqueDays??'—'} ngày, còn rủi ro ${state.atRiskN}, kết quả thêm ${state.horizon} nến đã biết ${state.resolvedHorizonN??'—'}, kiểm duyệt phải ${state.censoredN??0}. `:''}SPY V xác nhận dấu+slope ở cấp trend. Phá ±2σ cùng hướng, nến trung tính, một nến SPY V trái dấu hoặc một nến giá ngoài biên bất lợi vẫn thuộc leg và được tái khớp. Chỉ giá hoặc SPY V ngược hướng đủ hai nến đóng liên tiếp mới kết thúc; dốc OLS chỉ dùng chẩn đoán và không cắt tuổi trend. Composite chỉ góp 5% điểm trend; Ridge OOS vẫn là lớp mô tả riêng. Nến đang chạy không được tính; trend còn chạy lúc đóng RTH được xem là kiểm duyệt phải.`;
@@ -1122,5 +1136,6 @@ if(init()){
   setInterval(()=>{if(!document.hidden)refreshCalendar();},CALENDAR_REFRESH_MS);
   setInterval(updateCandleCountdown,250);
 }
+
 
 

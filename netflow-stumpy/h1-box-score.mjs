@@ -14,13 +14,13 @@ function rwAlignment(direction,wlrDirection,boxDirection){
 }
 function quantile(a,p){const b=[...a].sort((x,y)=>x-y),i=(b.length-1)*p;return b[Math.floor(i)]+(b[Math.ceil(i)]-b[Math.floor(i)])*(i-Math.floor(i));}
 function random(seed){let state=seed>>>0;return ()=>{state+=0x6d2b79f5;let t=state;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return ((t^(t>>>14))>>>0)/4294967296;};}
-export function lockedH1Blocks(states,now=Date.now(),visibleTo=Infinity){
+export function lockedH1Blocks(states,now=Date.now(),visibleTo=Infinity,limit=36){
   const groups=new Map();
   for(const s of states?.values?.()||[]){
     if(s?.preview!==false||!finite(s.blockStart)||s.blockEnd!==s.blockStart+HOUR-1||s.blockEnd>=now||s.blockEnd>visibleTo||![-1,0,1].includes(s.direction))continue;
     const old=groups.get(s.blockStart);if(!old||s.t>old.t)groups.set(s.blockStart,s);
   }
-  return [...groups.values()].sort((a,b)=>a.blockStart-b.blockStart).slice(-36);
+  return [...groups.values()].sort((a,b)=>a.blockStart-b.blockStart).slice(-limit);
 }
 // Signed symmetric bootstrap: 64 PRIOR M15 log-change magnitudes, 3 or 4 steps,
 // 512 deterministic paths. Starts at H1 open; no conditioning on the H1 close.
@@ -108,6 +108,7 @@ export function scoreTitle(r){
   const phase=r.status==='PREVIEW'?'ĐIỂM TẠM · 3/4 M15 ĐÓNG':r.status==='LOCKED'?'ĐIỂM ĐÃ KHÓA':'HỘP ĐÃ KHÓA, ĐIỂM CHƯA ĐỦ DỮ LIỆU';
   return [`H1 ${time(r.blockStart)} → ${time(r.blockEnd+1)} · ${phase}`,`Điểm ${r.score===null?'—':val(r.score)} / ±5${r.missing.length?' · thiếu '+r.missing.join(', '):''}`,`WLR vị trí ${val(r.parts.position)} · dốc ${val(r.parts.slope)} | RW ${val(r.parts.randomWalk)} · điều chỉnh ${val(r.bonus?.randomWalkAlignment??0)} | ΔV×NF ${val(r.parts.deltaNF)} | OI ${val(r.parts.oi)}`,`WLR: ≥3/${n} close cùng phía; dốc WLR qua ${n} nến đóng vượt ±0,15 ATR14 trước hộp.`,`RW: P20/P80 của 512 đường ${n} bước, độ lớn log-return lấy từ 64 M15 trước hộp, dấu ± cân bằng; không ép giá đích.`,`ΔV×NF: dấu tổng ${n} M15 SPY ΔV và C Taker NF (SPY+QQQ). OI: cùng hướng giá, ΔV, NF; tổng ΔOI>0; ≥2 nến OI tăng đồng thuận vượt P62, chiếm ≥60% |ΔOI|.`,r.details?.randomWalk?`RW P20 ${r.details.randomWalk.p20.toFixed(2)} · P80 ${r.details.randomWalk.p80.toFixed(2)} · điều chỉnh ${val(r.bonus?.randomWalkAlignment??0)} (${r.details.randomWalk.alignment?.referenceSource==='WLR'?'ưu tiên WLR':r.details.randomWalk.alignment?.referenceSource==='H1'?'WLR trung tính → màu H1':'chưa có hướng tham chiếu'}${r.details.randomWalk.alignment?.aligned?' · thuận chiều':r.details.randomWalk.alignment?.opposed?' · nghịch chiều':''})`:'RW thiếu nến.',r.details?.oi?`ΔOI ${n} M15 ${r.details.oi.netDelta.toFixed(2)} · ${r.details.oi.support}/${n} nến ủng hộ · ${(100*r.details.oi.share).toFixed(0)}% |ΔOI|`:'OI thiếu hoặc chưa đủ nền P62.',`RW: close > P80 là +1, close < P20 là −1, ở giữa là 0. Ưu tiên dốc WLR (vượt ±0,15 ATR): thuận chiều thưởng +1/−1 cùng hướng RW; nghịch chiều đưa phần RW về 0 (P80 điều chỉnh −1, P20 điều chỉnh +1). Chỉ khi WLR trung tính mới dùng màu H1 đã khóa với cùng quy tắc; chỉ điều chỉnh một lần. WLR thiếu không được coi là trung tính. Điểm tạm chỉ xét WLR. Tổng thô ${val(r.rawScore)} → hiển thị ${val(r.score)} trong ±5. Đây là trọng số đồng thuận, không phải bằng chứng độc lập.`, '~: điểm tạm sau 3 M15 đóng, tính lại khi M15 thứ tư đóng; không lưu thành điểm khóa. *: thiếu dữ liệu, chỉ cộng thành phần có sẵn. Điểm mô tả lực, không phải xác suất.'].join('\n');
 }
+
 
 
 
