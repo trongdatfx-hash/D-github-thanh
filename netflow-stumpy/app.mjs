@@ -665,7 +665,7 @@ function updateH1OiReadout(){
  const now=Date.now()+serverOffsetMs;
  const live=runningOiState.read(currentOiLoader.sample,oiAppliedSamples,(rows.SPYUSDT??[]).at(-1),(rows.COMPOSITE??[]).at(-1),now,{chartFresh:isChartLive()});
  const label=h1OiLabel(live,!!currentOiLoader.error);
- const parts=[['h1-oi-arrow',('OI '+label.arrow).trim()],['h1-oi-percent',label.value],['h1-oi-flags',label.suffix]];
+ const parts=[['h1-oi-arrow',label.arrow],['h1-oi-percent',label.value],['h1-oi-flags',label.suffix]];
  for(const [id,text] of parts){const part=$(id);if(part&&part.textContent!==text)part.textContent=text;}
  $('h1-oi-percent').dataset.tone=oiPercentColor.update(live,{now,sampleTime:currentOiLoader.sample?.time,error:!!currentOiLoader.error});
  node.title=label.title+' Mũi tên và % cập nhật ngay; màu % cần ít nhất 3 mẫu mới cùng hướng trong 9 giây, giữ màu tối thiểu 15 giây. Sang nến mới, thiếu/cũ/lỗi trả màu trung tính.';node.setAttribute('aria-label',node.title);
