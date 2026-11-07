@@ -578,9 +578,9 @@ function updateH1MatrixReadout(matrix){
  let node=$('h1-matrix-readout');
  if(!node){node=document.createElement('div');node.id='h1-matrix-readout';node.setAttribute('role','status');$('chart').append(node);}
  node.hidden=!matrix;if(!matrix){requestAnimationFrame(positionForecastReadout);return;}
- const groups=matrix.groups,n=groups.length;
+ const groups=matrix.groups;
  const last=matrix.columns.at(-1)?.t,stale=Number.isFinite(last)&&Date.now()+serverOffsetMs>last+2*3600000;
- node.textContent=(stale?'H1 CŨ · ':'')+groups.map((g,i)=>`${i===n-1?'Mới':n===2?'Trước':'Nhóm '+(i+1)} ${g.firstBox===null?'H—':`H${g.firstBox}–${g.lastBox}`}: ${g.text}`).join(' | ');
+ node.textContent=(stale?'H1 CŨ · ':'')+groups.map(g=>`${g.firstBox===null?'H—':`H${g.firstBox}–${g.lastBox}`}: ${g.text}`).join(' | ');
  node.dataset.matrix=JSON.stringify(matrix);node.dataset.states=groups.map(g=>g.state).join('|');
  const time=t=>Number.isFinite(t)?new Date(t).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'}):'—';
  node.title=`Ma trận ${matrix.columns.length}/${matrix.options.window} hộp H1 đã đóng; ${matrix.options.size} hộp/nhóm. Đánh số H1 cũ nhất → H${matrix.columns.length} mới nhất trong cửa sổ ma trận, không tính hộp đang chạy. `+groups.map(g=>`H${g.firstBox??'—'}–${g.lastBox??'—'} · ${time(g.from)} → ${time(g.to===null?null:g.to+3600000)}: ${g.text}`).join('\n')+'\nĐọc ba nhóm GIÁ, ΔV×NF, OI; RW chỉ là trọng số, không phải bằng chứng độc lập. Suy yếu cần nhóm liền trước đã được ủng hộ và cả dòng tiền lẫn OI mất hỗ trợ. Thiếu dữ liệu không coi là 0. Đây là trạng thái lực lịch sử, không xác nhận đảo trend hoặc dự báo tuổi.';

@@ -158,7 +158,7 @@
 #h1-score-histogram .h1-score-bar[data-status=PREVIEW]{opacity:.78;border:1px dashed currentColor}
 
 #geometry-readout[hidden]{display:none!important}
-#h1-cvd-status-row>#h1-matrix-readout{order:-1;box-sizing:border-box;width:100%;min-width:0;padding:4px 7px;background:rgba(9,18,31,.97);border:1px solid #52677d;border-radius:5px;color:#ccd6e3;font-size:11px;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:auto}
+#h1-cvd-status-row>#h1-matrix-readout{order:-1;box-sizing:border-box;width:100%;min-width:0;padding:4px 7px;background:rgba(9,18,31,.97);border:1px solid #52677d;border-radius:5px;color:#ccd6e3;font-size:11px;line-height:1.4;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;word-break:normal;pointer-events:auto}
 #h1-cvd-status-row>#h1-matrix-readout[hidden]{display:none}
 #h1-cvd-status-row>.oi-price-group-badge{display:block!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis;overflow-wrap:normal!important;word-break:normal;font-size:11px;line-height:1.4}
 #h1-cvd-status-row>.oi-price-group-badge[hidden]{display:none!important}
