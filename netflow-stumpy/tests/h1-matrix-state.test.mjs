@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildH1Matrix,matrixOptions,hasTrendPrediction,cvdConfirmationText} from '../h1-matrix-state.mjs';
+import {buildH1Matrix,matrixOptions,hasTrendPrediction,cvdConfirmationText,mountMatrixSettings} from '../h1-matrix-state.mjs';
 const H=3600000;
 const record=(i,d=1)=>({blockStart:i*H,closedBars:4,status:'LOCKED',parts:{position:d,slope:d,randomWalk:d,deltaNF:d,oi:d},bonus:{randomWalkAlignment:d},missing:[]});
 test('matrix preserves six rows, chronological groups, and two recent supported states',()=>{
@@ -33,3 +33,15 @@ test('unknown trend forecasts are hidden; zero probability remains a valid predi
 test('CVD conflict is omitted and valid confirmation retains its count',()=>{
  assert.equal(cvdConfirmationText({state:'conflict',count:3,support:0,share:0}),'');assert.equal(cvdConfirmationText({state:'confirmed',count:3,support:2,share:.8}),'XN 2/3 · 80%');
 });
+test('settings queried before toolbar exists safely return defaults without touching the DOM',()=>{
+ const get=mountMatrixSettings(null,{getItem:()=>null});assert.deepEqual(get(),{window:9,size:3,groups:2});
+});
+test('labels identify exact matrix box ranges when window and group size change',()=>{
+ const r=Array.from({length:20},(_,i)=>record(i));const a=buildH1Matrix(r);
+ assert.deepEqual(a.groups.map(g=>[g.firstBox,g.lastBox]),[[4,6],[7,9]]);
+ assert.equal(a.groups[0].from,a.columns[3].t);assert.equal(a.groups[1].to,a.columns[8].t);
+ const b=buildH1Matrix(r,{window:6,size:3,groups:2});assert.deepEqual(b.groups.map(g=>[g.firstBox,g.lastBox]),[[1,3],[4,6]]);
+ const c=buildH1Matrix(r,{window:10,size:4,groups:2});assert.deepEqual(c.groups.map(g=>[g.firstBox,g.lastBox]),[[3,6],[7,10]]);
+ assert.equal(buildH1Matrix([]).groups[0].firstBox,null);
+});
+

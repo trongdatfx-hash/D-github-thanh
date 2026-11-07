@@ -1,5 +1,5 @@
 import {H1ScoreLedger,lockedH1Blocks,scoreableH1Blocks,scoreTitle,SCORE_STEP} from './h1-box-score.mjs?v=20261107-matrix-label1';
-import {buildH1Matrix} from './h1-matrix-state.mjs?v=20261107-matrix-label1';
+import {buildH1Matrix} from './h1-matrix-state.mjs?v=20261107-matrix-fix2';
 import {h1StripCell} from './h1-h4-strip.mjs?v=20261101-h1h4-align1';
 
 export function mountH1ScoreHistogram({chart,host,getState,storage=null,onMatrix=()=>{}}){
@@ -13,7 +13,8 @@ export function mountH1ScoreHistogram({chart,host,getState,storage=null,onMatrix
     if(!state.active||!state.bars?.length){root.hidden=true;onMatrix(null);return;}
     const matrixBlocks=lockedH1Blocks(state.states,state.now,Infinity,state.matrixOptions?.window??9);
     const matrixScores=new Map(matrixBlocks.map(b=>[b.blockStart,ledger.get(b,state)]));
-    onMatrix(buildH1Matrix([...matrixScores.values()],state.matrixOptions));
+    const matrix=buildH1Matrix([...matrixScores.values()],state.matrixOptions);
+    const matrixNumbers=new Map(matrix.columns.map((c,i)=>[c.t,i+1]));onMatrix(matrix);
     const pane=chart.panes()[0]?.getHTMLElement?.();if(!pane||!host.contains(pane)){root.hidden=true;return;}
     const box=pane.getBoundingClientRect(),hostBox=host.getBoundingClientRect(),paneTop=box.top-hostBox.top-(host.clientTop||0);
     const scaleWidth=chart.priceScale('right',0)?.width?.()??64,plotWidth=Math.max(0,host.clientWidth-scaleWidth);
@@ -33,7 +34,8 @@ export function mountH1ScoreHistogram({chart,host,getState,storage=null,onMatrix
       node.dataset.direction=value===null?'missing':value>0?'up':value<0?'down':'neutral';node.dataset.status=score.status;node.dataset.start=String(block.blockStart);node.dataset.score=value===null?'':String(value);node.dataset.cellCenter=String(cell.x+cell.width/2);node.dataset.boxDirection=String(block.direction);
       node.dataset.closedBars=String(score.closedBars??4);node.dataset.rwBonus=String(score.bonus?.randomWalkAlignment??0);node.dataset.rawScore=score.rawScore===null?'':String(score.rawScore);
       const text=node.firstElementChild;text.textContent=(score.status==='PREVIEW'?'~':'')+(value===null?'—':value>0?'+'+value:String(value))+(score.missing.length?'*':'');text.hidden=cell.width<12;
-      const title=scoreTitle(score);if(node.title!==title)node.title=title;node.setAttribute('aria-label',title);node.dataset.conflict=String(value!==null&&value!==0&&block.direction!==0&&Math.sign(value)!==block.direction);
+      const number=matrixNumbers.get(block.blockStart);node.dataset.matrixBox=number?String(number):'';
+      const title=(number?`Ma trận H${number}/${matrix.columns.length}\n`:'')+scoreTitle(score);if(node.title!==title)node.title=title;node.setAttribute('aria-label',title);node.dataset.conflict=String(value!==null&&value!==0&&block.direction!==0&&Math.sign(value)!==block.direction);
       positions.push({start:block.blockStart,x:cell.x,width:cell.width,center:cell.x+cell.width/2,score:value,status:score.status,closedBars:score.closedBars??4,missing:score.missing.length});
     }
     for(const [key,node] of nodes)if(!used.has(key)){node.remove();nodes.delete(key);}
@@ -43,6 +45,7 @@ export function mountH1ScoreHistogram({chart,host,getState,storage=null,onMatrix
   const schedule=()=>{if(!frame)frame=requestAnimationFrame(draw);};
   schedule();return {schedule};
 }
+
 
 
 

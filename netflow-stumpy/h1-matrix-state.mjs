@@ -27,7 +27,7 @@ export function buildH1Matrix(records,options={}){
   for(let back=o.groups-1;back>=0;back--){
     const end=columns.length-back*o.size,start=end-o.size,current=start>=0?columns.slice(start,end):[],previous=start>=o.size?columns.slice(start-o.size,start):[];
     const result=current.length===o.size?classifyMatrixGroup(current,previous):{state:'WAIT',text:'Chưa đủ hộp'};
-    groups.push({...result,from:current[0]?.t??null,to:current.at(-1)?.t??null,count:current.length});
+    groups.push({...result,firstBox:current.length?start+1:null,lastBox:current.length?end:null,from:current[0]?.t??null,to:current.at(-1)?.t??null,count:current.length});
   }
   return {options:o,rows:MATRIX_ROWS,columns,groups};
 }
@@ -38,6 +38,7 @@ export function cvdConfirmationText(confirmation){
 }
 export function mountMatrixSettings(host,storage,onChange){
   let options;try{options=matrixOptions(JSON.parse(storage?.getItem('dvp:h1-matrix-options:v1')??'{}'));}catch{options=matrixOptions();}
+  if(!host)return ()=>options;
   const panel=document.createElement('details');panel.className='h1-matrix-settings';const heading=document.createElement('summary');heading.textContent='Ma trận H1';panel.append(heading);
   const selects={};
   for(const [key,label,values] of [['window','Dữ liệu ma trận',[6,8,9,10]],['size','Hộp mỗi nhóm',[2,3,4]],['groups','Nhóm đọc kết quả',[1,2,3]]]){
@@ -47,3 +48,4 @@ export function mountMatrixSettings(host,storage,onChange){
   }
   host.append(panel);return ()=>options;
 }
+

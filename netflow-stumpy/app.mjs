@@ -1,5 +1,5 @@
-import {mountH1ScoreHistogram} from './h1-box-score-ui.mjs?v=20261107-matrix-label1';
-import {mountMatrixSettings,hasTrendPrediction,cvdConfirmationText} from './h1-matrix-state.mjs?v=20261107-matrix-label1';
+import {mountH1ScoreHistogram} from './h1-box-score-ui.mjs?v=20261107-matrix-fix2';
+import {matrixOptions,mountMatrixSettings,hasTrendPrediction,cvdConfirmationText} from './h1-matrix-state.mjs?v=20261107-matrix-fix2';
 import {mountGptPattern} from './gpt-pattern-ui.mjs?v=20261106-chatflow1';
 import {CvdBadgeBorder} from './cvd-badge-border.mjs?v=20261106-border1';
 import {CurrentOiLoader,RunningOiState} from './oi-current.mjs?v=20261106-oi-live1';
@@ -39,6 +39,7 @@ const PRICE_DELTA_COLORS={positive:'#36dfff',negative:'#ff78c4',neutral:'#b4c3d7
 let displayVolumeStrengthRows=[];
 let trendAgeCandleMap=new Map(),h1CandleMap=new Map(),h1H4CandleMap=new Map(),abaBandPhaseMap=new Map(),abaBandFrame=0;
 let h1H4StripFrame=0,h1ScoreLayer=null;
+let getH1MatrixOptions=()=>matrixOptions();
 let h1CacheAttempt='',h1CacheArchive=null,h1HistoryKnown=false,h1HistoryRevision=null,studyColorInput=null;
 
 let boxVolumeStrengthMap=new Map(),wlrThicknessMap=new Map(),wlrColorMap=new Map();
@@ -436,7 +437,6 @@ function init(){
   for(const element of [$('chart'),...chart.panes().map(pane=>pane.getHTMLElement())].filter(Boolean))paneLayoutObserver.observe(element);
   $('chart').addEventListener('pointermove',scheduleSpectrumBadge,{passive:true});$('chart').addEventListener('wheel',scheduleSpectrumBadge,{passive:true});
   let scoreInputs=null;
-  const getMatrixOptions=mountMatrixSettings($('chart-indicator-tools'),colorStorage(),()=>h1ScoreLayer?.schedule());
   h1ScoreLayer=mountH1ScoreHistogram({chart,host:$('chart'),storage:colorStorage(),onMatrix:updateH1MatrixReadout,getState:()=>{
     const active=$('symbol').value==='SPYUSDT'&&$('interval').value==='15m'&&$('candle-h1-box-color')?.checked;
     if(!active)return {active:false};
@@ -446,7 +446,7 @@ function init(){
       const points=oiCandleBars(bars,deltaRows,flowRows,oiMap,STEPS['15m'],now,{filterPin:true,history:true,minOiMultiplier:1,oiPercentile:.62}).points;
       scoreInputs={bars,flowRows,bands:priceBandMap,deltas:new Map(deltaRows.map(r=>[r.t,r])),flows:new Map(flowRows.map(r=>[r.t,r])),oi:oiMap,oiPoints:points};
     }
-    return {...scoreInputs,active:true,states:h1CandleMap,now,matrixOptions:getMatrixOptions()};
+    return {...scoreInputs,active:true,states:h1CandleMap,now,matrixOptions:getH1MatrixOptions()};
   }});
   bindChartGestures();
   return true;
@@ -580,10 +580,10 @@ function updateH1MatrixReadout(matrix){
  node.hidden=!matrix;if(!matrix){requestAnimationFrame(positionForecastReadout);return;}
  const groups=matrix.groups,n=groups.length;
  const last=matrix.columns.at(-1)?.t,stale=Number.isFinite(last)&&Date.now()+serverOffsetMs>last+2*3600000;
- node.textContent=(stale?'H1 CŨ · ':'')+groups.map((g,i)=>`${i===n-1?'Mới':n===2?'Trước':'Nhóm '+(i+1)}: ${g.text}`).join(' | ');
+ node.textContent=(stale?'H1 CŨ · ':'')+groups.map((g,i)=>`${i===n-1?'Mới':n===2?'Trước':'Nhóm '+(i+1)} ${g.firstBox===null?'H—':`H${g.firstBox}–${g.lastBox}`}: ${g.text}`).join(' | ');
  node.dataset.matrix=JSON.stringify(matrix);node.dataset.states=groups.map(g=>g.state).join('|');
  const time=t=>Number.isFinite(t)?new Date(t).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'}):'—';
- node.title=`Ma trận ${matrix.columns.length}/${matrix.options.window} hộp H1 đã đóng; ${matrix.options.size} hộp/nhóm. `+groups.map(g=>`${time(g.from)} → ${time(g.to===null?null:g.to+3600000)}: ${g.text}`).join('\n')+'\nĐọc ba nhóm GIÁ, ΔV×NF, OI; RW chỉ là trọng số, không phải bằng chứng độc lập. Suy yếu cần nhóm liền trước đã được ủng hộ và cả dòng tiền lẫn OI mất hỗ trợ. Thiếu dữ liệu không coi là 0. Đây là trạng thái lực lịch sử, không xác nhận đảo trend hoặc dự báo tuổi.';
+ node.title=`Ma trận ${matrix.columns.length}/${matrix.options.window} hộp H1 đã đóng; ${matrix.options.size} hộp/nhóm. Đánh số H1 cũ nhất → H${matrix.columns.length} mới nhất trong cửa sổ ma trận, không tính hộp đang chạy. `+groups.map(g=>`H${g.firstBox??'—'}–${g.lastBox??'—'} · ${time(g.from)} → ${time(g.to===null?null:g.to+3600000)}: ${g.text}`).join('\n')+'\nĐọc ba nhóm GIÁ, ΔV×NF, OI; RW chỉ là trọng số, không phải bằng chứng độc lập. Suy yếu cần nhóm liền trước đã được ủng hộ và cả dòng tiền lẫn OI mất hỗ trợ. Thiếu dữ liệu không coi là 0. Đây là trạng thái lực lịch sử, không xác nhận đảo trend hoặc dự báo tuổi.';
  requestAnimationFrame(positionForecastReadout);
 }
 function currentH1TrendAge(){
@@ -1070,6 +1070,7 @@ if(init()){
   setupChartActions();
   const chartCard=document.querySelector('.chart-card');
   const indicatorTools=document.createElement('section');indicatorTools.id='chart-indicator-tools';indicatorTools.className='chart-options chart-indicator-tools';indicatorTools.setAttribute('aria-label','Điều khiển hộp sức mạnh và phân vị');chartCard.before(indicatorTools);
+  getH1MatrixOptions=mountMatrixSettings(indicatorTools,colorStorage(),()=>h1ScoreLayer?.schedule());
   const chartNotes=document.createElement('details');chartNotes.id='chart-notes';const notesSummary=document.createElement('summary');notesSummary.textContent='Giải thích và trạng thái chỉ báo';chartNotes.append(notesSummary);chartCard.after(chartNotes);
   for(const node of chartCard.querySelectorAll('#tooltip,.hint'))chartNotes.append(node);
   strengthBoxLayer=createStrengthBoxLayer({chart,host:$('chart'),actions:indicatorTools,getContext:()=>({rows:rows[$('symbol').value]??[],symbol:$('symbol').value,interval:$('interval').value,step:STEPS[$('interval').value],now:cache?.serverTime??0,price,composite:maps.COMPOSITE??new Map(),compositeRevision:studyResultKey,volume:boxVolumeStrengthMap,earlyChannels:studyResultKey===studyKey&&$('causal-trend-channel').checked&&$('causal-trend-channel-provisional').checked?(causalChannelState.early??[]):[],channels:studyResultKey===studyKey&&$('causal-trend-channel').checked?(causalChannelState.trends??[]).filter(c=>!c.provisional||$('causal-trend-channel-provisional').checked):[]}),onChange:()=>quantileLayer?.update()});
@@ -1136,6 +1137,7 @@ if(init()){
   setInterval(()=>{if(!document.hidden)refreshCalendar();},CALENDAR_REFRESH_MS);
   setInterval(updateCandleCountdown,250);
 }
+
 
 
 
