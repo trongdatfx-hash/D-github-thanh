@@ -1,7 +1,7 @@
 export function h1OiLabel(live,error=false){
- if(!live?.ready||![live.delta,live.pct].every(Number.isFinite))return {arrow:'',value:'—',suffix:error?' · LỖI':'',text:error?'— · LỖI':'—',title:error?'OI hiện tại lỗi hoặc chưa đủ mẫu; không tự điền 0%.':'Chờ OI hiện tại và mốc so sánh.',tone:'wait'};
+ if(!live?.ready||![live.delta,live.pct].every(Number.isFinite))return {arrow:'',value:'—',suffix:'',text:'—',title:error?'OI hiện tại lỗi hoặc chưa đủ mẫu; không tự điền 0%.':'Chờ OI hiện tại và mốc so sánh.',tone:'wait'};
  const arrow=live.delta>0?'↑':live.delta<0?'↓':'↔',value=(live.pct>0?'+':'')+live.pct.toFixed(2)+'%';
- const suffix=`${live.partial?'*':''}${live.stale?' · CŨ':''}${error?' · LỖI':''}`;
+ const suffix=`${live.partial?'*':''}${live.stale?' · CŨ':''}`;
  return {arrow,value,suffix,text:`${arrow} ${value}${suffix}`,tone:live.delta>0?'up':live.delta<0?'down':'flat',title:`ΔOI SPYUSDT: ${value}; ${live.delta>0?'OI tăng':live.delta<0?'OI giảm':'OI không đổi'}. ${live.partial?'* So với lúc bắt đầu theo dõi vì thiếu mốc đầu nến.':'So với mốc đầu nến M15.'}${live.stale?' Dữ liệu OI cũ.':''}${error?' Nguồn OI đang báo lỗi.':''} Không xác định Long/Short.`};
 }
 export class OiPercentColor {
