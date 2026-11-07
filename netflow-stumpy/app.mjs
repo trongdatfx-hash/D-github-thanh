@@ -1,4 +1,4 @@
-import {h1ScoreMirror} from './spy-volume-h1-mirror.mjs?v=20261107-spy-mirror1';
+import {h1ScoreMirror} from './spy-volume-h1-mirror.mjs?v=20261107-spy-mirror-fast1';
 import {LargeTakerLoader,largeTakerDetail} from './large-taker-spectrum.mjs?v=20261107-large-taker2';
 import {h1OiLabel,OiPercentColor} from './h1-oi-label.mjs?v=20261107-h1-label-arrows1';
 import {mountChartSettings} from './chart-settings.mjs?v=20261107-outside-fast1';
@@ -1096,7 +1096,7 @@ if(init()){
   spyH1Label.title='Thử nghiệm SPY V trên M15: Hộp H1 điều chỉnh EWMA trước chuẩn hóa; nhanh khi cùng hướng, chậm khi trung tính, mở tốc độ khi lực đảo chiều. Hộp đóng chỉ dùng từ lúc xác nhận; preview chỉ tác động điểm đang chạy. Khi bật, đường SPY V, màu WLR dốc + SPY V, độ dày WLR Dốc/σ + khóa mềm và dự báo tuổi trend cùng dùng SPY V mượt H1; khi tắt, các mục này trở về SPY V gốc.';
   spyH1Label.append(spyH1Toggle,'SPY V mượt H1 · thử');$('spy-volume-strength').closest('label').after(spyH1Label);
   spyH1Toggle.onchange=()=>{studyKey='';render(false);};
-  const mirrorInput=document.createElement('input'),mirrorButton=document.createElement('button');mirrorInput.id='spy-volume-h1-mirror';mirrorInput.type='checkbox';mirrorInput.checked=true;mirrorInput.hidden=true;mirrorButton.id='spy-volume-mirror-button';mirrorButton.type='button';mirrorButton.className='display-mode-button';mirrorButton.append(mirrorInput,'SPY V gương H1: BẬT');mirrorButton.title='SPY M15 · gương qua mốc 0 của SPY V GỐC, làm trơn EWMA có trọng số 1 + |điểm hộp H1| (1–6), half-life 2 M15. Chỉ điểm H1 đủ 4 nến đã khóa từ giờ trước; thiếu điểm dùng trọng số 1. Không dùng SPY V mượt H1, không thay WLR hay ma trận.';spyH1Label.after(mirrorButton);mirrorButton.onclick=()=>{mirrorInput.checked=!mirrorInput.checked;render(false);};
+  const mirrorInput=document.createElement('input'),mirrorButton=document.createElement('button');mirrorInput.id='spy-volume-h1-mirror';mirrorInput.type='checkbox';mirrorInput.checked=true;mirrorInput.hidden=true;mirrorButton.id='spy-volume-mirror-button';mirrorButton.type='button';mirrorButton.className='display-mode-button';mirrorButton.append(mirrorInput,'SPY V gương H1: BẬT');mirrorButton.title='SPY M15 · gương qua mốc 0 của SPY V GỐC, EWMA nhanh, half-life nền 0,65 M15; |điểm H1| tăng độ bám, mở tốc độ khi SPY V đổi dấu rõ; dao động nhỏ vẫn mượt. Chỉ điểm H1 đủ 4 nến đã khóa từ giờ trước; thiếu điểm dùng trọng số 1. Không dùng SPY V mượt H1, không thay WLR hay ma trận.';spyH1Label.after(mirrorButton);mirrorButton.onclick=()=>{mirrorInput.checked=!mirrorInput.checked;render(false);};
   restoreSavedSetup();syncChartFrameButtons();
   // Restore the C histogram once for setups saved before the taker plot cleanup.
   // Subsequent user choices remain under the normal Save setup control.

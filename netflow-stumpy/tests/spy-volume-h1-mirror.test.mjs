@@ -27,3 +27,23 @@ test('missing samples and time gaps restart smoothing rather than bridge unknown
   const a=h1ScoreMirror([{t:0,adjusted:1},{t:2*S,adjusted:-1}],[],{now:3*S});assert.equal(a[1].adjusted,1);
   const b=h1ScoreMirror(rows([1,null,-1]),[],{now:3*S});assert.equal(b[1].adjusted,null);assert.equal(b[2].adjusted,1);
 });
+test('material reversals cross on the first sample in both directions, faster than the old half-life 2 filter',()=>{
+  for(const sign of [1,-1]){
+    const values=[...Array(12).fill(.8*sign),...Array(6).fill(-.8*sign)];
+    const result=h1ScoreMirror(rows(values),[],{now:values.length*S});
+    assert.equal(Math.sign(result[12].smoothed),-sign);assert(result[12].alpha>=.90);
+    let n=0,m=0;const old=values.map(v=>{n=2**(-1/2)*n+v;m=2**(-1/2)*m+1;return n/m;});
+    assert(result.findIndex((r,i)=>i>=12&&Math.sign(r.smoothed)===-sign)<old.findIndex((v,i)=>i>=12&&Math.sign(v)===-sign));
+  }
+});
+test('expiry of a strong H1 cannot leave old weight mass resisting reversal',()=>{
+  const result=h1ScoreMirror(rows([...Array(8).fill(.8),-.1]),[score(0,5)],{now:9*S});
+  assert.equal(result[7].weight,6);assert.equal(result[8].weight,1);assert(result[8].smoothed<0);assert(result[8].alpha>.9);
+});
+test('small fluctuations remain smoother and updates never overshoot input extrema',()=>{
+  const values=Array.from({length:40},(_,i)=>.3+(i%2?.01:-.01)),result=h1ScoreMirror(rows(values),[],{now:40*S});
+  const variance=a=>{const mean=a.reduce((s,x)=>s+x,0)/a.length;return a.reduce((s,x)=>s+(x-mean)**2,0)/a.length;};
+  assert(variance(result.slice(10).map(r=>r.smoothed))<variance(values.slice(10)));
+  assert(result.every(r=>r.smoothed>=.29-1e-12&&r.smoothed<=.31+1e-12));
+});
+
