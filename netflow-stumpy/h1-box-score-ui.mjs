@@ -1,5 +1,5 @@
 import {H1ScoreLedger,h1ScoreBars,lockedH1Blocks,scoreableH1Blocks,scoreTitle,SCORE_STEP} from './h1-box-score.mjs?v=20261107-outside-fast1';
-import {buildH1Matrix} from './h1-matrix-state.mjs?v=20261107-spy-delta-day1';
+import {buildH1Matrix} from './h1-matrix-state.mjs?v=20261107-matrix-short-label1';
 import {h1StripCell} from './h1-h4-strip.mjs?v=20261101-h1h4-align1';
 
 export function mountH1ScoreHistogram({chart,host,getState,storage=null,onMatrix=()=>{}}){

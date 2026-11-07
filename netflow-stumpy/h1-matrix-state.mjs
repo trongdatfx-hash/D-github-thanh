@@ -14,12 +14,12 @@ export function classifyMatrixGroup(columns,previous=[]){
   const e=evidence(columns),d=e.direction,word=d>0?'Tăng':'Giảm';
   if(!columns.length||!contiguous(columns))return {state:'WAIT',text:'Chưa đủ hộp liên tục'};
   if(!e.complete)return {state:'MISSING',text:d?`${word} · thiếu dữ liệu`:'Thiếu dữ liệu'};
-  if(!d)return {state:'MIXED',text:'Chuyển tiếp / chưa rõ'};
+  if(!d)return {state:'MIXED',text:'Chuyển tiếp / ??'};
   if(e.n('deltaNF',-d)>=e.needed)return {state:'CONFLICT',text:'Giá–C Taker xung đột'};
   if(e.n('deltaNF',d)>=e.needed&&e.n('oi',d)>=e.needed)return {state:d>0?'UP':'DOWN',text:`${word} được ủng hộ`};
   const p=evidence(previous),adjacent=previous.length===columns.length&&contiguous(previous)&&previous.at(-1)?.t+3600000===columns[0].t;
   if(adjacent&&p.complete&&p.direction===d&&p.n('deltaNF',d)>=p.needed&&p.n('oi',d)>=p.needed&&e.n('deltaNF',d)<p.n('deltaNF',d)&&e.n('oi',d)<p.n('oi',d))return {state:d>0?'UP_WEAK':'DOWN_WEAK',text:`Lực ${d>0?'tăng':'giảm'} suy yếu`};
-  return {state:'UNCONFIRMED',text:`${word} chưa đủ xác nhận`};
+  return {state:'UNCONFIRMED',text:`${word} chưa đủ xn`};
 }
 export function buildH1Matrix(records,options={}){
   const o=matrixOptions(options),columns=[...new Map(records.filter(r=>r&&r.status!=='PREVIEW'&&r.status!=='WAIT_DATA'&&r.closedBars!==3).map(r=>[r.blockStart,r])).values()].sort((a,b)=>a.blockStart-b.blockStart).slice(-o.window).map(r=>({t:r.blockStart,values:{...r.parts,rwAdjustment:r.bonus?.randomWalkAlignment??null},missing:r.missing??[]}));
