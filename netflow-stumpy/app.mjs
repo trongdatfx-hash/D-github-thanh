@@ -7,6 +7,7 @@ import {pivotMatrixStyle} from './pivot-matrix-style.mjs?v=20261107-pivot-matrix
 import {matrixOptions,mountMatrixSettings,hasTrendPrediction,cvdConfirmationText} from './h1-matrix-state.mjs?v=20261108-matrix-label-no-oi1';
 import {mountGptPattern} from './gpt-pattern-ui.mjs?v=20261106-chatflow1';
 import {CurrentOiLoader,RunningOiState} from './oi-current.mjs?v=20261106-oi-live1';
+import {compositeNfSmooth} from './composite-nf-smooth.mjs?v=20261108-c-taker-smooth1';
 import {h1AdaptiveVolumeRows} from './spy-volume-h1.mjs?v=20261105-spyv-h1-1';
 import {OiFastLoader} from './oi-fast-load.mjs?v=20261104-oi-region-confirm1';
 import {spyCandleVolumeFlow,buildSpectrumComparison,drawPairedSpectrum,spectrumPriceGroup,confirmSpectrumGroup} from './paired-spectrum.mjs?v=20261107-matrix-2m15-p61-1';
@@ -84,7 +85,9 @@ let studiesWorker=null,studyKey='',studyResultKey='',statsWorker=null,statsReque
 const CALENDAR_REFRESH_MS=5*60*1000;
 const FIT_WINDOW_MS=36*60*60*1000,FIT_HALF_WINDOW_MS=12*60*60*1000,DOUBLE_TAP_MS=360,DOUBLE_TAP_DISTANCE=28,TAP_MOVE_TOLERANCE=14;
 const SETUP_STORAGE_KEY='netflow-rth-lite:chart-setup:v1';
-const SETUP_CONTROL_IDS=['symbol','interval','days','signal','composite','alignment','confirmed-delta-toggle','oi-width-toggle','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-trend-age-color','candle-h1-box-color','cvd-spectrum-toggle','large-taker-toggle','large-taker-percentile','oi-spectrum-toggle','oi-candle-bars-toggle','oi-candle-pin-toggle','oi-delta-percentile','oi-bold-candles-toggle','show-strength','spy-volume-strength','spy-volume-h1-smooth','h1-score-line-toggle','bands','markers','double-tap-full','geometry-toggle','geometry-matrix-toggle','geometry-provisional','causal-trend-channel','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
+let nfSmoothRows=[],nfSmoothMap=new Map();
+const nfSmoothEnabled=()=>$('nf-smooth-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
+const SETUP_CONTROL_IDS=['nf-smooth-toggle','nf-smooth-window','symbol','interval','days','signal','composite','alignment','confirmed-delta-toggle','oi-width-toggle','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-trend-age-color','candle-h1-box-color','cvd-spectrum-toggle','large-taker-toggle','large-taker-percentile','oi-spectrum-toggle','oi-candle-bars-toggle','oi-candle-pin-toggle','oi-delta-percentile','oi-bold-candles-toggle','show-strength','spy-volume-strength','spy-volume-h1-smooth','h1-score-line-toggle','bands','markers','double-tap-full','geometry-toggle','geometry-matrix-toggle','geometry-provisional','causal-trend-channel','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
 let statsMap=new Map(),candleColorMap=new Map(),candleClusterMap=new Map(),rev63State=null,pivotZoneState={ready:false,reason:'history',support:null,resistance:null},pivotZoneKey='',inspectedTime=null;
 let calendarState={events:[],updatedAt:null,loading:false};
 let pendingSavedTimeRange=null,saveSetupTimer=null,strengthBoxLayer=null,quantileLayer=null;
@@ -423,6 +426,8 @@ function init(){
   series.oiCandleBars=chart.addSeries(L.HistogramSeries,{priceScaleId:'oi-candle-bars-overlay',base:0,title:'',priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'volume'},autoscaleInfoProvider:original=>{const info=original();if(info)info.priceRange.minValue=0;return info;}},1);
   series.oiCandleBars.priceScale().applyOptions({autoScale:true,scaleMargins:{top:.80,bottom:0}});
   series.volumeStrength=chart.addSeries(L.BaselineSeries,{baseValue:{type:'price',price:0},topLineColor:'#f6c85f',topFillColor1:'rgba(246,200,95,.12)',topFillColor2:'rgba(246,200,95,0)',bottomLineColor:'#f3f6fb',bottomFillColor1:'rgba(243,246,251,0)',bottomFillColor2:'rgba(243,246,251,.09)',lineWidth:3,title:'',priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:4,autoscaleInfoProvider:()=>({priceRange:{minValue:-1,maxValue:1}})},1);
+  series.nfSmooth=chart.addSeries(L.BaselineSeries,{priceScaleId:'right',baseValue:{type:'price',price:0},topLineColor:'#28ddb0',bottomLineColor:'#ff718e',topFillColor1:'rgba(40,221,176,0)',topFillColor2:'rgba(40,221,176,0)',bottomFillColor1:'rgba(255,113,142,0)',bottomFillColor2:'rgba(255,113,142,0)',lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:3,title:'',priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},autoscaleInfoProvider:()=>({priceRange:{minValue:-1,maxValue:1}})},1);
+  const nfReadout=document.createElement('div');nfReadout.id='nf-smooth-readout';nfReadout.className='pane-fixed-readout';nfReadout.hidden=true;nfReadout.style.display='none';$('chart').append(nfReadout);
   series.confirmedDelta=chart.addCustomSeries(new OiDottedSeries,{priceScaleId:'right',color:PRICE_DELTA_COLORS.positive,priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},autoscaleInfoProvider:symmetricAutoscale},1);
   for(const [key,style] of [['h1ScoreLine',L.LineStyle.Solid],['h1ScorePreview',L.LineStyle.Dotted]])series[key]=chart.addSeries(L.LineSeries,{priceScaleId:'right',color:'rgba(210,194,174,.55)',lineWidth:1,lineStyle:style,title:'',priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:2,pointMarkersVisible:true,pointMarkersRadius:key==='h1ScorePreview'?2:1,priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},autoscaleInfoProvider:()=>({priceRange:{minValue:-1,maxValue:1}})},1);
   const h1LineReadout=document.createElement('div');h1LineReadout.id='h1-score-line-readout';h1LineReadout.className='pane-fixed-readout';h1LineReadout.hidden=true;h1LineReadout.style.display='none';$('chart').append(h1LineReadout);
@@ -858,6 +863,11 @@ function render(fit=false){
   $('chart').dataset.oiCandleBarsPane=String(series.oiCandleBars.getPane().paneIndex());
   $('chart').dataset.oiCandleBarsMatched=String(oiBarState.matched);$('chart').dataset.oiCandleBarsEligible=String(oiBarState.eligible);
   $('oi-candle-bars-status').textContent=$('symbol').value!=='SPYUSDT'?'ΔOI theo nến · chỉ SPY':!oiBarsEnabled?'ΔOI theo nến':oiBarState.gateReady?`ΔOI theo nến · ${oiBarState.matched}/${oiBarState.eligible} · lịch sử`:oiBarState.eligible?'ΔOI · chờ nền 10 nến':'ΔOI theo nến · WAIT';
+  const nfOn=nfSmoothEnabled(),nfWindow=Number($('nf-smooth-window')?.value??4);
+  nfSmoothRows=nfOn?compositeNfSmooth(cache?.SPYUSDT??[],cache?.QQQUSDT??[],{now:cache?.serverTime??Date.now(),strLen:nfWindow}):[];
+  nfSmoothMap=new Map(nfSmoothRows.map(x=>[x.t,x]));
+  writeSeries('nfSmooth',series.nfSmooth,nfSmoothRows.map(x=>Number.isFinite(x.value)?{time:x.t/1000,value:x.value}:{time:x.t/1000}),seriesContext+'|c-nf-'+nfWindow);
+  $('chart').dataset.nfSmoothSource='SPY+QQQ_TAKER_QUOTE';$('chart').dataset.nfSmoothWindow=String(nfWindow);$('chart').dataset.nfSmoothMode=nfOn?'closed-bars-self-adaptive':'off';
   writeSeries('confirmedDelta',series.confirmedDelta,priceDeltaStrengthData(rows.COMPOSITE??[]),seriesContext);
   writeSeries('strength',series.strength,lineData(signalRows,'adjusted'),seriesContext);
   writeSeries('volumeStrength',series.volumeStrength,lineData(displayVolumeStrengthRows,'adjusted'),seriesContext);
@@ -912,6 +922,7 @@ function paneBounds(index){
   return {top:rect.top-hostRect.top-(host.clientTop||0),height:rect.height};
 }
 function positionFixedPaneReadouts(){
+  updateNfSmoothReadout(inspectedTime);
   for(const [id,index] of [['composite-flow-fixed',2],['spy-volume-fixed',1]]){const node=$(id),bounds=paneBounds(index);if(!node||!bounds)continue;node.style.top=`${Math.round(bounds.top+6)}px`;node.dataset.paneTop=String(Math.round(bounds.top));node.dataset.paneBottom=String(Math.round(bounds.top+bounds.height));}
 }
 function latestFiniteValue(data,key){for(let i=data.length-1;i>=0;i--)if(Number.isFinite(data[i]?.[key]))return data[i][key];return null;}
@@ -959,7 +970,17 @@ function updateH1ScoreLineReadout(t){
   const bar=maps.SPYUSDT?.get(t),asOf=Math.min(cache?.serverTime??Date.now(),bar?.end!==undefined?bar.end+1:t??0),text=enabled&&t!==null?h1ScoreLineText(asOf):'';
   node.hidden=!text;node.style.display=text?'block':'none';node.textContent=text;const bounds=paneBounds(1);if(bounds)node.style.top=`${Math.round(bounds.top+26)}px`;
 }
+function updateNfSmoothReadout(t=null){
+  const node=$('nf-smooth-readout');if(!node)return;
+  const on=nfSmoothEnabled(),now=cache?.serverTime??Date.now(),r=t===null?nfSmoothRows.findLast(x=>x.knownAt<=now):nfSmoothMap.get(t),value=r?.value;
+  node.hidden=!on;node.style.display=on?'block':'none';
+  node.textContent='C NF'+($('nf-smooth-window')?.value??'4')+' '+(Number.isFinite(value)?signed(value):r?.reason==='forming_excluded'?'chờ đóng':'chờ nền');
+  node.className='pane-fixed-readout '+(Number.isFinite(value)?value>=0?'positive':'negative':'missing');
+  node.title='C Taker NF mượt: NF thật SPY + QQQ / SMA20(tổng quote volume), cộng '+($('nf-smooth-window')?.value??'4')+' M15 → EWMA tự thích ứng α=0,18–0,60 → chuẩn hóa đối xứng −1…+1 bằng nền 500 điểm. Chỉ nến đóng có đủ hai mã; không lọc theo thân giá, H1 hay OI và không dịch tâm theo phiên. Đây là chỉ số không đơn vị, không phải NF USDT của riêng nến mới nhất. '+(r?'Trạng thái: '+r.reason+(Number.isFinite(r.alpha)?' · α='+r.alpha.toFixed(3):''):'Chưa có dữ liệu.');
+  const bounds=paneBounds(1);if(bounds)node.style.top=Math.round(bounds.top+46)+'px';
+}
 function showTooltip(t){
+  updateNfSmoothReadout(inspectedTime);
   updateH1ScoreLineReadout(inspectedTime);
   const p=maps[$('symbol').value]?.get(t),record=statsMap.get(t),state=record?.state,colorSignal=candleColorMap.get(t),clusterSignal=candleClusterMap.get(t),geometryEvent=geometryState.events?.find(event=>event.at===t),breakoutEvent=geometryStatePoints.find(event=>event.at===t)??(breakoutState&&breakoutState.at===t&&['true_break','false_break','strong_break'].includes(breakoutState.key)?breakoutState:null),geometryLine=inspectedTime===null?geometryState.lines?.[0]:null;
   const time=p?new Date(t).toLocaleString('vi-VN',{timeZone:'America/New_York'})+' ET':'Chưa có dữ liệu';
@@ -995,6 +1016,7 @@ function showTooltip(t){
   $('tooltip').replaceChildren(...nodes);
 }
 function toggle(){
+  setOptions(series.nfSmooth,{visible:!!nfSmoothEnabled()});updateNfSmoothReadout(inspectedTime);
   strengthBoxLayer?.update();quantileLayer?.update();
   scheduleAbaBandColors();
   for(const key of ['h1ScoreLine','h1ScorePreview'])setOptions(series[key],{visible:!!$('h1-score-line-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m'});
@@ -1143,6 +1165,11 @@ if(init()){
   spyH1Label.append(spyH1Toggle,'SPY V mượt H1 · thử');$('spy-volume-strength').closest('label').after(spyH1Label);
   spyH1Toggle.onchange=()=>{studyKey='';render(false);};
   const scoreLineInput=document.createElement('input'),scoreLineButton=document.createElement('button');scoreLineInput.id='h1-score-line-toggle';scoreLineInput.type='checkbox';scoreLineInput.checked=true;scoreLineInput.hidden=true;scoreLineButton.id='h1-score-line-button';scoreLineButton.type='button';scoreLineButton.className='display-mode-button';scoreLineButton.append(scoreLineInput,'Điểm H1 mượt: BẬT');scoreLineButton.title='Nguồn trực tiếp điểm hộp H1 −5…+5, không dùng đường SPY V. Mỗi điểm chính thức đặt tại lúc H1 đóng; mượt 0,75, đổi dấu mạnh dùng 0,90; chia 5 để cùng thang pane SPY V. Hộp 3/4 chỉ có đoạn xem trước nét chấm. Thiếu điểm thì ngắt đường.';spyH1Label.after(scoreLineButton);scoreLineButton.onclick=()=>{scoreLineInput.checked=!scoreLineInput.checked;render(false);};
+  const nfLabel=document.createElement('label'),nfInput=document.createElement('input'),nfWindow=document.createElement('select');
+  nfInput.id='nf-smooth-toggle';nfInput.type='checkbox';nfInput.checked=true;nfWindow.id='nf-smooth-window';
+  for(const n of [4,8]){const option=document.createElement('option');option.value=String(n);option.textContent=n+' M15';nfWindow.append(option);}
+  nfLabel.append(nfInput,'C Taker NF mượt · thử ',nfWindow);nfLabel.title='Line trong pane SPY trên SPY M15: NF SPY + QQQ thật, chuẩn hóa SMA20, cộng 4/8 nến, EWMA tự thích ứng, nền 500. Chỉ nến đóng; thiếu cặp thì ngắt. Giữ line Giá×Delta và histogram NF để đối chiếu.';spyH1Label.after(nfLabel);
+  nfInput.onchange=()=>render(false);nfWindow.onchange=()=>render(false);
   restoreSavedSetup();syncChartFrameButtons();
   // Restore the C histogram once for setups saved before the taker plot cleanup.
   // Subsequent user choices remain under the normal Save setup control.
@@ -1189,6 +1216,7 @@ if(init()){
   setInterval(()=>{if(!document.hidden)refreshCalendar();},CALENDAR_REFRESH_MS);
   setInterval(updateCandleCountdown,250);
 }
+
 
 
 
