@@ -5,6 +5,10 @@ on:
       - 'netflow-stumpy/composite-nf-smooth.mjs'
       - 'netflow-stumpy/tests/composite-nf-smooth.test.mjs'
       - 'netflow-stumpy/tests/composite-nf-ui.test.mjs'
+      - 'netflow-stumpy/matrix-trend-status.mjs'
+      - 'netflow-stumpy/tests/matrix-trend-status.test.mjs'
+      - 'netflow-stumpy/tests/matrix-trend-runtime.test.mjs'
+      - 'netflow-stumpy/h1-color-cache.mjs'
       - 'netflow-stumpy/matrix-geometry.mjs'
       - 'netflow-stumpy/geometry.mjs'
       - 'netflow-stumpy/studies-core.mjs'
@@ -43,7 +47,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test netflow-stumpy/tests/composite-nf-smooth.test.mjs netflow-stumpy/tests/composite-nf-ui.test.mjs netflow-stumpy/tests/wlr-h1-style.test.mjs netflow-stumpy/tests/wlr-h1-integration.test.mjs netflow-stumpy/tests/wlr-color-segments.test.mjs netflow-stumpy/tests/matrix-geometry.test.mjs netflow-stumpy/tests/geometry.test.mjs netflow-stumpy/tests/h1-box-score.test.mjs netflow-stumpy/tests/spy-volume-h1-mirror.test.mjs netflow-stumpy/tests/h1-score-line.test.mjs netflow-stumpy/tests/h1-matrix-state.test.mjs netflow-stumpy/tests/matrix-price-confirmation.test.mjs netflow-stumpy/tests/large-taker-spectrum.test.mjs
+      - run: node --test netflow-stumpy/tests/matrix-trend-status.test.mjs netflow-stumpy/tests/matrix-trend-runtime.test.mjs netflow-stumpy/tests/h1-color-cache.test.mjs netflow-stumpy/tests/composite-nf-smooth.test.mjs netflow-stumpy/tests/composite-nf-ui.test.mjs netflow-stumpy/tests/wlr-h1-style.test.mjs netflow-stumpy/tests/wlr-h1-integration.test.mjs netflow-stumpy/tests/wlr-color-segments.test.mjs netflow-stumpy/tests/matrix-geometry.test.mjs netflow-stumpy/tests/geometry.test.mjs netflow-stumpy/tests/h1-box-score.test.mjs netflow-stumpy/tests/spy-volume-h1-mirror.test.mjs netflow-stumpy/tests/h1-score-line.test.mjs netflow-stumpy/tests/h1-matrix-state.test.mjs netflow-stumpy/tests/matrix-price-confirmation.test.mjs netflow-stumpy/tests/large-taker-spectrum.test.mjs
 
 
 

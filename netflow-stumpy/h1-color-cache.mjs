@@ -1,6 +1,6 @@
 // Only locked display states are persisted. This cache never grants LIVE or
 // feeds raw history, indicators, training cohorts, or running-candle previews.
-export const H1_COLOR_CACHE_VERSION='20261103-spy-restore1';
+export const H1_COLOR_CACHE_VERSION='20261108-channel-seed-no-age1';
 const ROOT='netflow:h1-h4-colors:v1:',TTL=24*60*60*1000,MAX_CHARS=2000000;
 const FIELDS=['t','o','h','l','c','v','end','q','buy'];
 const supported=raw=>raw&&!raw.partial&&['15m','1h'].includes(raw.interval)&&[7,14,30].includes(raw.days);

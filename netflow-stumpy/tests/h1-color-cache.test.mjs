@@ -64,7 +64,7 @@ test('prefetch overlaps chart requests, sends no study result, and shares its hi
   const self={postMessage:message=>messages.push(message)};
   vm.runInNewContext(code,{self,performance,AbortSignal,loadPersistentHistory:()=>{loads++;return pending},analyzeTrendSource:()=>({}),computeStudies:data=>{computed++;data.onH1Ready([],[]);return {};}});
   const prefetch=self.onmessage({data:{type:'prefetch'}});
-  const r=raw(),request=self.onmessage({data:{key:'study1',raw:r,now:r.serverTime,sourceKey:'source1'}});
+  const r=raw(),request=self.onmessage({data:{key:'study1',raw:r,now:r.serverTime,sourceKey:'source1',options:{minScore:55,maxLines:4,matrixGeometry:false}}});
   assert.equal(loads,1);assert.equal(computed,0);
   release({manifest:{updatedAt:1},SPYUSDT:r.SPYUSDT,QQQUSDT:r.QQQUSDT});await Promise.all([prefetch,request]);
   assert.equal(computed,1);assert.equal(messages[0].type,'history-ready');assert.equal(messages[1].partial,'h1');assert.deepEqual(JSON.parse(JSON.stringify(messages[1].archive)),{updatedAt:1});

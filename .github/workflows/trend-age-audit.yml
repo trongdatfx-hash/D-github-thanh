@@ -1,17 +1,16 @@
-name: Trend age label correctness
+name: Matrix trend status correctness
 on:
   push:
     branches: [main]
     paths:
-      - 'netflow-stumpy/pre-rth-wlr-trend.mjs'
-      - 'netflow-stumpy/tests/pre-rth-wlr-trend.test.mjs'
+      - 'netflow-stumpy/matrix-trend-status.mjs'
+      - 'netflow-stumpy/tests/matrix-trend-status.test.mjs'
+      - 'netflow-stumpy/tests/matrix-trend-runtime.test.mjs'
       - 'netflow-stumpy/studies-core.mjs'
       - 'netflow-stumpy/studies-worker.mjs'
       - 'netflow-stumpy/app.mjs'
-      - 'netflow-stumpy/spy-session-change.mjs'
-      - 'netflow-stumpy/tests/spy-session-change.test.mjs'
+      - 'netflow-stumpy/h1-color-cache.mjs'
       - 'netflow-ml/tests/fixtures/**'
-      - 'netflow-stumpy/scripts/audit-trend-age.mjs'
       - '.github/workflows/trend-age-audit.yml'
   workflow_dispatch:
 permissions:
@@ -25,12 +24,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Verify trend age, channel lifecycle
-        run: node --test netflow-stumpy/tests/pre-rth-wlr-trend.test.mjs netflow-stumpy/tests/causal-trend-channel.test.mjs netflow-stumpy/tests/engine.test.mjs netflow-stumpy/tests/strength-sources.test.mjs netflow-stumpy/tests/spy-session-change.test.mjs
-      - name: Replay PRE, RTH and session-end labels from real stored M15 history
-        run: node netflow-stumpy/scripts/audit-trend-age.mjs > trend-age-audit.json
-      - uses: actions/upload-artifact@v4
-        with:
-          name: trend-age-label-audit
-          path: trend-age-audit.json
-          retention-days: 30
+      - name: Verify matrix states, OI isolation, closed timestamps and H1 preservation
+        run: node --test netflow-stumpy/tests/matrix-trend-status.test.mjs netflow-stumpy/tests/matrix-trend-runtime.test.mjs netflow-stumpy/tests/h1-color-cache.test.mjs netflow-stumpy/tests/matrix-geometry.test.mjs netflow-stumpy/tests/causal-trend-channel.test.mjs netflow-stumpy/tests/engine.test.mjs netflow-stumpy/tests/strength-sources.test.mjs netflow-stumpy/tests/spy-session-change.test.mjs
