@@ -351,6 +351,8 @@ function requestStats(){
 }
 
 
+const isCompactChart=()=>matchMedia('(max-width: 760px)').matches;
+const isTouchChart=()=>matchMedia('(pointer: coarse)').matches||navigator.maxTouchPoints>0;
 function applyResponsiveChartOptions(){
   if(!chart)return;
   const compact=isCompactChart(),touch=isTouchChart(),full=isFullChart();
