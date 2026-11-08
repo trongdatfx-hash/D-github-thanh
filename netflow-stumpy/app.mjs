@@ -22,10 +22,10 @@ import {createQuantilePrice} from './quantile-price-ui.mjs?v=20261029-price-delt
 import {chartFresh,liveTrendAgeState} from './chart-live.mjs?v=20261030-chart-live3';
 import {chartHistoryFallback} from './chart-history-fallback.mjs?v=20261029-price-delta1';
 import {causalChannelAba} from './aba-causal-channels.mjs?v=20261029-price-delta1';
-import {wlrColorSegments} from './wlr-color-segments.mjs?v=20261029-price-delta1';
+import {wlrColorSegments} from './wlr-color-segments.mjs?v=20261108-wlr-h1-align2';
 import {wlrSlopeThickness,WLR_SLOPE_DEFAULTS} from './wlr-slope-thickness.mjs?v=20261029-price-delta1';
 import {wlrSoftColors} from './wlr-soft-color.mjs?v=20261029-price-delta1';
-import {wlrH1Styles} from './wlr-h1-style.mjs?v=20261108-wlr-h1-score1';
+import {wlrH1Styles} from './wlr-h1-style.mjs?v=20261108-wlr-h1-align2';
 import {wlrDisplayColors,WLR_COLOR_DEFAULTS} from './wlr-display-color.mjs?v=20261029-price-delta1';
 import {createSeriesWriter} from './chart-data-cache.mjs?v=20261029-price-delta1';
 import {COMPOSITE_STRENGTH_VERSION,STEPS,composite,strengthAgreementCandleSignal,strengthPhaseLineStyle,directionalVolumeDelta,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,weightedPriceBands,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs?v=20261105-spyv-h1-1';
@@ -55,7 +55,8 @@ const usesH1WlrStyle=()=>$('symbol').value==='SPYUSDT'&&$('interval').value==='1
 function wlrH1StyleText(x){
   if(!x?.ready)return 'WLR theo H1: xám, 2 px · chờ điểm H1 đủ dữ liệu hoặc điểm trước đã hết hạn; không coi thiếu dữ liệu là điểm 0.';
   const score=x.score>0?'+'+x.score:String(x.score),tone={confirmed:'đồng thuận',weak:'lực yếu',conflict:'điểm nghịch màu hộp · vàng mảnh',neutral:'hộp trung tính'}[x.tone];
-  return `WLR theo H1 · điểm ${score}/±5 · hộp ${x.boxDirection>0?'↑':x.boxDirection<0?'↓':'↔'} · ${tone} · ${fmt(x.width)}/7 px${x.preview?' · TẠM 3/4: màu theo hộp khóa gần nhất, nét nhạt tối đa 3 px':' · điểm khóa, có hiệu lực từ lúc H1 đóng'}. Điểm mô tả đồng thuận, không phải xác suất; không cộng lại các thành phần đã nằm trong điểm.`;
+  const time=t=>new Date(t).toLocaleTimeString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',hour:'2-digit',minute:'2-digit'}),box=Number.isFinite(x.blockStart)?`${time(x.blockStart)}–${time(x.blockStart+3600000)} (VN)`:'—';
+  return `WLR theo H1 ${box} · điểm ${score}/±5 · hộp ${x.boxDirection>0?'↑':x.boxDirection<0?'↓':'↔'} · ${tone} · ${fmt(x.width)}/7 px${x.preview?' · TẠM 3/4: màu hộp xem trước, nét nhạt tối đa 3 px':x.historical?' · tô đúng hộp trong lịch sử sau khi H1 đóng; không phải tín hiệu đã biết từ đầu hộp':' · điểm khóa'}. Điểm mô tả đồng thuận, không phải xác suất.`;
 }
 const oiHistory=new OiHistory();
 const runningOiState=new RunningOiState();
@@ -142,8 +143,7 @@ class VariableWidthLineRenderer{
         if(!Number.isFinite(a?.value)||!Number.isFinite(b?.value))continue;
         const xGap=current.x-previous.x;if(!Number.isFinite(xGap)||xGap<=0||xGap>Math.max(2,this.data.barSpacing*1.6))continue;
         const y1=priceToCoordinate(a.value),y2=priceToCoordinate(b.value);if(y1===null||y2===null)continue;
-        context.lineWidth=Math.max(1,Math.round((b.width??1)*verticalPixelRatio));
-        for(const segment of wlrColorSegments({x:previous.x*horizontalPixelRatio,y:y1*verticalPixelRatio,color:a.phaseColor},{x:current.x*horizontalPixelRatio,y:y2*verticalPixelRatio,color:b.phaseColor},this.options.color)){context.beginPath();context.strokeStyle=segment.color;context.moveTo(segment.x1,segment.y1);context.lineTo(segment.x2,segment.y2);context.stroke();}
+        for(const segment of wlrColorSegments({x:previous.x*horizontalPixelRatio,y:y1*verticalPixelRatio,color:a.phaseColor,width:a.width},{x:current.x*horizontalPixelRatio,y:y2*verticalPixelRatio,color:b.phaseColor,width:b.width},this.options.color)){context.lineWidth=Math.max(1,Math.round((segment.width??b.width??1)*verticalPixelRatio));context.beginPath();context.strokeStyle=segment.color;context.moveTo(segment.x1,segment.y1);context.lineTo(segment.x2,segment.y2);context.stroke();}
       }
       context.restore();
     });
@@ -248,10 +248,10 @@ function setupChartActions(){
   const hint=document.querySelector('.hint');if(hint){hint.textContent='Hai nhãn xếp dọc: Tuổi H1 ở trên, CVD/ΔOI Composite ở dưới: CĐ = chủ động; OI ↑/↓ = tăng/giảm tổng vị thế mở. ';hint.textContent+=' Kênh trend causal dùng setup Flow-Leg: nguồn SPY V phân vị, dead-band ±0,15, tối thiểu 8 nến, R² hiển thị 0,20 và giữ 12 leg. Khi có break, đường lùi tối đa 4 nến M15 liền trước cùng ngày và cùng dấu SPY V làm gốc. Phá ±2σ theo hướng trend vẫn hợp lệ; nến SPY V trung tính hoặc một nến trái dấu vẫn được giữ. Giá phá biên bất lợi, SPY V vượt dead-band đối nghịch hoặc dốc OLS ngược hướng đủ mạnh phải kéo dài hai nến đóng liên tiếp mới đóng leg; nến phá giá đầu được nhận để tái khớp OLS và ±2σ. Hai rail dùng một OLS cuối nên luôn thẳng. Trendline causal chưa đủ pivot xác nhận được giữ hiện bằng nét chấm trong cửa sổ sớm 8 nến, có nhãn HT SỚM hoặc KC SỚM; chúng chưa tham gia thống kê nhóm trend.';}
 }
 function syncDisplayModeButtons(){
-  const soft=$('wlr-soft-color-mode');if(soft){const on=$('wlr-soft-colors').checked,h1=usesH1WlrStyle();soft.querySelector('span').textContent=`Màu WLR ${h1?'theo H1':'dốc + SPY V'}: ${on?'BẬT':'TẮT'}`;soft.setAttribute('aria-pressed',String(on));soft.title=h1?'SPY M15: hướng theo màu H1 đã khóa. Điểm cùng hướng: xanh/đỏ, |điểm| ≤1 nhạt; nghịch màu hộp: vàng mảnh; hộp trung tính hoặc thiếu điểm: xám. Tạm 3/4 chỉ đổi phần đang chạy, giữ màu hộp khóa gần nhất. Tắt để về màu C×V.':'Dốc WLR/σ và SPY V, Composite làm khóa mềm; tắt để về màu C×V. Chế độ điểm H1 áp dụng trên SPY M15.';}
+  const soft=$('wlr-soft-color-mode');if(soft){const on=$('wlr-soft-colors').checked,h1=usesH1WlrStyle();soft.querySelector('span').textContent=`Màu WLR ${h1?'theo H1':'dốc + SPY V'}: ${on?'BẬT':'TẮT'}`;soft.setAttribute('aria-pressed',String(on));soft.title=h1?'SPY M15: hướng theo màu H1 đã khóa. Điểm cùng hướng: xanh/đỏ, |điểm| ≤1 nhạt; nghịch màu hộp: vàng mảnh; hộp trung tính hoặc thiếu điểm: xám. Lịch sử tô đúng hộp sau khi H1 đóng, không phải tín hiệu đã biết ở đầu hộp. Tạm 3/4 chỉ đổi phần đang chạy và theo màu hộp xem trước. Tắt để về màu C×V.':'Dốc WLR/σ và SPY V, Composite làm khóa mềm; tắt để về màu C×V. Chế độ điểm H1 áp dụng trên SPY M15.';}
   const bandButton=$('aba-band-color-mode');if(bandButton){const on=Boolean($('aba-band-colors')?.checked);bandButton.querySelector('span').textContent=`Màu biên theo kênh: ${on?'BẬT':'TẮT'}`;bandButton.setAttribute('aria-pressed',String(on));bandButton.title='Tô biên WLR theo phạm vi kênh causal; không thêm nhãn A1.';}
   const width=$('wlr-width-mode'),candle=$('candle-color-mode'),trendCandle=$('trend-age-candle-mode'),h1Candle=$('h1-box-candle-mode'),trendWidth=$('phase-width').checked,priceVolume=$('candle-agreement-color').checked,trendAgeColor=$('candle-trend-age-color')?.checked,h1BoxColor=$('candle-h1-box-color')?.checked;
-  if(width){const h1=usesH1WlrStyle(),soft=$('wlr-soft-colors').checked&&$('symbol').value==='SPYUSDT';width.textContent=`Độ dày WLR: ${h1?(trendWidth?'Điểm H1':'Cố định 3'):soft?(trendWidth?'Dốc/σ + khóa mềm':'Cố định 3'):(trendWidth?'Dốc·R² + V×C':'C×V')}`;width.title=h1?'SPY M15: 2 + |điểm H1| = 2–7 px khi điểm thuận màu hộp. Điểm nghịch màu, hộp trung tính hoặc thiếu dữ liệu: 2 px. Không thêm EWMA. Điểm tạm 3/4 chỉ cho nến đang chạy, nhạt và tối đa 3 px. Tắt: cố định 3 px. Điểm mô tả đồng thuận, không phải xác suất.':soft?'Độ dày theo dốc/σ + khóa mềm, tối đa 8; tắt dùng nét cố định 3.':trendWidth?'Độ dày 2–10 theo dốc/R² và V×C.':'Độ dày theo đồng thuận Composite × SPY V';width.setAttribute('aria-pressed',String(trendWidth));}
+  if(width){const h1=usesH1WlrStyle(),soft=$('wlr-soft-colors').checked&&$('symbol').value==='SPYUSDT';width.textContent=`Độ dày WLR: ${h1?(trendWidth?'Điểm H1':'Cố định 3'):soft?(trendWidth?'Dốc/σ + khóa mềm':'Cố định 3'):(trendWidth?'Dốc·R² + V×C':'C×V')}`;width.title=h1?'SPY M15: 2 + |điểm H1| = 2–7 px khi điểm thuận màu hộp. Điểm nghịch màu, hộp trung tính hoặc thiếu dữ liệu: 2 px. Không thêm EWMA. Đoạn lịch sử căn đúng hộp tạo điểm sau khi H1 đóng. Điểm tạm 3/4 chỉ cho nến đang chạy, nhạt và tối đa 3 px. Tắt: cố định 3 px. Điểm mô tả đồng thuận, không phải xác suất.':soft?'Độ dày theo dốc/σ + khóa mềm, tối đa 8; tắt dùng nét cố định 3.':trendWidth?'Độ dày 2–10 theo dốc/R² và V×C.':'Độ dày theo đồng thuận Composite × SPY V';width.setAttribute('aria-pressed',String(trendWidth));}
   if(candle){candle.textContent=`Màu nến: ${priceVolume?'Cụm Giá×SPY V':'C×V'}`;candle.title=priceVolume?'Cụm causal từ WLR8, SPY V và thân giá/ATR; hai nến đối nghịch mới đổi cụm, nến ngược nhỏ chỉ giảm sáng':'Màu nến theo đồng thuận Strength Composite × SPY V';candle.setAttribute('aria-pressed',String(priceVolume));}
   if(trendCandle){trendCandle.lastChild.textContent=`Nến tuổi trend: ${trendAgeColor?'BẬT':'TẮT'}`;trendCandle.title='SPY M15: tô nến lịch sử tại lúc đóng và tô nến đang chạy bằng dự báo LIVE tuổi kế tiếp. Xanh/đỏ khi đủ mẫu và TREND CÒN ≥55%; nếu không thì xám. LIVE có thể đổi cho tới khi đóng và chưa được ghi vào cohort hoặc chấm forward.';trendCandle.setAttribute('aria-pressed',String(Boolean(trendAgeColor)));}
   if(h1Candle){h1Candle.lastChild.textContent=`Nến theo Hộp H1/H4: ${h1BoxColor?'BẬT':'TẮT'}`;h1Candle.title='SPY M15: tô theo Hộp H1; SPY H1: tô theo Hộp H4. Bao gồm cuối tuần khi có dữ liệu. Xanh = UP, đỏ = DOWN, xám = WAIT. Lớp hộp được ưu tiên hơn màu tuổi trend và cụm Giá×SPY V.';h1Candle.setAttribute('aria-pressed',String(Boolean(h1BoxColor)));}
@@ -405,7 +405,7 @@ function init(){
   const takerHover=document.createElement('div');takerHover.id='large-taker-hover';takerHover.hidden=true;takerHover.style.cssText='position:absolute;z-index:12;left:8px;max-width:calc(100% - 80px);padding:5px 8px;background:rgba(9,18,31,.92);color:#e5effb;border:1px solid #39516c;border-radius:4px;font:12px/1.4 system-ui;pointer-events:none';$('chart').append(takerHover);
   const spectrumReadout=document.createElement('div');spectrumReadout.id='oi-cvd-readout';spectrumReadout.className='oi-cvd-readout';spectrumReadout.setAttribute('role','note');spectrumReadout.hidden=true;$('chart').after(spectrumReadout);
   $('chart').addEventListener('pointermove',inspectSpectrum,{passive:true});$('chart').addEventListener('pointerdown',inspectSpectrum,{passive:true});$('chart').addEventListener('pointerleave',()=>updateSpectrumReadout());
-  series.priceMid=chart.addCustomSeries(new VariableWidthLineSeries,{color:'#f6c85f',baseLineVisible:false,priceLineVisible:false,lastValueVisible:false,title:''},0);
+  series.priceMid=chart.addCustomSeries(new VariableWidthLineSeries,{color:'#8794a5',baseLineVisible:false,priceLineVisible:false,lastValueVisible:false,title:''},0);
   for(const key of ['priceUpper','priceLower'])series[key]=chart.addSeries(L.LineSeries,{color:'#4aa3ff',lineWidth:2,lineStyle:L.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,title:''},0);
   for(const [key,color,width,style,last,title] of [
     ['pivotResistanceMid','#ffb454',1,L.LineStyle.Solid,true,'KC'],
@@ -499,8 +499,9 @@ function priceLineData(data,compositeStrength,volumeStrength,trendThickness){
   const displayColors=h1&&soft?data.map(x=>wlrH1StyleMap.get(x.t)):soft?wlrSoftColors(rows[$('symbol').value]??[],data,compositeStrength,volumeStrength,colorOptions):wlrDisplayColors(data,compositeStrength,volumeStrength,colorOptions);
   $('chart').dataset.wlrColorModel=h1&&soft?'h1-box-score':soft?'slope-sigma-composite-soft':'composite-volume';
   wlrColorMap=new Map(displayColors.map(x=>[x.t,x]));$('chart').dataset.wlrEarlyCount=String(displayColors.filter(x=>x.early).length);
+  if(!h1)delete $('chart').dataset.wlrH1Alignment;
   if(h1){
-    wlrThicknessMap=wlrH1StyleMap;$('chart').dataset.wlrThicknessModel=trendMode?'h1-box-score':'fixed';$('chart').dataset.wlrThicknessMax=String(trendMode?7:3);$('chart').dataset.wlrVolumeSource='h1-box-score';
+    wlrThicknessMap=wlrH1StyleMap;$('chart').dataset.wlrH1Alignment='same-box-history';$('chart').dataset.wlrThicknessModel=trendMode?'h1-box-score':'fixed';$('chart').dataset.wlrThicknessMax=String(trendMode?7:3);$('chart').dataset.wlrVolumeSource='h1-box-score';
     for(const key of ['wlrThicknessTrendWeight','wlrThicknessWindow','wlrThicknessPairs'])delete $('chart').dataset[key];
   }else if(soft){wlrThicknessMap=new Map(displayColors.map(x=>[x.t,x]));$('chart').dataset.wlrThicknessModel=trendMode?'slope-sigma-soft':'fixed';$('chart').dataset.wlrThicknessMax=String(trendMode?8:3);}
   return data.map((x,i)=>{
@@ -839,7 +840,7 @@ function render(fit=false){
   const trendThickness=h1Wlr?new Map():new Map(wlrSlopeThickness(p,maps.COMPOSITE??new Map(),wlrVolumeStrengthMap,{step:STEPS[$('interval').value],closedBefore}).map(x=>[x.t,x]));
   priceBandMap=new Map(priceBands.map(x=>[x.t,x]));
   const h1ScoreRecords=h1Wlr?(h1ScoreLayer?.getLineScores()??[]):[];
-  wlrH1StyleMap=new Map((h1Wlr?wlrH1Styles(priceBands,h1ScoreRecords,{now:cache?.serverTime??Date.now()}):[]).map(x=>[x.t,x]));
+  wlrH1StyleMap=new Map((h1Wlr?wlrH1Styles(priceBands,h1ScoreRecords,{now:cache?.serverTime??Date.now(),alignment:'box',boxStates:h1CandleMap}):[]).map(x=>[x.t,x]));
   wlrThicknessMap=trendThickness;const currentThickness=trendThickness.get(p.at(-1)?.t);$('chart').dataset.wlrThicknessModel='slope-r2-flow-noise';$('chart').dataset.wlrThicknessMax=String(WLR_SLOPE_DEFAULTS.maxWidth);$('chart').dataset.wlrThicknessTrendWeight=String(WLR_SLOPE_DEFAULTS.trendWeight);$('chart').dataset.wlrThicknessWindow=String(WLR_SLOPE_DEFAULTS.window);$('chart').dataset.wlrThicknessPairs=String(currentThickness?.pairs??0);
   updateRev63();
   writeSeries('priceMid',series.priceMid,priceLineData(priceBands,maps.COMPOSITE??new Map(),wlrVolumeStrengthMap,trendThickness),seriesContext);updateAbaBandColors();
@@ -1138,7 +1139,7 @@ if(init()){
   const boldLabel=document.createElement('label'),boldToggle=document.createElement('input');boldToggle.id='oi-bold-candles-toggle';boldToggle.type='checkbox';boldToggle.checked=true;boldLabel.title='Nến đồng thuận OI: thân rộng khoảng 1,5 lần, giới hạn 94% bước nến. Giá tăng + mua chủ động + OI tăng: xanh đậm #1243be không viền. Giá giảm + bán chủ động + OI tăng: tím đậm #5b21b6 không viền. Giá tăng + mua chủ động + OI giảm: xanh #1351ee viền kem. Giá giảm + bán chủ động + OI giảm: tím #8b5cf6 viền kem. Màu 4 nhóm ưu tiên hơn H1/H4; chỉ nến đóng vượt ngưỡng ΔOI. Có khôi phục lịch sử; độc lập nút hiện dải ΔOI.';boldLabel.append(boldToggle,'Nến đồng thuận OI đậm');gateLabel.after(boldLabel);boldToggle.onchange=()=>render(false);
   const spyH1Label=document.createElement('label'),spyH1Toggle=document.createElement('input');
   spyH1Toggle.id='spy-volume-h1-smooth';spyH1Toggle.type='checkbox';spyH1Toggle.checked=true;
-  spyH1Label.title='Thử nghiệm SPY V trên M15: Hộp H1 điều chỉnh EWMA trước chuẩn hóa; nhanh khi cùng hướng, chậm khi trung tính, mở tốc độ khi lực đảo chiều. Hộp đóng chỉ dùng từ lúc xác nhận; preview chỉ tác động điểm đang chạy. Khi bật, đường SPY V, màu WLR dốc + SPY V, độ dày WLR Dốc/σ + khóa mềm và dự báo tuổi trend cùng dùng SPY V mượt H1; khi tắt, các mục này trở về SPY V gốc.';
+  spyH1Label.title='Thử nghiệm SPY V trên M15: Hộp H1 điều chỉnh EWMA trước chuẩn hóa. Hộp đóng chỉ dùng từ lúc xác nhận; preview chỉ tác động điểm đang chạy. Đường SPY V và dự báo tuổi trend dùng lựa chọn này. Màu và độ dày WLR theo H1 dùng điểm hộp H1 riêng, không đổi theo nút làm mượt SPY V.';
   spyH1Label.append(spyH1Toggle,'SPY V mượt H1 · thử');$('spy-volume-strength').closest('label').after(spyH1Label);
   spyH1Toggle.onchange=()=>{studyKey='';render(false);};
   const scoreLineInput=document.createElement('input'),scoreLineButton=document.createElement('button');scoreLineInput.id='h1-score-line-toggle';scoreLineInput.type='checkbox';scoreLineInput.checked=true;scoreLineInput.hidden=true;scoreLineButton.id='h1-score-line-button';scoreLineButton.type='button';scoreLineButton.className='display-mode-button';scoreLineButton.append(scoreLineInput,'Điểm H1 mượt: BẬT');scoreLineButton.title='Nguồn trực tiếp điểm hộp H1 −5…+5, không dùng đường SPY V. Mỗi điểm chính thức đặt tại lúc H1 đóng; mượt 0,75, đổi dấu mạnh dùng 0,90; chia 5 để cùng thang pane SPY V. Hộp 3/4 chỉ có đoạn xem trước nét chấm. Thiếu điểm thì ngắt đường.';spyH1Label.after(scoreLineButton);scoreLineButton.onclick=()=>{scoreLineInput.checked=!scoreLineInput.checked;render(false);};
@@ -1188,6 +1189,7 @@ if(init()){
   setInterval(()=>{if(!document.hidden)refreshCalendar();},CALENDAR_REFRESH_MS);
   setInterval(updateCandleCountdown,250);
 }
+
 
 
 
