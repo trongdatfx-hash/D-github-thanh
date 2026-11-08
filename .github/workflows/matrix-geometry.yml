@@ -10,6 +10,9 @@ on:
       - 'netflow-stumpy/h1-box-score-ui.mjs'
       - 'netflow-stumpy/spy-volume-h1-mirror.mjs'
       - 'netflow-stumpy/h1-score-line.mjs'
+      - 'netflow-stumpy/wlr-h1-style.mjs'
+      - 'netflow-stumpy/tests/wlr-h1-style.test.mjs'
+      - 'netflow-stumpy/tests/wlr-h1-integration.test.mjs'
       - 'netflow-stumpy/tests/h1-score-line.test.mjs'
       - 'netflow-stumpy/tests/spy-volume-h1-mirror.test.mjs'
       - 'netflow-stumpy/h1-matrix-state.mjs'
@@ -35,4 +38,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test netflow-stumpy/tests/matrix-geometry.test.mjs netflow-stumpy/tests/geometry.test.mjs netflow-stumpy/tests/h1-box-score.test.mjs netflow-stumpy/tests/spy-volume-h1-mirror.test.mjs netflow-stumpy/tests/h1-score-line.test.mjs netflow-stumpy/tests/h1-matrix-state.test.mjs netflow-stumpy/tests/matrix-price-confirmation.test.mjs netflow-stumpy/tests/large-taker-spectrum.test.mjs
+      - run: node --test netflow-stumpy/tests/wlr-h1-style.test.mjs netflow-stumpy/tests/wlr-h1-integration.test.mjs netflow-stumpy/tests/matrix-geometry.test.mjs netflow-stumpy/tests/geometry.test.mjs netflow-stumpy/tests/h1-box-score.test.mjs netflow-stumpy/tests/spy-volume-h1-mirror.test.mjs netflow-stumpy/tests/h1-score-line.test.mjs netflow-stumpy/tests/h1-matrix-state.test.mjs netflow-stumpy/tests/matrix-price-confirmation.test.mjs netflow-stumpy/tests/large-taker-spectrum.test.mjs
+
