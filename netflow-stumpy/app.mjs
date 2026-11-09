@@ -776,7 +776,7 @@ function clusterPct(value){
 
 function matrixFlowDetails(state){
   if(!state.count)return ['Chờ dữ liệu Taker và OI của SPYUSDT.'];
-  const {taker,oi,threshold}=state;
+  const {taker,p95,oi,threshold}=state;
   const lines=[`${state.label} · cụm bắt đầu ${flowTime(state.start)}${state.live?' · LIVE':''}`];
   lines.push(`Giá ${clusterPct(state.pricePct)} · OI ròng ${clusterPct(state.oiPct)} từ đầu cụm`);
   lines.push('Taker toàn cụm · '+(taker?flowAmounts(taker):'chờ dữ liệu'));
@@ -792,6 +792,7 @@ function matrixFlowDetails(state){
     lines.push(`Ngưỡng Taker · điểm lệch ${fmt(state.effectiveRatio*100)} / ${fmt(state.ratioTrigger*100)}% · lực ròng hiệu dụng ${fmtK(state.effectiveNet)} / ${fmtK(threshold.taker)} USDT · nến cùng chiều ${state.votes}/${state.requiredVotes}`);
     lines.push('Điều kiện OI · '+(!oi?'chờ dữ liệu':state.activeOi?'đạt':'chưa đạt'));
   }
+  lines.push('Taker P95 phần đã đóng · '+(p95?.ready?flowAmounts(p95)+' · '+p95.count+' aggTrade':p95?`đã có ${p95.covered}/${p95.expected} M15 đủ dữ liệu · chờ hoàn tất`:'chờ M15 đóng'));
   if(oi){
     lines.push(`Phổ OI theo thời gian · tăng ${fmt(oi.increase)}% · giảm ${fmt(oi.decrease)}% · ròng ${signed(oi.net)}%`);
     lines.push(`Tổng biến động OI ${fmt(oi.gross)}%${Number.isFinite(threshold?.oi)?' · mốc nền '+fmt(threshold.oi)+'%':''} · ${state.grossUnusual?'bất thường':'chưa xác nhận bất thường'}`);
@@ -903,7 +904,7 @@ function updateMatrixFlowReadout(){
   node.className='forecast '+(buy?'up':sell?'down':'wait');
   node.dataset.model='m15-live-taker-oi';
   node.dataset.state=state.phase;
-  node.title='Chạm để xem Taker và giờ nhận OI.';
+  node.title='Chạm để xem Taker, P95 và giờ nhận OI.';
   node.onclick=showMatrixFlowDetails;
   if($('m15-flow-dialog')?.open){
     const body=$('m15-flow-dialog-body'),lines=matrixFlowDetails(state);
@@ -1324,7 +1325,7 @@ if(init()){
   oiSpectrumToggle.onchange=()=>render(false);
   const largeLabel=document.createElement('label'),largeToggle=document.createElement('input'),largeStatus=document.createElement('span');
   largeToggle.id='large-taker-toggle';largeToggle.type='checkbox';largeToggle.checked=true;largeStatus.id='large-taker-status';largeStatus.textContent='Taker P90 · THỬ';
-  largeLabel.title='Phổ taker SPY theo giá khớp: P61 lọc rộng, P85 dày hơn, P90 cân bằng, P95 chọn lọc nhất. Ngưỡng khóa đầu M15 từ tối đa 5.000 aggTrade quá khứ/24h, tối thiểu 200 mẫu. Chỉ M15 đóng; dữ liệu khởi động nạp lùi 1 giờ, không giả trọn ngày. Tắt để xem phổ CVD. Trên SPY M15, ma trận vẫn tự nạp P95 ngầm.';largeLabel.append(largeToggle,largeStatus);oiSpectrumLabel.after(largeLabel);
+  largeLabel.title='Phổ taker SPY theo giá khớp: P61 lọc rộng, P85 dày hơn, P90 cân bằng, P95 chọn lọc nhất. Ngưỡng khóa đầu M15 từ tối đa 5.000 aggTrade quá khứ/24h, tối thiểu 200 mẫu. Chỉ M15 đóng; dữ liệu khởi động nạp lùi 1 giờ, không giả trọn ngày. Tắt để xem phổ CVD. Trên SPY M15, chi tiết cụm vẫn tự nạp P95.';largeLabel.append(largeToggle,largeStatus);oiSpectrumLabel.after(largeLabel);
   const percentileLabel=document.createElement('label'),percentileSelect=document.createElement('select');percentileSelect.id='large-taker-percentile';percentileSelect.setAttribute('aria-label','Ngưỡng phân vị taker');for(const [value,text] of [['0.61','P61 · lọc rộng'],['0.85','P85 · dày hơn'],['0.90','P90 · cân bằng'],['0.95','P95 · chọn lọc']]){const o=document.createElement('option');o.value=value;o.textContent=text;percentileSelect.append(o);}percentileSelect.value='0.90';percentileLabel.append('Taker ≥ ',percentileSelect);largeLabel.after(percentileLabel);percentileSelect.onchange=()=>largeTakerLoader.setPercentile(Number(percentileSelect.value));
   largeToggle.onchange=()=>{if(largeToggle.checked)$('cvd-spectrum-toggle').checked=true;render(false);};
   const oiBarLabel=document.createElement('label'),oiBarToggle=document.createElement('input'),oiBarStatus=document.createElement('span');
