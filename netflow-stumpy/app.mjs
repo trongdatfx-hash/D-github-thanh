@@ -605,7 +605,28 @@ function updateH1MatrixReadout(matrix){
  node.hidden=!matrix;if(!matrix){requestAnimationFrame(positionForecastReadout);return;}
  const groups=matrix.groups;
  const last=matrix.columns.at(-1)?.t,stale=Number.isFinite(last)&&Date.now()+serverOffsetMs>last+2*3600000;
- node.textContent=(stale?'H1 CŨ · ':'')+groups.map(g=>`${g.firstBox===null?'H—':`H${g.firstBox}–${g.lastBox}`}: ${g.text}`).join(' | ');
+ const labels=groups.map(g=>{
+   const confirmation=g.priceConfirmation;
+   let tone='neutral';
+   if(confirmation?.confirmed)tone=confirmation.direction>0?'up':'down';
+   else if(confirmation?.zone)tone='pending';
+   return {tone,text:`${g.firstBox===null?'H—':`H${g.firstBox}–${g.lastBox}`}: ${g.text}`};
+ });
+ const key=JSON.stringify([stale,labels]);
+ if(node.dataset.labelKey!==key){
+   const label=document.createDocumentFragment();
+   if(stale)label.append('H1 CŨ · ');
+   labels.forEach(({tone,text},i)=>{
+     if(i)label.append(' | ');
+     const group=document.createElement('span');
+     group.className='h1-matrix-group';
+     group.dataset.tone=tone;
+     group.textContent=text;
+     label.append(group);
+   });
+   node.replaceChildren(label);
+   node.dataset.labelKey=key;
+ }
  node.dataset.matrix=JSON.stringify(matrix);node.dataset.states=groups.map(g=>g.state).join('|');node.dataset.priceStates=groups.map(g=>g.priceConfirmation?.confirmed?(g.priceConfirmation.direction>0?'UP':'DOWN'):'WAIT').join('|');
  const time=t=>Number.isFinite(t)?new Date(t).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'}):'—';
  node.title=`Ma trận ${matrix.columns.length}/${matrix.options.window} hộp H1 đã đóng; ${matrix.options.size} hộp/nhóm. H1 cũ nhất → H${matrix.columns.length} mới nhất; không tính hộp đang chạy. `+groups.map(g=>{const c=g.priceConfirmation,z=c?.zone;return `H${g.firstBox??'—'}–${g.lastBox??'—'} · ${time(g.from)} → ${time(g.to===null?null:g.to+3600000)}: ${g.text}\n${z?`Vùng H${z.firstBox}–${z.lastBox}: ${fmt(z.low)}–${fmt(z.high)}; khóa từ ${time(z.knownAt)}.`:'Thiếu biên nhóm H1 liền trước.'} Giá đóng ${c?.count??0}/2 · đến ${time(c?.asOf)}. Lực: ${g.forceText??g.text}`;}).join('\n')+'\nChỉ xn giá khi 2 M15 đóng liên tiếp vượt cùng mép vùng của nhóm H1 liền trước. Râu xuyên hoặc đóng đúng mép không tính. Nhóm cũ dùng đúng M15 trong nhóm; nhóm gần nhất được cập nhật thêm các M15 đã đóng sau nhóm. C Taker là mô tả lực riêng, không khóa nhãn xn giá. Giá trở lại trong vùng thì về chờ phá. Trendline theo ma trận cũng xác nhận bằng hai đóng cửa, không đòi OI/C Taker/SPY V đồng thuận; không phải dự báo giá.';

@@ -202,3 +202,7 @@ body.chart-fullscreen::before{display:none}
 #m15-flow-dialog h2{margin:0 0 10px;font-size:16px}
 #m15-flow-dialog p{margin:6px 0;font-size:13px;line-height:1.45}
 #m15-flow-dialog button{margin-top:10px}
+
+#h1-matrix-readout .h1-matrix-group[data-tone=up]{color:#64efb5}
+#h1-matrix-readout .h1-matrix-group[data-tone=down]{color:#ff8c9c}
+#h1-matrix-readout .h1-matrix-group[data-tone=pending]{color:#ffd369}
