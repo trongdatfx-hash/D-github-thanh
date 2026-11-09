@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-11-08T07:53:16.281Z",
+  "updatedAt": "2026-11-09T02:34:36.831Z",
   "events": [
     {
       "title": "RBA Assist Gov Hunter Speaks",
@@ -19,7 +19,7 @@
       "date": "2026-11-09T01:30:00.000Z",
       "timestamp": 1794187800000,
       "impact": "Low",
-      "actual": "",
+      "actual": "0.7%",
       "forecast": "0.8%",
       "previous": "0.9%"
     },
@@ -29,7 +29,7 @@
       "date": "2026-11-09T01:30:00.000Z",
       "timestamp": 1794187800000,
       "impact": "Low",
-      "actual": "",
+      "actual": "5.7%",
       "forecast": "5.3%",
       "previous": "5.0%"
     },
