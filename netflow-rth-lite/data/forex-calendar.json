@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-11-09T02:34:36.831Z",
+  "updatedAt": "2026-11-09T10:19:48.481Z",
   "events": [
     {
       "title": "RBA Assist Gov Hunter Speaks",
@@ -39,7 +39,7 @@
       "date": "2026-11-09T05:00:00.000Z",
       "timestamp": 1794200400000,
       "impact": "Low",
-      "actual": "",
+      "actual": "116.4%",
       "forecast": "116.7%",
       "previous": "118.0%"
     },
@@ -49,29 +49,9 @@
       "date": "2026-11-09T07:00:00.000Z",
       "timestamp": 1794207600000,
       "impact": "Low",
-      "actual": "",
+      "actual": "15.6B",
       "forecast": "19.2B",
-      "previous": "19.5B"
-    },
-    {
-      "title": "M2 Money Supply y/y",
-      "country": "CNY",
-      "date": "2026-11-09T09:03:00.000Z",
-      "timestamp": 1794214980000,
-      "impact": "Low",
-      "actual": "",
-      "forecast": "7.3%",
-      "previous": "7.2%"
-    },
-    {
-      "title": "New Loans",
-      "country": "CNY",
-      "date": "2026-11-09T09:03:00.000Z",
-      "timestamp": 1794214980000,
-      "impact": "Low",
-      "actual": "",
-      "forecast": "80B",
-      "previous": "1080B"
+      "previous": "17.9B"
     },
     {
       "title": "Sentix Investor Confidence",
@@ -79,7 +59,7 @@
       "date": "2026-11-09T09:30:00.000Z",
       "timestamp": 1794216600000,
       "impact": "Low",
-      "actual": "",
+      "actual": "2.4",
       "forecast": "2.1",
       "previous": "2.7"
     },
@@ -282,6 +262,26 @@
       "actual": "",
       "forecast": "",
       "previous": ""
+    },
+    {
+      "title": "M2 Money Supply y/y",
+      "country": "CNY",
+      "date": "2026-11-10T09:03:00.000Z",
+      "timestamp": 1794301380000,
+      "impact": "Low",
+      "actual": "",
+      "forecast": "7.3%",
+      "previous": "7.2%"
+    },
+    {
+      "title": "New Loans",
+      "country": "CNY",
+      "date": "2026-11-10T09:03:00.000Z",
+      "timestamp": 1794301380000,
+      "impact": "Low",
+      "actual": "",
+      "forecast": "80B",
+      "previous": "1080B"
     },
     {
       "title": "NFIB Small Business Index",
