@@ -30,7 +30,7 @@ import {wlrH1Styles} from './wlr-h1-style.mjs?v=20261108-wlr-score-color3';
 import {wlrDisplayColors,WLR_COLOR_DEFAULTS} from './wlr-display-color.mjs?v=20261029-price-delta1';
 import {createSeriesWriter} from './chart-data-cache.mjs?v=20261029-price-delta1';
 import {COMPOSITE_STRENGTH_VERSION,STEPS,composite,strengthAgreementCandleSignal,strengthPhaseLineStyle,directionalVolumeDelta,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,weightedPriceBands,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs?v=20261105-spyv-h1-1';
-import {spyUsdtSessionChange} from './spy-session-change.mjs?v=20261106-spyusdt-session-change1';
+import {spyUsdtSessionChange} from './spy-session-change.mjs?v=20261109-spy-change-2471';
 import {load,getJSON} from './data.mjs?v=20261107-outside-fast1';
 import {oiWidthByBar} from './oi-width.mjs?v=20261029-oi-width1';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261029-price-delta1';
@@ -194,17 +194,20 @@ function updateSpyUsdtSessionChange(){
  const node=$('spyusdt-session-change');
  if(!node)return;
  const state=spyUsdtSessionChange(rows.SPYUSDT??[],{step:STEPS[$('interval').value],threshold:1.3});
- node.hidden=!state;
- if(!state){node.textContent='';node.className='';delete node.dataset.changePct;delete node.dataset.session;return;}
+ node.hidden=false;
+ if(!state){node.textContent='SPY —';node.title='Chờ dữ liệu giá SPYUSDT';node.className='';delete node.dataset.changePct;delete node.dataset.session;return;}
  const signed=`${state.changePct>=0?'+':''}${state.changePct.toFixed(2)}%`;
- node.textContent=state.volatile?`${signed} · TT BIẾN ĐỘNG · GIẢM VOLUME`:signed;
+ const freshness=isChartLive()?'':' · DỮ LIỆU CŨ';
+ const label=`SPY ${signed}${state.volatile?' · TT BIẾN ĐỘNG · GIẢM VOLUME':''}${freshness}`;
+ if(node.textContent!==label)node.textContent=label;
  node.className=state.volatile?'warning':state.changePct>0?'up':state.changePct<0?'down':'flat';
  node.dataset.changePct=String(state.changePct);node.dataset.session=state.session;
- node.title=`SPYUSDT · phiên ${state.session} · giá mở ${fmt(state.open)} · giá hiện tại ${fmt(state.current)} · ngưỡng cảnh báo |%| > 1,3%`;
+ node.title=`SPYUSDT · ${state.session==='WEEKEND'?'cuối tuần':`phiên ${state.session}`} · giá mở ${fmt(state.open)} · giá mới nhất ${fmt(state.current)} · nến ${new Date(state.lastTime).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})} (VN) · ngưỡng cảnh báo |%| > 1,3%`;
 }
 function setLive(){
  const node=$('live-indicator'),wasLive=node.classList.contains('live'),live=isChartLive();
  node.textContent=live?'● CHART LIVE':cache?'● CHART DELAYED':'● CHART KHÔNG LIVE';node.className=live?'live':'offline';
+ updateSpyUsdtSessionChange();
  let source=$('chart-source-status');if(!source){source=document.createElement('p');source.id='chart-source-status';source.setAttribute('role','status');source.style.cssText='color:#f6c85f;font:12px/1.6 system-ui;margin:8px 0';$('chart').insertAdjacentElement('beforebegin',source);}
  source.hidden=live||!cache;const last=(rows[$('symbol').value]??[]).filter(r=>r.end<(cache?.serverTime??0)).at(-1);
  const missing=['SPYUSDT','QQQUSDT'].filter(symbol=>!(rows[symbol]?.length));
@@ -215,7 +218,7 @@ function syncChartFrameButtons(){for(const id of ['chart-frame-m15','chart-frame
 function setupChartActions(){
   const actions=document.querySelector('.chart-actions'),fit=$('chart-fit'),live=$('live-indicator');
   if(!actions||!fit||!live)return;
-  if(!$('spyusdt-session-change')){const badge=document.createElement('span');badge.id='spyusdt-session-change';badge.hidden=true;badge.setAttribute('aria-live','polite');badge.setAttribute('aria-label','Phần trăm thay đổi SPYUSDT trong phiên hiện tại');live.insertAdjacentElement('afterend',badge);}
+  if(!$('spyusdt-session-change')){const badge=document.createElement('span');badge.id='spyusdt-session-change';badge.textContent='SPY —';badge.setAttribute('aria-live','polite');live.insertAdjacentElement('afterend',badge);}
   if(!$('causal-trend-channel')){const input=document.createElement('input');input.id='causal-trend-channel';input.type='checkbox';input.checked=true;const label=document.createElement('label');label.title='Flow-Leg: SPY V khóa hướng khi mở · chỉ giá hoặc SPY V bất lợi 2 nến đóng liên tiếp mới kết thúc · dốc OLS chỉ dùng chẩn đoán, không cắt tuổi trend · tối thiểu 8 nến · kênh đã đóng: UP vàng, DOWN trắng · kênh đang sống nét chấm: UP cyan, DOWN trắng';label.append(input,'Kênh trend causal');$('geometry-toggle').closest('label').insertAdjacentElement('afterend',label);}
   $('geometry-toggle').parentElement.title='50% line nối pivot hỗ trợ/kháng cự + 50% line biên nêm giá (2 line/nêm). Không đủ mẫu đạt điểm thì để trống; HT/KC SỚM có nút bật tắt riêng.';
   if(!$('geometry-provisional')){const input=document.createElement('input');input.id='geometry-provisional';input.type='checkbox';input.checked=true;const label=document.createElement('label');label.title='Hiện/ẩn riêng các Trendline causal sớm HT SỚM và KC SỚM; chỉ có tác dụng khi Trendline causal đang bật';label.append(input,'Trendline causal nét chấm');$('geometry-toggle').closest('label').insertAdjacentElement('afterend',label);}

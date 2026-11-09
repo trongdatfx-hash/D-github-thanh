@@ -29,7 +29,11 @@ test('a data gap starts a new session segment',()=>{
  assert.equal(state.open,102);
 });
 
-test('weekend and invalid inputs do not produce a label',()=>{
- assert.equal(spyUsdtSessionChange([row(0,100,101,'WEEKEND')],{step}),null);
+test('weekend uses its contiguous opening price and can trigger either warning',()=>{
+ const a=spyUsdtSessionChange([row(0,98,100),row(step,100,101,'WEEKEND'),row(step*2,101,98.6,'WEEKEND')],{step});
+ assert.equal(a.open,100);
+ assert.equal(a.volatile,true);
+ assert.equal(spyUsdtSessionChange([row(0,100,101.31,'WEEKEND')],{step}).volatile,true);
+ assert.equal(spyUsdtSessionChange([row(0,100,98.7,'WEEKEND')],{step}).volatile,false);
  assert.equal(spyUsdtSessionChange([],{step}),null);
 });
