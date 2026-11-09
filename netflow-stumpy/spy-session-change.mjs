@@ -1,4 +1,4 @@
-export function spyUsdtSessionChange(rows,{step=900000,threshold=1.3}={}){
+export function spyUsdtSessionChange(rows,{step=900000,threshold=0.95}={}){
  if(!Array.isArray(rows)||!Number.isFinite(step)||step<=0||!Number.isFinite(threshold)||threshold<0)return null;
  const last=rows.at(-1);
  if(!last||!Number.isFinite(last.t)||!Number.isFinite(last.c))return null;

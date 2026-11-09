@@ -14,8 +14,8 @@ test('uses current SPYUSDT session open and current candle price',()=>{
 });
 
 test('threshold is strict and works in both directions',()=>{
- assert.equal(spyUsdtSessionChange([row(0,100,101.3)],{step}).volatile,false);
- assert.equal(spyUsdtSessionChange([row(0,100,98.69)],{step}).volatile,true);
+ assert.equal(spyUsdtSessionChange([row(0,100,100.95)],{step}).volatile,false);
+ assert.equal(spyUsdtSessionChange([row(0,100,99.04)],{step}).volatile,true);
 });
 
 test('keeps one contiguous NIGHT session across midnight',()=>{
@@ -34,6 +34,6 @@ test('weekend uses its contiguous opening price and can trigger either warning',
  assert.equal(a.open,100);
  assert.equal(a.volatile,true);
  assert.equal(spyUsdtSessionChange([row(0,100,101.31,'WEEKEND')],{step}).volatile,true);
- assert.equal(spyUsdtSessionChange([row(0,100,98.7,'WEEKEND')],{step}).volatile,false);
+ assert.equal(spyUsdtSessionChange([row(0,100,99.05,'WEEKEND')],{step}).volatile,false);
  assert.equal(spyUsdtSessionChange([],{step}),null);
 });

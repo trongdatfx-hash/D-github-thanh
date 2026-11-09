@@ -30,7 +30,7 @@ import {wlrH1Styles} from './wlr-h1-style.mjs?v=20261108-wlr-score-color3';
 import {wlrDisplayColors,WLR_COLOR_DEFAULTS} from './wlr-display-color.mjs?v=20261029-price-delta1';
 import {createSeriesWriter} from './chart-data-cache.mjs?v=20261029-price-delta1';
 import {COMPOSITE_STRENGTH_VERSION,STEPS,composite,strengthAgreementCandleSignal,strengthPhaseLineStyle,directionalVolumeDelta,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,weightedPriceBands,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs?v=20261105-spyv-h1-1';
-import {spyUsdtSessionChange} from './spy-session-change.mjs?v=20261109-spy-change-2471';
+import {spyUsdtSessionChange} from './spy-session-change.mjs?v=20261110-spy-warning-095';
 import {load,getJSON} from './data.mjs?v=20261107-outside-fast1';
 import {oiWidthByBar} from './oi-width.mjs?v=20261029-oi-width1';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261029-price-delta1';
@@ -201,7 +201,7 @@ function isChartLive(){return chartLiveResponse&&chartFresh(cache,Date.now()+ser
 function updateSpyUsdtSessionChange(){
  const node=$('spyusdt-session-change');
  if(!node)return;
- const state=spyUsdtSessionChange(rows.SPYUSDT??[],{step:STEPS[$('interval').value],threshold:1.3});
+ const state=spyUsdtSessionChange(rows.SPYUSDT??[],{step:STEPS[$('interval').value]});
  node.hidden=false;
  if(!state){node.textContent='SPY —';node.title='Chờ dữ liệu giá SPYUSDT';node.className='';delete node.dataset.changePct;delete node.dataset.session;return;}
  const signed=`${state.changePct>=0?'+':''}${state.changePct.toFixed(2)}%`;
@@ -210,7 +210,7 @@ function updateSpyUsdtSessionChange(){
  if(node.textContent!==label)node.textContent=label;
  node.className=state.volatile?'warning':state.changePct>0?'up':state.changePct<0?'down':'flat';
  node.dataset.changePct=String(state.changePct);node.dataset.session=state.session;
- node.title=`SPYUSDT · ${state.session==='WEEKEND'?'cuối tuần':`phiên ${state.session}`} · giá mở ${fmt(state.open)} · giá mới nhất ${fmt(state.current)} · nến ${new Date(state.lastTime).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})} (VN) · ngưỡng cảnh báo |%| > 1,3%`;
+ node.title=`SPYUSDT · ${state.session==='WEEKEND'?'cuối tuần':`phiên ${state.session}`} · giá mở ${fmt(state.open)} · giá mới nhất ${fmt(state.current)} · nến ${new Date(state.lastTime).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})} (VN) · ngưỡng cảnh báo |%| > ${state.threshold.toLocaleString('vi-VN')}%`;
 }
 function setLive(){
  const node=$('live-indicator'),wasLive=node.classList.contains('live'),live=isChartLive();
