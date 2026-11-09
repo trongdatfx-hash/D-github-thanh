@@ -77,6 +77,10 @@ let spectrumComparison={rows:[],day:null,count:0,oiCount:0,pairedReady:false,max
 const spectrumPrimitive=new SpectrumPrimitive(drawCvdSpectrum);
 const largeTakerLoader=new LargeTakerLoader({get:getJSON,storage:colorStorage(),now:()=>Date.now()+serverOffsetMs,onData:()=>{scheduleCvdSpectrum();updateSpectrumReadout();updateMatrixFlowReadout();}});
 function largeTakerEnabled(){return $('large-taker-toggle')?.checked&&$('symbol').value==='SPYUSDT';}
+function syncLargeTakerLoading(){
+  if(largeTakerEnabled()||usesH1WlrStyle())largeTakerLoader.start();
+  else largeTakerLoader.stop();
+}
 function largeTakerSnapshot(){const now=Date.now()+serverOffsetMs,last=(rows.SPYUSDT??[]).findLast(b=>b.end<now);return largeTakerLoader.snapshot({cutoff:last?last.end+1:0,center:last?.c});}
 let oiBarState={points:new Map()};
 const oiReceipts=new Map();
@@ -788,7 +792,7 @@ function matrixFlowDetails(state){
     lines.push(`Ngưỡng Taker · điểm lệch ${fmt(state.effectiveRatio*100)} / ${fmt(state.ratioTrigger*100)}% · lực ròng hiệu dụng ${fmtK(state.effectiveNet)} / ${fmtK(threshold.taker)} USDT · nến cùng chiều ${state.votes}/${state.requiredVotes}`);
     lines.push('Điều kiện OI · '+(!oi?'chờ dữ liệu':state.activeOi?'đạt':'chưa đạt'));
   }
-  lines.push('Taker P95 phần đã đóng · '+(p95?.ready?flowAmounts(p95)+' · '+p95.count+' aggTrade':'chưa đủ dữ liệu'));
+  lines.push('Taker P95 phần đã đóng · '+(p95?.ready?flowAmounts(p95)+' · '+p95.count+' aggTrade':p95?`đã có ${p95.covered}/${p95.expected} M15 đủ dữ liệu · chờ hoàn tất`:'chờ M15 đóng'));
   if(oi){
     lines.push(`Phổ OI theo thời gian · tăng ${fmt(oi.increase)}% · giảm ${fmt(oi.decrease)}% · ròng ${signed(oi.net)}%`);
     lines.push(`Tổng biến động OI ${fmt(oi.gross)}%${Number.isFinite(threshold?.oi)?' · mốc nền '+fmt(threshold.oi)+'%':''} · ${state.grossUnusual?'bất thường':'chưa xác nhận bất thường'}`);
@@ -865,7 +869,7 @@ function updateMatrixFlowReadout(){
   }
   const state=describeM15Flow(matrixFlowWindow,{
     samples:oiStamp==='15m'?oiWidths:new Map(),receipts:oiReceipts,liveOi:matrixLiveOi,liveOiHistory:chartLiveResponse?matrixLiveOiHistory:null,
-    largeTaker:largeTakerEnabled()?(start,cutoff)=>largeTakerLoader.book.windowP95(start,cutoff):null,
+    largeTaker:(start,cutoff)=>largeTakerLoader.book.windowP95(start,cutoff),
     now:Date.now()+(chartLiveResponse?serverOffsetMs:0)
   });
   const arrow=state.direction>0?'↑ ':state.direction<0?'↓ ':'';
@@ -981,6 +985,7 @@ function drawGeometryOverlay(){
   context.restore();
 }
 function render(fit=false){
+  syncLargeTakerLoading();
   const renderStarted=performance.now();
   const p=rows[$('symbol').value]??[],signalRows=rows[$('signal').value]??[],model=Object.keys(modelRows).length?modelRows:rows;
   const h1BoxColor=$('candle-h1-box-color')?.checked&&$('symbol').value==='SPYUSDT'&&['15m','1h'].includes($('interval').value),h1BoxKey=h1BoxColor?studyResultKey:'off';
@@ -1320,9 +1325,9 @@ if(init()){
   oiSpectrumToggle.onchange=()=>render(false);
   const largeLabel=document.createElement('label'),largeToggle=document.createElement('input'),largeStatus=document.createElement('span');
   largeToggle.id='large-taker-toggle';largeToggle.type='checkbox';largeToggle.checked=true;largeStatus.id='large-taker-status';largeStatus.textContent='Taker P90 · THỬ';
-  largeLabel.title='Phổ taker SPY theo giá khớp: P61 lọc rộng, P85 dày hơn, P90 cân bằng, P95 chọn lọc nhất. Ngưỡng khóa đầu M15 từ tối đa 5.000 aggTrade quá khứ/24h, tối thiểu 200 mẫu. Chỉ M15 đóng; dữ liệu khởi động nạp lùi 1 giờ, không giả trọn ngày. Tắt để trở lại CVD; độc lập ma trận và điểm H1.';largeLabel.append(largeToggle,largeStatus);oiSpectrumLabel.after(largeLabel);
+  largeLabel.title='Phổ taker SPY theo giá khớp: P61 lọc rộng, P85 dày hơn, P90 cân bằng, P95 chọn lọc nhất. Ngưỡng khóa đầu M15 từ tối đa 5.000 aggTrade quá khứ/24h, tối thiểu 200 mẫu. Chỉ M15 đóng; dữ liệu khởi động nạp lùi 1 giờ, không giả trọn ngày. Tắt để xem phổ CVD. Trên SPY M15, chi tiết cụm vẫn tự nạp P95.';largeLabel.append(largeToggle,largeStatus);oiSpectrumLabel.after(largeLabel);
   const percentileLabel=document.createElement('label'),percentileSelect=document.createElement('select');percentileSelect.id='large-taker-percentile';percentileSelect.setAttribute('aria-label','Ngưỡng phân vị taker');for(const [value,text] of [['0.61','P61 · lọc rộng'],['0.85','P85 · dày hơn'],['0.90','P90 · cân bằng'],['0.95','P95 · chọn lọc']]){const o=document.createElement('option');o.value=value;o.textContent=text;percentileSelect.append(o);}percentileSelect.value='0.90';percentileLabel.append('Taker ≥ ',percentileSelect);largeLabel.after(percentileLabel);percentileSelect.onchange=()=>largeTakerLoader.setPercentile(Number(percentileSelect.value));
-  largeToggle.onchange=()=>{if(largeToggle.checked){$('cvd-spectrum-toggle').checked=true;largeTakerLoader.start();}else largeTakerLoader.stop();render(false);};
+  largeToggle.onchange=()=>{if(largeToggle.checked)$('cvd-spectrum-toggle').checked=true;render(false);};
   const oiBarLabel=document.createElement('label'),oiBarToggle=document.createElement('input'),oiBarStatus=document.createElement('span');
   oiBarToggle.id='oi-candle-bars-toggle';oiBarToggle.type='checkbox';oiBarToggle.checked=true;oiBarStatus.id='oi-candle-bars-status';oiBarStatus.textContent='ΔOI theo nến · WAIT';
   oiBarLabel.title='Cột sát đáy pane SPY V, cao theo |ΔOI|: thân nến, SPY V và C Taker NF phải cùng hướng; chia thành 4 nhóm tăng/giảm × OI tăng/giảm. Cột xanh khi giá tăng, đỏ khi giá giảm, độc lập dấu ΔOI; màu thân nến trên chart vẫn phân biệt bốn nhóm. Phải vượt ngưỡng ΔOI đã chọn. C Taker NF dùng dấu, chưa đặt ngưỡng độ mạnh. Nến đóng, OI liên tiếp, lịch sử lưu tối đa 90 ngày trên trình duyệt; thiếu OI để trống. Phổ ΔOI theo giá vẫn chỉ ngày New York hiện tại.';oiBarLabel.append(oiBarToggle,oiBarStatus);oiSpectrumLabel.after(oiBarLabel);
@@ -1360,7 +1365,8 @@ if(init()){
     }
   }catch{$('composite').checked=true;}
   largeTakerLoader.setPercentile(Number($('large-taker-percentile').value));
-  if($('large-taker-toggle').checked){$('cvd-spectrum-toggle').checked=true;largeTakerLoader.start();}
+  if($('large-taker-toggle').checked)$('cvd-spectrum-toggle').checked=true;
+  syncLargeTakerLoading();
   setInterval(()=>{if(largeTakerEnabled()){scheduleCvdSpectrum();updateSpectrumReadout();}},15000);
   syncDisplayModeButtons();
   $('refresh').onclick=()=>refresh();$('interval').onchange=()=>{syncChartFrameButtons();updateH1TrendAgeReadout();updateGeometryReadout();refresh(true);};$('days').onchange=()=>refresh(true);
