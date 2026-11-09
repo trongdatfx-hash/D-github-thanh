@@ -195,6 +195,8 @@ body.chart-fullscreen::before{display:none}
 
 /* M15 flow state and its tap details. */
 #geometry-readout[aria-haspopup=dialog]{cursor:pointer;min-height:28px}
+#geometry-readout[data-model=m15-live-taker-oi][data-state=BUY]{background:#103b31;border-color:#46e6af;color:#b7ffe5}
+#geometry-readout[data-model=m15-live-taker-oi][data-state=SELL]{background:#4a202a;border-color:#ff8299;color:#ffd3dc}
 #m15-flow-dialog{width:min(390px,calc(100vw - 28px));max-height:calc(100dvh - 32px);box-sizing:border-box;padding:16px;color:#d6e4f4;background:#111b27;border:1px solid #48617d;border-radius:9px}
 #m15-flow-dialog::backdrop{background:#070d17aa}
 #m15-flow-dialog h2{margin:0 0 10px;font-size:16px}

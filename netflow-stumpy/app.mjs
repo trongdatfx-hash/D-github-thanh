@@ -761,9 +761,11 @@ function showMatrixFlowDetails(){
 
 function updateMatrixFlowReadout(){
   const node=$('geometry-readout');if(!node)return;
-  const show=usesH1WlrStyle();
-  node.hidden=!show;
-  if(!show){
+  if(!usesH1WlrStyle()){
+    if(!node.hidden){
+      node.hidden=true;
+      requestAnimationFrame(positionForecastReadout);
+    }
     if($('m15-flow-dialog')?.open)$('m15-flow-dialog').close();
     return;
   }
@@ -774,11 +776,12 @@ function updateMatrixFlowReadout(){
   });
   const arrow=state.direction>0?'↑ ':state.direction<0?'↓ ':'';
   const text=`M15${state.count?' '+state.count+'/4':''}${state.live&&state.phase!=='STALE'?' LIVE':''} · ${arrow}${state.label}`;
-  if(node.textContent!==text){
-    node.textContent=text;
-    requestAnimationFrame(positionForecastReadout);
-  }
-  node.className='forecast '+(state.direction>0?'up':state.direction<0?'down':'wait');
+  const buy=state.phase==='BUY',sell=state.phase==='SELL',hidden=!buy&&!sell;
+  const layoutChanged=node.hidden!==hidden||(!hidden&&node.textContent!==text);
+  node.hidden=hidden;
+  if(!hidden&&node.textContent!==text)node.textContent=text;
+  if(layoutChanged)requestAnimationFrame(positionForecastReadout);
+  node.className='forecast '+(buy?'up':sell?'down':'wait');
   node.dataset.model='m15-live-taker-oi';
   node.dataset.state=state.phase;
   node.title='Chạm để xem Taker, P95 và giờ nhận OI.';
