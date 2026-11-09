@@ -10,7 +10,7 @@ export class OiFastLoader {
     if(this.now()<plan.next)return Promise.resolve();
     const token=++this.generation,controller=new AbortController();this.controller=controller;
     const current=()=>this.generation===token&&this.active===interval;
-    const publish=(data,source)=>{if(current())this.onData({interval,...data,source});};
+    const publish=(data,source,received=null)=>{if(current())this.onData({interval,...data,source,received});};
     const persist=samples=>{void this.history.append(interval,samples,this.now()).then(data=>publish(data,'saved')).catch(()=>{});};
     const fetchOi=async(limit,timeout)=>{
       const signal=AbortSignal.any([controller.signal,AbortSignal.timeout(timeout)]);
@@ -28,13 +28,13 @@ export class OiFastLoader {
         const warm=this.history.peek(interval,this.now()).samples.length>0;
         const tail=await fetchOi(warm?32:128,5000);if(!current())return;receivedTail=true;
         const before=this.history.peek(interval,this.now()).samples;
-        publish(this.history.stage(interval,tail,this.now()),'tail');persist(tail);
+        publish(this.history.stage(interval,tail,this.now()),'tail',tail);persist(tail);
         plan.failures=0;plan.next=this.now()+15000;this.schedule.set(interval,plan);
         const first=Math.min(...tail.map(r=>Number(r.timestamp))),last=before.at(-1)?.timestamp??0;
         if(before.length<=128||last<first-({ '5m':300000,'15m':900000,'30m':1800000,'1h':3600000 }[interval]??0)){
           try{
             const full=await fetchOi(500,8000);if(!current())return;
-            publish(this.history.stage(interval,full,this.now()),'history');persist(full);
+            publish(this.history.stage(interval,full,this.now()),'history',full);persist(full);
           }catch(error){if(current())this.onState({interval,phase:'history-error',error});}
         }
       }catch(error){

@@ -14,19 +14,31 @@ export class LargeTakerBook{
       const id=Number(r.a),t=Number(r.T),p=Number(r.p),q=Number(r.q),value=p*q;
       if(!Number.isSafeInteger(id)||id<0||!Number.isFinite(t)||t<=0||t>now||!(p>0)||!(q>0)||!Number.isFinite(value)||typeof r.m!=='boolean'||(this.lastId!==null&&id<=this.lastId))continue;
       if(this.lastTime!==null&&t<this.lastTime){this.gaps++;continue;}
-      if(this.lastId!==null&&id!==this.lastId+1)this.gaps++;
+      const adjacent=this.lastId!==null&&id===this.lastId+1;
+      if(this.lastId!==null&&!adjacent){
+        this.gaps++;
+        const previous=this.buckets.at(-1);
+        if(previous)previous.continuous=false;
+      }
       const start=Math.floor(t/STEP)*STEP;
       if(this.pool[0]?.[0]<t-DAY)this.pool=this.pool.filter(x=>x[0]>=t-DAY);
       let b=this.buckets.at(-1);
       if(!b||b.t!==start){
         const sorted=this.pool.length>=this.minSamples?this.pool.map(x=>x[1]).sort((a,b)=>a-b):[];
         const levels=Object.fromEntries(TIERS.map(p=>[tag(p),{threshold:quantileSorted(sorted,p),bins:{},large:0}]));
-        b={t:start,baseline:this.pool.length,total:0,levels,threshold:levels.P90.threshold,bins:levels.P90.bins,large:0};this.buckets.push(b);
+        Object.assign(levels.P95,{buyValue:0,sellValue:0,maxTrade:0});
+        b={t:start,baseline:this.pool.length,total:0,levels,threshold:levels.P90.threshold,bins:levels.P90.bins,large:0,
+          continuous:adjacent&&this.lastTime<start};
+        this.buckets.push(b);
       }
       b.total++;
       for(const part of Object.values(b.levels))if(part.threshold!==null&&value>=part.threshold){
         const key=String(Math.round(p/.5)),bin=part.bins[key]??={buy:0,sell:0,count:0};
         bin[r.m?'sell':'buy']+=value;bin.count++;part.large++;
+        if(part===b.levels.P95&&Number.isFinite(part.maxTrade)){
+          part[r.m?'sellValue':'buyValue']+=value;
+          part.maxTrade=Math.max(part.maxTrade,value);
+        }
       }
       b.large=b.levels.P90.large;
       this.pool.push([t,value]);if(this.pool.length>this.baselineLimit)this.pool.splice(0,this.pool.length-this.baselineLimit);
@@ -34,6 +46,33 @@ export class LargeTakerBook{
       this.buckets=this.buckets.filter(x=>x.t>=start-2*DAY);
     }
     return added;
+  }
+  windowP95(start, cutoff, {byPrice=false}={}){
+    const window=this.buckets.filter(b=>b.t>=start&&b.t+STEP<=cutoff);
+    const covered=window.filter(b=>b.continuous===true&&b.levels.P95.threshold!==null&&
+      [b.levels.P95.buyValue,b.levels.P95.sellValue,b.levels.P95.maxTrade].every(Number.isFinite));
+    const expected=(cutoff-start)/STEP;
+    if(this.lastTime<cutoff||covered.length!==expected||!covered.every((b,i)=>b.t===start+i*STEP)){
+      return {ready:false,covered:covered.length,expected};
+    }
+    let buy=0,sell=0,count=0,maxTrade=0,peak=null;
+    const bins=byPrice?new Map():null;
+    for(const {levels:{P95:part}} of covered){
+      buy+=part.buyValue;
+      sell+=part.sellValue;
+      count+=part.large;
+      maxTrade=Math.max(maxTrade,part.maxTrade);
+      if(bins){
+        for(const [key,bin] of Object.entries(part.bins)){
+          const row=bins.get(key)??{price:Number(key)*.5,buy:0,sell:0};
+          row.buy+=bin.buy;
+          row.sell+=bin.sell;
+          bins.set(key,row);
+          if(!peak||row.buy+row.sell>peak.buy+peak.sell)peak=row;
+        }
+      }
+    }
+    return {ready:true,buy,sell,count,maxTrade,peak,ratio:buy+sell?(buy-sell)/(buy+sell):0};
   }
   profile({now=Date.now(),cutoff=now,center=null,range=12,percentile=.90,fallbackToLastDay=false}={}){
     const p=tier(percentile),label=tag(p),all=this.buckets.filter(b=>b.t+STEP<=Math.min(cutoff,now));

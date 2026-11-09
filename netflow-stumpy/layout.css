@@ -192,3 +192,11 @@ body.chart-fullscreen::before{display:none}
 #h1-cvd-status-row #h1-oi-percent[data-tone=down]{color:#ff8299}
 #h1-cvd-status-row #h1-trend-age-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #h1-cvd-status-row #h1-candle-countdown{white-space:nowrap}
+
+/* M15 flow state and its tap details. */
+#geometry-readout[aria-haspopup=dialog]{cursor:pointer;min-height:28px}
+#m15-flow-dialog{width:min(390px,calc(100vw - 28px));max-height:calc(100dvh - 32px);box-sizing:border-box;padding:16px;color:#d6e4f4;background:#111b27;border:1px solid #48617d;border-radius:9px}
+#m15-flow-dialog::backdrop{background:#070d17aa}
+#m15-flow-dialog h2{margin:0 0 10px;font-size:16px}
+#m15-flow-dialog p{margin:6px 0;font-size:13px;line-height:1.45}
+#m15-flow-dialog button{margin-top:10px}
