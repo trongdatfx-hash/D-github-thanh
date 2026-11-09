@@ -34,7 +34,7 @@ import {spyUsdtSessionChange} from './spy-session-change.mjs?v=20261109-spy-chan
 import {load,getJSON} from './data.mjs?v=20261107-outside-fast1';
 import {oiWidthByBar} from './oi-width.mjs?v=20261029-oi-width1';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261029-price-delta1';
-import {m15FlowWindow,describeM15Flow} from './m15-flow-status.mjs?v=20261109-oi-boost1';
+import {m15FlowWindow,describeM15Flow} from './m15-flow-status.mjs?v=20261109-taker-pct1';
 import {renderWeeklyTrendMap} from './weekly-trend-ui.mjs?v=20261107-week-days-only1';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
@@ -748,6 +748,22 @@ const flowTime=t=>Number.isFinite(t)?m15DetailTime.format(t)+' (VN)':'—';
 function flowAmounts(f){
   return `mua ${fmtK(f.buy)} / bán ${fmtK(f.sell)} USDT · lệch ${signed(f.ratio*100)}%`;
 }
+let matrixTakerShare=null;
+function readTakerShares(state){
+  if(!state.taker){
+    matrixTakerShare=null;
+    return null;
+  }
+  const buy=Math.round(100*state.taker.buy/(state.taker.buy+state.taker.sell));
+  if(matrixTakerShare?.start!==state.start)matrixTakerShare={start:state.start,buy,trend:0};
+  else if(matrixTakerShare.buy!==buy){
+    matrixTakerShare={start:state.start,buy,trend:Math.sign(buy-matrixTakerShare.buy)};
+  }
+  const trend=matrixTakerShare.trend;
+  return {buy:'Mua '+buy+'%'+(trend>0?' ↑':trend<0?' ↓':''),
+    sell:'Bán '+(100-buy)+'%'+(trend>0?' ↓':trend<0?' ↑':'')};
+}
+
 function matrixFlowDetails(state){
   if(!state.count)return ['Chờ dữ liệu Taker và OI của SPYUSDT.'];
   const {taker,p95,oi,threshold}=state;
@@ -759,7 +775,8 @@ function matrixFlowDetails(state){
     if(Number.isFinite(state.netBaseline))lines.push(`Nền |ΔOI ròng| ${fmt(state.netBaseline)}% · ${state.elapsedBaseline?'cùng phút trong các giờ trước':'cùng số nến M15 đã đủ kỳ'}`);
   }
   if(taker&&threshold?.taker!==null&&Number.isFinite(threshold?.taker)){
-    lines.push(`Taker ${state.strongTaker?'mạnh':'chưa mạnh'} · |ròng| ${fmtK(Math.abs(taker.net))} USDT · mốc nền ${fmtK(threshold.taker)} USDT`);
+    lines.push(`Ngưỡng Taker · điểm lệch ${fmt(state.effectiveRatio*100)} / ${fmt(state.ratioTrigger*100)}% · lực ròng hiệu dụng ${fmtK(state.effectiveNet)} / ${fmtK(threshold.taker)} USDT · nến cùng chiều ${state.votes}/${state.requiredVotes}`);
+    lines.push('Điều kiện OI · '+(!oi?'chờ dữ liệu':state.activeOi?'đạt':'chưa đạt'));
   }
   lines.push('Taker P95 phần đã đóng · '+(p95?.ready?flowAmounts(p95)+' · '+p95.count+' aggTrade':'chưa đủ dữ liệu'));
   if(oi){
@@ -789,6 +806,7 @@ function showMatrixFlowDetails(){
 function updateMatrixFlowReadout(){
   const node=$('geometry-readout');if(!node)return;
   if(!usesH1WlrStyle()){
+    matrixTakerShare=null;
     if(!node.hidden){
       node.hidden=true;
       requestAnimationFrame(positionForecastReadout);
@@ -804,9 +822,27 @@ function updateMatrixFlowReadout(){
   const arrow=state.direction>0?'↑ ':state.direction<0?'↓ ':'';
   const text=`M15${state.count?' '+state.count+'/4':''}${state.live&&state.phase!=='STALE'?' LIVE':''} · ${arrow}${state.label}`;
   const buy=state.phase==='BUY',sell=state.phase==='SELL';
-  const layoutChanged=node.hidden||node.textContent!==text;
+  const shares=readTakerShares(state);
+  const progress=Number.isFinite(state.takerProgress)
+    ? 'Ngưỡng Taker '+(state.strongTaker?100:Math.min(99,Math.floor(100*state.takerProgress)))+'%'
+    : 'Ngưỡng Taker —';
+  const summaryKey=JSON.stringify([text,shares,progress]);
+  const layoutChanged=node.hidden||node.dataset.summaryKey!==summaryKey;
   node.hidden=false;
-  if(node.textContent!==text)node.textContent=text;
+  if(node.dataset.summaryKey!==summaryKey){
+    const headline=document.createElement('span');
+    headline.textContent=text;
+    const stats=document.createElement('span');
+    stats.className='m15-flow-stats';
+    for(const [name,value] of Object.entries({buy:shares?.buy??'Mua —',sell:shares?.sell??'Bán —',threshold:progress})){
+      const metric=document.createElement('span');
+      metric.dataset.metric=name;
+      metric.textContent=value;
+      stats.append(metric);
+    }
+    node.replaceChildren(headline,stats);
+    node.dataset.summaryKey=summaryKey;
+  }
   if(layoutChanged)requestAnimationFrame(positionForecastReadout);
   node.className='forecast '+(buy?'up':sell?'down':'wait');
   node.dataset.model='m15-live-taker-oi';

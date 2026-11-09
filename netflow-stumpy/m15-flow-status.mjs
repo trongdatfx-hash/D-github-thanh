@@ -98,13 +98,23 @@ export function describeM15Flow(window, {samples, receipts, liveOi, liveOiHistor
   const oiRelative = oi && netBaseline > 0 ? Math.abs(oi.net) / netBaseline : 0;
   const multiplier = rawSell >= .10 ? 1 + Math.min(.5, .25 * Math.max(0, oiRelative - 1)) : 1;
   const sellScore = rawSell * multiplier;
+  const ratioTrigger = .15;
+  const effectiveRatio = d < 0 ? sellScore : taker?.ratio ?? 0;
+  const effectiveNet = Math.abs(taker?.net ?? 0) * multiplier;
+  const requiredVotes = Math.floor(bars.length / 2) + 1;
   const strongTaker = threshold.taker !== null && taker &&
-    (d < 0 ? sellScore >= .15 : taker.ratio >= .15) &&
-    Math.abs(taker.net) * multiplier > threshold.taker && votes > bars.length / 2;
+    effectiveRatio >= ratioTrigger && effectiveNet > threshold.taker && votes >= requiredVotes;
+  const takerProgress = !taker || threshold.taker === null ? null : Math.min(
+    effectiveRatio / ratioTrigger,
+    threshold.taker > 0 ? effectiveNet / threshold.taker : Number(effectiveNet > 0),
+    votes / requiredVotes,
+    1
+  );
   const grossUnusual = threshold.oi !== null && oi && oi.gross > threshold.oi;
   const activeOi = grossUnusual || multiplier > 1;
   Object.assign(result, {taker, oi, p95, threshold, strongTaker, activeOi, grossUnusual,
-    sellScore, multiplier, netBaseline, elapsedBaseline:elapsedBaseline !== null});
+    sellScore, multiplier, netBaseline, elapsedBaseline:elapsedBaseline !== null,
+    ratioTrigger, effectiveRatio, effectiveNet, votes, requiredVotes, takerProgress});
   if (!taker || !oi) return {...result, label:!taker ? 'Chờ Taker' : 'Chờ OI'};
   if (threshold.taker === null || threshold.oi === null) return {...result, label:'Chờ đủ mẫu nền'};
   if (strongTaker && activeOi) {

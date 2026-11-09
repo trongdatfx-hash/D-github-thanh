@@ -212,3 +212,8 @@ body.chart-fullscreen::before{display:none}
 #h1-matrix-readout .h1-matrix-group[data-tone=up]{color:#64efb5}
 #h1-matrix-readout .h1-matrix-group[data-tone=down]{color:#ff8c9c}
 #h1-matrix-readout .h1-matrix-group[data-tone=pending]{color:#ffd369}
+
+#geometry-readout .m15-flow-stats{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:0 7px;font-variant-numeric:tabular-nums}
+#geometry-readout [data-metric=buy]{color:#8cf4c6}
+#geometry-readout [data-metric=sell]{color:#ffa8b5}
+#geometry-readout [data-metric=threshold]{white-space:nowrap}
