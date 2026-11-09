@@ -88,6 +88,13 @@ export function describeM15Flow(window, {samples, receipts, liveOi, liveOiHistor
 
   const taker = takerFlow(bars);
   const oi = oiFlow(window, samples, receipts, liveOi, now);
+  const open = bars[0].o, last = bars.at(-1).c;
+  const pricePct = Number.isFinite(open) && open > 0 && Number.isFinite(last) && last > 0
+    ? 100 * (last / open - 1) : null;
+  const oiPct = oi ? 100 * Math.expm1(oi.net / 100) : null;
+  // Suppress ratios that are unstable when buy and sell flows nearly cancel.
+  const pricePer100K = pricePct !== null && taker && Math.abs(taker.ratio) >= .10 && Math.abs(taker.net) >= 100_000
+    ? pricePct * 100_000 / Math.abs(taker.net) : null;
   const p95 = cutoff > start ? largeTaker?.(start, cutoff) ?? null : null;
   const threshold = pastThresholds(window, samples);
   const d = Math.sign(taker?.net ?? 0);
@@ -112,7 +119,7 @@ export function describeM15Flow(window, {samples, receipts, liveOi, liveOiHistor
   );
   const grossUnusual = threshold.oi !== null && oi && oi.gross > threshold.oi;
   const activeOi = grossUnusual || multiplier > 1;
-  Object.assign(result, {taker, oi, p95, threshold, strongTaker, activeOi, grossUnusual,
+  Object.assign(result, {taker, oi, p95, pricePct, oiPct, pricePer100K, threshold, strongTaker, activeOi, grossUnusual,
     sellScore, multiplier, netBaseline, elapsedBaseline:elapsedBaseline !== null,
     ratioTrigger, effectiveRatio, effectiveNet, votes, requiredVotes, takerProgress});
   if (!taker || !oi) return {...result, label:!taker ? 'Chờ Taker' : 'Chờ OI'};

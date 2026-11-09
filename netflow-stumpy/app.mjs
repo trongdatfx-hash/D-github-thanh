@@ -34,7 +34,7 @@ import {spyUsdtSessionChange} from './spy-session-change.mjs?v=20261109-spy-chan
 import {load,getJSON} from './data.mjs?v=20261107-outside-fast1';
 import {oiWidthByBar} from './oi-width.mjs?v=20261029-oi-width1';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261029-price-delta1';
-import {m15FlowWindow,describeM15Flow} from './m15-flow-status.mjs?v=20261109-taker-pct1';
+import {m15FlowWindow,describeM15Flow} from './m15-flow-status.mjs?v=20261110-m15-summary1';
 import {renderWeeklyTrendMap} from './weekly-trend-ui.mjs?v=20261107-week-days-only1';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
@@ -764,11 +764,21 @@ function readTakerShares(state){
     sell:'Bán '+(100-buy)+'%'+(trend>0?' ↓':trend<0?' ↑':'')};
 }
 
+function clusterPct(value){
+  if(!Number.isFinite(value))return '—';
+  const rounded=Math.round(value*100)/100;
+  return (rounded>0?'+':'')+rounded.toLocaleString('vi-VN',{minimumFractionDigits:2,maximumFractionDigits:2})+'%';
+}
+
 function matrixFlowDetails(state){
   if(!state.count)return ['Chờ dữ liệu Taker và OI của SPYUSDT.'];
   const {taker,p95,oi,threshold}=state;
   const lines=[`${state.label} · cụm bắt đầu ${flowTime(state.start)}${state.live?' · LIVE':''}`];
+  lines.push(`Giá ${clusterPct(state.pricePct)} · OI ròng ${clusterPct(state.oiPct)} từ đầu cụm`);
   lines.push('Taker toàn cụm · '+(taker?flowAmounts(taker):'chờ dữ liệu'));
+  if(Number.isFinite(state.pricePer100K)){
+    lines.push(`Giá ${clusterPct(state.pricePer100K)} trên mỗi 100K USDT ${taker.net>0?'mua':'bán'} ròng`);
+  }
   if(taker&&taker.net<0){
     const sellShare=100*taker.sell/(taker.buy+taker.sell);
     lines.push(`Bán thực ${fmt(sellShare)}% · điểm bán ròng ${fmt(-taker.ratio*100)} × ${fmt(state.multiplier)} = ${fmt(state.sellScore*100)} điểm`);
@@ -788,6 +798,43 @@ function matrixFlowDetails(state){
   return lines;
 }
 
+function makeMatrixFlowDialogDraggable(dialog, title){
+  let drag=null,position=null;
+  function place(left, top){
+    const edge=8,box=dialog.getBoundingClientRect();
+    position={
+      left:Math.max(edge,Math.min(left,window.innerWidth-box.width-edge)),
+      top:Math.max(edge,Math.min(top,window.innerHeight-box.height-edge))
+    };
+    dialog.classList.add('m15-flow-moved');
+    dialog.style.left=position.left+'px';
+    dialog.style.top=position.top+'px';
+  }
+  title.addEventListener('pointerdown',event=>{
+    if(event.pointerType!=='mouse'||event.button!==0)return;
+    const box=dialog.getBoundingClientRect();
+    drag={id:event.pointerId,x:event.clientX-box.left,y:event.clientY-box.top};
+    title.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  });
+  title.addEventListener('pointermove',event=>{
+    if(drag?.id===event.pointerId)place(event.clientX-drag.x,event.clientY-drag.y);
+  });
+  title.addEventListener('lostpointercapture',()=>{drag=null;});
+  const keepInView=()=>{
+    if(dialog.open&&position)place(position.left,position.top);
+  };
+  window.addEventListener('resize',keepInView);
+  new ResizeObserver(keepInView).observe(dialog);
+  dialog.addEventListener('close',()=>{
+    drag=null;
+    position=null;
+    dialog.classList.remove('m15-flow-moved');
+    dialog.style.removeProperty('left');
+    dialog.style.removeProperty('top');
+  });
+}
+
 function showMatrixFlowDetails(){
   let dialog=$('m15-flow-dialog');
   if(!dialog){
@@ -795,9 +842,11 @@ function showMatrixFlowDetails(){
     dialog.id='m15-flow-dialog';dialog.setAttribute('aria-labelledby','m15-flow-dialog-title');
     const title=document.createElement('h2');title.id='m15-flow-dialog-title';title.textContent='Chi tiết trạng thái M15';title.title='Giữ và kéo bằng chuột để di chuyển';
     const body=document.createElement('div');body.id='m15-flow-dialog-body';
+    body.tabIndex=0;body.setAttribute('role','region');body.setAttribute('aria-label','Nội dung chi tiết có thể cuộn');
     const close=document.createElement('button');close.type='button';close.textContent='Đóng';close.onclick=()=>dialog.close();
     dialog.append(title,body,close);
     $('chart').append(dialog);
+    makeMatrixFlowDialogDraggable(dialog,title);
   }
   dialog.showModal();
   updateMatrixFlowReadout();
@@ -826,7 +875,8 @@ function updateMatrixFlowReadout(){
   const progress=Number.isFinite(state.takerProgress)
     ? 'Ngưỡng Taker '+(state.strongTaker?100:Math.min(99,Math.floor(100*state.takerProgress)))+'%'
     : 'Ngưỡng Taker —';
-  const summaryKey=JSON.stringify([text,shares,progress]);
+  const priceOi=`Giá ${clusterPct(state.pricePct)} · OI ${clusterPct(state.oiPct)}`;
+  const summaryKey=JSON.stringify([text,shares,progress,priceOi]);
   const layoutChanged=node.hidden||node.dataset.summaryKey!==summaryKey;
   node.hidden=false;
   if(node.dataset.summaryKey!==summaryKey){
@@ -840,7 +890,10 @@ function updateMatrixFlowReadout(){
       metric.textContent=value;
       stats.append(metric);
     }
-    node.replaceChildren(headline,stats);
+    const cluster=document.createElement('span');
+    cluster.className='m15-flow-stats';
+    cluster.textContent=priceOi;
+    node.replaceChildren(headline,stats,cluster);
     node.dataset.summaryKey=summaryKey;
   }
   if(layoutChanged)requestAnimationFrame(positionForecastReadout);
