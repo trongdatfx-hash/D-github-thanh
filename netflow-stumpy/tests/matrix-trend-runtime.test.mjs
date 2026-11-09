@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import vm from 'node:vm';
-import {matrixTrendText} from '../matrix-trend-status.mjs';
+import {m15FlowWindow,describeM15Flow} from '../m15-flow-status.mjs';
 import {computeStudies,analyzeTrendSource} from '../studies-core.mjs';
 import {parseKlines,STEPS} from '../engine.mjs';
 const read=n=>readFileSync(new URL('../'+n,import.meta.url),'utf8');
@@ -10,11 +10,26 @@ test('main/worker no longer calculate or display the retired age predictor',()=>
  for(const html of [read('index.html'),readFileSync(new URL('../../index.html',import.meta.url),'utf8')]){assert.ok(!html.includes('trend-cohort-card'));assert.ok(!html.includes('Kaplan'));}
  assert.ok(readFileSync(new URL('../../index.html',import.meta.url),'utf8').includes('weekly-days'));
 });
-test('status renderer works without old probability fields and hides on other symbols',()=>{
- const app=read('app.mjs'),start=app.indexOf('function updateGeometryReadout('),end=app.indexOf('\nfunction ',start+1),host={style:{},dataset:{}},controls={symbol:{value:'SPYUSDT'},interval:{value:'15m'},'geometry-readout':host};
- const ctx={matrixTrendText,serverOffsetMs:0,matrixTrendState:{phase:'SUPPORTED',direction:1,score:3,oiText:'OI thiếu'},$:id=>controls[id],requestAnimationFrame:()=>{},updateH1TrendAgeReadout(){},positionForecastReadout(){}};
- vm.createContext(ctx);vm.runInContext(app.slice(start,end),ctx);ctx.updateGeometryReadout();assert.equal(host.hidden,false);assert.ok(host.textContent.includes('Được ủng hộ'));assert.ok(!host.textContent.includes('%'));assert.equal(host.dataset.forecastStatus,'CHUA_DU_MAU');
- controls.symbol.value='QQQUSDT';ctx.updateGeometryReadout();assert.equal(host.style.display,'none');
+test('M15 status renders closed group, opens details and hides on other charts',()=>{
+ const app=read('app.mjs'),start=app.indexOf('function updateMatrixFlowReadout('),end=app.indexOf('\nfunction ',start+1);
+ const step=STEPS['15m'],hour=4*step,from=hour*100,cutoff=from+3*step;
+ const bars=Array.from({length:4},(_,i)=>({t:from+i*step,end:from+(i+1)*step-1,o:100+i,h:101+i,l:100+i,c:101+i,q:100,buy:70}));
+ const host={dataset:{}},controls={symbol:{value:'SPYUSDT'},interval:{value:'15m'},'geometry-readout':host};
+ const ctx={
+   describeM15Flow,matrixFlowWindow:m15FlowWindow(bars,cutoff),matrixTrendState:null,
+   usesH1WlrStyle:()=>controls.symbol.value==='SPYUSDT'&&controls.interval.value==='15m',
+   getH1MatrixOptions:()=>({size:3}),oiStamp:'15m',oiWidths:new Map(),oiReceipts:new Map(),largeTakerEnabled:()=>false,
+   chartLiveResponse:false,Date:{now:()=>cutoff},$:id=>controls[id],
+   requestAnimationFrame:()=>{},positionForecastReadout(){},showMatrixFlowDetails(){}
+ };
+ vm.createContext(ctx);vm.runInContext(app.slice(start,end),ctx);
+ ctx.updateMatrixFlowReadout();
+ assert.equal(host.hidden,false);
+ assert.equal(host.textContent,'M15 3/4 · ↑ Tăng có lực mua · OI chờ');
+ assert.equal(host.onclick,ctx.showMatrixFlowDetails);
+ assert.equal(host.dataset.state,'SUPPORTED');
+ controls.interval.value='1h';ctx.updateMatrixFlowReadout();assert.equal(host.hidden,true);
+ controls.interval.value='15m';controls.symbol.value='QQQUSDT';ctx.updateMatrixFlowReadout();assert.equal(host.hidden,true);
 });
 test('real M15 pipeline preserves H1/weekday outputs without old age predictions',()=>{
  const fixture=n=>JSON.parse(readFileSync(new URL('../../netflow-ml/tests/fixtures/'+n,import.meta.url),'utf8').replace(/^\uFEFF/,'')),now=fixture('time.json').serverTime;
