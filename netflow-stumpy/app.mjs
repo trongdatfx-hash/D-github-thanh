@@ -34,8 +34,7 @@ import {spyUsdtSessionChange} from './spy-session-change.mjs?v=20261109-spy-chan
 import {load,getJSON} from './data.mjs?v=20261107-outside-fast1';
 import {oiWidthByBar} from './oi-width.mjs?v=20261029-oi-width1';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261029-price-delta1';
-import {matrixTrendStatus,matrixTrendText} from './matrix-trend-status.mjs?v=20261108-matrix-trend-no-oi1';
-import {m15FlowWindow,describeM15Flow} from './m15-flow-status.mjs?v=20261109-m15-flow1';
+import {m15FlowWindow,describeM15Flow} from './m15-flow-status.mjs?v=20261109-flow-live1';
 import {renderWeeklyTrendMap} from './weekly-trend-ui.mjs?v=20261107-week-days-only1';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
@@ -64,7 +63,13 @@ const oiHistory=new OiHistory();
 const runningOiState=new RunningOiState();
 const oiPercentColor=new OiPercentColor();
 
-const currentOiLoader=new CurrentOiLoader({get:getJSON,now:()=>Date.now()+serverOffsetMs,onData:()=>scheduleSpectrumBadge()});
+let matrixLiveOi=null;
+const currentOiLoader=new CurrentOiLoader({get:getJSON,now:()=>Date.now()+serverOffsetMs,onData:(sample,error)=>{
+  if(error)matrixLiveOi=null;
+  else if(sample&&matrixLiveOi?.time!==sample.time)matrixLiveOi={...sample,at:Date.now()};
+  scheduleSpectrumBadge();
+  updateMatrixFlowReadout();
+}});
 const oiFastLoader=new OiFastLoader({history:oiHistory,get:getJSON,onData:applyOiHistoryData,onState:handleOiLoadState});
 const oiBoldCandles=new OiBoldCandles();
 let spectrumComparison={rows:[],day:null,count:0,oiCount:0,pairedReady:false,maxCvd:0,maxOiGross:0};
@@ -90,7 +95,7 @@ const SETUP_STORAGE_KEY='netflow-rth-lite:chart-setup:v1';
 let nfSmoothRows=[],nfSmoothMap=new Map();
 const nfSmoothEnabled=()=>$('nf-smooth-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
 const SETUP_CONTROL_IDS=['nf-smooth-toggle','nf-smooth-window','symbol','interval','days','signal','composite','alignment','confirmed-delta-toggle','oi-width-toggle','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-h1-box-color','cvd-spectrum-toggle','large-taker-toggle','large-taker-percentile','oi-spectrum-toggle','oi-candle-bars-toggle','oi-candle-pin-toggle','oi-delta-percentile','oi-bold-candles-toggle','show-strength','spy-volume-strength','spy-volume-h1-smooth','h1-score-line-toggle','bands','markers','double-tap-full','geometry-toggle','geometry-matrix-toggle','geometry-provisional','causal-trend-channel','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
-let statsMap=new Map(),candleColorMap=new Map(),candleClusterMap=new Map(),matrixTrendState=null,matrixFlowWindow=null,pivotZoneState={ready:false,reason:'history',support:null,resistance:null},pivotZoneKey='',inspectedTime=null;
+let statsMap=new Map(),candleColorMap=new Map(),candleClusterMap=new Map(),matrixFlowWindow=null,pivotZoneState={ready:false,reason:'history',support:null,resistance:null},pivotZoneKey='',inspectedTime=null;
 let calendarState={events:[],updatedAt:null,loading:false};
 let pendingSavedTimeRange=null,saveSetupTimer=null,strengthBoxLayer=null,quantileLayer=null;
 const sourceName=key=>({SPYUSDT:'SPY',QQQUSDT:'QQQ',COMPOSITE:'Composite'}[key]);
@@ -295,7 +300,7 @@ function saveChartSetup(){
 function resetStudies(){
   studyKey='';studyResultKey='';statsMap=new Map();++statsRequest;h1CacheAttempt='';h1CacheArchive=null;studyColorInput=null;$('chart').dataset.h1ColorCache='empty';
   geometryState={pivots:[],events:[],lines:[],summary:{}};causalChannelState={trends:[],total:0};breakoutState=null;geometryStatePoints=[];geometryBacktest={n:0};
-  pivotZoneState={ready:false,reason:'history',support:null,resistance:null};matrixTrendState=null;matrixFlowWindow=null;h1CandleMap=new Map();h1H4CandleMap=new Map();renderWeeklyTrendMap(null);
+  pivotZoneState={ready:false,reason:'history',support:null,resistance:null};matrixFlowWindow=null;h1CandleMap=new Map();h1H4CandleMap=new Map();renderWeeklyTrendMap(null);
 }
 function colorStorage(){try{return globalThis.localStorage;}catch{return null;}}
 function recordH1ColorPaint(){if(h1CandleMap.size||h1H4CandleMap.size)requestAnimationFrame(()=>{$('chart').dataset.firstH1ColorPaintMs??=String(Math.round(performance.now()));});}
@@ -718,35 +723,24 @@ const m15DetailTime=new Intl.DateTimeFormat('vi-VN',{
   timeZone:'Asia/Ho_Chi_Minh',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false
 });
 const flowTime=t=>Number.isFinite(t)?m15DetailTime.format(t)+' (VN)':'—';
-const flowSide=d=>d>0?'mua trội':d<0?'bán trội':'chưa nghiêng rõ';
 function flowAmounts(f){
   return `mua ${fmtK(f.buy)} / bán ${fmtK(f.sell)} USDT · lệch ${signed(f.ratio*100)}%`;
 }
 function matrixFlowDetails(state){
-  if(!state.cutoff)return ['Chờ SPYUSDT có nến M15 đã đóng.'];
-  const {taker,p95,oi,zone}=state;
-  const lines=[`Cụm M15 ${state.count}/4 · ${flowTime(state.start)} → ${flowTime(state.cutoff)}`];
-  if(Number.isFinite(state.move)){
-    const direction=state.priceDirection>0?'tăng':state.priceDirection<0?'giảm':'lưỡng lự';
-    lines.push(`Giá · ${direction} · ${signed(state.move)} điểm${zone?' · biên H1 '+fmt(zone.low)+'–'+fmt(zone.high):''}`);
+  if(!state.count)return ['Chờ dữ liệu Taker và OI của SPYUSDT.'];
+  const {taker,p95,oi,threshold}=state;
+  const lines=[`${state.label} · cụm bắt đầu ${flowTime(state.start)}${state.live?' · LIVE':''}`];
+  lines.push('Taker toàn cụm · '+(taker?flowAmounts(taker):'chờ dữ liệu'));
+  if(taker&&threshold?.taker!==null&&Number.isFinite(threshold?.taker)){
+    lines.push(`Taker ${state.strongTaker?'mạnh':'chưa mạnh'} · |ròng| ${fmtK(Math.abs(taker.net))} USDT · mốc nền ${fmtK(threshold.taker)} USDT`);
   }
-  lines.push('Taker toàn bộ · '+(taker?flowSide(taker.direction)+' · '+flowAmounts(taker):'thiếu dữ liệu'));
-  let large=p95?'thiếu/chờ đủ dữ liệu ('+p95.covered+'/'+p95.expected+' M15 có dữ liệu)':'đang tắt hoặc thiếu nến';
-  if(p95?.ready){
-    const qualification=p95.count<5?'ít mẫu':p95.maxTrade>(p95.buy+p95.sell)/2?'mẫu tập trung':flowSide(state.p95Direction);
-    const contrary=taker?.direction&&state.p95Direction===-taker.direction?' · lệnh lớn ngược dòng chung':'';
-    large=qualification+' · '+flowAmounts(p95)+' · '+p95.count+' aggTrade'+contrary;
-    if(p95.peak)large+=` · tập trung tại ${fmt(p95.peak.price)} (${fmtK(p95.peak.buy+p95.peak.sell)} USDT)`;
-  }
-  lines.push('P95 · '+large);
-  const oiMessage=oi?`ròng ${signed(oi.net)}% · từng nến ${oi.deltas.map(x=>signed(x)+'%').join(' / ')}`:'chờ OI đủ các mốc của cụm';
-  const receipt=oi?.receivedAt?` · Giờ nhận OI cuối cụm ${flowTime(oi.receivedAt)}`:oi?' · chưa có giờ nhận của mẫu đã lưu':'';
-  lines.push('OI · '+oiMessage+receipt);
-  if(oi?.deltas.some(delta=>delta!==0))lines.push(`Phổ OI · biến động lớn nhất gán theo giá đóng ${fmt(oi.peakPrice)}`);
-  if(state.againstH1&&state.phase!=='AGAINST_H1')lines.push('Giá đi ngược hướng H1.');
-  if(state.conflict&&state.phase!=='CONFLICT')lines.push('Giá và Taker toàn bộ xung đột.');
-  if(state.absorption&&state.phase!=='ABSORPTION')lines.push(state.absorption>0?'Nghi lực mua bị hấp thụ.':'Nghi lực bán bị hấp thụ.');
-  lines.push('Bối cảnh H1 trước cụm · '+matrixTrendText(matrixTrendState));
+  lines.push('Taker P95 phần đã đóng · '+(p95?.ready?flowAmounts(p95)+' · '+p95.count+' aggTrade':'chưa đủ dữ liệu'));
+  if(oi){
+    lines.push(`Phổ OI theo thời gian · tăng ${fmt(oi.increase)}% · giảm ${fmt(oi.decrease)}% · ròng ${signed(oi.net)}%`);
+    lines.push(`Tổng biến động OI ${fmt(oi.gross)}%${Number.isFinite(threshold?.oi)?' · mốc nền '+fmt(threshold.oi)+'%':''} · ${state.activeOi?'bất thường':'chưa xác nhận bất thường'}`);
+    lines.push('ΔOI từng đoạn M15 · '+oi.deltas.map(x=>signed(x)+'%').join(' / '));
+    if(oi.receivedAt)lines.push('Giờ nhận OI cuối cụm · '+flowTime(oi.receivedAt));
+  }else lines.push('Phổ OI · chờ đủ mốc OI trong cụm');
   return lines;
 }
 
@@ -774,19 +768,18 @@ function updateMatrixFlowReadout(){
     return;
   }
   const state=describeM15Flow(matrixFlowWindow,{
-    reference:matrixTrendState,groupSize:getH1MatrixOptions().size,
-    samples:oiStamp==='15m'?oiWidths:new Map(),receipts:oiReceipts,
-    largeTaker:largeTakerEnabled()?(start,cutoff)=>largeTakerLoader.book.windowP95(start,cutoff,{byPrice:$('m15-flow-dialog')?.open}):null,
+    samples:oiStamp==='15m'?oiWidths:new Map(),receipts:oiReceipts,liveOi:matrixLiveOi,
+    largeTaker:largeTakerEnabled()?(start,cutoff)=>largeTakerLoader.book.windowP95(start,cutoff):null,
     now:Date.now()+(chartLiveResponse?serverOffsetMs:0)
   });
   const arrow=state.direction>0?'↑ ':state.direction<0?'↓ ':'';
-  const text=`M15${state.count?' '+state.count+'/4':''} · ${arrow}${state.label}`;
+  const text=`M15${state.count?' '+state.count+'/4':''}${state.live&&state.phase!=='STALE'?' LIVE':''} · ${arrow}${state.label}`;
   if(node.textContent!==text){
     node.textContent=text;
     requestAnimationFrame(positionForecastReadout);
   }
   node.className='forecast '+(state.direction>0?'up':state.direction<0?'down':'wait');
-  node.dataset.model='m15-price-taker-oi';
+  node.dataset.model='m15-live-taker-oi';
   node.dataset.state=state.phase;
   node.title='Chạm để xem Taker, P95 và giờ nhận OI.';
   node.onclick=showMatrixFlowDetails;
@@ -905,10 +898,6 @@ function render(fit=false){
   priceBandMap=new Map(priceBands.map(x=>[x.t,x]));
   const h1ScoreRecords=h1Wlr?(h1ScoreLayer?.getLineScores()??[]):[];
   matrixFlowWindow=h1Wlr&&cache?.interval==='15m'?m15FlowWindow(p,cache.serverTime):null;
-  const flowGroupSize=getH1MatrixOptions().size;
-  matrixTrendState=matrixFlowWindow?matrixTrendStatus(h1ScoreRecords.slice(-2*flowGroupSize-4),{
-    now:matrixFlowWindow.start,priceRows:matrixFlowWindow.recent,size:flowGroupSize
-  }):null;
   wlrH1StyleMap=new Map((h1Wlr?wlrH1Styles(priceBands,h1ScoreRecords,{now:cache?.serverTime??Date.now(),alignment:'box',boxStates:h1CandleMap,scoreColor:true}):[]).map(x=>[x.t,x]));
   wlrThicknessMap=trendThickness;const currentThickness=trendThickness.get(p.at(-1)?.t);$('chart').dataset.wlrThicknessModel='slope-r2-flow-noise';$('chart').dataset.wlrThicknessMax=String(WLR_SLOPE_DEFAULTS.maxWidth);$('chart').dataset.wlrThicknessTrendWeight=String(WLR_SLOPE_DEFAULTS.trendWeight);$('chart').dataset.wlrThicknessWindow=String(WLR_SLOPE_DEFAULTS.window);$('chart').dataset.wlrThicknessPairs=String(currentThickness?.pairs??0);
   updateGeometryReadout();
@@ -1272,7 +1261,7 @@ if(init()){
   ensureStudiesWorker();studiesWorker.postMessage({type:'prefetch'});
   void refreshOiWidths($('interval').value);
   void currentOiLoader.start();
-  setInterval(()=>{if(!document.hidden&&$('symbol').value==='SPYUSDT'&&$('oi-spectrum-toggle')?.checked){void currentOiLoader.start();scheduleSpectrumBadge();}},1000);
+  setInterval(()=>{if(!document.hidden&&$('symbol').value==='SPYUSDT'&&($('oi-spectrum-toggle')?.checked||usesH1WlrStyle())){void currentOiLoader.start();scheduleSpectrumBadge();}},1000);
   setLive();refreshCalendar();refresh(true);setInterval(()=>{updateCandleCountdown();if(!isChartLive()){setLive();scheduleSpectrumBadge();}updateGeometryReadout();if(!document.hidden&&!loading)refresh();},LIVE_REFRESH_MS);
   setInterval(()=>{if(!document.hidden)void refreshOiWidths($('interval').value);},15000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){void refreshOiWidths($('interval').value);void currentOiLoader.start();}});

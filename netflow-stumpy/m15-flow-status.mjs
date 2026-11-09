@@ -1,115 +1,86 @@
 const M15 = 900_000;
 const H1 = 4 * M15;
-const FLOW_GATE = 0.10;
+const freshOiMs = 15_000;
 
-function isClosed(bar, now) {
-  return bar && bar.sourceComplete !== false && bar.end === bar.t + M15 - 1 &&
-    bar.end < now && [bar.o, bar.h, bar.l, bar.c].every(Number.isFinite);
-}
-
-export function m15FlowWindow(rows, priceNow) {
-  const last = rows.findLastIndex(bar => isClosed(bar, priceNow));
+export function m15FlowWindow(rows, sourceTime) {
+  const last = rows.findLastIndex(b => b.t <= sourceTime && b.sourceComplete !== false);
   if (last < 0) return null;
-  const cutoff = rows[last].t + M15;
-  const start = Math.floor(rows[last].t / H1) * H1;
-  const recent = rows.slice(Math.max(0, last - 39), last + 1);
-  const expected = (cutoff - start) / M15;
-  const bars = recent.filter(bar => bar.t >= start && isClosed(bar, priceNow));
-  const contiguous = bars.length === expected && bars.every((bar, i) => bar.t === start + i * M15);
-  return {start, cutoff, recent, bars, contiguous};
-}
-
-function bounds(bars) {
-  return {low: Math.min(...bars.map(b => b.l)), high: Math.max(...bars.map(b => b.h))};
+  const tail = rows[last], start = Math.floor(tail.t / H1) * H1;
+  const recent = rows.slice(Math.max(0, last - 83), last + 1);
+  const bars = recent.filter(b => b.t >= start && b.sourceComplete !== false);
+  const contiguous = bars.length === (tail.t - start) / M15 + 1 &&
+    bars.every((b, i) => b.t === start + i * M15 && b.end === b.t + M15 - 1);
+  const live = sourceTime <= tail.end;
+  return {start, bars, recent, contiguous, live, sourceTime, cutoff: live ? tail.t : tail.end + 1};
 }
 
 function takerFlow(bars) {
-  if (bars.some(b => !Number.isFinite(b.q) || !Number.isFinite(b.buy) ||
-    b.q < 0 || b.buy < 0 || b.buy > b.q)) return null;
-  const total = bars.reduce((sum, b) => sum + b.q, 0);
-  if (!total) return null;
-  const buy = bars.reduce((sum, b) => sum + b.buy, 0);
-  const ratio = (2 * buy - total) / total;
-  return {buy, sell: total - buy, ratio, direction: Math.abs(ratio) >= FLOW_GATE ? Math.sign(ratio) : 0};
+  if (bars.some(b => !Number.isFinite(b.q) || !Number.isFinite(b.buy) || b.q < 0 || b.buy < 0 || b.buy > b.q)) return null;
+  const total = bars.reduce((s, b) => s + b.q, 0);
+  const buy = bars.reduce((s, b) => s + b.buy, 0);
+  const net = 2 * buy - total;
+  return total > 0 ? {buy, sell: total - buy, net, ratio: net / total} : null;
 }
 
-function oiFlow(window, samples, receipts) {
-  const points = [window.start - M15, ...window.bars.map(bar => bar.t)].map(t => samples.get(t));
-  if (points.some(p => !Number.isFinite(p?.oi) || p.oi <= 0)) return null;
-  const deltas = points.slice(1).map((p, i) => 100 * Math.log(p.oi / points[i].oi));
-  const net = deltas.reduce((sum, x) => sum + x, 0);
-  const gross = deltas.reduce((sum, x) => sum + Math.abs(x), 0);
-  const baseline = [];
-  for (let t = window.start - M15; baseline.length < 20; t -= M15) {
-    const pair = [samples.get(t)?.oi, samples.get(t - M15)?.oi];
-    if (pair.some(x => !Number.isFinite(x) || x <= 0)) break;
-    baseline.push(Math.abs(100 * Math.log(pair[0] / pair[1])));
+function oiFlow(window, samples, receipts, liveOi, now) {
+  const points = [window.start - M15, ...window.bars.map(b => b.t)].map(t => samples.get(t)?.oi);
+  const latest = window.live ? liveOi : null;
+  if (window.live) {
+    const tail = window.bars.at(-1);
+    if (!latest || latest.time < tail.t || latest.time > tail.end || now - latest.time > freshOiMs) return null;
+    points[points.length - 1] = latest.oi;
   }
-  const meanAbsolute = baseline.length >= 8 ? baseline.reduce((s, x) => s + x, 0) / baseline.length : null;
-  const threshold = meanAbsolute === null ? null : meanAbsolute * Math.sqrt(deltas.length);
-  const direction = threshold !== null && Math.abs(net) > threshold && Math.abs(net) >= gross / 2 ? Math.sign(net) : 0;
+  if (points.some(x => !Number.isFinite(x) || x <= 0)) return null;
+  const deltas = points.slice(1).map((x, i) => 100 * Math.log(x / points[i]));
+  const increase = deltas.reduce((s, x) => s + Math.max(x, 0), 0);
+  const decrease = deltas.reduce((s, x) => s + Math.max(-x, 0), 0);
   const receipt = receipts.get(window.cutoff);
-  const peak = deltas.reduce((i, delta, j) => Math.abs(delta) > Math.abs(deltas[i]) ? j : i, 0);
-  return {net, deltas, direction, threshold, peakPrice: window.bars[peak].c,
-    receivedAt: receipt?.oi === points.at(-1).oi ? receipt.at : null};
-
+  return {increase, decrease, gross: increase + decrease, net: increase - decrease, deltas,
+    receivedAt: latest?.at ?? (receipt?.oi === points.at(-1) ? receipt.at : null)};
 }
 
-function rejectedFlow(bars, zone, noiseFloor, taker) {
-  if (!zone || !taker?.direction || bars.length < 3) return 0;
-  const d = taker.direction;
-  const boundary = d > 0 ? zone.high : zone.low;
-  const near = Math.max(noiseFloor, Number.EPSILON);
-  const touches = bars.filter(bar =>
-    takerFlow([bar])?.direction === d &&
-    Math.abs((d > 0 ? bar.h : bar.l) - boundary) <= near);
-  return touches.length >= 2 && d * (bars.at(-1).c - boundary) < -near ? d : 0;
+function percentile80(values) {
+  if (values.length < 8) return null;
+  values.sort((a, b) => a - b);
+  return values[Math.ceil(values.length * .8) - 1];
 }
 
-export function describeM15Flow(window, {reference, groupSize, samples, receipts, largeTaker, now}) {
-  if (!window) return {phase:'WAIT', label:'Chờ nến đóng', count:0};
-  const {start, cutoff, recent, bars, contiguous} = window;
-  const count = bars.length;
-  const result = {start, cutoff, count, phase:'WAIT', label:'Thiếu nến liên tục', direction:0};
-  if (!contiguous) return result;
-
-  const previous = recent.filter(bar => bar.t < start);
-  const priorGroup = previous.slice(-4 * groupSize);
-  const zone = priorGroup.length === 4 * groupSize &&
-    priorGroup.every((bar, i) => bar.t === start - (priorGroup.length - i) * M15 && isClosed(bar, start))
-    ? bounds(priorGroup) : null;
-  const ranges = previous.slice(-20).filter(bar => isClosed(bar, start)).map(bar => bar.h - bar.l).sort((a, b) => a - b);
-  const noiseFloor = ranges.length >= 8 ? 0.5 * ranges[Math.floor(ranges.length / 2)] : 0;
-  const {high, low} = bounds(bars);
-  const move = bars.at(-1).c - bars[0].o;
-  const priceDirection = Math.abs(move) > 0 && Math.abs(move) >= Math.max(0.25 * (high - low), noiseFloor)
-    ? Math.sign(move) : 0;
-  const tail = bars.slice(-2);
-  const broke = zone && tail.length === 2
-    ? (tail.every(b => b.c > zone.high) ? 1 : tail.every(b => b.c < zone.low) ? -1 : 0)
-    : 0;
-  const h1 = reference?.to === start ? reference.baseDirection ?? 0 : 0;
-  const taker = takerFlow(bars);
-  const oi = oiFlow(window, samples, receipts);
-  const p95 = largeTaker?.(start, cutoff) ?? null;
-  const p95Direction = p95?.ready && p95.count >= 5 && p95.maxTrade <= (p95.buy + p95.sell) / 2 &&
-    Math.abs(p95.ratio) >= FLOW_GATE ? Math.sign(p95.ratio) : 0;
-  const conflict = Boolean(priceDirection && taker?.direction === -priceDirection);
-  const againstH1 = Boolean(h1 && priceDirection === -h1);
-  const absorption = (!priceDirection || conflict) ? rejectedFlow(bars, zone, noiseFloor, taker) : 0;
-  Object.assign(result, {move, priceDirection, zone, h1, taker, oi, p95, p95Direction, conflict, againstH1, absorption});
-
-  const priceLabel = priceDirection > 0 ? 'Tăng có lực mua' : 'Giảm có lực bán';
-  const oiLabel = oi?.direction > 0 ? 'OI mở rộng' : oi?.direction < 0 ? 'OI co lại' : oi ? 'OI chưa rõ' : 'OI chờ';
-  if (now - cutoff >= 2 * M15) return {...result, phase:'STALE', label:'Dữ liệu cũ'};
-  if (broke) return {...result, phase:'BREAKOUT', direction:broke, label:'Phá biên · xác nhận 2 M15'};
-  if (count < 3) return {...result, label:'Chờ 3 nến đóng'};
-  if (againstH1) return {...result, phase:'AGAINST_H1', label:'WAIT · Ngược H1'};
-  if (absorption) return {...result, phase:'ABSORPTION', label:absorption > 0 ? 'Nghi lực mua bị hấp thụ' : 'Nghi lực bán bị hấp thụ'};
-  if (conflict) return {...result, phase:'CONFLICT', label:'Giá–Taker xung đột'};
-  if (priceDirection && taker?.direction === priceDirection) {
-    return {...result, phase:'SUPPORTED', direction:priceDirection, label:priceLabel + ' · ' + oiLabel};
+function pastThresholds(window, samples) {
+  const previous = new Map(window.recent.filter(b => b.t < window.start && b.sourceComplete !== false).map(b => [b.t, b]));
+  const taker = [], oi = [], count = window.bars.length;
+  // Compare with the same number of M15 bars from the start of each preceding hour.
+  for (let hour = window.start - H1; hour >= window.start - 20 * H1; hour -= H1) {
+    const bars = Array.from({length: count}, (_, i) => previous.get(hour + i * M15));
+    if (bars.some(b => !b)) continue;
+    const flow = takerFlow(bars);
+    if (flow) taker.push(Math.abs(flow.net));
+    const points = [hour - M15, ...bars.map(b => b.t)].map(t => samples.get(t)?.oi);
+    if (points.every(x => Number.isFinite(x) && x > 0)) {
+      oi.push(points.slice(1).reduce((s, x, i) => s + Math.abs(100 * Math.log(x / points[i])), 0));
+    }
   }
-  if (!priceDirection) return {...result, phase:'MIXED', label:'Giá lưỡng lự'};
-  return {...result, label:taker ? 'WAIT · Taker chưa rõ' : 'WAIT · Taker thiếu'};
+  return {taker: percentile80(taker), oi: percentile80(oi)};
+}
+
+export function describeM15Flow(window, {samples, receipts, liveOi, largeTaker, now}) {
+  if (!window) return {phase:'WAIT', label:'Chờ dữ liệu', count:0};
+  const {start, cutoff, bars, contiguous, live, sourceTime} = window;
+  const result = {start, cutoff, sourceTime, live, count:bars.length, phase:'WAIT', direction:0, label:'Thiếu dữ liệu cụm'};
+  if (!contiguous) return result;
+  if (now - sourceTime >= 2 * M15) return {...result, phase:'STALE', label:'Dữ liệu cũ'};
+
+  const taker = takerFlow(bars);
+  const oi = oiFlow(window, samples, receipts, liveOi, now);
+  const p95 = cutoff > start ? largeTaker?.(start, cutoff) ?? null : null;
+  const threshold = pastThresholds(window, samples);
+  const d = Math.sign(taker?.net ?? 0);
+  const votes = bars.filter(b => d && Math.sign(takerFlow([b])?.net) === d).length;
+  const strongTaker = threshold.taker !== null && taker && Math.abs(taker.ratio) >= .15 &&
+    Math.abs(taker.net) > threshold.taker && votes > bars.length / 2;
+  const activeOi = threshold.oi !== null && oi && oi.gross > threshold.oi;
+  Object.assign(result, {taker, oi, p95, threshold, strongTaker, activeOi});
+  if (!taker || !oi) return {...result, label:!taker ? 'Chờ Taker' : 'Chờ OI'};
+  if (threshold.taker === null || threshold.oi === null) return {...result, label:'Chờ đủ mẫu nền'};
+  if (strongTaker && activeOi) return {...result, phase:d > 0 ? 'BUY' : 'SELL', direction:d, label:d > 0 ? 'Lực mua mạnh' : 'Lực bán mạnh'};
+  return {...result, phase:'NEUTRAL', label:'Chưa có lực rõ'};
 }
