@@ -34,7 +34,7 @@ import {spyUsdtSessionChange} from './spy-session-change.mjs?v=20261109-spy-chan
 import {load,getJSON} from './data.mjs?v=20261107-outside-fast1';
 import {oiWidthByBar} from './oi-width.mjs?v=20261029-oi-width1';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261029-price-delta1';
-import {m15FlowWindow,describeM15Flow} from './m15-flow-status.mjs?v=20261109-flow-live1';
+import {m15FlowWindow,describeM15Flow} from './m15-flow-status.mjs?v=20261109-oi-boost1';
 import {renderWeeklyTrendMap} from './weekly-trend-ui.mjs?v=20261107-week-days-only1';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
@@ -64,6 +64,7 @@ const runningOiState=new RunningOiState();
 const oiPercentColor=new OiPercentColor();
 
 let matrixLiveOi=null;
+const matrixLiveOiHistory=new Map();
 const currentOiLoader=new CurrentOiLoader({get:getJSON,now:()=>Date.now()+serverOffsetMs,onData:(sample,error)=>{
   if(error)matrixLiveOi=null;
   else if(sample&&matrixLiveOi?.time!==sample.time)matrixLiveOi={...sample,at:Date.now()};
@@ -752,13 +753,18 @@ function matrixFlowDetails(state){
   const {taker,p95,oi,threshold}=state;
   const lines=[`${state.label} · cụm bắt đầu ${flowTime(state.start)}${state.live?' · LIVE':''}`];
   lines.push('Taker toàn cụm · '+(taker?flowAmounts(taker):'chờ dữ liệu'));
+  if(taker&&taker.net<0){
+    const sellShare=100*taker.sell/(taker.buy+taker.sell);
+    lines.push(`Bán thực ${fmt(sellShare)}% · điểm bán ròng ${fmt(-taker.ratio*100)} × ${fmt(state.multiplier)} = ${fmt(state.sellScore*100)} điểm`);
+    if(Number.isFinite(state.netBaseline))lines.push(`Nền |ΔOI ròng| ${fmt(state.netBaseline)}% · ${state.elapsedBaseline?'cùng phút trong các giờ trước':'cùng số nến M15 đã đủ kỳ'}`);
+  }
   if(taker&&threshold?.taker!==null&&Number.isFinite(threshold?.taker)){
     lines.push(`Taker ${state.strongTaker?'mạnh':'chưa mạnh'} · |ròng| ${fmtK(Math.abs(taker.net))} USDT · mốc nền ${fmtK(threshold.taker)} USDT`);
   }
   lines.push('Taker P95 phần đã đóng · '+(p95?.ready?flowAmounts(p95)+' · '+p95.count+' aggTrade':'chưa đủ dữ liệu'));
   if(oi){
     lines.push(`Phổ OI theo thời gian · tăng ${fmt(oi.increase)}% · giảm ${fmt(oi.decrease)}% · ròng ${signed(oi.net)}%`);
-    lines.push(`Tổng biến động OI ${fmt(oi.gross)}%${Number.isFinite(threshold?.oi)?' · mốc nền '+fmt(threshold.oi)+'%':''} · ${state.activeOi?'bất thường':'chưa xác nhận bất thường'}`);
+    lines.push(`Tổng biến động OI ${fmt(oi.gross)}%${Number.isFinite(threshold?.oi)?' · mốc nền '+fmt(threshold.oi)+'%':''} · ${state.grossUnusual?'bất thường':'chưa xác nhận bất thường'}`);
     lines.push('ΔOI từng đoạn M15 · '+oi.deltas.map(x=>signed(x)+'%').join(' / '));
     if(oi.receivedAt)lines.push('Giờ nhận OI cuối cụm · '+flowTime(oi.receivedAt));
   }else lines.push('Phổ OI · chờ đủ mốc OI trong cụm');
@@ -791,16 +797,16 @@ function updateMatrixFlowReadout(){
     return;
   }
   const state=describeM15Flow(matrixFlowWindow,{
-    samples:oiStamp==='15m'?oiWidths:new Map(),receipts:oiReceipts,liveOi:matrixLiveOi,
+    samples:oiStamp==='15m'?oiWidths:new Map(),receipts:oiReceipts,liveOi:matrixLiveOi,liveOiHistory:chartLiveResponse?matrixLiveOiHistory:null,
     largeTaker:largeTakerEnabled()?(start,cutoff)=>largeTakerLoader.book.windowP95(start,cutoff):null,
     now:Date.now()+(chartLiveResponse?serverOffsetMs:0)
   });
   const arrow=state.direction>0?'↑ ':state.direction<0?'↓ ':'';
   const text=`M15${state.count?' '+state.count+'/4':''}${state.live&&state.phase!=='STALE'?' LIVE':''} · ${arrow}${state.label}`;
-  const buy=state.phase==='BUY',sell=state.phase==='SELL',hidden=!buy&&!sell;
-  const layoutChanged=node.hidden!==hidden||(!hidden&&node.textContent!==text);
-  node.hidden=hidden;
-  if(!hidden&&node.textContent!==text)node.textContent=text;
+  const buy=state.phase==='BUY',sell=state.phase==='SELL';
+  const layoutChanged=node.hidden||node.textContent!==text;
+  node.hidden=false;
+  if(node.textContent!==text)node.textContent=text;
   if(layoutChanged)requestAnimationFrame(positionForecastReadout);
   node.className='forecast '+(buy?'up':sell?'down':'wait');
   node.dataset.model='m15-live-taker-oi';

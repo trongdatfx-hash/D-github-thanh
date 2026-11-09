@@ -35,7 +35,7 @@ function oiFlow(window, samples, receipts, liveOi, now) {
   const increase = deltas.reduce((s, x) => s + Math.max(x, 0), 0);
   const decrease = deltas.reduce((s, x) => s + Math.max(-x, 0), 0);
   const receipt = receipts.get(window.cutoff);
-  return {increase, decrease, gross: increase + decrease, net: increase - decrease, deltas,
+  return {increase, decrease, gross: increase + decrease, net: increase - decrease, deltas, sampleTime:latest?.time,
     receivedAt: latest?.at ?? (receipt?.oi === points.at(-1) ? receipt.at : null)};
 }
 
@@ -47,7 +47,7 @@ function percentile80(values) {
 
 function pastThresholds(window, samples) {
   const previous = new Map(window.recent.filter(b => b.t < window.start && b.sourceComplete !== false).map(b => [b.t, b]));
-  const taker = [], oi = [], count = window.bars.length;
+  const taker = [], oi = [], oiNet = [], count = window.bars.length;
   // Compare with the same number of M15 bars from the start of each preceding hour.
   for (let hour = window.start - H1; hour >= window.start - 20 * H1; hour -= H1) {
     const bars = Array.from({length: count}, (_, i) => previous.get(hour + i * M15));
@@ -57,12 +57,29 @@ function pastThresholds(window, samples) {
     const points = [hour - M15, ...bars.map(b => b.t)].map(t => samples.get(t)?.oi);
     if (points.every(x => Number.isFinite(x) && x > 0)) {
       oi.push(points.slice(1).reduce((s, x, i) => s + Math.abs(100 * Math.log(x / points[i])), 0));
+      oiNet.push(Math.abs(100 * Math.log(points.at(-1) / points[0])));
     }
   }
-  return {taker: percentile80(taker), oi: percentile80(oi)};
+  return {taker: percentile80(taker), oi: percentile80(oi), oiNet: percentile80(oiNet)};
 }
 
-export function describeM15Flow(window, {samples, receipts, liveOi, largeTaker, now}) {
+// Store one observation per elapsed minute and hour, using the existing live OI feed.
+function elapsedOiBaseline(history, window, oi) {
+  if (!history || !Number.isFinite(oi?.sampleTime)) return null;
+  const minute = Math.floor((oi.sampleTime - window.start) / 60_000);
+  if (minute < 0 || minute >= 60) return null;
+  const values = [];
+  for (const [hour, byMinute] of history) {
+    if (hour < window.start - 20 * H1) history.delete(hour);
+    else if (hour < window.start && byMinute.has(minute)) values.push(byMinute.get(minute));
+  }
+  if (!history.has(window.start)) history.set(window.start, new Map());
+  const current = history.get(window.start);
+  if (!current.has(minute)) current.set(minute, Math.abs(oi.net));
+  return percentile80(values);
+}
+
+export function describeM15Flow(window, {samples, receipts, liveOi, liveOiHistory, largeTaker, now}) {
   if (!window) return {phase:'WAIT', label:'Chờ dữ liệu', count:0};
   const {start, cutoff, bars, contiguous, live, sourceTime} = window;
   const result = {start, cutoff, sourceTime, live, count:bars.length, phase:'WAIT', direction:0, label:'Thiếu dữ liệu cụm'};
@@ -75,12 +92,24 @@ export function describeM15Flow(window, {samples, receipts, liveOi, largeTaker, 
   const threshold = pastThresholds(window, samples);
   const d = Math.sign(taker?.net ?? 0);
   const votes = bars.filter(b => d && Math.sign(takerFlow([b])?.net) === d).length;
-  const strongTaker = threshold.taker !== null && taker && Math.abs(taker.ratio) >= .15 &&
-    Math.abs(taker.net) > threshold.taker && votes > bars.length / 2;
-  const activeOi = threshold.oi !== null && oi && oi.gross > threshold.oi;
-  Object.assign(result, {taker, oi, p95, threshold, strongTaker, activeOi});
+  const elapsedBaseline = elapsedOiBaseline(liveOiHistory, window, oi);
+  const netBaseline = elapsedBaseline ?? threshold.oiNet;
+  const rawSell = taker ? Math.max(0, -taker.ratio) : 0;
+  const oiRelative = oi && netBaseline > 0 ? Math.abs(oi.net) / netBaseline : 0;
+  const multiplier = rawSell >= .10 ? 1 + Math.min(.5, .25 * Math.max(0, oiRelative - 1)) : 1;
+  const sellScore = rawSell * multiplier;
+  const strongTaker = threshold.taker !== null && taker &&
+    (d < 0 ? sellScore >= .15 : taker.ratio >= .15) &&
+    Math.abs(taker.net) * multiplier > threshold.taker && votes > bars.length / 2;
+  const grossUnusual = threshold.oi !== null && oi && oi.gross > threshold.oi;
+  const activeOi = grossUnusual || multiplier > 1;
+  Object.assign(result, {taker, oi, p95, threshold, strongTaker, activeOi, grossUnusual,
+    sellScore, multiplier, netBaseline, elapsedBaseline:elapsedBaseline !== null});
   if (!taker || !oi) return {...result, label:!taker ? 'Chờ Taker' : 'Chờ OI'};
   if (threshold.taker === null || threshold.oi === null) return {...result, label:'Chờ đủ mẫu nền'};
-  if (strongTaker && activeOi) return {...result, phase:d > 0 ? 'BUY' : 'SELL', direction:d, label:d > 0 ? 'Lực mua mạnh' : 'Lực bán mạnh'};
+  if (strongTaker && activeOi) {
+    const oiLabel = multiplier > 1 ? (oi.net > 0 ? ' · OI↑' : ' · Nghi đóng Long') : '';
+    return {...result, phase:d > 0 ? 'BUY' : 'SELL', direction:d, label:d > 0 ? 'Lực mua mạnh' : 'Lực bán mạnh' + oiLabel};
+  }
   return {...result, phase:'NEUTRAL', label:'Chưa có lực rõ'};
 }
