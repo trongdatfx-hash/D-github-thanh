@@ -771,6 +771,43 @@ function matrixFlowDetails(state){
   return lines;
 }
 
+function makeMatrixFlowDialogDraggable(dialog, title){
+  let drag=null,position=null;
+  function place(left, top){
+    const edge=8,box=dialog.getBoundingClientRect();
+    position={
+      left:Math.max(edge,Math.min(left,window.innerWidth-box.width-edge)),
+      top:Math.max(edge,Math.min(top,window.innerHeight-box.height-edge))
+    };
+    dialog.classList.add('m15-flow-moved');
+    dialog.style.left=position.left+'px';
+    dialog.style.top=position.top+'px';
+  }
+  title.addEventListener('pointerdown',event=>{
+    if(event.pointerType!=='mouse'||event.button!==0)return;
+    const box=dialog.getBoundingClientRect();
+    drag={id:event.pointerId,x:event.clientX-box.left,y:event.clientY-box.top};
+    title.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  });
+  title.addEventListener('pointermove',event=>{
+    if(drag?.id===event.pointerId)place(event.clientX-drag.x,event.clientY-drag.y);
+  });
+  title.addEventListener('lostpointercapture',()=>{drag=null;});
+  const keepInView=()=>{
+    if(dialog.open&&position)place(position.left,position.top);
+  };
+  window.addEventListener('resize',keepInView);
+  new ResizeObserver(keepInView).observe(dialog);
+  dialog.addEventListener('close',()=>{
+    drag=null;
+    position=null;
+    dialog.classList.remove('m15-flow-moved');
+    dialog.style.removeProperty('left');
+    dialog.style.removeProperty('top');
+  });
+}
+
 function showMatrixFlowDetails(){
   let dialog=$('m15-flow-dialog');
   if(!dialog){
@@ -778,9 +815,11 @@ function showMatrixFlowDetails(){
     dialog.id='m15-flow-dialog';dialog.setAttribute('aria-labelledby','m15-flow-dialog-title');
     const title=document.createElement('h2');title.id='m15-flow-dialog-title';title.textContent='Chi tiết trạng thái M15';
     const body=document.createElement('div');body.id='m15-flow-dialog-body';
+    body.tabIndex=0;body.setAttribute('role','region');body.setAttribute('aria-label','Nội dung chi tiết có thể cuộn');
     const close=document.createElement('button');close.type='button';close.textContent='Đóng';close.onclick=()=>dialog.close();
     dialog.append(title,body,close);
     $('chart').append(dialog);
+    makeMatrixFlowDialogDraggable(dialog,title);
   }
   dialog.showModal();
   updateMatrixFlowReadout();
