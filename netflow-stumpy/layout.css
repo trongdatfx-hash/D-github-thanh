@@ -220,7 +220,8 @@ body.chart-fullscreen::before{display:none}
   overflow:hidden;
   text-overflow:ellipsis;
 }
-#geometry-readout .m15-flow-stats{font-size:10px;font-variant-numeric:tabular-nums}
+#geometry-readout .m15-flow-headline{font-size:13px}
+#geometry-readout .m15-flow-stats{font-size:11px;font-variant-numeric:tabular-nums}
 #geometry-readout [data-metric=buy]{color:#8cf4c6}
 #geometry-readout [data-metric=sell]{color:#ffa8b5}
 #geometry-readout [data-metric=threshold]{white-space:nowrap}

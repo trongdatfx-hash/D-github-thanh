@@ -892,7 +892,7 @@ function updateMatrixFlowReadout(){
     const metrics=[
       ['buy',(shares?.buy??'Mua —').replace('Mua ','M ')],
       ['sell',(shares?.sell??'Bán —').replace('Bán ','B ')],
-      ['threshold',progress.replace('Ngưỡng Taker ','T ')],
+      ['threshold',progress.replace('Ngưỡng Taker ','N.T ')],
       ['price-oi',priceOi]
     ];
     metrics.forEach(([name,value],index)=>{
