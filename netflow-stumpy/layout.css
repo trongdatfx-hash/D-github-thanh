@@ -227,7 +227,7 @@ body.chart-fullscreen::before{display:none}
 #geometry-readout [data-metric=threshold]{white-space:nowrap}
 
 #geometry-readout .m15-flow-mobile{display:none}
-@media (max-width:600px){
+@media (max-width:760px), (hover:none) and (pointer:coarse){
   #geometry-readout .m15-flow-headline,
   #geometry-readout .m15-flow-stats{display:none}
   #geometry-readout .m15-flow-mobile{
