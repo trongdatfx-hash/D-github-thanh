@@ -1,4 +1,4 @@
-import {scoreH1OiMarkers} from './h1-oi-markers.mjs?v=20261110-h1-oi-markers1';
+import {scoreH1OiMarkers} from './h1-oi-markers.mjs?v=20261110-h1-oi-visible2';
 import {buildH1ScoreLine,h1ScoreLineReading} from './h1-score-line.mjs?v=20261107-h1-score-line1';
 import {LargeTakerLoader,largeTakerDetail} from './large-taker-spectrum.mjs?v=20261109-m15-flow1';
 import {h1OiLabel,OiPercentColor} from './h1-oi-label.mjs?v=20261107-h1-label-arrows1';
@@ -11,7 +11,7 @@ import {CurrentOiLoader,RunningOiState} from './oi-current.mjs?v=20261106-oi-liv
 import {compositeNfSmooth} from './composite-nf-smooth.mjs?v=20261108-c-taker-smooth1';
 import {h1AdaptiveVolumeRows} from './spy-volume-h1.mjs?v=20261105-spyv-h1-1';
 import {OiFastLoader} from './oi-fast-load.mjs?v=20261109-m15-flow1';
-import {spyCandleVolumeFlow,buildSpectrumComparison,drawPairedSpectrum,spectrumPriceGroup,confirmSpectrumGroup} from './paired-spectrum.mjs?v=20261110-h1-oi-markers1';
+import {spyCandleVolumeFlow,buildSpectrumComparison,drawPairedSpectrum,spectrumPriceGroup,confirmSpectrumGroup} from './paired-spectrum.mjs?v=20261110-h1-oi-visible2';
 import {OiHistory} from './oi-history.mjs?v=20261104-oi-stale-fast2';
 import {SpectrumPrimitive} from './spectrum-primitive.mjs?v=20261104-oi-smooth1';
 import {OiBoldCandles} from './oi-bold-candles.mjs?v=20261104-oi-purple-restore1';
@@ -45,7 +45,7 @@ const PRICE_DELTA_COLORS={positive:'#36dfff',negative:'#ff78c4',neutral:'#b4c3d7
 let displayVolumeStrengthRows=[];
 let h1ScoreLineState={points:[],preview:[],timeline:[],previewMeta:null};
 let h1CandleMap=new Map(),h1H4CandleMap=new Map(),abaBandPhaseMap=new Map(),abaBandFrame=0;
-let h1H4StripFrame=0,h1ScoreLayer=null,h1OiMarkers=[],h1OiMarkerLayer=null;
+let h1H4StripFrame=0,h1ScoreLayer=null,h1OiMarkers=[],h1OiMarkerCoverage={},h1OiMarkerLayer=null;
 let getH1MatrixOptions=()=>matrixOptions();
 let latestH1Matrix=null;
 let geometryOiRevision=0;
@@ -396,8 +396,10 @@ function init(){
   markerLayer.style.cssText='position:absolute;inset:0;z-index:9;pointer-events:none';
   const markerDetail=document.createElement('output');markerDetail.setAttribute('popover','auto');
   markerDetail.style.cssText='max-width:min(360px,calc(100vw - 24px));margin:auto;padding:8px 10px;border:1px solid #60748c;border-radius:6px;background:#0e1726;color:#edf4ff;font:12px/1.5 system-ui;white-space:normal';
-  markerLayer.append(markerDetail);$('chart').append(markerLayer);
-  h1OiMarkerLayer={root:markerLayer,detail:markerDetail,signature:''};
+  const markerStatus=document.createElement('span');markerStatus.hidden=true;
+  markerStatus.style.cssText='position:absolute;max-width:calc(100% - 100px);padding:2px 5px;background:#0e1726;color:#c5d6eb;border-radius:3px;font:10px/1.4 system-ui;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+  markerLayer.append(markerDetail,markerStatus);$('chart').append(markerLayer);
+  h1OiMarkerLayer={root:markerLayer,detail:markerDetail,status:markerStatus,signature:''};
   const spectrumReadout=document.createElement('div');spectrumReadout.id='oi-cvd-readout';spectrumReadout.className='oi-cvd-readout';spectrumReadout.setAttribute('role','note');spectrumReadout.hidden=true;$('chart').after(spectrumReadout);
   $('chart').addEventListener('pointermove',inspectSpectrum,{passive:true});$('chart').addEventListener('pointerdown',inspectSpectrum,{passive:true});$('chart').addEventListener('pointerleave',()=>updateSpectrumReadout());
   series.priceMid=chart.addCustomSeries(new VariableWidthLineSeries,{color:'#8794a5',baseLineVisible:false,priceLineVisible:false,lastValueVisible:false,title:''},0);
@@ -570,15 +572,18 @@ function drawH1H4Strip(){
   canvas.dataset.mode=active?'active':'off';canvas.dataset.states=String(h1CandleMap.size);canvas.dataset.structureStates=String(h1H4CandleMap.size);canvas.dataset.colorSource='H1';canvas.dataset.visibleBars='0';canvas.dataset.previewBars='0';
   canvas.setAttribute('aria-label',active?'Dải màu phía trên pane SPY V: giữ nguyên hình dáng và các ô H1 của dải cũ, nhưng màu lấy từ Hộp H1; viền vàng là H1 XEM TRƯỚC.':'Dải màu Hộp H1 hiển thị trên chart SPY M15 hoặc H1 khi bật màu hộp.');
   const bounds=paneBounds(1);
-  if(!active||!h1H4CandleMap.size||!h1CandleMap.size||!bounds){drawH1OiMarkers([]);return;}
+  if(!bounds){drawH1OiMarkers([]);return;}
   const scaleWidth=chart.priceScale('right',1)?.width?.()??56,right=Math.max(0,width-scaleWidth),stripHeight=10,y=Math.round(bounds.top);
   canvas.dataset.paneTop=String(bounds.top);canvas.dataset.stripTop=String(y);canvas.dataset.alignment='spy-pane-top';
   if(right<8||y<0){drawH1OiMarkers([]);return;}
+  const timeScale=chart.timeScale(),fallbackSpacing=Math.max(1,Number(timeScale.options?.().barSpacing)||6);
+  const chartTimes=(rows.SPYUSDT??[]).map(row=>row.t);
+  let visibleBars=0,previewBars=0;
+  if(active&&h1H4CandleMap.size&&h1CandleMap.size){
   context.save();context.beginPath();context.rect(0,y,right,Math.min(stripHeight,bounds.height));context.clip();
   context.fillStyle='rgba(9,17,29,.88)';context.fillRect(0,y,right,stripHeight);
-  const rawTimes=[...h1H4CandleMap.keys()].sort((x,y)=>x-y),timeScale=chart.timeScale(),fallbackSpacing=Math.max(1,Number(timeScale.options?.().barSpacing)||6);
-  const times=rawTimes,chartTimes=(rows.SPYUSDT??[]).map(row=>row.t);
-  let visibleBars=0,previewBars=0,previousBlock=null;
+  const times=[...h1H4CandleMap.keys()].sort((x,y)=>x-y);
+  let previousBlock=null;
   for(let i=0;i<times.length;i++){
     const time=times[i],state=h1H4CandleMap.get(time),colorState=h1CandleMap.get(time);
     const cell=h1StripCell(time,chartTimes,t=>timeScale.timeToCoordinate(t),fallbackSpacing);
@@ -590,7 +595,9 @@ function drawH1H4Strip(){
     previousBlock=state?.blockStart;visibleBars++;
   }
   context.restore();
-  const markers=interval==='15m'&&$('h1-oi-markers-toggle')?.checked?h1OiMarkers.flatMap(mark=>{
+  }
+  const showOi=usesH1WlrStyle()&&$('h1-oi-markers-toggle')?.checked;
+  const markers=showOi?h1OiMarkers.flatMap(mark=>{
     const state=h1CandleMap.get(mark.start);
     if(!state||state.preview!==false||Math.sign(mark.base)!==state.direction)return [];
     const cell=h1StripCell(mark.start,chartTimes,t=>timeScale.timeToCoordinate(t),fallbackSpacing);
@@ -599,14 +606,18 @@ function drawH1H4Strip(){
     if(x<8||x>right-8)return [];
     return [{...mark,x,y:y+stripHeight+1,color:h1BoxCandlePalette(null,state).body}];
   }):[];
-  drawH1OiMarkers(markers);
+  const valid=h1OiMarkerCoverage.validHours??0;
+  const status=!showOi||markers.length?'':valid<37?`OI H1 · đủ dữ liệu ${valid}/37 hộp`:h1OiMarkers.length?'OI H1 · ngoài vùng đang xem':'OI H1 · chưa có hộp đạt 4/5';
+  drawH1OiMarkers(markers,status,right,y+stripHeight+1);
   canvas.dataset.visibleBars=String(visibleBars);canvas.dataset.previewBars=String(previewBars);
   canvas.setAttribute('aria-label',`Dải màu phía trên pane SPY V: ${visibleBars} ô H1 đang hiển thị, màu lấy từ Hộp H1; chart ${interval==='15m'?'M15':'H1'}, ${previewBars} ô XEM TRƯỚC viền vàng · ${isChartLive()?'LIVE':'DELAYED'}. Dải bám sát mép trên pane SPY V; kích thước ô và vạch phân nhóm H4 giữ như dải cũ.`);
 }
 
-function drawH1OiMarkers(markers){
+function drawH1OiMarkers(markers,message='',right=0,y=0){
   const layer=h1OiMarkerLayer;if(!layer)return;
-  const {root,detail}=layer,signature=JSON.stringify(markers);
+  const {root,detail,status}=layer,signature=JSON.stringify(markers);
+  status.hidden=!message;status.textContent=message;
+  if(message){status.style.right=(root.clientWidth-right+4)+'px';status.style.top=y+'px';}
   if(signature===layer.signature)return;
   layer.signature=signature;
   const buttons=markers.map(mark=>{
@@ -622,8 +633,8 @@ function drawH1OiMarkers(markers){
     button.onclick=()=>{detail.textContent=button.title;detail.showPopover?.();};
     return button;
   });
-  if(!markers.length&&detail.matches(':popover-open'))detail.hidePopover();
-  for(const button of [...root.children].slice(1))button.remove();
+  if(!markers.length)detail.hidePopover?.();
+  for(const button of [...root.children].slice(2))button.remove();
   root.append(...buttons);
   root.dataset.visible=String(markers.length);
 }
@@ -1072,7 +1083,8 @@ function render(fit=false){
   const trendThickness=h1Wlr?new Map():new Map(wlrSlopeThickness(p,maps.COMPOSITE??new Map(),wlrVolumeStrengthMap,{step:STEPS[$('interval').value],closedBefore}).map(x=>[x.t,x]));
   priceBandMap=new Map(priceBands.map(x=>[x.t,x]));
   const h1ScoreRecords=h1Wlr?(h1ScoreLayer?.getLineScores()??[]):[];
-  h1OiMarkers=h1Wlr&&oiStamp==='15m'&&$('h1-oi-markers-toggle')?.checked?scoreH1OiMarkers({boxes:h1ScoreRecords,bars:p,oi:oiWidths,now:closedBefore}):[];
+  h1OiMarkerCoverage={};
+  h1OiMarkers=h1Wlr&&oiStamp==='15m'&&$('h1-oi-markers-toggle')?.checked?scoreH1OiMarkers({boxes:h1ScoreRecords,bars:p,oi:oiWidths,now:closedBefore,coverage:h1OiMarkerCoverage}):[];
   matrixFlowWindow=h1Wlr&&cache?.interval==='15m'?m15FlowWindow(p,cache.serverTime):null;
   wlrH1StyleMap=new Map((h1Wlr?wlrH1Styles(priceBands,h1ScoreRecords,{now:cache?.serverTime??Date.now(),alignment:'box',boxStates:h1CandleMap,scoreColor:true}):[]).map(x=>[x.t,x]));
   wlrThicknessMap=trendThickness;const currentThickness=trendThickness.get(p.at(-1)?.t);$('chart').dataset.wlrThicknessModel='slope-r2-flow-noise';$('chart').dataset.wlrThicknessMax=String(WLR_SLOPE_DEFAULTS.maxWidth);$('chart').dataset.wlrThicknessTrendWeight=String(WLR_SLOPE_DEFAULTS.trendWeight);$('chart').dataset.wlrThicknessWindow=String(WLR_SLOPE_DEFAULTS.window);$('chart').dataset.wlrThicknessPairs=String(currentThickness?.pairs??0);

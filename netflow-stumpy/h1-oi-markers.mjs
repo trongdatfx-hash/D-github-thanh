@@ -3,9 +3,10 @@ import {HOUR,SCORE_STEP} from './h1-box-score.mjs?v=20261107-outside-fast1';
 const LOOKBACK=36;
 const BASE_PARTS=['position','slope','randomWalk','deltaNF'];
 
-export function scoreH1OiMarkers({boxes,bars,oi,now}){
+export function scoreH1OiMarkers({boxes,bars,oi,now,coverage={}}){
   const byTime=new Map(bars.map(bar=>[bar.t,bar]));
   const history=[],markers=[];
+  let validHours=0;
   for(const box of boxes){
     const start=box.blockStart;
     if(box.status==='PREVIEW'||box.closedBars!==4||start+HOUR>now)continue;
@@ -36,8 +37,10 @@ export function scoreH1OiMarkers({boxes,bars,oi,now}){
         markers.push({start,direction,points,base,pct,p75,coherence,sameDirection,taker,filled:taker!==null&&Math.sign(taker)===box.boxDirection});
       }
     }
+    validHours++;
     history.push(magnitude);
     if(history.length>LOOKBACK)history.shift();
   }
+  coverage.validHours=validHours;
   return markers;
 }
