@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {h1OiLabel,OiPercentColor} from '../h1-oi-label.mjs';
 import {CurrentOiLoader,RunningOiState} from '../oi-current.mjs';
 const row={t:900000,end:1799999},flow={t:900000,net:250};
 test('running OI and CVD before close, without candle confirmation',()=>{
@@ -45,17 +46,24 @@ test('reject out of order responses',async()=>{
  let now=910000,time=910000;const loader=new CurrentOiLoader({now:()=>now,get:async()=>({symbol:'SPYUSDT',openInterest:100,time})});
  await loader.start();now+=3000;time--;await loader.start();assert.equal(loader.sample.time,910000);assert(loader.error);
 });
-test('badge updates running state despite WAIT confirmation and reports source age',()=>{
+test('H1 badge shows running OI, marks stale data and clears missing OI',()=>{
  const source=readFileSync(new URL('../app.mjs',import.meta.url),'utf8');
- const code=source.slice(source.indexOf('function updateSpectrumBadge(currentPrice){'),source.indexOf('\nfunction inspectSpectrum'));
- class El{constructor(){this.dataset={};}replaceChildren(...children){this.children=children;}setAttribute(){}}
- const badge=new El(),sample={oi:102,time:910000};
- const group={ready:true,cvd:100,netOi:5,count:2,state:'buy-oi-increase',low:1,high:2,opened:5,closed:0,grossOi:5,levels:3};
- const sandbox={$:id=>id==='oi-price-group-badge'?badge:id==='symbol'?{value:'SPYUSDT'}:id==='interval'?{value:'15m'}:{checked:true},
- document:{createElement:()=>new El()},spectrumPriceGroup:()=>group,spectrumComparison:{rows:[],count:2,day:'test'},
- confirmSpectrumGroup:()=>({state:'WAIT',count:0,share:0,support:0}),oiBarState:{points:new Map()},rows:{SPYUSDT:[row],COMPOSITE:[flow]},oiAppliedSamples:[{timestamp:900000,sumOpenInterest:100}],currentOiLoader:{sample},cvdBadgeBorder:{update:input=>{sandbox.borderInput=input;return 'sell';}},flowPriceReaction:{update:()=>({ready:true,state:'absorption',label:'BÁN HẤP THỤ'})},STEPS:{'15m':900000},cache:{serverTime:912000},runningOiState:new RunningOiState(),isChartLive:()=>true,serverOffsetMs:0,Date:{now:()=>912000},Intl,requestAnimationFrame:()=>{},positionForecastReadout(){},fmtK:String,signed:String,fmt:String};
- vm.runInNewContext(code+';updateSpectrumBadge(1);',sandbox);
- assert.equal(badge.children.length,3);assert.match(badge.children[0].textContent,/MUA CĐ.*BÁN HẤP THỤ/);assert.equal(badge.dataset.priceReaction,'absorption');assert.equal(badge.dataset.borderState,'sell');assert.match(badge.children[0].textContent,/MUA CĐ.*OI ↑/);assert.match(badge.children[1].textContent,/2.00%/);assert.match(badge.children[2].textContent,/2s/);assert.equal(badge.dataset.currentOi,'running');
- sandbox.currentOiLoader.sample=null;vm.runInNewContext('updateSpectrumBadge(1)',sandbox);assert.equal(sandbox.borderInput.fresh,true,'OI missing does not alter CVD border freshness');assert.equal(sandbox.borderInput.cvd,250);
- sandbox.currentOiLoader.sample=sample;sandbox.Date.now=()=>930000;vm.runInNewContext('updateSpectrumBadge(1)',sandbox);assert.match(badge.children[2].textContent,/CŨ/);
+ const code=source.slice(source.indexOf('function updateH1OiReadout('),source.indexOf('\nfunction inspectSpectrum'));
+ const elements=Object.fromEntries(['h1-oi-status','h1-oi-arrow','h1-oi-percent','h1-oi-flags'].map(id=>[id,{textContent:'',dataset:{},setAttribute(){}}]));
+ let now=912000;
+ const sandbox={
+  $:id=>elements[id],h1OiLabel,oiPercentColor:new OiPercentColor(),
+  rows:{SPYUSDT:[row],COMPOSITE:[flow]},oiAppliedSamples:[{timestamp:900000,sumOpenInterest:100}],
+  currentOiLoader:{sample:{oi:102,time:910000}},runningOiState:new RunningOiState(),
+  isChartLive:()=>true,serverOffsetMs:0,Date:{now:()=>now}
+ };
+ vm.createContext(sandbox);vm.runInContext(code,sandbox);sandbox.updateH1OiReadout();
+ assert.equal(elements['h1-oi-arrow'].textContent,'↑');
+ assert.equal(elements['h1-oi-percent'].textContent,'+2.00%');
+ assert.equal(elements['h1-oi-percent'].dataset.tone,'wait');
+ now=930000;sandbox.updateH1OiReadout();
+ assert.match(elements['h1-oi-flags'].textContent,/CŨ/);
+ sandbox.currentOiLoader.sample=null;sandbox.updateH1OiReadout();
+ assert.equal(elements['h1-oi-arrow'].textContent,'');
+ assert.equal(elements['h1-oi-percent'].textContent,'—');
 });

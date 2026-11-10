@@ -20,15 +20,9 @@ for(const folder of ['netflow-ml'])test(folder+': ứng dụng vẽ, tắt và g
  elements['pivot-zones'].checked=false;sandbox.drawPivotFlowOverlay();assert.equal(canvas.dataset.status,'hidden');assert.equal(elements['region-flow-readout'].hidden,true);assert.equal(elements.chart.dataset.regionFlow,undefined);
 });
 
-test('DVP bỏ nhãn lực vùng và giữ trạng thái CVD cũ',()=>{
+test('DVP không còn nhãn CVD hoặc nhãn lực vùng cũ',()=>{
  const app=fs.readFileSync(new URL('../app.mjs',import.meta.url),'utf8');
  const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
- assert(!html.includes('id="pivot-flow-overlay"'));assert(!app.includes('region-flow-badge'));assert(!app.includes('regionFlow('));assert(!app.includes('region-flow.mjs'));
- const code=app.slice(app.indexOf('function updateSpectrumBadge('),app.indexOf('\nfunction inspectSpectrum('));
- const badge={dataset:{},replaceChildren(...children){this.children=children;}},elements={'oi-price-group-badge':badge,'oi-spectrum-toggle':{checked:true},symbol:{value:'SPYUSDT'}};
- const sandbox={$:id=>elements[id],document:{createElement:()=>({})},spectrumComparison:{stale:true,binStep:.5,day:'2026-11-04'},spectrumPriceGroup:()=>({low:99.75,high:101.25,cvd:-500,netOi:-20,ready:true,state:'sell-oi-decrease',levels:3,opened:0,closed:20,grossOi:20}),confirmSpectrumGroup:()=>({state:'mixed',count:3,support:2,share:.73}),rows:{SPYUSDT:[]},oiBarState:{points:new Map()},fmt:String,fmtK:String,signed:String,isChartLive:()=>false,requestAnimationFrame:()=>{},positionForecastReadout:()=>{}};
- vm.createContext(sandbox);vm.runInContext(code,sandbox);sandbox.updateSpectrumBadge(100);
- const text=badge.children.map(x=>x.textContent).join(' · ');
- assert.equal(badge.children.length,3);assert(!text.includes('VÙNG'));assert.match(text,/BÁN CĐ · OI ↓/);assert.match(text,/OI CŨ/);assert.match(text,/2\/3 · 73% \|ΔOI\|/);assert(!text.includes('XEM TRƯỚC'));
- elements['oi-spectrum-toggle'].checked=false;sandbox.updateSpectrumBadge(100);assert.equal(badge.hidden,true);
+ assert(!html.includes('id="pivot-flow-overlay"'));
+ for(const token of ['region-flow-badge','oi-price-group-badge','regionFlow(','region-flow.mjs'])assert(!app.includes(token),token);
 });

@@ -6,28 +6,33 @@ const read=n=>readFileSync(new URL('../'+n,import.meta.url),'utf8');
 test('main/worker no longer calculate or display the retired age predictor',()=>{
  const app=read('app.mjs'),core=read('studies-core.mjs');
  for(const code of [app,core])for(const token of ['pre-rth-wlr-trend.mjs','preRthWlrTrend(','historicalTrendAgeStates(','rev63State','Kaplan','TREND CÒN'])assert.ok(!code.includes(token),token);
- assert.ok(!app.includes('candle-trend-age-color'));assert.ok(app.includes('matrixTrendStatus(h1ScoreRecords'));assert.ok(core.includes('buildWeeklyDailyPackets('));assert.ok(core.includes('onH1Ready(h1CandleColors,h1H4CandleColors)'));
+ assert.ok(!app.includes('candle-trend-age-color'));assert.ok(app.includes('m15FlowWindow(p,cache.serverTime)'));assert.ok(core.includes('buildWeeklyDailyPackets('));assert.ok(core.includes('onH1Ready(h1CandleColors,h1H4CandleColors)'));
  for(const html of [read('index.html'),readFileSync(new URL('../../index.html',import.meta.url),'utf8')]){assert.ok(!html.includes('trend-cohort-card'));assert.ok(!html.includes('Kaplan'));}
  assert.ok(readFileSync(new URL('../../index.html',import.meta.url),'utf8').includes('weekly-days'));
 });
 test('M15 status renders closed group, opens details and hides on other charts',()=>{
  const app=read('app.mjs'),start=app.indexOf('function updateMatrixFlowReadout('),end=app.indexOf('\nfunction ',start+1);
  const step=STEPS['15m'],hour=4*step,from=hour*100,cutoff=from+3*step;
- const bars=Array.from({length:4},(_,i)=>({t:from+i*step,end:from+(i+1)*step-1,o:100+i,h:101+i,l:100+i,c:101+i,q:100,buy:70}));
- const host={dataset:{}},controls={symbol:{value:'SPYUSDT'},interval:{value:'15m'},'geometry-readout':host};
+ const bars=Array.from({length:3},(_,i)=>({t:from+i*step,end:from+(i+1)*step-1,o:100+i,h:101+i,l:100+i,c:101+i,q:100,buy:70}));
+ const el=()=>({dataset:{},children:[],append(...children){this.children.push(...children);},replaceChildren(...children){this.children=children;}});
+ const host=el(),controls={symbol:{value:'SPYUSDT'},interval:{value:'15m'},'geometry-readout':host};
  const ctx={
-   describeM15Flow,matrixFlowWindow:m15FlowWindow(bars,cutoff),matrixTrendState:null,
+   describeM15Flow,matrixFlowWindow:m15FlowWindow(bars,cutoff),matrixLiveOi:null,
    usesH1WlrStyle:()=>controls.symbol.value==='SPYUSDT'&&controls.interval.value==='15m',
-   getH1MatrixOptions:()=>({size:3}),oiStamp:'15m',oiWidths:new Map(),oiReceipts:new Map(),largeTakerEnabled:()=>false,
+   oiStamp:'15m',oiWidths:new Map(),oiReceipts:new Map(),largeTakerLoader:{book:{windowP95(){return null;}}},
    chartLiveResponse:false,Date:{now:()=>cutoff},$:id=>controls[id],
-   requestAnimationFrame:()=>{},positionForecastReadout(){},showMatrixFlowDetails(){}
+   document:{createElement:el},scheduleForecastReadout(){},showMatrixFlowDetails(){}
  };
- vm.createContext(ctx);vm.runInContext(app.slice(start,end),ctx);
+ const helpers=app.slice(app.indexOf('let matrixTakerShare='),app.indexOf('\nfunction matrixFlowDetails('));
+ vm.createContext(ctx);vm.runInContext(helpers+app.slice(start,end),ctx);
  ctx.updateMatrixFlowReadout();
  assert.equal(host.hidden,false);
- assert.equal(host.textContent,'M15 3/4 · ↑ Tăng có lực mua · OI chờ');
+ assert.equal(host.children.length,2);
+ assert.equal(host.children[0].textContent,'M15 3/4 · Chờ OI');
+ assert.deepEqual(host.children[1].children.filter(x=>typeof x!=='string').map(x=>x.dataset.metric),['buy','sell','threshold','price-oi']);
+ assert.equal(host.children[1].children[0].textContent,'M 70%');
  assert.equal(host.onclick,ctx.showMatrixFlowDetails);
- assert.equal(host.dataset.state,'SUPPORTED');
+ assert.equal(host.dataset.state,'WAIT');
  controls.interval.value='1h';ctx.updateMatrixFlowReadout();assert.equal(host.hidden,true);
  controls.interval.value='15m';controls.symbol.value='QQQUSDT';ctx.updateMatrixFlowReadout();assert.equal(host.hidden,true);
 });
