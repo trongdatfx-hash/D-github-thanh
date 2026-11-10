@@ -624,8 +624,8 @@ function drawH1OiPriceMarkers(){
     const low=price.priceToCoordinate(Math.min(...group.map(bar=>bar.l)));
     if(!Number.isFinite(high)||!Number.isFinite(low)||low<0||high>bounds.height)return [];
     const above=high-21,below=low+3;
-    const offset=above>=0?above:below+18<=bounds.height?below:null;
-    if(offset===null||offset+18>bounds.height)return [];
+    const offset=state.direction>0?below:above;
+    if(offset<0||offset+18>bounds.height)return [];
     return [{...mark,x,y:Math.round(bounds.top+offset),color:h1BoxCandlePalette(null,state).body}];
   });
   const valid=h1OiMarkerCoverage.validHours??0;
