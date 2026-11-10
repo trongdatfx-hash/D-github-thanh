@@ -593,6 +593,16 @@ function drawH1H4Strip(){
 function positionForecastReadout(){
  const node=$('geometry-readout'),h1Node=$('h1-trend-age-readout'),host=$('chart'),paneHeight=chart?.panes?.()[0]?.getHeight?.();
  if(!node||!host||!Number.isFinite(paneHeight))return;
+ if(!node.hidden){
+  node.style.removeProperty('--m15-flow-font-size');
+  let fontSize=13;
+  for(const line of node.children){
+   if(line.clientWidth>0&&line.scrollWidth>line.clientWidth){
+    fontSize=Math.min(fontSize,Math.floor(130*(line.clientWidth-1)/line.scrollWidth)/10);
+   }
+  }
+  if(fontSize<13)node.style.setProperty('--m15-flow-font-size',`${fontSize}px`);
+ }
  const top=Math.max(8,paneHeight-node.offsetHeight-10);node.style.top=`${top}px`;
  let row=$('h1-cvd-status-row');
  if(!row){row=document.createElement('div');row.id='h1-cvd-status-row';host.append(row);}
