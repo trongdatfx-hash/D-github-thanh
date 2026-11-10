@@ -30,7 +30,7 @@ import {wlrH1Styles} from './wlr-h1-style.mjs?v=20261108-wlr-score-color3';
 import {wlrDisplayColors,WLR_COLOR_DEFAULTS} from './wlr-display-color.mjs?v=20261029-price-delta1';
 import {createSeriesWriter} from './chart-data-cache.mjs?v=20261029-price-delta1';
 import {COMPOSITE_STRENGTH_VERSION,STEPS,composite,strengthAgreementCandleSignal,strengthPhaseLineStyle,directionalVolumeDelta,volumeDeltaStrengthColor,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,weightedPriceBands,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs?v=20261105-spyv-h1-1';
-import {spyUsdtSessionChange} from './spy-session-change.mjs?v=20261110-spy-warning-095';
+import {spyUsdtSessionChange} from './spy-session-change.mjs?v=20261110-spy-post-close1';
 import {load,getJSON} from './data.mjs?v=20261107-outside-fast1';
 import {oiWidthByBar} from './oi-width.mjs?v=20261029-oi-width1';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261029-price-delta1';
@@ -205,16 +205,16 @@ function isChartLive(){return chartLiveResponse&&chartFresh(cache,Date.now()+ser
 function updateSpyUsdtSessionChange(){
  const node=$('spyusdt-session-change');
  if(!node)return;
- const state=spyUsdtSessionChange(rows.SPYUSDT??[],{step:STEPS[$('interval').value]});
+ const state=spyUsdtSessionChange(rows.SPYUSDT??[],{step:STEPS[$('interval').value],now:Date.now()+serverOffsetMs});
  node.hidden=false;
- if(!state){node.textContent='SPY —';node.title='Chờ dữ liệu giá SPYUSDT';node.className='';delete node.dataset.changePct;delete node.dataset.session;return;}
+ if(!state){node.textContent='SPY —';node.title='Chờ giá SPYUSDT và nến đóng phiên Post';node.className='';delete node.dataset.changePct;delete node.dataset.session;return;}
  const signed=`${state.changePct>=0?'+':''}${state.changePct.toFixed(2)}%`;
  const freshness=isChartLive()?'':' · DỮ LIỆU CŨ';
  const label=`SPY ${signed}${state.volatile?' · TT BIẾN ĐỘNG · GIẢM VOLUME':''}${freshness}`;
  if(node.textContent!==label)node.textContent=label;
  node.className=state.volatile?'warning':state.changePct>0?'up':state.changePct<0?'down':'flat';
  node.dataset.changePct=String(state.changePct);node.dataset.session=state.session;
- node.title=`SPYUSDT · ${state.session==='WEEKEND'?'cuối tuần':`phiên ${state.session}`} · giá mở ${fmt(state.open)} · giá mới nhất ${fmt(state.current)} · nến ${new Date(state.lastTime).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})} (VN) · ngưỡng cảnh báo |%| > ${state.threshold.toLocaleString('vi-VN')}%`;
+ node.title=`SPYUSDT · giá đóng Post ${fmt(state.reference)} (${state.postDay} · ${state.postClock} New York) · giá mới nhất ${fmt(state.current)} · nến ${new Date(state.lastTime).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})} (VN) · ngưỡng cảnh báo |%| > ${state.threshold.toLocaleString('vi-VN')}%`;
 }
 function setLive(){
  const node=$('live-indicator'),wasLive=node.classList.contains('live'),live=isChartLive();
