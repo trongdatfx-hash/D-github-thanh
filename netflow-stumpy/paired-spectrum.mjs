@@ -56,7 +56,7 @@ export function confirmSpectrumGroup(group,comparison,priceRows,oiPoints,{minSam
   return {state,count,support,share};
 }
 
-export function drawPairedSpectrum({context,mediaSize,anchor,priceToY,history,comparison,showCvd=true,compare=true,source='C→S',format=String,large=null}){
+export function drawPairedSpectrum({context,mediaSize,anchor,priceToY,history,comparison,showCvd=true,compare=true,showDaily=compare,source='C→S',format=String,large=null}){
   if(!showCvd&&!compare)return;
   const {width,height}=mediaSize,lane=spectrumLaneLayout(width,anchor,{showCvd,compare});
   const line=(x1,x2,y,color,size)=>{if(!Number.isFinite(y)||y<22||y>height-4||x1===x2)return;context.strokeStyle=color;context.lineWidth=size;context.beginPath();context.moveTo(x1,y);context.lineTo(x2,y);context.stroke();};
@@ -69,13 +69,13 @@ export function drawPairedSpectrum({context,mediaSize,anchor,priceToY,history,co
     context.strokeStyle='rgba(157,181,209,.25)';context.lineWidth=1;context.beginPath();context.moveTo(lane.xCvd,30);context.lineTo(lane.xCvd,height);context.stroke();
     for(const r of large.rows){const y=priceToY(r.price);if(y<32)continue;const scale=large.maxTotal?lane.halfCvd/large.maxTotal:0;line(lane.xCvd-r.sell*scale,lane.xCvd,y,'#ff627d',4);line(lane.xCvd,lane.xCvd+r.buy*scale,y,'#23e0a4',4);}
   }else if(showCvd){
-    context.fillText(compare?(comparison.flowSource==='spy-candle-volume'?'CVD ngày ΔV':'CVD ngày'):'CVD∞ '+source,lane.xCvd,5);
+    context.fillText(showDaily?(comparison.flowSource==='spy-candle-volume'?'CVD ngày ΔV':'CVD ngày'):'CVD∞ '+source,lane.xCvd,5);
     context.strokeStyle='rgba(157,181,209,.25)';context.lineWidth=1;context.beginPath();context.moveTo(lane.xCvd,20);context.lineTo(lane.xCvd,height);context.stroke();
     for(const bin of history.bins){
       const y=priceToY(bin.price),length=history.maxAbs?bin.value/history.maxAbs*lane.halfCvd:0;
-      line(lane.xCvd,lane.xCvd+length,y,bin.value>=0?(compare?'rgba(75,153,245,.18)':'#4b99f5'):(compare?'rgba(242,138,97,.18)':'#f28a61'),compare?2:4);
+      line(lane.xCvd,lane.xCvd+length,y,bin.value>=0?(showDaily?'rgba(75,153,245,.18)':'#4b99f5'):(showDaily?'rgba(242,138,97,.18)':'#f28a61'),showDaily?2:4);
     }
-    if(compare)for(const bin of comparison.rows){const length=comparison.maxCvd?bin.cvd/comparison.maxCvd*lane.halfCvd:0;line(lane.xCvd,lane.xCvd+length,priceToY(bin.price),bin.cvd>=0?'#4b99f5':'#f28a61',bin.rank?5:3);}
+    if(showDaily)for(const bin of comparison.rows){const length=comparison.maxCvd?bin.cvd/comparison.maxCvd*lane.halfCvd:0;line(lane.xCvd,lane.xCvd+length,priceToY(bin.price),bin.cvd>=0?'#4b99f5':'#f28a61',bin.rank?5:3);}
   }
   if(compare){
     context.fillStyle='#c5d6eb';context.fillText(comparison.pairedReady?(comparison.stale?'OI CŨ':'OI + / −'):'OI WAIT',lane.xOi+lane.oiWidth/2,5);
