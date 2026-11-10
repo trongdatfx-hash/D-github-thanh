@@ -225,3 +225,16 @@ body.chart-fullscreen::before{display:none}
 #geometry-readout [data-metric=buy]{color:#8cf4c6}
 #geometry-readout [data-metric=sell]{color:#ffa8b5}
 #geometry-readout [data-metric=threshold]{white-space:nowrap}
+
+#geometry-readout .m15-flow-mobile{display:none}
+@media (max-width:600px){
+  #geometry-readout .m15-flow-headline,
+  #geometry-readout .m15-flow-stats{display:none}
+  #geometry-readout .m15-flow-mobile{
+    display:block;
+    font-size:11px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+}
