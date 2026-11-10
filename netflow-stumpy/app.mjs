@@ -562,7 +562,7 @@ function updateAbaBandColors(){
 function scheduleCvdSpectrum(){spectrumPrimitive.redraw();}
 function scheduleDaySeparators(){if(dayFrame)return;dayFrame=requestAnimationFrame(()=>{dayFrame=requestAnimationFrame(()=>{dayFrame=0;drawDaySeparators();});});}
 function scheduleGeometryOverlay(){if(geometryFrame)return;geometryFrame=requestAnimationFrame(()=>{geometryFrame=requestAnimationFrame(()=>{geometryFrame=0;drawGeometryOverlay();});});}
-function scheduleH1H4Strip(){h1ScoreLayer?.schedule();if(h1H4StripFrame)return;h1H4StripFrame=requestAnimationFrame(()=>{h1H4StripFrame=0;drawH1H4Strip();});}
+function scheduleH1H4Strip(){scheduleH1OiPriceMarkers();h1ScoreLayer?.schedule();if(h1H4StripFrame)return;h1H4StripFrame=requestAnimationFrame(()=>{h1H4StripFrame=0;drawH1H4Strip();});}
 function drawH1H4Strip(){
   const canvas=$('h1-h4-age-strip'),host=$('chart');if(!canvas||!host)return;
   const width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1,bitmapWidth=Math.round(width*dpr),bitmapHeight=Math.round(height*dpr);
@@ -572,10 +572,10 @@ function drawH1H4Strip(){
   canvas.dataset.mode=active?'active':'off';canvas.dataset.states=String(h1CandleMap.size);canvas.dataset.structureStates=String(h1H4CandleMap.size);canvas.dataset.colorSource='H1';canvas.dataset.visibleBars='0';canvas.dataset.previewBars='0';
   canvas.setAttribute('aria-label',active?'Dải màu phía trên pane SPY V: giữ nguyên hình dáng và các ô H1 của dải cũ, nhưng màu lấy từ Hộp H1; viền vàng là H1 XEM TRƯỚC.':'Dải màu Hộp H1 hiển thị trên chart SPY M15 hoặc H1 khi bật màu hộp.');
   const bounds=paneBounds(1);
-  if(!bounds){drawH1OiMarkers([]);return;}
+  if(!bounds)return;
   const scaleWidth=chart.priceScale('right',1)?.width?.()??56,right=Math.max(0,width-scaleWidth),stripHeight=10,y=Math.round(bounds.top);
   canvas.dataset.paneTop=String(bounds.top);canvas.dataset.stripTop=String(y);canvas.dataset.alignment='spy-pane-top';
-  if(right<8||y<0){drawH1OiMarkers([]);return;}
+  if(right<8||y<0)return;
   const timeScale=chart.timeScale(),fallbackSpacing=Math.max(1,Number(timeScale.options?.().barSpacing)||6);
   const chartTimes=(rows.SPYUSDT??[]).map(row=>row.t);
   let visibleBars=0,previewBars=0;
@@ -596,23 +596,43 @@ function drawH1H4Strip(){
   }
   context.restore();
   }
-  const showOi=usesH1WlrStyle()&&$('h1-oi-markers-toggle')?.checked;
-  const markers=showOi?h1OiMarkers.flatMap(mark=>{
-    const state=h1CandleMap.get(mark.start);
-    if(!state||state.preview!==false||Math.sign(mark.base)!==state.direction)return [];
-    const cell=h1StripCell(mark.start,chartTimes,t=>timeScale.timeToCoordinate(t),fallbackSpacing);
-    if(!cell)return [];
-    const x=Math.round(cell.x+cell.width/2);
-    if(x<8||x>right-8)return [];
-    return [{...mark,x,y:y+stripHeight+1,color:h1BoxCandlePalette(null,state).body}];
-  }):[];
-  const valid=h1OiMarkerCoverage.validHours??0;
-  const status=!showOi||markers.length?'':valid<37?`OI H1 · đủ dữ liệu ${valid}/37 hộp`:h1OiMarkers.length?'OI H1 · ngoài vùng đang xem':'OI H1 · chưa có hộp đạt 4/5';
-  drawH1OiMarkers(markers,status,right,y+stripHeight+1);
   canvas.dataset.visibleBars=String(visibleBars);canvas.dataset.previewBars=String(previewBars);
   canvas.setAttribute('aria-label',`Dải màu phía trên pane SPY V: ${visibleBars} ô H1 đang hiển thị, màu lấy từ Hộp H1; chart ${interval==='15m'?'M15':'H1'}, ${previewBars} ô XEM TRƯỚC viền vàng · ${isChartLive()?'LIVE':'DELAYED'}. Dải bám sát mép trên pane SPY V; kích thước ô và vạch phân nhóm H4 giữ như dải cũ.`);
 }
 
+let h1OiPriceFrame=0;
+function scheduleH1OiPriceMarkers(){
+  if(h1OiPriceFrame)return;
+  h1OiPriceFrame=requestAnimationFrame(()=>{h1OiPriceFrame=0;drawH1OiPriceMarkers();});
+}
+function drawH1OiPriceMarkers(){
+  const showOi=usesH1WlrStyle()&&$('h1-oi-markers-toggle')?.checked;
+  const bounds=showOi?paneBounds(0):null;
+  if(!bounds){drawH1OiMarkers([]);return;}
+  const timeScale=chart.timeScale(),step=STEPS['15m'];
+  const right=$('chart').clientWidth-(chart.priceScale('right',0)?.width?.()??64);
+  const markers=h1OiMarkers.flatMap(mark=>{
+    const state=h1CandleMap.get(mark.start);
+    if(!state||state.preview!==false||Math.sign(mark.base)!==state.direction)return [];
+    const group=Array.from({length:4},(_,i)=>maps.SPYUSDT?.get(mark.start+i*step));
+    if(group.some(bar=>!Number.isFinite(bar?.h)||!Number.isFinite(bar?.l)))return [];
+    const x1=timeScale.timeToCoordinate(mark.start/1000),x2=timeScale.timeToCoordinate((mark.start+3*step)/1000);
+    if(!Number.isFinite(x1)||!Number.isFinite(x2))return [];
+    const x=Math.round((x1+x2)/2);
+    if(x<8||x>right-8)return [];
+    const high=price.priceToCoordinate(Math.max(...group.map(bar=>bar.h)));
+    const low=price.priceToCoordinate(Math.min(...group.map(bar=>bar.l)));
+    if(!Number.isFinite(high)||!Number.isFinite(low)||low<0||high>bounds.height)return [];
+    const above=high-21,below=low+3;
+    const offset=above>=0?above:below+18<=bounds.height?below:null;
+    if(offset===null||offset+18>bounds.height)return [];
+    return [{...mark,x,y:Math.round(bounds.top+offset),color:h1BoxCandlePalette(null,state).body}];
+  });
+  const valid=h1OiMarkerCoverage.validHours??0;
+  const status=markers.length?'':valid<37?`OI H1 · đủ dữ liệu ${valid}/37 hộp`:h1OiMarkers.length?'OI H1 · ngoài vùng đang xem':'OI H1 · chưa có hộp đạt 4/5';
+  const spyPane=paneBounds(1);
+  drawH1OiMarkers(markers,status,right,spyPane?spyPane.top+11:bounds.top+4);
+}
 function drawH1OiMarkers(markers,message='',right=0,y=0){
   const layer=h1OiMarkerLayer;if(!layer)return;
   const {root,detail,status}=layer,signature=JSON.stringify(markers);
@@ -757,6 +777,7 @@ function updateCandleCountdown(){
   if(Number.isFinite(y)&&Number.isFinite(paneHeight))node.style.top=`${Math.max(2,Math.min(paneHeight-node.offsetHeight-2,y+11))}px`;
 }
 function drawCvdSpectrum(scope){
+   scheduleH1OiPriceMarkers();
    const showCvd=$('cvd-spectrum-toggle').checked;
    if(cvdAnchorTime===null||!showCvd)return;
    const anchor=chart.timeScale().timeToCoordinate(cvdAnchorTime/1000);if(!Number.isFinite(anchor))return;
