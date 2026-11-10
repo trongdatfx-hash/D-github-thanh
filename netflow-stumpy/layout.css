@@ -221,7 +221,7 @@ body.chart-fullscreen::before{display:none}
   text-overflow:ellipsis;
 }
 #geometry-readout .m15-flow-headline{font-size:13px}
-#geometry-readout .m15-flow-stats{font-size:11px;font-variant-numeric:tabular-nums}
+#geometry-readout .m15-flow-stats{font-size:13px;font-variant-numeric:tabular-nums}
 #geometry-readout [data-metric=buy]{color:#8cf4c6}
 #geometry-readout [data-metric=sell]{color:#ffa8b5}
 #geometry-readout [data-metric=threshold]{white-space:nowrap}
@@ -232,9 +232,10 @@ body.chart-fullscreen::before{display:none}
   #geometry-readout .m15-flow-stats{display:none}
   #geometry-readout .m15-flow-mobile{
     display:block;
-    font-size:11px;
+    font-size:13px;
     white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
+    overflow-x:auto;
+    scrollbar-width:none;
+    touch-action:pan-x;
   }
 }

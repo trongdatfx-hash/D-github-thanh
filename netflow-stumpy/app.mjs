@@ -908,9 +908,10 @@ function updateMatrixFlowReadout(){
     const compactShare=value=>value?.replace(/ [↑↓]$/, '');
     const mobileMetrics=[
       ['',shortStatus],
+      ['price-oi',priceOi],
+      ['threshold',metrics[2][1]],
       ['buy',compactShare(metrics[0][1])],
-      ['sell',compactShare(metrics[1][1])],
-      ['threshold',metrics[2][1]]
+      ['sell',compactShare(metrics[1][1])]
     ];
     mobileMetrics.forEach(([name,value],index)=>{
       if(index)mobile.append(' · ');
