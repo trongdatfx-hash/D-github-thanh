@@ -226,14 +226,8 @@ body.chart-fullscreen::before{display:none}
 #geometry-readout [data-metric=sell]{color:#ffa8b5}
 #geometry-readout [data-metric=threshold]{white-space:nowrap}
 
-#geometry-readout .m15-flow-mobile{display:none}
 @media (max-width:760px), (hover:none) and (pointer:coarse){
-  #geometry-readout .m15-flow-headline,
-  #geometry-readout .m15-flow-stats{display:none}
-  #geometry-readout .m15-flow-mobile{
-    display:block;
-    font-size:13px;
-    white-space:nowrap;
+  #geometry-readout .m15-flow-stats{
     overflow-x:auto;
     scrollbar-width:none;
     touch-action:pan-x;

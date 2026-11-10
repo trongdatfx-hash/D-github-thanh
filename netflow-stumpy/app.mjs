@@ -902,25 +902,7 @@ function updateMatrixFlowReadout(){
       metric.textContent=value;
       stats.append(metric);
     });
-    const mobile=document.createElement('span');
-    mobile.className='m15-flow-mobile';
-    const shortStatus=buy?'Mua mạnh':sell?'Bán mạnh':state.phase==='NEUTRAL'?'Chưa rõ lực':state.label;
-    const compactShare=value=>value?.replace(/ [↑↓]$/, '');
-    const mobileMetrics=[
-      ['',shortStatus],
-      ['price-oi',priceOi],
-      ['threshold',metrics[2][1]],
-      ['buy',compactShare(metrics[0][1])],
-      ['sell',compactShare(metrics[1][1])]
-    ];
-    mobileMetrics.forEach(([name,value],index)=>{
-      if(index)mobile.append(' · ');
-      const metric=document.createElement('span');
-      if(name)metric.dataset.metric=name;
-      metric.textContent=value;
-      mobile.append(metric);
-    });
-    node.replaceChildren(headline,stats,mobile);
+    node.replaceChildren(headline,stats);
     node.dataset.summaryKey=summaryKey;
   }
   if(layoutChanged)requestAnimationFrame(positionForecastReadout);
