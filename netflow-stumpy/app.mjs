@@ -885,19 +885,24 @@ function updateMatrixFlowReadout(){
   node.hidden=false;
   if(node.dataset.summaryKey!==summaryKey){
     const headline=document.createElement('span');
+    headline.className='m15-flow-headline';
     headline.textContent=text;
     const stats=document.createElement('span');
     stats.className='m15-flow-stats';
-    for(const [name,value] of Object.entries({buy:shares?.buy??'Mua —',sell:shares?.sell??'Bán —',threshold:progress})){
+    const metrics=[
+      ['buy',(shares?.buy??'Mua —').replace('Mua ','M ')],
+      ['sell',(shares?.sell??'Bán —').replace('Bán ','B ')],
+      ['threshold',progress.replace('Ngưỡng Taker ','T ')],
+      ['price-oi',priceOi]
+    ];
+    metrics.forEach(([name,value],index)=>{
+      if(index)stats.append(' · ');
       const metric=document.createElement('span');
       metric.dataset.metric=name;
       metric.textContent=value;
       stats.append(metric);
-    }
-    const cluster=document.createElement('span');
-    cluster.className='m15-flow-stats';
-    cluster.textContent=priceOi;
-    node.replaceChildren(headline,stats,cluster);
+    });
+    node.replaceChildren(headline,stats);
     node.dataset.summaryKey=summaryKey;
   }
   if(layoutChanged)requestAnimationFrame(positionForecastReadout);
