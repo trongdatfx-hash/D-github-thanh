@@ -8,6 +8,7 @@ import {pivotMatrixStyle} from './pivot-matrix-style.mjs?v=20261107-pivot-matrix
 import {matrixOptions,mountMatrixSettings} from './h1-matrix-state.mjs?v=20261108-matrix-label-no-oi1';
 import {mountGptPattern} from './gpt-pattern-ui.mjs?v=20261106-chatflow1';
 import {CurrentOiLoader,RunningOiState} from './oi-current.mjs?v=20261106-oi-live1';
+import {strengthOi8} from './strength-oi8.mjs?v=20261111-oi8';
 import {compositeNfSmooth} from './composite-nf-smooth.mjs?v=20261108-c-taker-smooth1';
 import {h1AdaptiveVolumeRows} from './spy-volume-h1.mjs?v=20261105-spyv-h1-1';
 import {OiFastLoader} from './oi-fast-load.mjs?v=20261109-m15-flow1';
@@ -101,7 +102,8 @@ const SETUP_STORAGE_KEY='netflow-rth-lite:chart-setup:v1';
 let nfSmoothRows=[],nfSmoothMap=new Map();
 const spyBodyVolumeEnabled=()=>$('spy-volume-body-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
 const nfSmoothEnabled=()=>$('nf-smooth-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
-const SETUP_CONTROL_IDS=['nf-smooth-toggle','nf-smooth-window','symbol','interval','days','signal','composite','alignment','confirmed-delta-toggle','oi-width-toggle','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-h1-box-color','cvd-spectrum-toggle','large-taker-toggle','large-taker-percentile','h1-oi-markers-toggle','oi-candle-bars-toggle','oi-candle-pin-toggle','oi-delta-percentile','oi-bold-candles-toggle','show-strength','spy-volume-strength','spy-volume-body-toggle','spy-volume-h1-smooth','h1-score-line-toggle','bands','markers','double-tap-full','geometry-toggle','geometry-matrix-toggle','geometry-provisional','causal-trend-channel','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
+const strengthOi8Enabled=()=>$('strength-oi8-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
+const SETUP_CONTROL_IDS=['strength-oi8-toggle','nf-smooth-toggle','nf-smooth-window','symbol','interval','days','signal','composite','alignment','confirmed-delta-toggle','oi-width-toggle','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-h1-box-color','cvd-spectrum-toggle','large-taker-toggle','large-taker-percentile','h1-oi-markers-toggle','oi-candle-bars-toggle','oi-candle-pin-toggle','oi-delta-percentile','oi-bold-candles-toggle','show-strength','spy-volume-strength','spy-volume-body-toggle','spy-volume-h1-smooth','h1-score-line-toggle','bands','markers','double-tap-full','geometry-toggle','geometry-matrix-toggle','geometry-provisional','causal-trend-channel','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
 let statsMap=new Map(),candleColorMap=new Map(),candleClusterMap=new Map(),matrixFlowWindow=null,pivotZoneState={ready:false,reason:'history',support:null,resistance:null},pivotZoneKey='',inspectedTime=null;
 let calendarState={events:[],updatedAt:null,loading:false};
 let pendingSavedTimeRange=null,saveSetupTimer=null,strengthBoxLayer=null,quantileLayer=null;
@@ -424,6 +426,13 @@ function init(){
   series.volumeStrength=chart.addSeries(L.BaselineSeries,{...spyVolumeBaseline,topFillColor1:'rgba(246,200,95,.12)',topFillColor2:'rgba(246,200,95,0)',bottomFillColor1:'rgba(243,246,251,0)',bottomFillColor2:'rgba(243,246,251,.09)',lineWidth:3,title:'',priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:4,autoscaleInfoProvider:()=>({priceRange:{minValue:-1,maxValue:1}})},1);
   series.spyBodyVolume=chart.addSeries(L.BaselineSeries,{...spyVolumeBaseline,priceScaleId:'right',topFillColor1:'transparent',topFillColor2:'transparent',bottomFillColor1:'transparent',bottomFillColor2:'transparent',lineStyle:L.LineStyle.Solid,lineWidth:2,title:'SPY V thân nến',priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,visible:false},1);
   series.nfSmooth=chart.addSeries(L.BaselineSeries,{priceScaleId:'right',baseValue:{type:'price',price:0},topLineColor:'#28ddb0',bottomLineColor:'#ff718e',topFillColor1:'rgba(40,221,176,0)',topFillColor2:'rgba(40,221,176,0)',bottomFillColor1:'rgba(255,113,142,0)',bottomFillColor2:'rgba(255,113,142,0)',lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:3,title:'',priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},autoscaleInfoProvider:()=>({priceRange:{minValue:-1,maxValue:1}})},1);
+  series.strengthOi8=chart.addSeries(L.BaselineSeries,{
+    priceScaleId:'right',baseValue:{type:'price',price:0},topLineColor:'#43ddff',bottomLineColor:'#bd8cff',
+    topFillColor1:'transparent',topFillColor2:'transparent',bottomFillColor1:'transparent',bottomFillColor2:'transparent',
+    lineWidth:2,baseLineVisible:false,priceLineVisible:false,lastValueVisible:false,crosshairMarkerRadius:3,
+    priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},
+    autoscaleInfoProvider:()=>({priceRange:{minValue:-1,maxValue:1}})
+  },1);
   const nfReadout=document.createElement('div');nfReadout.id='nf-smooth-readout';nfReadout.className='pane-fixed-readout';nfReadout.hidden=true;nfReadout.style.display='none';$('chart').append(nfReadout);
   series.confirmedDelta=chart.addCustomSeries(new OiDottedSeries,{priceScaleId:'right',color:PRICE_DELTA_COLORS.positive,priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},autoscaleInfoProvider:symmetricAutoscale},1);
   for(const [key,style] of [['h1ScoreLine',L.LineStyle.Solid],['h1ScorePreview',L.LineStyle.Dotted]])series[key]=chart.addSeries(L.LineSeries,{priceScaleId:'right',color:'rgba(210,194,174,.55)',lineWidth:1,lineStyle:style,title:'',priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:2,pointMarkersVisible:true,pointMarkersRadius:key==='h1ScorePreview'?2:1,priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},autoscaleInfoProvider:()=>({priceRange:{minValue:-1,maxValue:1}})},1);
@@ -1141,6 +1150,10 @@ function render(fit=false){
   $('chart').dataset.oiCandleBarsPane=String(series.oiCandleBars.getPane().paneIndex());
   $('chart').dataset.oiCandleBarsMatched=String(oiBarState.matched);$('chart').dataset.oiCandleBarsEligible=String(oiBarState.eligible);
   $('oi-candle-bars-status').textContent=$('symbol').value!=='SPYUSDT'?'ΔOI theo nến · chỉ SPY':!oiBarsEnabled?'ΔOI theo nến':oiBarState.gateReady?`ΔOI theo nến · ${oiBarState.matched}/${oiBarState.eligible} · lịch sử`:oiBarState.eligible?'ΔOI · chờ nền 10 nến':'ΔOI theo nến · WAIT';
+  const oi8On=Boolean(strengthOi8Enabled());
+  const oi8Rows=oi8On&&oiStamp==='15m'?strengthOi8(cache?.SPYUSDT??[],oiAppliedSamples,cache?.serverTime??Date.now()):[];
+  writeSeries('strengthOi8',series.strengthOi8,oi8Rows,seriesContext+'|oi8');
+  setOptions(series.strengthOi8,{visible:oi8On});
   const nfOn=nfSmoothEnabled(),nfWindow=Number($('nf-smooth-window')?.value??4);
   nfSmoothRows=nfOn?compositeNfSmooth(cache?.SPYUSDT??[],cache?.QQQUSDT??[],{now:cache?.serverTime??Date.now(),strLen:nfWindow}):[];
   nfSmoothMap=new Map(nfSmoothRows.map(x=>[x.t,x]));
@@ -1458,6 +1471,11 @@ if(init()){
   for(const n of [4,8]){const option=document.createElement('option');option.value=String(n);option.textContent=n+' M15';nfWindow.append(option);}
   nfLabel.append(nfInput,'C Taker NF mượt · thử ',nfWindow);nfLabel.title='Line trong pane SPY trên SPY M15: NF SPY + QQQ thật, chuẩn hóa SMA20, cộng 4/8 nến, EWMA tự thích ứng, nền 500. Chỉ nến đóng; thiếu cặp thì ngắt. Giữ line Giá×Delta và histogram NF để đối chiếu.';spyH1Label.after(nfLabel);
   nfInput.onchange=()=>render(false);nfWindow.onchange=()=>render(false);
+  const oi8Label=document.createElement('label'),oi8Toggle=document.createElement('input');
+  oi8Toggle.id='strength-oi8-toggle';oi8Toggle.type='checkbox';oi8Toggle.checked=true;
+  oi8Label.title='SPYUSDT M15 đã đóng · Xanh cyan: OI mở rộng · Tím: OI thu hẹp';
+  oi8Label.append(oi8Toggle,'Strength ΔOI8');nfLabel.after(oi8Label);
+  oi8Toggle.onchange=()=>render(false);
   restoreSavedSetup();syncChartFrameButtons();
   // Restore the C histogram once for setups saved before the taker plot cleanup.
   // Subsequent user choices remain under the normal Save setup control.
