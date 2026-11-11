@@ -8,6 +8,7 @@ import {pivotMatrixStyle} from './pivot-matrix-style.mjs?v=20261107-pivot-matrix
 import {matrixOptions,mountMatrixSettings} from './h1-matrix-state.mjs?v=20261108-matrix-label-no-oi1';
 import {mountGptPattern} from './gpt-pattern-ui.mjs?v=20261106-chatflow1';
 import {CurrentOiLoader,RunningOiState} from './oi-current.mjs?v=20261106-oi-live1';
+import {matrixOi8Reading} from './matrix-oi8-reading.mjs?v=20261111-matrix-oi8';
 import {strengthOi8} from './strength-oi8.mjs?v=20261111-oi8';
 import {compositeNfSmooth} from './composite-nf-smooth.mjs?v=20261108-c-taker-smooth1';
 import {h1AdaptiveVolumeRows} from './spy-volume-h1.mjs?v=20261105-spyv-h1-1';
@@ -102,6 +103,7 @@ const SETUP_STORAGE_KEY='netflow-rth-lite:chart-setup:v1';
 let nfSmoothRows=[],nfSmoothMap=new Map();
 const spyBodyVolumeEnabled=()=>$('spy-volume-body-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
 const nfSmoothEnabled=()=>$('nf-smooth-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
+let matrixOi8Points=[];
 const strengthOi8Enabled=()=>$('strength-oi8-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
 const SETUP_CONTROL_IDS=['strength-oi8-toggle','nf-smooth-toggle','nf-smooth-window','symbol','interval','days','signal','composite','alignment','confirmed-delta-toggle','oi-width-toggle','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-h1-box-color','cvd-spectrum-toggle','large-taker-toggle','large-taker-percentile','h1-oi-markers-toggle','oi-candle-bars-toggle','oi-candle-pin-toggle','oi-delta-percentile','oi-bold-candles-toggle','show-strength','spy-volume-strength','spy-volume-body-toggle','spy-volume-h1-smooth','h1-score-line-toggle','bands','markers','double-tap-full','geometry-toggle','geometry-matrix-toggle','geometry-provisional','causal-trend-channel','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
 let statsMap=new Map(),candleColorMap=new Map(),candleClusterMap=new Map(),matrixFlowWindow=null,pivotZoneState={ready:false,reason:'history',support:null,resistance:null},pivotZoneKey='',inspectedTime=null;
@@ -706,14 +708,28 @@ function h1MatrixReadout(){
  if(!node){
    node=document.createElement('div');node.id='h1-matrix-readout';node.setAttribute('role','status');
    const summary=document.createElement('span');summary.id='h1-matrix-summary';node.append(summary);
+   const oi=document.createElement('span');oi.id='h1-matrix-oi8';oi.hidden=true;node.append(oi);
    $('chart').append(node);
  }
  return node;
+}
+function updateH1MatrixOi8(){
+ const node=$('h1-matrix-oi8');if(!node)return null;
+ const reading=usesH1WlrStyle()&&cache?.interval==='15m'&&oiStamp==='15m'
+   ?matrixOi8Reading(cache.SPYUSDT??[],matrixOi8Points,Date.now()+(chartLiveResponse?serverOffsetMs:0)):null;
+ node.hidden=!latestH1Matrix||!reading;
+ if(node.hidden)return null;
+ const text=' · '+reading.label+(reading.context?' · '+reading.context:'');
+ if(node.textContent!==text){node.textContent=text;scheduleForecastReadout();}
+ node.dataset.state=reading.state;
+ node.title='Strength ΔOI8: hai M15 đã đóng liên tiếp cùng trạng thái; vùng trung tính |ΔOI8| < 0,15. Giá và Taker NF riêng SPY cùng hướng mới diễn giải khả năng đóng vị thế.';
+ return reading;
 }
 function updateH1MatrixReadout(matrix){
  latestH1Matrix=matrix;updatePivotZones();
  const node=h1MatrixReadout(),summary=$('h1-matrix-summary');
  node.hidden=!usesH1WlrStyle();summary.hidden=!matrix;
+ updateH1MatrixOi8();
  if(!matrix){
    summary.replaceChildren();delete node.dataset.labelKey;
    delete node.dataset.matrix;delete node.dataset.states;delete node.dataset.priceStates;node.title='';
@@ -881,11 +897,12 @@ function clusterPct(value){
   return (rounded>0?'+':'')+rounded.toLocaleString('vi-VN',{minimumFractionDigits:2,maximumFractionDigits:2})+'%';
 }
 
-function matrixFlowDetails(state){
+function matrixFlowDetails(state,oi8){
   if(!state.count)return ['Chờ dữ liệu Taker và OI của SPYUSDT.'];
   const {taker,p95,oi,threshold}=state;
   const lines=[`${state.label} · cụm bắt đầu ${flowTime(state.start)}${state.live?' · LIVE':''}`];
   lines.push(`Giá ${clusterPct(state.pricePct)} · OI ròng ${clusterPct(state.oiPct)} từ đầu cụm`);
+  if(oi8)lines.push('Strength ΔOI8 · '+oi8.label+(oi8.values?' · '+oi8.values.map(signed).join(' → '):'')+(oi8.context?' · '+oi8.context:''));
   lines.push('Taker toàn cụm · '+(taker?flowAmounts(taker):'chờ dữ liệu'));
   if(Number.isFinite(state.pricePer100K)){
     lines.push(`Giá ${clusterPct(state.pricePer100K)} trên mỗi 100K USDT ${taker.net>0?'mua':'bán'} ròng`);
@@ -964,6 +981,7 @@ function showMatrixFlowDetails(){
 }
 
 function updateMatrixFlowReadout(){
+  const oi8=updateH1MatrixOi8();
   const node=$('geometry-readout');if(!node)return;
   if(!usesH1WlrStyle()){
     matrixTakerShare=null;
@@ -1019,7 +1037,7 @@ function updateMatrixFlowReadout(){
   node.title='Chạm để xem Taker, P95 và giờ nhận OI.';
   node.onclick=showMatrixFlowDetails;
   if($('m15-flow-dialog')?.open){
-    const body=$('m15-flow-dialog-body'),lines=matrixFlowDetails(state);
+    const body=$('m15-flow-dialog-body'),lines=matrixFlowDetails(state,oi8);
     const key=lines.join('\n');
     if(body.dataset.content!==key){
       body.dataset.content=key;
@@ -1151,8 +1169,10 @@ function render(fit=false){
   $('chart').dataset.oiCandleBarsMatched=String(oiBarState.matched);$('chart').dataset.oiCandleBarsEligible=String(oiBarState.eligible);
   $('oi-candle-bars-status').textContent=$('symbol').value!=='SPYUSDT'?'ΔOI theo nến · chỉ SPY':!oiBarsEnabled?'ΔOI theo nến':oiBarState.gateReady?`ΔOI theo nến · ${oiBarState.matched}/${oiBarState.eligible} · lịch sử`:oiBarState.eligible?'ΔOI · chờ nền 10 nến':'ΔOI theo nến · WAIT';
   const oi8On=Boolean(strengthOi8Enabled());
-  const oi8Rows=oi8On&&oiStamp==='15m'?strengthOi8(cache?.SPYUSDT??[],oiAppliedSamples,cache?.serverTime??Date.now()):[];
-  writeSeries('strengthOi8',series.strengthOi8,oi8Rows,seriesContext+'|oi8');
+  matrixOi8Points=(oi8On||h1Wlr)&&oiStamp==='15m'&&cache?.interval==='15m'
+    ?strengthOi8(cache.SPYUSDT??[],oiAppliedSamples,cache.serverTime):[];
+  writeSeries('strengthOi8',series.strengthOi8,oi8On?matrixOi8Points:[],seriesContext+'|oi8');
+  updateH1MatrixOi8();
   setOptions(series.strengthOi8,{visible:oi8On});
   const nfOn=nfSmoothEnabled(),nfWindow=Number($('nf-smooth-window')?.value??4);
   nfSmoothRows=nfOn?compositeNfSmooth(cache?.SPYUSDT??[],cache?.QQQUSDT??[],{now:cache?.serverTime??Date.now(),strLen:nfWindow}):[];
