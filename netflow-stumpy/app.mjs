@@ -8,7 +8,7 @@ import {pivotMatrixStyle} from './pivot-matrix-style.mjs?v=20261107-pivot-matrix
 import {matrixOptions,mountMatrixSettings} from './h1-matrix-state.mjs?v=20261108-matrix-label-no-oi1';
 import {mountGptPattern} from './gpt-pattern-ui.mjs?v=20261106-chatflow1';
 import {CurrentOiLoader,RunningOiState} from './oi-current.mjs?v=20261106-oi-live1';
-import {matrixOi8Reading} from './matrix-oi8-reading.mjs?v=20261111-oi8-long-short';
+import {matrixOi8Reading} from './matrix-oi8-reading.mjs?v=20261112-top-trader';
 import {strengthOi8} from './strength-oi8.mjs?v=20261111-oi8';
 import {compositeNfSmooth} from './composite-nf-smooth.mjs?v=20261108-c-taker-smooth1';
 import {h1AdaptiveVolumeRows} from './spy-volume-h1.mjs?v=20261105-spyv-h1-1';
@@ -715,10 +715,27 @@ function h1MatrixReadout(){
  }
  return node;
 }
+const topTraderUrl='https://raw.githubusercontent.com/trongdatfx-hash/D-github-thanh/main/netflow-stumpy/data/spy-top-trader-m15.json';
+let topTraderShares=new Map(),topTraderRetryAt=0;
+async function refreshMatrixTopTrader(){
+ const now=Date.now();
+ if(document.hidden||now<topTraderRetryAt)return;
+ topTraderRetryAt=now+60000;
+ try{
+   const response=await fetch(topTraderUrl,{cache:'no-store',signal:AbortSignal.timeout(6000)});
+   if(!response.ok)return;
+   const data=await response.json();
+   if(data.symbol!=='SPYUSDT'||data.period!=='15m'||!Array.isArray(data.points)||data.points.length>32)return;
+   topTraderShares=new Map(data.points.filter(point=>Array.isArray(point)&&Number.isSafeInteger(point[0])&&
+     point[0]%900000===0&&Number.isFinite(point[1])&&point[1]>=0&&point[1]<=1));
+   updateMatrixFlowReadout();
+ }catch{/* The next refresh retries without affecting price or OI. */}
+}
 function updateH1MatrixOi8(){
  const node=$('h1-matrix-oi8');if(!node)return null;
  const reading=usesH1WlrStyle()&&cache?.interval==='15m'&&oiStamp==='15m'
-   ?matrixOi8Reading(cache.SPYUSDT??[],matrixOi8Points,Date.now()+(chartLiveResponse?serverOffsetMs:0)):null;
+   ?matrixOi8Reading(cache.SPYUSDT??[],matrixOi8Points,Date.now()+(chartLiveResponse?serverOffsetMs:0),topTraderShares):null;
+ if(reading&&latestH1Matrix&&chartLiveResponse)void refreshMatrixTopTrader();
  node.hidden=!latestH1Matrix||!reading;
  if(node.hidden)return null;
  const context=reading.context?' · '+reading.context:'';
@@ -731,7 +748,7 @@ function updateH1MatrixOi8(){
    node.replaceChildren(full,short);node.dataset.label=text;scheduleForecastReadout();
  }
  node.dataset.state=reading.state;
- node.title='Strength ΔOI8: hai M15 đã đóng liên tiếp cùng trạng thái; vùng trung tính |ΔOI8| < 0,15. Giá và Taker NF riêng SPY cùng hướng mới diễn giải khả năng đóng vị thế.';
+ node.title='Strength ΔOI8: hai M15 đã đóng liên tiếp cùng trạng thái; vùng trung tính |ΔOI8| < 0,15. Nghi mở/đóng vị thế khi giá, Taker NF riêng SPY và biến động tỷ trọng Long của Top Trader đồng thuận. Top Trader: ±0,2 điểm % qua 2 M15.';
  return reading;
 }
 function updateH1MatrixReadout(matrix){
@@ -915,7 +932,7 @@ function matrixFlowDetails(state,oi8){
   const {taker,p95,oi,threshold}=state;
   const lines=[`${state.label} · cụm bắt đầu ${flowTime(state.start)}${state.live?' · LIVE':''}`];
   lines.push(`Giá ${clusterPct(state.pricePct)} · OI ròng ${clusterPct(state.oiPct)} từ đầu cụm`);
-  if(oi8)lines.push('Strength ΔOI8 · '+oi8.label+(oi8.values?' · '+oi8.values.map(signed).join(' → '):'')+(oi8.context?' · '+oi8.context:''));
+  if(oi8)lines.push('Strength ΔOI8 · '+oi8.label+(oi8.values?' · '+oi8.values.map(signed).join(' → '):'')+(oi8.context?' · '+oi8.context:'')+(Number.isFinite(oi8.topTraderDelta)?' · Top Trader Δ tỷ trọng Long '+signed(100*oi8.topTraderDelta)+' điểm %':''));
   lines.push('Taker toàn cụm · '+(taker?flowAmounts(taker):'chờ dữ liệu'));
   if(Number.isFinite(state.pricePer100K)){
     lines.push(`Giá ${clusterPct(state.pricePer100K)} trên mỗi 100K USDT ${taker.net>0?'mua':'bán'} ròng`);

@@ -1,0 +1,42 @@
+name: SPY Top Trader M15
+on:
+  schedule:
+    - cron: '2,17,32,47 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: spy-top-trader-m15
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      BINANCE_MARKET_DATA_API_KEY: ${{ secrets.BINANCE_MARKET_DATA_API_KEY }}
+    steps:
+      - name: Check data-source configuration
+        if: env.BINANCE_MARKET_DATA_API_KEY == ''
+        run: echo "Set the BINANCE_MARKET_DATA_API_KEY repository secret to enable this feed."
+      - uses: actions/checkout@v4
+        if: env.BINANCE_MARKET_DATA_API_KEY != ''
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        if: env.BINANCE_MARKET_DATA_API_KEY != ''
+        with:
+          node-version: '22'
+      - name: Collect SPYUSDT positioning
+        if: env.BINANCE_MARKET_DATA_API_KEY != ''
+        run: node netflow-stumpy/scripts/collect-spy-top-trader.mjs
+      - name: Publish public positioning samples
+        if: env.BINANCE_MARKET_DATA_API_KEY != ''
+        run: |
+          path=netflow-stumpy/data/spy-top-trader-m15.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$path"
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Update SPY Top Trader M15 positioning"
+          git pull --rebase origin main
+          git push origin HEAD:main

@@ -1,8 +1,9 @@
 const STEP=900000;
 const DEAD_ZONE=.15;
+const TOP_TRADER_DEAD_ZONE=.002;
 const WAIT={state:'wait',label:'ΔOI8 chờ dữ liệu'};
 
-export function matrixOi8Reading(bars, points, now){
+export function matrixOi8Reading(bars, points, now, topTrader=new Map()){
   let end=bars.length-1;
   while(end>=0&&bars[end].t+STEP>now)end--;
   const current=bars[end],previous=bars[end-1],base=bars[end-2];
@@ -23,6 +24,14 @@ export function matrixOi8Reading(bars, points, now){
   const state=direction>0?'expanding':'contracting';
   const oiLabel=direction>0?'OI mở rộng':'OI thu hẹp';
   const label=flow?(flow>0?'Giá tăng · ':'Giá giảm · ')+oiLabel:oiLabel;
-  const context=direction<0?(flow>0?'Nghi đóng Short':flow<0?'Nghi đóng Long':'Chưa rõ Long/Short'):'';
-  return {state,label,flow,context,values};
+  const shares=[base,previous,current].map(bar=>topTrader.get(bar.t+STEP));
+  const topTraderDelta=shares.every(x=>Number.isFinite(x)&&x>=0&&x<=1)?shares[2]-shares[0]:null;
+  let context='';
+  if(!flow)context='Giá–Taker chưa đồng thuận';
+  else if(topTraderDelta===null)context='Chờ Top Trader';
+  else if(Math.abs(topTraderDelta)<TOP_TRADER_DEAD_ZONE-1e-10)context='Top Trader trung tính';
+  else if(Math.sign(topTraderDelta)!==flow)context='Lệch Top Trader';
+  else if(direction>0)context=flow>0?'Nghi mở Long':'Nghi mở Short';
+  else context=flow>0?'Nghi đóng Short':'Nghi đóng Long';
+  return {state,label,flow,context,values,topTraderDelta};
 }

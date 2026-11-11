@@ -45,15 +45,22 @@ test('real M15 pipeline preserves H1/weekday outputs without old age predictions
  assert.ok(r.h1CandleColors.every(c=>Number.isFinite(c.blockStart)&&[-1,0,1].includes(c.direction)));
 });
 
-test('matrix OI8 requires two fresh closed points and only infers closing with SPY price and flow aligned',()=>{
+test('matrix OI8 needs closed SPY price, flow and matching Top Trader positioning',()=>{
  const step=STEPS['15m'], bars=[10,11,12,13].map((c,i)=>({t:i*step,c,buy:70,q:100}));
- const read=(values,source=bars,now=3*step)=>matrixOi8Reading(source,values.map((value,i)=>({time:i*step/1000,value})),now);
+ const top=shares=>new Map(shares.map((share,i)=>[(i+1)*step,share]));
+ const long=top([.50,.501,.504]),short=top([.50,.499,.496]);
+ const down=bars.map((bar,i)=>({...bar,c:20-i,buy:30}));
+ const read=(values,source=bars,positions=long,now=3*step)=>matrixOi8Reading(source,values.map((value,i)=>({time:i*step/1000,value})),now,positions);
  assert.equal(read([0,-.5,-.6,.9]).context,'Nghi đóng Short');
- assert.equal(read([0,-.5,-.6,.9],bars.map((bar,i)=>({...bar,c:20-i,buy:30}))).context,'Nghi đóng Long');
- assert.equal(read([0,-.5,-.6,.9],bars.map(bar=>({...bar,buy:30}))).context,'Chưa rõ Long/Short');
- assert.equal(read([0,.2,.3,-.4]).state,'expanding');
+ assert.equal(read([0,-.5,-.6,.9],down,short).context,'Nghi đóng Long');
+ assert.equal(read([0,.2,.3,-.4]).context,'Nghi mở Long');
+ assert.equal(read([0,.2,.3,-.4],down,short).context,'Nghi mở Short');
+ assert.equal(read([0,-.5,-.6,.9],bars,short).context,'Lệch Top Trader');
+ assert.equal(read([0,-.5,-.6,.9],bars,top([.50,.50,.501])).context,'Top Trader trung tính');
+ assert.equal(read([0,-.5,-.6,.9],bars,top([.50])).context,'Chờ Top Trader');
+ assert.equal(read([0,-.5,-.6,.9],bars.map(bar=>({...bar,buy:30}))).context,'Giá–Taker chưa đồng thuận');
  assert.equal(read([0,.09,-.1,.4]).state,'neutral');
  assert.equal(read([0,.2,-.3,.4]).state,'pending');
  assert.equal(read([0,undefined,-.3,.4]).state,'wait');
- assert.equal(read([0,.2,.3,-.4],bars.slice(0,3),4*step).state,'wait');
+ assert.equal(read([0,.2,.3,-.4],bars.slice(0,3),long,4*step).state,'wait');
 });
