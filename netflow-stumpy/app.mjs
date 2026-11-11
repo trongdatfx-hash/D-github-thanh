@@ -708,7 +708,9 @@ function h1MatrixReadout(){
  if(!node){
    node=document.createElement('div');node.id='h1-matrix-readout';node.setAttribute('role','status');
    const summary=document.createElement('span');summary.id='h1-matrix-summary';node.append(summary);
-   const oi=document.createElement('span');oi.id='h1-matrix-oi8';oi.hidden=true;node.append(oi);
+   const groups=document.createElement('span');groups.id='h1-matrix-groups';
+   const oi=document.createElement('span');oi.id='h1-matrix-oi8';oi.hidden=true;
+   summary.append(groups,oi);
    $('chart').append(node);
  }
  return node;
@@ -719,7 +721,7 @@ function updateH1MatrixOi8(){
    ?matrixOi8Reading(cache.SPYUSDT??[],matrixOi8Points,Date.now()+(chartLiveResponse?serverOffsetMs:0)):null;
  node.hidden=!latestH1Matrix||!reading;
  if(node.hidden)return null;
- const text=' · '+reading.label+(reading.context?' · '+reading.context:'');
+ const text=' — '+reading.label+(reading.context?' — '+reading.context:'');
  if(node.textContent!==text){node.textContent=text;scheduleForecastReadout();}
  node.dataset.state=reading.state;
  node.title='Strength ΔOI8: hai M15 đã đóng liên tiếp cùng trạng thái; vùng trung tính |ΔOI8| < 0,15. Giá và Taker NF riêng SPY cùng hướng mới diễn giải khả năng đóng vị thế.';
@@ -727,11 +729,11 @@ function updateH1MatrixOi8(){
 }
 function updateH1MatrixReadout(matrix){
  latestH1Matrix=matrix;updatePivotZones();
- const node=h1MatrixReadout(),summary=$('h1-matrix-summary');
+ const node=h1MatrixReadout(),summary=$('h1-matrix-summary'),groupLabel=$('h1-matrix-groups');
  node.hidden=!usesH1WlrStyle();summary.hidden=!matrix;
  updateH1MatrixOi8();
  if(!matrix){
-   summary.replaceChildren();delete node.dataset.labelKey;
+   groupLabel.replaceChildren();delete node.dataset.labelKey;
    delete node.dataset.matrix;delete node.dataset.states;delete node.dataset.priceStates;node.title='';
    scheduleForecastReadout();return;
  }
@@ -756,7 +758,7 @@ function updateH1MatrixReadout(matrix){
      group.textContent=text;
      label.append(group);
    });
-   summary.replaceChildren(label);
+   groupLabel.replaceChildren(label);
    node.dataset.labelKey=key;
  }
  node.dataset.matrix=JSON.stringify(matrix);node.dataset.states=groups.map(g=>g.state).join('|');node.dataset.priceStates=groups.map(g=>g.priceConfirmation?.confirmed?(g.priceConfirmation.direction>0?'UP':'DOWN'):'WAIT').join('|');
@@ -902,7 +904,7 @@ function matrixFlowDetails(state,oi8){
   const {taker,p95,oi,threshold}=state;
   const lines=[`${state.label} · cụm bắt đầu ${flowTime(state.start)}${state.live?' · LIVE':''}`];
   lines.push(`Giá ${clusterPct(state.pricePct)} · OI ròng ${clusterPct(state.oiPct)} từ đầu cụm`);
-  if(oi8)lines.push('Strength ΔOI8 · '+oi8.label+(oi8.values?' · '+oi8.values.map(signed).join(' → '):'')+(oi8.context?' · '+oi8.context:''));
+  if(oi8)lines.push('Strength ΔOI8 · '+oi8.label+(oi8.values?' · '+oi8.values.map(signed).join(' → '):'')+(oi8.context?' — '+oi8.context:''));
   lines.push('Taker toàn cụm · '+(taker?flowAmounts(taker):'chờ dữ liệu'));
   if(Number.isFinite(state.pricePer100K)){
     lines.push(`Giá ${clusterPct(state.pricePer100K)} trên mỗi 100K USDT ${taker.net>0?'mua':'bán'} ròng`);
