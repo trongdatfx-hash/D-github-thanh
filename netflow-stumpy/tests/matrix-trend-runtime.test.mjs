@@ -1,4 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import vm from 'node:vm';
+import {matrixOi8Reading} from '../matrix-oi8-reading.mjs';
 import {m15FlowWindow,describeM15Flow} from '../m15-flow-status.mjs';
 import {computeStudies,analyzeTrendSource} from '../studies-core.mjs';
 import {parseKlines,STEPS} from '../engine.mjs';
@@ -17,7 +18,7 @@ test('M15 status renders closed group, opens details and hides on other charts',
  const el=()=>({dataset:{},children:[],append(...children){this.children.push(...children);},replaceChildren(...children){this.children=children;}});
  const host=el(),controls={symbol:{value:'SPYUSDT'},interval:{value:'15m'},'geometry-readout':host};
  const ctx={
-   describeM15Flow,matrixFlowWindow:m15FlowWindow(bars,cutoff),matrixLiveOi:null,
+   updateH1MatrixOi8:()=>null,describeM15Flow,matrixFlowWindow:m15FlowWindow(bars,cutoff),matrixLiveOi:null,
    usesH1WlrStyle:()=>controls.symbol.value==='SPYUSDT'&&controls.interval.value==='15m',
    oiStamp:'15m',oiWidths:new Map(),oiReceipts:new Map(),largeTakerLoader:{book:{windowP95(){return null;}}},
    chartLiveResponse:false,Date:{now:()=>cutoff},$:id=>controls[id],
@@ -42,4 +43,17 @@ test('real M15 pipeline preserves H1/weekday outputs without old age predictions
  const r=computeStudies({rows:trend.rows,volumeRows:trend.volume,symbol:'SPYUSDT',interval:'15m',now,trend,options:{minScore:55,maxLines:4,matrixGeometry:false}});
  assert.equal(r.rev63,undefined);assert.equal(r.trendAgeHistory,undefined);assert.ok(r.h1CandleColors.length>0);assert.ok(r.h1H4CandleColors.length>0);assert.equal(r.weekly.cells.length,7);assert.equal(r.weekly.continuation,undefined);
  assert.ok(r.h1CandleColors.every(c=>Number.isFinite(c.blockStart)&&[-1,0,1].includes(c.direction)));
+});
+
+test('matrix OI8 requires two fresh closed points and only infers closing with SPY price and flow aligned',()=>{
+ const step=STEPS['15m'], bars=[10,11,12,13].map((c,i)=>({t:i*step,c,buy:70,q:100}));
+ const read=(values,source=bars,now=3*step)=>matrixOi8Reading(source,values.map((value,i)=>({time:i*step/1000,value})),now);
+ assert.equal(read([0,-.5,-.6,.9]).context,'Có thể đóng short');
+ assert.equal(read([0,-.5,-.6,.9],bars.map((bar,i)=>({...bar,c:20-i,buy:30}))).context,'Có thể đóng long');
+ assert.equal(read([0,-.5,-.6,.9],bars.map(bar=>({...bar,buy:30}))).context,'');
+ assert.equal(read([0,.2,.3,-.4]).state,'expanding');
+ assert.equal(read([0,.09,-.1,.4]).state,'neutral');
+ assert.equal(read([0,.2,-.3,.4]).state,'pending');
+ assert.equal(read([0,undefined,-.3,.4]).state,'wait');
+ assert.equal(read([0,.2,.3,-.4],bars.slice(0,3),4*step).state,'wait');
 });
