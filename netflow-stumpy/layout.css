@@ -32,8 +32,11 @@
 @media(max-width:650px){#weekly-day-chart-label{right:58px;max-width:calc(100% - 70px);padding:4px 7px;font-size:9px;overflow:hidden;text-overflow:ellipsis}#geometry-readout{top:38px}}
 
 /* H1 age follows candle direction; keep the closing clock fully readable. */
-#h1-matrix-summary{display:block}
-#h1-matrix-readout>#h1-trend-age-readout{display:flex;flex-wrap:wrap;align-items:center;gap:3px 8px;margin-top:3px;line-height:1.35;font-variant-numeric:tabular-nums}
+#h1-matrix-summary{display:flex;align-items:baseline;min-width:0;white-space:nowrap}
+#h1-matrix-groups{min-width:0;overflow:hidden;text-overflow:ellipsis}
+#h1-matrix-oi8{flex:none;white-space:pre}
+#h1-matrix-readout>#h1-trend-age-readout{display:flex;flex-wrap:nowrap;align-items:center;gap:3px 8px;margin-top:3px;line-height:1.35;white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums}
+#h1-trend-age-text{min-width:0;overflow:hidden;text-overflow:ellipsis}
 #h1-matrix-readout>#h1-trend-age-readout[hidden]{display:none}
 #h1-matrix-summary[hidden]{display:none}
 #h1-trend-age-text{font-size:11px;font-weight:800;white-space:normal;text-align:right}
