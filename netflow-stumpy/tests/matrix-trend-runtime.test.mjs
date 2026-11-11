@@ -48,9 +48,9 @@ test('real M15 pipeline preserves H1/weekday outputs without old age predictions
 test('matrix OI8 requires two fresh closed points and only infers closing with SPY price and flow aligned',()=>{
  const step=STEPS['15m'], bars=[10,11,12,13].map((c,i)=>({t:i*step,c,buy:70,q:100}));
  const read=(values,source=bars,now=3*step)=>matrixOi8Reading(source,values.map((value,i)=>({time:i*step/1000,value})),now);
- assert.equal(read([0,-.5,-.6,.9]).context,'Có thể đóng short');
- assert.equal(read([0,-.5,-.6,.9],bars.map((bar,i)=>({...bar,c:20-i,buy:30}))).context,'Có thể đóng long');
- assert.equal(read([0,-.5,-.6,.9],bars.map(bar=>({...bar,buy:30}))).context,'');
+ assert.equal(read([0,-.5,-.6,.9]).context,'Nghi đóng Short');
+ assert.equal(read([0,-.5,-.6,.9],bars.map((bar,i)=>({...bar,c:20-i,buy:30}))).context,'Nghi đóng Long');
+ assert.equal(read([0,-.5,-.6,.9],bars.map(bar=>({...bar,buy:30}))).context,'Chưa rõ Long/Short');
  assert.equal(read([0,.2,.3,-.4]).state,'expanding');
  assert.equal(read([0,.09,-.1,.4]).state,'neutral');
  assert.equal(read([0,.2,-.3,.4]).state,'pending');

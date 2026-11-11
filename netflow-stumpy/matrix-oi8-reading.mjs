@@ -23,6 +23,6 @@ export function matrixOi8Reading(bars, points, now){
   const state=direction>0?'expanding':'contracting';
   const oiLabel=direction>0?'OI mở rộng':'OI thu hẹp';
   const label=flow?(flow>0?'Giá tăng · ':'Giá giảm · ')+oiLabel:oiLabel;
-  const context=direction<0&&flow?(flow>0?'Có thể đóng short':'Có thể đóng long'):'';
+  const context=direction<0?(flow>0?'Nghi đóng Short':flow<0?'Nghi đóng Long':'Chưa rõ Long/Short'):'';
   return {state,label,flow,context,values};
 }
