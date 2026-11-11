@@ -614,25 +614,27 @@ function drawH1OiPriceMarkers(){
   if(!bounds){drawH1OiMarkers([]);return;}
   const timeScale=chart.timeScale(),step=STEPS['15m'];
   const right=$('chart').clientWidth-(chart.priceScale('right',0)?.width?.()??64);
+  const hiddenReasons=new Set();
   const markers=h1OiMarkers.flatMap(mark=>{
     const state=h1CandleMap.get(mark.start);
-    if(!state||state.preview!==false||Math.sign(mark.base)!==state.direction)return [];
+    if(!state){hiddenReasons.add('chờ màu hộp H1');return [];}
+    if(state.preview!==false||Math.sign(mark.base)!==state.direction){hiddenReasons.add('lọc theo hộp H1');return [];}
     const group=Array.from({length:4},(_,i)=>maps.SPYUSDT?.get(mark.start+i*step));
-    if(group.some(bar=>!Number.isFinite(bar?.h)||!Number.isFinite(bar?.l)))return [];
+    if(group.some(bar=>!Number.isFinite(bar?.h)||!Number.isFinite(bar?.l))){hiddenReasons.add('thiếu nến để vẽ');return [];}
     const x1=timeScale.timeToCoordinate(mark.start/1000),x2=timeScale.timeToCoordinate((mark.start+3*step)/1000);
-    if(!Number.isFinite(x1)||!Number.isFinite(x2))return [];
-    const x=Math.round((x1+x2)/2);
-    if(x<8||x>right-8)return [];
+    if(!Number.isFinite(x1)||!Number.isFinite(x2)){hiddenReasons.add('chờ tọa độ chart');return [];}
+    if(Math.max(x1,x2)<0||Math.min(x1,x2)>right){hiddenReasons.add('ngoài thời gian đang xem');return [];}
     const high=price.priceToCoordinate(Math.max(...group.map(bar=>bar.h)));
     const low=price.priceToCoordinate(Math.min(...group.map(bar=>bar.l)));
-    if(!Number.isFinite(high)||!Number.isFinite(low)||low<0||high>bounds.height)return [];
+    if(!Number.isFinite(high)||!Number.isFinite(low)||right<16||bounds.height<18){hiddenReasons.add('chờ tọa độ chart');return [];}
+    if(low<0||high>bounds.height){hiddenReasons.add('ngoài vùng giá đang xem');return [];}
+    const x=Math.round(Math.max(8,Math.min(right-8,(x1+x2)/2)));
     const above=high-21,below=low+3;
-    const offset=state.direction>0?below:above;
-    if(offset<0||offset+18>bounds.height)return [];
+    const offset=Math.max(0,Math.min(bounds.height-18,state.direction>0?below:above));
     return [{...mark,x,y:Math.round(bounds.top+offset),color:h1BoxCandlePalette(null,state).body}];
   });
   const valid=h1OiMarkerCoverage.validHours??0;
-  const status=markers.length?'':valid<37?`OI H1 · đủ dữ liệu ${valid}/37 hộp`:h1OiMarkers.length?'OI H1 · ngoài vùng đang xem':'OI H1 · chưa có hộp đạt 4/5';
+  const status=markers.length?'':hiddenReasons.size?`OI H1 · ${[...hiddenReasons].join(' · ')}`:valid<37?`OI H1 · đủ dữ liệu ${valid}/37 hộp`:'OI H1 · chưa có hộp đạt 4/5';
   const spyPane=paneBounds(1);
   drawH1OiMarkers(markers,status,right,spyPane?spyPane.top+11:bounds.top+4);
 }
