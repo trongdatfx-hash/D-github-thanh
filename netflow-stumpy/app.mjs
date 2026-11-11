@@ -672,7 +672,7 @@ function scheduleForecastReadout(){
  });
 }
 function positionForecastReadout(){
- const node=$('geometry-readout'),h1Node=$('h1-trend-age-readout'),host=$('chart'),paneHeight=chart?.panes?.()[0]?.getHeight?.();
+ const node=$('geometry-readout'),host=$('chart'),paneHeight=chart?.panes?.()[0]?.getHeight?.();
  if(!node||!host||!Number.isFinite(paneHeight))return;
  if(!node.hidden){
   node.style.removeProperty('--m15-flow-font-size');
@@ -687,18 +687,29 @@ function positionForecastReadout(){
  const top=Math.max(8,paneHeight-node.offsetHeight-10);node.style.top=`${top}px`;
  let row=$('h1-cvd-status-row');
  if(!row){row=document.createElement('div');row.id='h1-cvd-status-row';host.append(row);}
- if(h1Node&&h1Node.parentElement!==row)row.append(h1Node);
  const matrix=$('h1-matrix-readout');if(matrix&&matrix.parentElement!==row)row.prepend(matrix);
- row.dataset.layout='matrix-h1-oi';row.setAttribute('role','group');row.setAttribute('aria-label','Trạng thái nhóm ma trận và Hộp H1 có ΔOI');
- row.hidden=(!h1Node||h1Node.hidden)&&(!matrix||matrix.hidden);
- row.dataset.hasH1=String(!!h1Node&&!h1Node.hidden);delete row.dataset.hasCvd;
+ row.dataset.layout='matrix-context';row.setAttribute('role','group');row.setAttribute('aria-label','Ma trận suy luận, tuổi H1 và ΔOI');
+ row.hidden=!matrix||matrix.hidden;
  row.style.top=`${Math.max(8,top-row.offsetHeight-5)}px`;
+}
+function h1MatrixReadout(){
+ let node=$('h1-matrix-readout');
+ if(!node){
+   node=document.createElement('div');node.id='h1-matrix-readout';node.setAttribute('role','status');
+   const summary=document.createElement('span');summary.id='h1-matrix-summary';node.append(summary);
+   $('chart').append(node);
+ }
+ return node;
 }
 function updateH1MatrixReadout(matrix){
  latestH1Matrix=matrix;updatePivotZones();
- let node=$('h1-matrix-readout');
- if(!node){node=document.createElement('div');node.id='h1-matrix-readout';node.setAttribute('role','status');$('chart').append(node);}
- node.hidden=!matrix;if(!matrix){scheduleForecastReadout();return;}
+ const node=h1MatrixReadout(),summary=$('h1-matrix-summary');
+ node.hidden=!usesH1WlrStyle();summary.hidden=!matrix;
+ if(!matrix){
+   summary.replaceChildren();delete node.dataset.labelKey;
+   delete node.dataset.matrix;delete node.dataset.states;delete node.dataset.priceStates;node.title='';
+   scheduleForecastReadout();return;
+ }
  const groups=matrix.groups;
  const last=matrix.columns.at(-1)?.t,stale=Number.isFinite(last)&&Date.now()+serverOffsetMs>last+2*3600000;
  const labels=groups.map(g=>{
@@ -720,7 +731,7 @@ function updateH1MatrixReadout(matrix){
      group.textContent=text;
      label.append(group);
    });
-   node.replaceChildren(label);
+   summary.replaceChildren(label);
    node.dataset.labelKey=key;
  }
  node.dataset.matrix=JSON.stringify(matrix);node.dataset.states=groups.map(g=>g.state).join('|');node.dataset.priceStates=groups.map(g=>g.priceConfirmation?.confirmed?(g.priceConfirmation.direction>0?'UP':'DOWN'):'WAIT').join('|');
@@ -741,19 +752,20 @@ function currentH1TrendAge(){
   return latest;
 }
 function updateH1TrendAgeReadout(){
+  const matrix=h1MatrixReadout();
   let node=$('h1-trend-age-readout');
   if(!node){
-    node=document.createElement('div');node.id='h1-trend-age-readout';node.className='forecast wait';
+    node=document.createElement('span');node.id='h1-trend-age-readout';
     const oi=document.createElement('span');oi.id='h1-oi-status';
     for(const id of ['h1-oi-arrow','h1-oi-percent','h1-oi-flags']){const part=document.createElement('span');part.id=id;oi.append(part);}node.append(oi);
     const age=document.createElement('span');age.id='h1-trend-age-text';node.append(age);
-    const countdown=document.createElement('span');countdown.id='h1-candle-countdown';node.append(countdown);
-    $('geometry-readout').insertAdjacentElement('beforebegin',node);
+    const countdown=document.createElement('span');countdown.id='h1-candle-countdown';countdown.setAttribute('aria-live','off');node.append(countdown);
+    matrix.append(node);
   }
-  const visible=$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';node.hidden=!visible;if(!visible)return;
+  const visible=usesH1WlrStyle();node.hidden=!visible;matrix.hidden=!visible;if(!visible){scheduleForecastReadout();return;}
   const state=currentH1TrendAge(),direction=state?.direction??0,word=direction>0?'↑':direction<0?'↓':'WAIT';
-  $('h1-trend-age-text').textContent=state?`Hộp H1 · ${word} · ${state.ageH1} H1${state.preview?' · XEM TRƯỚC':' · ĐÃ KHÓA'}${h1CacheArchive!==null?' · ĐANG CẬP NHẬT':''}`:'Hộp H1 · WAIT';
-  node.className=`forecast ${direction>0?'up':direction<0?'down':'wait'}`;
+  $('h1-trend-age-text').textContent=state?`${word} ${state.ageH1} H1${state.preview?' · XEM TRƯỚC':' · ĐÃ KHÓA'}${h1CacheArchive!==null?' · ĐANG CẬP NHẬT':''}`:'H1 · WAIT';
+  node.className=direction>0?'up':direction<0?'down':'wait';
   node.title=$('h1-trend-age-text').textContent+'. Hộp H1 đếm các hộp H1 liên tiếp cùng màu với nến: xanh ↑, đỏ ↓, xám WAIT. Đổi màu hoặc sang ngày New York mới sẽ đặt lại tuổi. XEM TRƯỚC gồm hộp H1 đang hình thành và có thể đổi màu. Đồng hồ là thời gian đến hết giờ H1 hiện tại, không xác nhận dữ liệu LIVE.';
   updateH1OiReadout();updateH1CandleCountdown();scheduleForecastReadout();
 }
