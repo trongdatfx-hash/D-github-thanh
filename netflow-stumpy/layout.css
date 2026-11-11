@@ -239,4 +239,11 @@ body.chart-fullscreen::before{display:none}
   }
 }
 
-@media(max-width:650px){#h1-matrix-oi8{font-size:10px}}
+.matrix-label-compact{display:none}
+@media(max-width:650px){
+ #h1-matrix-summary{font-size:10.5px;line-height:1.45}
+ #h1-matrix-oi8{font-size:10.5px;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+ #h1-matrix-summary .matrix-label-full{display:none}
+ #h1-matrix-summary .matrix-label-compact{display:inline}
+ #h1-matrix-readout>#h1-trend-age-readout{column-gap:5px}
+}

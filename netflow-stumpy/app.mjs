@@ -721,8 +721,15 @@ function updateH1MatrixOi8(){
    ?matrixOi8Reading(cache.SPYUSDT??[],matrixOi8Points,Date.now()+(chartLiveResponse?serverOffsetMs:0)):null;
  node.hidden=!latestH1Matrix||!reading;
  if(node.hidden)return null;
- const text=' — '+reading.label+(reading.context?' — '+reading.context:'');
- if(node.textContent!==text){node.textContent=text;scheduleForecastReadout();}
+ const context=reading.context?' · '+reading.context:'';
+ const text=' · '+reading.label+context;
+ const compact=' · '+reading.label.replace(/^Giá (?:tăng|giảm) · /,'')+context;
+ if(node.dataset.label!==text){
+   const full=document.createElement('span'),short=document.createElement('span');
+   full.className='matrix-label-full';full.textContent=text;
+   short.className='matrix-label-compact';short.textContent=compact;
+   node.replaceChildren(full,short);node.dataset.label=text;scheduleForecastReadout();
+ }
  node.dataset.state=reading.state;
  node.title='Strength ΔOI8: hai M15 đã đóng liên tiếp cùng trạng thái; vùng trung tính |ΔOI8| < 0,15. Giá và Taker NF riêng SPY cùng hướng mới diễn giải khả năng đóng vị thế.';
  return reading;
@@ -744,19 +751,23 @@ function updateH1MatrixReadout(matrix){
    let tone='neutral';
    if(confirmation?.confirmed)tone=confirmation.direction>0?'up':'down';
    else if(confirmation?.zone)tone='pending';
-   return {tone,text:`${g.firstBox===null?'H—':`H${g.firstBox}–${g.lastBox}`}: ${g.text}`};
+   const range=g.firstBox===null?'H—':`H${g.firstBox}–${g.lastBox}`;
+   const compact=g.text.split(' · C Taker ')[0].replace('xn 2 M15','XN 2/2').replace('chờ 2 M15 (1/2)','XN 1/2').replace('chờ biên nhóm trước','chờ biên');
+   return {tone,text:`${range}: ${g.text}`,compact:`${range}: ${compact}`};
  });
  const key=JSON.stringify([stale,labels]);
  if(node.dataset.labelKey!==key){
    const label=document.createDocumentFragment();
    if(stale)label.append('H1 CŨ · ');
-   labels.forEach(({tone,text},i)=>{
-     if(i)label.append(' | ');
+   labels.forEach(({tone,text,compact},i)=>{
+     if(i)label.append(' · ');
      const group=document.createElement('span');
      group.className='h1-matrix-group';
      group.dataset.tone=tone;
-     group.textContent=text;
-     label.append(group);
+     const full=document.createElement('span'),short=document.createElement('span');
+     full.className='matrix-label-full';full.textContent=text;
+     short.className='matrix-label-compact';short.textContent=compact;
+     group.append(full,short);label.append(group);
    });
    groupLabel.replaceChildren(label);
    node.dataset.labelKey=key;
@@ -904,7 +915,7 @@ function matrixFlowDetails(state,oi8){
   const {taker,p95,oi,threshold}=state;
   const lines=[`${state.label} · cụm bắt đầu ${flowTime(state.start)}${state.live?' · LIVE':''}`];
   lines.push(`Giá ${clusterPct(state.pricePct)} · OI ròng ${clusterPct(state.oiPct)} từ đầu cụm`);
-  if(oi8)lines.push('Strength ΔOI8 · '+oi8.label+(oi8.values?' · '+oi8.values.map(signed).join(' → '):'')+(oi8.context?' — '+oi8.context:''));
+  if(oi8)lines.push('Strength ΔOI8 · '+oi8.label+(oi8.values?' · '+oi8.values.map(signed).join(' → '):'')+(oi8.context?' · '+oi8.context:''));
   lines.push('Taker toàn cụm · '+(taker?flowAmounts(taker):'chờ dữ liệu'));
   if(Number.isFinite(state.pricePer100K)){
     lines.push(`Giá ${clusterPct(state.pricePer100K)} trên mỗi 100K USDT ${taker.net>0?'mua':'bán'} ròng`);
