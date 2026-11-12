@@ -769,11 +769,11 @@ function updateH1MatrixOi8(){
 }
 const H1_POSITION_LABELS={openLong:'Nghi mở Long',openShort:'Nghi mở Short',closeLong:'Nghi đóng Long',closeShort:'Nghi đóng Short'};
 function smoothH1TakerNet(rawNet,volume,score){
- // Apply the locked score only near 50/50. The adjustment fades to zero at 55/45.
+ // Apply the locked score only near 50/50. The adjustment fades to zero at 58/42.
  if(!(volume>0)||!Number.isFinite(score)||Math.abs(score)<2)return rawNet;
  const imbalance=rawNet/volume;
- const weight=.75*Math.max(0,1-Math.abs(imbalance)/.10);
- const prior=.14*Math.max(-1,Math.min(1,score/5));
+ const weight=.95*Math.max(0,1-Math.abs(imbalance)/.16);
+ const prior=.22*Math.max(-1,Math.min(1,score/5));
  return rawNet+volume*weight*(prior-imbalance);
 }
 function h1GroupPositions(matrix,bars,oiSamples,strengthPoints,now,scores,colors,smoothTaker){
@@ -1644,7 +1644,7 @@ if(init()){
   oi8Toggle.onchange=()=>render(false);
   const matrixTakerLabel=document.createElement('label'),matrixTakerToggle=document.createElement('input');
   matrixTakerToggle.id='h1-matrix-taker-smooth';matrixTakerToggle.type='checkbox';matrixTakerToggle.checked=true;
-  matrixTakerLabel.title='Ma trận H1 SPY M15: điểm H1 đã khóa (|điểm| ≥ 2) điều chỉnh tỷ lệ Taker Buy/Sell trong vùng 45–55%; mạnh nhất ở 50/50.';
+  matrixTakerLabel.title='Ma trận H1 SPY M15: điểm H1 đã khóa (|điểm| ≥ 2) điều chỉnh tỷ lệ Taker Buy/Sell trong vùng 42–58%; mạnh nhất ở 50/50.';
   matrixTakerLabel.append(matrixTakerToggle,'Mượt Buy/Sell theo điểm H1');oi8Label.after(matrixTakerLabel);
   matrixTakerToggle.onchange=()=>{updateH1MatrixReadout(latestH1Matrix);updateMatrixFlowReadout();};
   restoreSavedSetup();syncChartFrameButtons();
