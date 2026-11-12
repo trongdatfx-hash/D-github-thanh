@@ -767,7 +767,65 @@ function updateH1MatrixOi8(){
  node.title='Mỗi M15 đã đóng được phân loại bằng thân giá, Taker riêng SPY và ΔOI8. Nhãn chính cần 3/4 phiếu. Hai nến cuối cùng trạng thái có thể được H1 đã khóa hỗ trợ nếu màu H1 cùng hướng và điểm H1 đạt ±2 theo hướng lực. Xem bản 5/6 và Top Trader trong chi tiết.';
  return reading;
 }
+const H1_POSITION_LABELS={openLong:'Nghi mở Long',openShort:'Nghi mở Short',closeLong:'Nghi đóng Long',closeShort:'Nghi đóng Short'};
+function h1GroupPositions(matrix,bars,oiSamples,strengthPoints,now,scores,colors){
+ const step=900000,hour=4*step,finite=Number.isFinite,byBar=new Map(bars.map(bar=>[bar.t,bar]));
+ const oi=new Map(oiSamples.map(row=>[Number(row.timestamp),Number(row.sumOpenInterest)]));
+ const strength=new Map(strengthPoints.filter(point=>finite(point.value)).map(point=>[point.time*1000,point.value]));
+ const scoreByStart=new Map(scores.filter(score=>score.status==='LOCKED').map(score=>[score.blockStart,score.score]));
+ const coherent=(net,gross)=>gross>0&&Math.abs(net)/gross>=.25;
+ return matrix.groups.map(group=>{
+   const votes={openLong:0,openShort:0,closeLong:0,closeShort:0,unclear:0};
+   const result={state:'unclear',label:'Chưa rõ',reason:'thiếu hộp H1',votes,oiPct:null,strength:null,h1Support:0};
+   const count=matrix.options.size;
+   if(group.count!==count||!finite(group.from)||group.to!==group.from+(count-1)*hour||!(group.to+hour<=now))return result;
+   const times=Array.from({length:count*4},(_,i)=>group.from+i*step);
+   const groupBars=times.map(t=>byBar.get(t));
+   if(groupBars.some(bar=>!bar||bar.sourceComplete===false||(bar.end??bar.t+step-1)!==bar.t+step-1||![bar.o,bar.c,bar.buy,bar.q].every(finite)))return {...result,reason:'thiếu M15'};
+   const levels=[...times,group.to+hour].map(t=>oi.get(t));
+   if(levels.some(value=>!finite(value)||value<=0))return {...result,reason:'thiếu OI'};
+   const changes=levels.slice(1).map((value,i)=>value-levels[i]);
+   let support=0;
+   const oiNet=levels.at(-1)-levels[0],oiPct=100*oiNet/levels[0];
+   for(let i=0;i<count;i++){
+     const start=i*4,boxBars=groupBars.slice(start,start+4),boxChanges=changes.slice(start,start+4);
+     const net=levels[start+4]-levels[start],gross=boxChanges.reduce((sum,value)=>sum+Math.abs(value),0);
+     const price=Math.sign(boxBars.at(-1).c-boxBars[0].o),taker=Math.sign(boxBars.reduce((sum,bar)=>sum+2*bar.buy-bar.q,0));
+     if(!coherent(net,gross)||!price||price!==taker){votes.unclear++;continue;}
+     const state=net>0?(price>0?'openLong':'openShort'):(price>0?'closeShort':'closeLong');
+     votes[state]++;
+   }
+   const values=times.map(t=>strength.get(t)).filter(finite).sort((x,y)=>x-y);
+   const middle=Math.floor(values.length/2),median=values.length%2?values[middle]:(values[middle-1]+values[middle])/2;
+   const evidence={...result,oiPct,strength:finite(median)?median:null};
+   if(values.length<Math.ceil(times.length*2/3))return {...evidence,reason:'thiếu Strength ΔOI8'};
+   if(!coherent(oiNet,changes.reduce((sum,value)=>sum+Math.abs(value),0))||Math.abs(median)<.15)return {...evidence,reason:'OI trung tính'};
+   if(Math.sign(median)!==Math.sign(oiNet))return {...evidence,reason:'OI lệch hướng'};
+   const winner=Object.keys(H1_POSITION_LABELS).find(state=>votes[state]>=Math.ceil(count*2/3));
+   if(!winner)return {...evidence,reason:'phiếu phân tán'};
+   const opening=winner.startsWith('open'),direction=winner==='openLong'||winner==='closeShort'?1:-1;
+   const priceDirection=Math.sign(groupBars.at(-1).c-groupBars[0].o);
+   const takerDirection=Math.sign(groupBars.reduce((sum,bar)=>sum+2*bar.buy-bar.q,0));
+   if(opening!==(oiNet>0)||priceDirection!==direction||takerDirection!==direction)return {...evidence,reason:'giá, Taker hoặc OI lệch phiếu'};
+   for(let t=group.from;t<=group.to;t+=hour){
+     const color=colors.get(t);
+     if(color?.preview===false&&color.blockStart===t&&color.direction===direction&&scoreByStart.get(t)*direction>=2)support++;
+   }
+   return {...evidence,state:winner,label:H1_POSITION_LABELS[winner]+' '+votes[winner]+'/'+count,reason:'',h1Support:support};
+ });
+}
+function h1GroupPositionDetails(position){
+ const {votes,oiPct,strength,reason,h1Support}=position;
+ const figures=[Number.isFinite(oiPct)?'ΔOI '+clusterPct(oiPct):'',Number.isFinite(strength)?'Strength ΔOI8 '+signed(strength):''].filter(Boolean);
+ const tally=Object.entries(H1_POSITION_LABELS).map(([state,label])=>label.replace('Nghi ','')+' '+votes[state]);
+ return [position.label,reason,...figures,...tally,'Chưa rõ '+votes.unclear,...(h1Support?['Điểm/màu H1 cùng hướng '+h1Support]:[])].filter(Boolean).join(' · ');
+}
 function updateH1MatrixReadout(matrix){
+ if(matrix){
+   const hasOi=oiStamp==='15m'&&cache?.interval==='15m';
+   const positions=h1GroupPositions(matrix,cache?.SPYUSDT??[],hasOi?oiAppliedSamples:[],hasOi?matrixOi8Points:[],cache?.serverTime,matrixLockedH1Scores,h1CandleMap);
+   matrix={...matrix,groups:matrix.groups.map((group,i)=>({...group,oiPosition:positions[i]}))};
+ }
  latestH1Matrix=matrix;updatePivotZones();
  const node=h1MatrixReadout(),summary=$('h1-matrix-summary'),groupLabel=$('h1-matrix-groups');
  node.hidden=!usesH1WlrStyle();summary.hidden=!matrix;
@@ -786,7 +844,8 @@ function updateH1MatrixReadout(matrix){
    else if(confirmation?.zone)tone='pending';
    const range=g.firstBox===null?'H—':`H${g.firstBox}–${g.lastBox}`;
    const compact=g.text.split(' · C Taker ')[0].replace('xn 2 M15','XN 2/2').replace('chờ 2 M15 (1/2)','XN 1/2').replace('chờ biên nhóm trước','chờ biên');
-   return {tone,text:`${range}: ${g.text}`,compact:`${range}: ${compact}`};
+   const position=g.oiPosition;
+   return {tone,text:`${range}: ${g.text} · ${position.label}`,compact:`${range}: ${compact} · ${position.label}`};
  });
  const key=JSON.stringify([stale,labels]);
  if(node.dataset.labelKey!==key){
@@ -807,7 +866,7 @@ function updateH1MatrixReadout(matrix){
  }
  node.dataset.matrix=JSON.stringify(matrix);node.dataset.states=groups.map(g=>g.state).join('|');node.dataset.priceStates=groups.map(g=>g.priceConfirmation?.confirmed?(g.priceConfirmation.direction>0?'UP':'DOWN'):'WAIT').join('|');
  const time=t=>Number.isFinite(t)?new Date(t).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'}):'—';
- node.title=`Ma trận ${matrix.columns.length}/${matrix.options.window} hộp H1 đã đóng; ${matrix.options.size} hộp/nhóm. H1 cũ nhất → H${matrix.columns.length} mới nhất; không tính hộp đang chạy. `+groups.map(g=>{const c=g.priceConfirmation,z=c?.zone;return `H${g.firstBox??'—'}–${g.lastBox??'—'} · ${time(g.from)} → ${time(g.to===null?null:g.to+3600000)}: ${g.text}\n${z?`Vùng H${z.firstBox}–${z.lastBox}: ${fmt(z.low)}–${fmt(z.high)}; khóa từ ${time(z.knownAt)}.`:'Thiếu biên nhóm H1 liền trước.'} Giá đóng ${c?.count??0}/2 · đến ${time(c?.asOf)}. Lực: ${g.forceText??g.text}`;}).join('\n')+'\nChỉ xn giá khi 2 M15 đóng liên tiếp vượt cùng mép vùng của nhóm H1 liền trước. Râu xuyên hoặc đóng đúng mép không tính. Nhóm cũ dùng đúng M15 trong nhóm; nhóm gần nhất được cập nhật thêm các M15 đã đóng sau nhóm. C Taker là mô tả lực riêng, không khóa nhãn xn giá. Giá trở lại trong vùng thì về chờ phá. Trendline theo ma trận cũng xác nhận bằng hai đóng cửa, không đòi OI/C Taker/SPY V đồng thuận; không phải dự báo giá.';
+ node.title=`Ma trận ${matrix.columns.length}/${matrix.options.window} hộp H1 đã đóng; ${matrix.options.size} hộp/nhóm. H1 cũ nhất → H${matrix.columns.length} mới nhất; không tính hộp đang chạy. `+groups.map(g=>{const c=g.priceConfirmation,z=c?.zone;return `H${g.firstBox??'—'}–${g.lastBox??'—'} · ${time(g.from)} → ${time(g.to===null?null:g.to+3600000)}: ${g.text}\n${z?`Vùng H${z.firstBox}–${z.lastBox}: ${fmt(z.low)}–${fmt(z.high)}; khóa từ ${time(z.knownAt)}.`:'Thiếu biên nhóm H1 liền trước.'} Giá đóng ${c?.count??0}/2 · đến ${time(c?.asOf)}. Lực: ${g.forceText??g.text}\nVị thế OI: ${h1GroupPositionDetails(g.oiPosition)}`;}).join('\n')+'\nChỉ xn giá khi 2 M15 đóng liên tiếp vượt cùng mép vùng của nhóm H1 liền trước. Râu xuyên hoặc đóng đúng mép không tính. Nhóm cũ dùng đúng M15 trong nhóm; nhóm gần nhất được cập nhật thêm các M15 đã đóng sau nhóm. C Taker là mô tả lực riêng, không khóa nhãn xn giá. Giá trở lại trong vùng thì về chờ phá. Trendline theo ma trận cũng xác nhận bằng hai đóng cửa, không đòi OI/C Taker/SPY V đồng thuận; không phải dự báo giá.';
  scheduleForecastReadout();
 }
 function currentH1TrendAge(){
@@ -1095,6 +1154,9 @@ function updateMatrixFlowReadout(){
     if(oi8&&cache?.interval==='15m'){
       const quick=matrixOi8Reading(cache.SPYUSDT??[],matrixOi8Points,Date.now()+(chartLiveResponse?serverOffsetMs:0),topTraderShares,{window:6});
       lines.push('Đối chiếu 5/6 M15 · '+quick.label+(quick.topTraderContext?' · '+quick.topTraderContext:''));
+    }
+    for(const group of latestH1Matrix?.groups??[]){
+      if(group.oiPosition&&group.firstBox!==null)lines.push(`H${group.firstBox}–${group.lastBox} · ${h1GroupPositionDetails(group.oiPosition)}`);
     }
     const key=lines.join('\n');
     if(body.dataset.content!==key){
