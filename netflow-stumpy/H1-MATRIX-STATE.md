@@ -20,6 +20,10 @@ Quy tắc mô tả, chưa được kiểm định dự báo:
 - Dòng tiền ngược giá ít nhất ceil(2N/3) hộp: xung đột, ưu tiên hơn suy yếu.
 - Thiếu dữ liệu vị trí/dốc/ΔV×NF/OI: ghi thiếu, không quy thành 0; thiếu cả
   nhóm, đứt chuỗi: chờ đủ hộp. RW điều chỉnh không tạo xác nhận độc lập.
+- Tùy chọn “Mượt ΔOI theo điểm H1” chỉ kéo ΔOI và Strength ΔOI8 nhỏ, cùng
+  chiều, về điểm H1 đã khóa từ ±2. Phần OI bị loại khỏi điểm dùng làm prior;
+  ΔOI mạnh, trái chiều hoặc bằng 0 giữ nguyên. Giao diện luôn cho thấy số gốc
+  và số mượt; đây là trợ lực mô tả, không thay xác nhận giá hai M15.
 - Hiển thị giảm đối xứng với tăng, cùng trạng thái chưa đủ xác nhận/chuyển tiếp.
 
 Nhãn một dòng nằm trên tuổi H1, thứ tự trước → mới; thời gian và ma trận chi tiết

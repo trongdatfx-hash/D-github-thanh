@@ -10,6 +10,7 @@ import {mountGptPattern} from './gpt-pattern-ui.mjs?v=20261106-chatflow1';
 import {CurrentOiLoader,RunningOiState} from './oi-current.mjs?v=20261106-oi-live1';
 import {matrixOi8Reading,createM15PositionMemory} from './matrix-oi8-reading.mjs?v=20261112-position-stale';
 import {strengthOi8} from './strength-oi8.mjs?v=20261111-oi8';
+import {h1ScoreWithoutOi,smoothH1OiNet,smoothH1OiStrength} from './h1-oi-score-smooth.mjs?v=20261112-h1-oi-smooth1';
 import {compositeNfSmooth} from './composite-nf-smooth.mjs?v=20261108-c-taker-smooth1';
 import {h1AdaptiveVolumeRows} from './spy-volume-h1.mjs?v=20261105-spyv-h1-1';
 import {OiFastLoader} from './oi-fast-load.mjs?v=20261109-m15-flow1';
@@ -105,7 +106,7 @@ const spyBodyVolumeEnabled=()=>$('spy-volume-body-toggle')?.checked&&$('symbol')
 const nfSmoothEnabled=()=>$('nf-smooth-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
 let matrixOi8Points=[];
 const strengthOi8Enabled=()=>$('strength-oi8-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
-const SETUP_CONTROL_IDS=['h1-matrix-taker-smooth','strength-oi8-toggle','nf-smooth-toggle','nf-smooth-window','symbol','interval','days','signal','composite','alignment','confirmed-delta-toggle','oi-width-toggle','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-h1-box-color','m15-h1-score-color','cvd-spectrum-toggle','large-taker-toggle','large-taker-percentile','h1-oi-markers-toggle','oi-candle-bars-toggle','oi-candle-pin-toggle','oi-delta-percentile','oi-bold-candles-toggle','show-strength','spy-volume-strength','spy-volume-body-toggle','spy-volume-h1-smooth','h1-score-line-toggle','bands','markers','double-tap-full','geometry-toggle','geometry-matrix-toggle','geometry-provisional','causal-trend-channel','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
+const SETUP_CONTROL_IDS=['h1-matrix-taker-smooth','h1-matrix-oi-smooth','strength-oi8-toggle','nf-smooth-toggle','nf-smooth-window','symbol','interval','days','signal','composite','alignment','confirmed-delta-toggle','oi-width-toggle','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-h1-box-color','m15-h1-score-color','cvd-spectrum-toggle','large-taker-toggle','large-taker-percentile','h1-oi-markers-toggle','oi-candle-bars-toggle','oi-candle-pin-toggle','oi-delta-percentile','oi-bold-candles-toggle','show-strength','spy-volume-strength','spy-volume-body-toggle','spy-volume-h1-smooth','h1-score-line-toggle','bands','markers','double-tap-full','geometry-toggle','geometry-matrix-toggle','geometry-provisional','causal-trend-channel','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
 let statsMap=new Map(),candleColorMap=new Map(),candleClusterMap=new Map(),matrixFlowWindow=null,pivotZoneState={ready:false,reason:'history',support:null,resistance:null},pivotZoneKey='',inspectedTime=null;
 let calendarState={events:[],updatedAt:null,loading:false};
 let pendingSavedTimeRange=null,saveSetupTimer=null,strengthBoxLayer=null,quantileLayer=null;
@@ -776,15 +777,15 @@ function smoothH1TakerNet(rawNet,volume,score){
  const prior=.22*Math.max(-1,Math.min(1,score/5));
  return rawNet+volume*weight*(prior-imbalance);
 }
-function h1GroupPositions(matrix,bars,oiSamples,strengthPoints,now,scores,colors,smoothTaker){
+function h1GroupPositions(matrix,bars,oiSamples,strengthPoints,now,scores,colors,smoothTaker,smoothOi){
  const step=900000,hour=4*step,finite=Number.isFinite,byBar=new Map(bars.map(bar=>[bar.t,bar]));
  const oi=new Map(oiSamples.map(row=>[Number(row.timestamp),Number(row.sumOpenInterest)]));
  const strength=new Map(strengthPoints.filter(point=>finite(point.value)).map(point=>[point.time*1000,point.value]));
- const scoreByStart=new Map(scores.filter(score=>score.status==='LOCKED').map(score=>[score.blockStart,score.score]));
+  const scoreByStart=new Map(scores.filter(score=>score.status==='LOCKED').map(score=>[score.blockStart,score]));
  const coherent=(net,gross)=>gross>0&&Math.abs(net)/gross>=.25;
  return matrix.groups.map(group=>{
    const votes={openLong:0,openShort:0,closeLong:0,closeShort:0,unclear:0};
-   const result={state:'unclear',label:'Chưa rõ',reason:'thiếu hộp H1',votes,oiPct:null,strength:null,h1Support:0,takerBuyRaw:null,takerBuyUsed:null};
+    const result={state:'unclear',label:'Chưa rõ',reason:'thiếu hộp H1',votes,oiPct:null,oiPctRaw:null,oiPctUsed:null,strength:null,strengthRaw:null,strengthUsed:null,oiSmoothed:false,h1Support:0,takerBuyRaw:null,takerBuyUsed:null};
    const count=matrix.options.size;
    if(group.count!==count||!finite(group.from)||group.to!==group.from+(count-1)*hour||!(group.to+hour<=now))return result;
    const times=Array.from({length:count*4},(_,i)=>group.from+i*step);
@@ -793,29 +794,32 @@ function h1GroupPositions(matrix,bars,oiSamples,strengthPoints,now,scores,colors
    const levels=[...times,group.to+hour].map(t=>oi.get(t));
    if(levels.some(value=>!finite(value)||value<=0))return {...result,reason:'thiếu OI'};
    const changes=levels.slice(1).map((value,i)=>value-levels[i]);
-   let support=0,takerVolume=0,rawGroupNet=0,groupNet=0;
-   const oiNet=levels.at(-1)-levels[0],oiPct=100*oiNet/levels[0];
+    let support=0,takerVolume=0,rawGroupNet=0,groupNet=0,rawOiNet=levels.at(-1)-levels[0],oiNet=0;
+    const oiPctRaw=100*rawOiNet/levels[0];
    for(let i=0;i<count;i++){
      const start=i*4,boxBars=groupBars.slice(start,start+4),boxChanges=changes.slice(start,start+4);
-     const net=levels[start+4]-levels[start],gross=boxChanges.reduce((sum,value)=>sum+Math.abs(value),0);
+      const rawOiNet=levels[start+4]-levels[start],gross=boxChanges.reduce((sum,value)=>sum+Math.abs(value),0);
      const rawNet=boxBars.reduce((sum,bar)=>sum+2*bar.buy-bar.q,0);
      const volume=boxBars.reduce((sum,bar)=>sum+bar.q,0);
-     const score=scoreByStart.get(times[start]);
+      const scoreRecord=scoreByStart.get(times[start]),score=scoreRecord?.score,oiScore=h1ScoreWithoutOi(scoreRecord);
      const validVolume=boxBars.every(bar=>bar.buy>=0&&bar.buy<=bar.q);
      const takerNet=smoothTaker&&validVolume?smoothH1TakerNet(rawNet,volume,score):rawNet;
+      const oiBoxNet=smoothOi?smoothH1OiNet(rawOiNet,levels[start],oiScore):rawOiNet;
      takerVolume+=volume;rawGroupNet+=rawNet;groupNet+=takerNet;
+      oiNet+=oiBoxNet;
      const price=Math.sign(boxBars.at(-1).c-boxBars[0].o),taker=Math.sign(takerNet);
-     if(!coherent(net,gross)||!price||price!==taker){votes.unclear++;continue;}
-     const state=net>0?(price>0?'openLong':'openShort'):(price>0?'closeShort':'closeLong');
+      if(!coherent(oiBoxNet,gross)||!price||price!==taker){votes.unclear++;continue;}
+      const state=oiBoxNet>0?(price>0?'openLong':'openShort'):(price>0?'closeShort':'closeLong');
      votes[state]++;
    }
-   const values=times.map(t=>strength.get(t)).filter(finite).sort((x,y)=>x-y);
-   const middle=Math.floor(values.length/2),median=values.length%2?values[middle]:(values[middle-1]+values[middle])/2;
+    const medianOf=values=>{const ordered=values.filter(finite).sort((x,y)=>x-y),middle=Math.floor(ordered.length/2);return {count:ordered.length,value:ordered.length%2?ordered[middle]:(ordered[middle-1]+ordered[middle])/2}};
+    const rawStrength=times.map(t=>strength.get(t)),usedStrength=times.map((t,index)=>smoothOi?smoothH1OiStrength(strength.get(t),h1ScoreWithoutOi(scoreByStart.get(times[Math.floor(index/4)*4]))):strength.get(t));
+    const rawMedian=medianOf(rawStrength),median=medianOf(usedStrength),oiPctUsed=100*oiNet/levels[0];
    const buyShare=net=>takerVolume>0&&Math.abs(net)<=takerVolume?50*(1+net/takerVolume):null;
-   const evidence={...result,oiPct,strength:finite(median)?median:null,takerBuyRaw:buyShare(rawGroupNet),takerBuyUsed:buyShare(groupNet)};
-   if(values.length<Math.ceil(times.length*2/3))return {...evidence,reason:'thiếu Strength ΔOI8'};
-   if(!coherent(oiNet,changes.reduce((sum,value)=>sum+Math.abs(value),0))||Math.abs(median)<.15)return {...evidence,reason:'OI trung tính'};
-   if(Math.sign(median)!==Math.sign(oiNet))return {...evidence,reason:'OI lệch hướng'};
+    const evidence={...result,oiPct:smoothOi?oiPctUsed:oiPctRaw,oiPctRaw,oiPctUsed,strength:finite(median.value)?median.value:null,strengthRaw:finite(rawMedian.value)?rawMedian.value:null,strengthUsed:finite(median.value)?median.value:null,oiSmoothed:!!smoothOi,takerBuyRaw:buyShare(rawGroupNet),takerBuyUsed:buyShare(groupNet)};
+    if(median.count<Math.ceil(times.length*2/3))return {...evidence,reason:'thiếu Strength ΔOI8'};
+    if(!coherent(oiNet,changes.reduce((sum,value)=>sum+Math.abs(value),0))||Math.abs(median.value)<.15)return {...evidence,reason:'OI trung tính'};
+    if(Math.sign(median.value)!==Math.sign(oiNet))return {...evidence,reason:'OI lệch hướng'};
    const winner=Object.keys(H1_POSITION_LABELS).find(state=>votes[state]>=Math.ceil(count*2/3));
    if(!winner)return {...evidence,reason:'phiếu phân tán'};
    const opening=winner.startsWith('open'),direction=winner==='openLong'||winner==='closeShort'?1:-1;
@@ -824,14 +828,16 @@ function h1GroupPositions(matrix,bars,oiSamples,strengthPoints,now,scores,colors
    if(opening!==(oiNet>0)||priceDirection!==direction||takerDirection!==direction)return {...evidence,reason:'giá, Taker hoặc OI lệch phiếu'};
    for(let t=group.from;t<=group.to;t+=hour){
      const color=colors.get(t);
-     if(color?.preview===false&&color.blockStart===t&&color.direction===direction&&scoreByStart.get(t)*direction>=2)support++;
+      if(color?.preview===false&&color.blockStart===t&&color.direction===direction&&scoreByStart.get(t)?.score*direction>=2)support++;
    }
    return {...evidence,state:winner,label:H1_POSITION_LABELS[winner]+' '+votes[winner]+'/'+count,reason:'',h1Support:support};
  });
 }
 function h1GroupPositionDetails(position){
- const {votes,oiPct,strength,reason,h1Support,takerBuyRaw,takerBuyUsed}=position;
- const figures=[Number.isFinite(oiPct)?'ΔOI '+clusterPct(oiPct):'',Number.isFinite(strength)?'Strength ΔOI8 '+signed(strength):''].filter(Boolean);
+  const {votes,oiPct,oiPctRaw,oiPctUsed,strength,strengthRaw,strengthUsed,oiSmoothed,reason,h1Support,takerBuyRaw,takerBuyUsed}=position;
+  const oiText=oiSmoothed&&Number.isFinite(oiPctRaw)&&Number.isFinite(oiPctUsed)?`ΔOI gốc ${clusterPct(oiPctRaw)} → mượt ${clusterPct(oiPctUsed)}`:Number.isFinite(oiPct)?'ΔOI '+clusterPct(oiPct):'';
+  const strengthText=oiSmoothed&&Number.isFinite(strengthRaw)&&Number.isFinite(strengthUsed)?`Strength ΔOI8 gốc ${signed(strengthRaw)} → mượt ${signed(strengthUsed)}`:Number.isFinite(strength)?'Strength ΔOI8 '+signed(strength):'';
+  const figures=[oiText,strengthText].filter(Boolean);
  const shares=buy=>`${buy.toFixed(2)}/${(100-buy).toFixed(2)}%`;
  if(Number.isFinite(takerBuyRaw)&&Number.isFinite(takerBuyUsed))figures.push(`Taker Buy/Sell gốc ${shares(takerBuyRaw)} · dùng ${shares(takerBuyUsed)}`);
  const tally=Object.entries(H1_POSITION_LABELS).map(([state,label])=>label.replace('Nghi ','')+' '+votes[state]);
@@ -840,7 +846,7 @@ function h1GroupPositionDetails(position){
 function updateH1MatrixReadout(matrix){
  if(matrix){
    const hasOi=oiStamp==='15m'&&cache?.interval==='15m';
-   const positions=h1GroupPositions(matrix,cache?.SPYUSDT??[],hasOi?oiAppliedSamples:[],hasOi?matrixOi8Points:[],cache?.serverTime,matrixLockedH1Scores,h1CandleMap,$('h1-matrix-taker-smooth')?.checked??true);
+    const positions=h1GroupPositions(matrix,cache?.SPYUSDT??[],hasOi?oiAppliedSamples:[],hasOi?matrixOi8Points:[],cache?.serverTime,matrixLockedH1Scores,h1CandleMap,$('h1-matrix-taker-smooth')?.checked??true,$('h1-matrix-oi-smooth')?.checked??true);
    matrix={...matrix,groups:matrix.groups.map((group,i)=>({...group,oiPosition:positions[i]}))};
  }
  latestH1Matrix=matrix;updatePivotZones();
@@ -1647,6 +1653,11 @@ if(init()){
   matrixTakerLabel.title='Ma trận H1 SPY M15: điểm H1 đã khóa (|điểm| ≥ 2) điều chỉnh tỷ lệ Taker Buy/Sell trong vùng 42–58%; mạnh nhất ở 50/50.';
   matrixTakerLabel.append(matrixTakerToggle,'Mượt Buy/Sell theo điểm H1');oi8Label.after(matrixTakerLabel);
   matrixTakerToggle.onchange=()=>{updateH1MatrixReadout(latestH1Matrix);updateMatrixFlowReadout();};
+  const matrixOiLabel=document.createElement('label'),matrixOiToggle=document.createElement('input');
+  matrixOiToggle.id='h1-matrix-oi-smooth';matrixOiToggle.type='checkbox';matrixOiToggle.checked=true;
+  matrixOiLabel.title='Ma trận H1 SPY M15: chỉ khi ΔOI gốc cùng chiều và gần trung tính, điểm H1 đã khóa từ ±2 (bỏ thành phần OI để không tự xác nhận) mới kéo nhẹ ΔOI và Strength ΔOI8 theo hướng điểm. ΔOI mạnh, trái chiều hoặc bằng 0 giữ nguyên; chi tiết luôn hiển thị cả gốc và mượt.';
+  matrixOiLabel.append(matrixOiToggle,'Mượt ΔOI theo điểm H1');matrixTakerLabel.after(matrixOiLabel);
+  matrixOiToggle.onchange=()=>{updateH1MatrixReadout(latestH1Matrix);updateMatrixFlowReadout();};
   restoreSavedSetup();syncChartFrameButtons();
   // Restore the C histogram once for setups saved before the taker plot cleanup.
   // Subsequent user choices remain under the normal Save setup control.
