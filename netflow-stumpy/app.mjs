@@ -8,7 +8,7 @@ import {pivotMatrixStyle} from './pivot-matrix-style.mjs?v=20261107-pivot-matrix
 import {matrixOptions,mountMatrixSettings} from './h1-matrix-state.mjs?v=20261108-matrix-label-no-oi1';
 import {mountGptPattern} from './gpt-pattern-ui.mjs?v=20261106-chatflow1';
 import {CurrentOiLoader,RunningOiState} from './oi-current.mjs?v=20261106-oi-live1';
-import {matrixOi8Reading} from './matrix-oi8-reading.mjs?v=20261112-top-trader';
+import {matrixOi8Reading} from './matrix-oi8-reading.mjs?v=20261112-oi-vote';
 import {strengthOi8} from './strength-oi8.mjs?v=20261111-oi8';
 import {compositeNfSmooth} from './composite-nf-smooth.mjs?v=20261108-c-taker-smooth1';
 import {h1AdaptiveVolumeRows} from './spy-volume-h1.mjs?v=20261105-spyv-h1-1';
@@ -748,7 +748,7 @@ function updateH1MatrixOi8(){
    node.replaceChildren(full,short);node.dataset.label=text;scheduleForecastReadout();
  }
  node.dataset.state=reading.state;
- node.title='Strength ΔOI8: hai M15 đã đóng liên tiếp cùng trạng thái; vùng trung tính |ΔOI8| < 0,15. Nghi mở/đóng vị thế khi giá, Taker NF riêng SPY và biến động tỷ trọng Long của Top Trader đồng thuận. Top Trader: ±0,2 điểm % qua 2 M15.';
+ node.title='Strength ΔOI8: ít nhất 6/8 M15 đã đóng cùng vùng; 2/3 nến cuối khác vùng báo chuyển tiếp. Trung tính khi |ΔOI8| < 0,15. Giá, Taker riêng SPY và Top Trader so trên cùng 8 M15.';
  return reading;
 }
 function updateH1MatrixReadout(matrix){
@@ -932,7 +932,7 @@ function matrixFlowDetails(state,oi8){
   const {taker,p95,oi,threshold}=state;
   const lines=[`${state.label} · cụm bắt đầu ${flowTime(state.start)}${state.live?' · LIVE':''}`];
   lines.push(`Giá ${clusterPct(state.pricePct)} · OI ròng ${clusterPct(state.oiPct)} từ đầu cụm`);
-  if(oi8)lines.push('Strength ΔOI8 · '+oi8.label+(oi8.values?' · '+oi8.values.map(signed).join(' → '):'')+(oi8.context?' · '+oi8.context:'')+(Number.isFinite(oi8.topTraderDelta)?' · Top Trader Δ tỷ trọng Long '+signed(100*oi8.topTraderDelta)+' điểm %':''));
+  if(oi8)lines.push('Strength ΔOI8 · '+oi8.label+(oi8.votes?' · Thu hẹp '+oi8.votes[0]+' · Trung tính '+oi8.votes[1]+' · Mở rộng '+oi8.votes[2]:'')+(oi8.values?' · '+oi8.values.map(signed).join(' → '):'')+(oi8.context?' · '+oi8.context:'')+(Number.isFinite(oi8.topTraderDelta)?' · Top Trader Δ tỷ trọng Long '+signed(100*oi8.topTraderDelta)+' điểm %':''));
   lines.push('Taker toàn cụm · '+(taker?flowAmounts(taker):'chờ dữ liệu'));
   if(Number.isFinite(state.pricePer100K)){
     lines.push(`Giá ${clusterPct(state.pricePer100K)} trên mỗi 100K USDT ${taker.net>0?'mua':'bán'} ròng`);
@@ -1068,6 +1068,10 @@ function updateMatrixFlowReadout(){
   node.onclick=showMatrixFlowDetails;
   if($('m15-flow-dialog')?.open){
     const body=$('m15-flow-dialog-body'),lines=matrixFlowDetails(state,oi8);
+    if(oi8&&cache?.interval==='15m'){
+      const quick=matrixOi8Reading(cache.SPYUSDT??[],matrixOi8Points,Date.now()+(chartLiveResponse?serverOffsetMs:0),topTraderShares,{window:6});
+      lines.push('Đối chiếu 5/6 M15 · '+quick.label+(quick.context?' · '+quick.context:''));
+    }
     const key=lines.join('\n');
     if(body.dataset.content!==key){
       body.dataset.content=key;

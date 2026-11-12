@@ -45,22 +45,24 @@ test('real M15 pipeline preserves H1/weekday outputs without old age predictions
  assert.ok(r.h1CandleColors.every(c=>Number.isFinite(c.blockStart)&&[-1,0,1].includes(c.direction)));
 });
 
-test('matrix OI8 needs closed SPY price, flow and matching Top Trader positioning',()=>{
- const step=STEPS['15m'], bars=[10,11,12,13].map((c,i)=>({t:i*step,c,buy:70,q:100}));
- const top=shares=>new Map(shares.map((share,i)=>[(i+1)*step,share]));
- const long=top([.50,.501,.504]),short=top([.50,.499,.496]);
- const down=bars.map((bar,i)=>({...bar,c:20-i,buy:30}));
- const read=(values,source=bars,positions=long,now=3*step)=>matrixOi8Reading(source,values.map((value,i)=>({time:i*step/1000,value})),now,positions);
- assert.equal(read([0,-.5,-.6,.9]).context,'Nghi đóng Short');
- assert.equal(read([0,-.5,-.6,.9],down,short).context,'Nghi đóng Long');
- assert.equal(read([0,.2,.3,-.4]).context,'Nghi mở Long');
- assert.equal(read([0,.2,.3,-.4],down,short).context,'Nghi mở Short');
- assert.equal(read([0,-.5,-.6,.9],bars,short).context,'Lệch Top Trader');
- assert.equal(read([0,-.5,-.6,.9],bars,top([.50,.50,.501])).context,'Top Trader trung tính');
- assert.equal(read([0,-.5,-.6,.9],bars,top([.50])).context,'Chờ Top Trader');
- assert.equal(read([0,-.5,-.6,.9],bars.map(bar=>({...bar,buy:30}))).context,'Giá–Taker chưa đồng thuận');
- assert.equal(read([0,.09,-.1,.4]).state,'neutral');
- assert.equal(read([0,.2,-.3,.4]).state,'pending');
- assert.equal(read([0,undefined,-.3,.4]).state,'wait');
- assert.equal(read([0,.2,.3,-.4],bars.slice(0,3),long,4*step).state,'wait');
+test('matrix OI8 votes on closed candles and confirms positioning over the same window',()=>{
+ const step=STEPS['15m'], bars=Array.from({length:10},(_,i)=>({t:i*step,c:100+i,buy:70,q:100}));
+ const down=bars.map((b,i)=>({...b,c:100-i,buy:30}));
+ const top=sign=>new Map(bars.map((b,i)=>[b.t+step,.5+sign*i*.001]));
+ const pos=Array(8).fill(.4),neg=Array(8).fill(-.4);
+ const read=(values,source=bars,positions=top(1),options)=>matrixOi8Reading(source,[0,...values,.9].map((value,i)=>({time:i*step/1000,value})),9*step,positions,options);
+ assert.equal(read(pos).context,'Nghi mở Long');
+ assert.equal(read(pos,down,top(-1)).context,'Nghi mở Short');
+ assert.equal(read(neg).context,'Nghi đóng Short');
+ assert.equal(read(neg,down,top(-1)).context,'Nghi đóng Long');
+ assert.equal(read(pos,bars,top(-1)).context,'Lệch Top Trader');
+ assert.equal(read(pos,bars,new Map()).context,'Chờ Top Trader');
+ assert.equal(read(pos,bars,top(0)).context,'Top Trader trung tính');
+ assert.equal(read([.15,.15,.15,.15,.15,.15,0,.15]).label,'Giá tăng · OI mở rộng 7/8');
+ assert.equal(read(Array(8).fill(0)).label,'OI trung tính 8/8');
+ assert.equal(read([...neg.slice(0,6),.4,.4]).state,'pending');
+ assert.equal(read([...neg.slice(0,5),.4,.4,.4]).state,'mixed');
+ assert.equal(read([undefined,...pos.slice(1)]).state,'wait');
+ assert.equal(read(pos,bars.filter((_,i)=>i!==4)).state,'wait');
+ assert.equal(read([0,0,0,.4,.4,.4,.4,.4],bars,top(1),{window:6}).label,'Giá tăng · OI mở rộng 5/6');
 });
