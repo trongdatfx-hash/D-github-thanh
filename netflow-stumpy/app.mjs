@@ -8,7 +8,7 @@ import {pivotMatrixStyle} from './pivot-matrix-style.mjs?v=20261107-pivot-matrix
 import {matrixOptions,mountMatrixSettings} from './h1-matrix-state.mjs?v=20261108-matrix-label-no-oi1';
 import {mountGptPattern} from './gpt-pattern-ui.mjs?v=20261106-chatflow1';
 import {CurrentOiLoader,RunningOiState} from './oi-current.mjs?v=20261106-oi-live1';
-import {matrixOi8Reading} from './matrix-oi8-reading.mjs?v=20261112-h1-smooth';
+import {matrixOi8Reading,createM15PositionMemory} from './matrix-oi8-reading.mjs?v=20261112-position-stale';
 import {strengthOi8} from './strength-oi8.mjs?v=20261111-oi8';
 import {compositeNfSmooth} from './composite-nf-smooth.mjs?v=20261108-c-taker-smooth1';
 import {h1AdaptiveVolumeRows} from './spy-volume-h1.mjs?v=20261105-spyv-h1-1';
@@ -732,11 +732,14 @@ async function refreshMatrixTopTrader(){
    updateMatrixFlowReadout();
  }catch{/* The next refresh retries without affecting price or OI. */}
 }
+const readM15PositionWithMemory=createM15PositionMemory(colorStorage());
 function updateH1MatrixOi8(){
  const node=$('h1-matrix-oi8');if(!node)return null;
- const reading=usesH1WlrStyle()&&cache?.interval==='15m'&&oiStamp==='15m'
+ const current=usesH1WlrStyle()&&cache?.interval==='15m'&&oiStamp==='15m'
    ?matrixOi8Reading(cache.SPYUSDT??[],matrixOi8Points,Date.now()+(chartLiveResponse?serverOffsetMs:0),topTraderShares,{h1Scores:matrixLockedH1Scores,h1Colors:h1CandleMap}):null;
- if(reading&&latestH1Matrix&&chartLiveResponse)void refreshMatrixTopTrader();
+ const reading=usesH1WlrStyle()&&latestH1Matrix
+   ?readM15PositionWithMemory(current??{state:'wait',label:'ΔOI8 chờ dữ liệu'}):null;
+ if(current&&latestH1Matrix&&chartLiveResponse)void refreshMatrixTopTrader();
  node.hidden=!latestH1Matrix||!reading;
  if(node.hidden)return null;
  const text=' · '+reading.label;

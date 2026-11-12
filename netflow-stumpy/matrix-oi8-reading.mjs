@@ -57,3 +57,22 @@ export function matrixOi8Reading(bars, points, now, topTrader=new Map(), {window
     Math.sign(topTraderDelta)===flow?'Top Trader cùng hướng':'Lệch Top Trader';
   return {...reading,topTraderDelta,topTraderContext};
 }
+
+const POSITION_CACHE_KEY='netflow:spyusdt:m15:last-position:v1';
+const POSITION_LABEL=/^Nghi (?:mở|đóng) (?:Long|Short) (?:[34]\/4|2\/4 · H1)$/u;
+
+export function createM15PositionMemory(storage){
+  let label;
+  return reading=>{
+    if(label===undefined){
+      try{label=storage?.getItem(POSITION_CACHE_KEY)??'';}catch{label='';}
+      if(!POSITION_LABEL.test(label))label='';
+    }
+    if(reading.state==='wait'&&label)return {state:'stale',label:label+' · cũ'};
+    if(POSITION_LABEL.test(reading.label)&&reading.label!==label){
+      label=reading.label;
+      try{storage?.setItem(POSITION_CACHE_KEY,label);}catch{/* Retain in memory. */}
+    }
+    return reading;
+  };
+}
