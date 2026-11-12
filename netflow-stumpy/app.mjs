@@ -10,7 +10,7 @@ import {mountGptPattern} from './gpt-pattern-ui.mjs?v=20261106-chatflow1';
 import {CurrentOiLoader,RunningOiState} from './oi-current.mjs?v=20261106-oi-live1';
 import {matrixOi8Reading,createM15PositionMemory} from './matrix-oi8-reading.mjs?v=20261112-position-stale';
 import {strengthOi8} from './strength-oi8.mjs?v=20261111-oi8';
-import {h1ScoreWithoutOi,smoothH1OiNet,smoothH1OiStrength} from './h1-oi-score-smooth.mjs?v=20261112-h1-oi-smooth1';
+import {h1ScoreWithoutOi,m15OiEndpointWeight,smoothH1OiNet,smoothH1OiStrength} from './h1-oi-score-smooth.mjs?v=20261112-h1-oi-m15-endpoints1';
 import {compositeNfSmooth} from './composite-nf-smooth.mjs?v=20261108-c-taker-smooth1';
 import {h1AdaptiveVolumeRows} from './spy-volume-h1.mjs?v=20261105-spyv-h1-1';
 import {OiFastLoader} from './oi-fast-load.mjs?v=20261109-m15-flow1';
@@ -785,7 +785,7 @@ function h1GroupPositions(matrix,bars,oiSamples,strengthPoints,now,scores,colors
  const coherent=(net,gross)=>gross>0&&Math.abs(net)/gross>=.25;
  return matrix.groups.map(group=>{
    const votes={openLong:0,openShort:0,closeLong:0,closeShort:0,unclear:0};
-    const result={state:'unclear',label:'Chưa rõ',reason:'thiếu hộp H1',votes,oiPct:null,oiPctRaw:null,oiPctUsed:null,strength:null,strengthRaw:null,strengthUsed:null,oiSmoothed:false,h1Support:0,takerBuyRaw:null,takerBuyUsed:null};
+    const result={state:'unclear',label:'Chưa rõ',reason:'thiếu hộp H1',votes,oiPct:null,oiPctRaw:null,oiPctUsed:null,strength:null,strengthRaw:null,strengthUsed:null,endpointWeight:null,oiSmoothed:false,h1Support:0,takerBuyRaw:null,takerBuyUsed:null};
    const count=matrix.options.size;
    if(group.count!==count||!finite(group.from)||group.to!==group.from+(count-1)*hour||!(group.to+hour<=now))return result;
    const times=Array.from({length:count*4},(_,i)=>group.from+i*step);
@@ -795,6 +795,7 @@ function h1GroupPositions(matrix,bars,oiSamples,strengthPoints,now,scores,colors
    if(levels.some(value=>!finite(value)||value<=0))return {...result,reason:'thiếu OI'};
    const changes=levels.slice(1).map((value,i)=>value-levels[i]);
     let support=0,takerVolume=0,rawGroupNet=0,groupNet=0,rawOiNet=levels.at(-1)-levels[0],oiNet=0;
+    const flowByStart=new Map(),endpointWeightByStart=new Map(),endpointWeights=[];
     const oiPctRaw=100*rawOiNet/levels[0];
    for(let i=0;i<count;i++){
      const start=i*4,boxBars=groupBars.slice(start,start+4),boxChanges=changes.slice(start,start+4);
@@ -804,19 +805,23 @@ function h1GroupPositions(matrix,bars,oiSamples,strengthPoints,now,scores,colors
       const scoreRecord=scoreByStart.get(times[start]),score=scoreRecord?.score,oiScore=h1ScoreWithoutOi(scoreRecord);
      const validVolume=boxBars.every(bar=>bar.buy>=0&&bar.buy<=bar.q);
      const takerNet=smoothTaker&&validVolume?smoothH1TakerNet(rawNet,volume,score):rawNet;
-      const oiBoxNet=smoothOi?smoothH1OiNet(rawOiNet,levels[start],oiScore):rawOiNet;
+      const price=Math.sign(boxBars.at(-1).c-boxBars[0].o),taker=Math.sign(takerNet),flowDirection=price&&price===taker?price:0;
+      const endpoint=m15OiEndpointWeight(levels.slice(start,start+5)),endpointWeight=endpoint?.weight??0;
+      const oiBoxNet=smoothOi?smoothH1OiNet(rawOiNet,levels[start],oiScore,flowDirection,endpointWeight):rawOiNet;
      takerVolume+=volume;rawGroupNet+=rawNet;groupNet+=takerNet;
       oiNet+=oiBoxNet;
-     const price=Math.sign(boxBars.at(-1).c-boxBars[0].o),taker=Math.sign(takerNet);
+      flowByStart.set(times[start],flowDirection);
+      endpointWeightByStart.set(times[start],endpointWeight);endpointWeights.push(endpointWeight);
       if(!coherent(oiBoxNet,gross)||!price||price!==taker){votes.unclear++;continue;}
       const state=oiBoxNet>0?(price>0?'openLong':'openShort'):(price>0?'closeShort':'closeLong');
      votes[state]++;
    }
     const medianOf=values=>{const ordered=values.filter(finite).sort((x,y)=>x-y),middle=Math.floor(ordered.length/2);return {count:ordered.length,value:ordered.length%2?ordered[middle]:(ordered[middle-1]+ordered[middle])/2}};
-    const rawStrength=times.map(t=>strength.get(t)),usedStrength=times.map((t,index)=>smoothOi?smoothH1OiStrength(strength.get(t),h1ScoreWithoutOi(scoreByStart.get(times[Math.floor(index/4)*4]))):strength.get(t));
+    const rawStrength=times.map(t=>strength.get(t)),usedStrength=times.map((t,index)=>{const start=times[Math.floor(index/4)*4];return smoothOi?smoothH1OiStrength(strength.get(t),h1ScoreWithoutOi(scoreByStart.get(start)),flowByStart.get(start),endpointWeightByStart.get(start)):strength.get(t);});
     const rawMedian=medianOf(rawStrength),median=medianOf(usedStrength),oiPctUsed=100*oiNet/levels[0];
    const buyShare=net=>takerVolume>0&&Math.abs(net)<=takerVolume?50*(1+net/takerVolume):null;
-    const evidence={...result,oiPct:smoothOi?oiPctUsed:oiPctRaw,oiPctRaw,oiPctUsed,strength:finite(median.value)?median.value:null,strengthRaw:finite(rawMedian.value)?rawMedian.value:null,strengthUsed:finite(median.value)?median.value:null,oiSmoothed:!!smoothOi,takerBuyRaw:buyShare(rawGroupNet),takerBuyUsed:buyShare(groupNet)};
+    const endpointWeight=endpointWeights.length?endpointWeights.reduce((sum,value)=>sum+value,0)/endpointWeights.length:null;
+    const evidence={...result,oiPct:smoothOi?oiPctUsed:oiPctRaw,oiPctRaw,oiPctUsed,strength:finite(median.value)?median.value:null,strengthRaw:finite(rawMedian.value)?rawMedian.value:null,strengthUsed:finite(median.value)?median.value:null,endpointWeight,oiSmoothed:!!smoothOi,takerBuyRaw:buyShare(rawGroupNet),takerBuyUsed:buyShare(groupNet)};
     if(median.count<Math.ceil(times.length*2/3))return {...evidence,reason:'thiếu Strength ΔOI8'};
     if(!coherent(oiNet,changes.reduce((sum,value)=>sum+Math.abs(value),0))||Math.abs(median.value)<.15)return {...evidence,reason:'OI trung tính'};
     if(Math.sign(median.value)!==Math.sign(oiNet))return {...evidence,reason:'OI lệch hướng'};
@@ -834,10 +839,11 @@ function h1GroupPositions(matrix,bars,oiSamples,strengthPoints,now,scores,colors
  });
 }
 function h1GroupPositionDetails(position){
-  const {votes,oiPct,oiPctRaw,oiPctUsed,strength,strengthRaw,strengthUsed,oiSmoothed,reason,h1Support,takerBuyRaw,takerBuyUsed}=position;
+  const {votes,oiPct,oiPctRaw,oiPctUsed,strength,strengthRaw,strengthUsed,endpointWeight,oiSmoothed,reason,h1Support,takerBuyRaw,takerBuyUsed}=position;
   const oiText=oiSmoothed&&Number.isFinite(oiPctRaw)&&Number.isFinite(oiPctUsed)?`ΔOI gốc ${clusterPct(oiPctRaw)} → mượt ${clusterPct(oiPctUsed)}`:Number.isFinite(oiPct)?'ΔOI '+clusterPct(oiPct):'';
   const strengthText=oiSmoothed&&Number.isFinite(strengthRaw)&&Number.isFinite(strengthUsed)?`Strength ΔOI8 gốc ${signed(strengthRaw)} → mượt ${signed(strengthUsed)}`:Number.isFinite(strength)?'Strength ΔOI8 '+signed(strength):'';
-  const figures=[oiText,strengthText].filter(Boolean);
+  const matrixWeightText=oiSmoothed&&Number.isFinite(endpointWeight)?`Trọng số ΔOI đầu→cuối M15 ${Math.round(100*endpointWeight)}%`:'';
+  const figures=[oiText,strengthText,matrixWeightText].filter(Boolean);
  const shares=buy=>`${buy.toFixed(2)}/${(100-buy).toFixed(2)}%`;
  if(Number.isFinite(takerBuyRaw)&&Number.isFinite(takerBuyUsed))figures.push(`Taker Buy/Sell gốc ${shares(takerBuyRaw)} · dùng ${shares(takerBuyUsed)}`);
  const tally=Object.entries(H1_POSITION_LABELS).map(([state,label])=>label.replace('Nghi ','')+' '+votes[state]);
@@ -1655,8 +1661,8 @@ if(init()){
   matrixTakerToggle.onchange=()=>{updateH1MatrixReadout(latestH1Matrix);updateMatrixFlowReadout();};
   const matrixOiLabel=document.createElement('label'),matrixOiToggle=document.createElement('input');
   matrixOiToggle.id='h1-matrix-oi-smooth';matrixOiToggle.type='checkbox';matrixOiToggle.checked=true;
-  matrixOiLabel.title='Ma trận H1 SPY M15: chỉ khi ΔOI gốc cùng chiều và gần trung tính, điểm H1 đã khóa từ ±2 (bỏ thành phần OI để không tự xác nhận) mới kéo nhẹ ΔOI và Strength ΔOI8 theo hướng điểm. ΔOI mạnh, trái chiều hoặc bằng 0 giữ nguyên; chi tiết luôn hiển thị cả gốc và mượt.';
-  matrixOiLabel.append(matrixOiToggle,'Mượt ΔOI theo điểm H1');matrixTakerLabel.after(matrixOiLabel);
+  matrixOiLabel.title='Ma trận H1 SPY M15 · MAX: ΔOI từng M15 luôn lấy OI cuối nến trừ OI đầu nến. Bốn cặp đầu→cuối trong hộp H1 tạo trọng số từ độ cùng chiều và biên độ thực; chỉ khi điểm H1 đã khóa từ ±2 cùng chiều giá và Taker mới khuếch đại ΔOI/Strength theo dấu OI gốc. OI gần 0, điểm H1 ngược hoặc giá–Taker không cùng chiều giữ nguyên; chi tiết hiện cả gốc, mượt và trọng số.';
+  matrixOiLabel.append(matrixOiToggle,'Mượt ΔOI M15→H1: MAX');matrixTakerLabel.after(matrixOiLabel);
   matrixOiToggle.onchange=()=>{updateH1MatrixReadout(latestH1Matrix);updateMatrixFlowReadout();};
   restoreSavedSetup();syncChartFrameButtons();
   // Restore the C histogram once for setups saved before the taker plot cleanup.
