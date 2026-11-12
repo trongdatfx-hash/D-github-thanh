@@ -45,24 +45,27 @@ test('real M15 pipeline preserves H1/weekday outputs without old age predictions
  assert.ok(r.h1CandleColors.every(c=>Number.isFinite(c.blockStart)&&[-1,0,1].includes(c.direction)));
 });
 
-test('matrix OI8 votes on closed candles and confirms positioning over the same window',()=>{
- const step=STEPS['15m'], bars=Array.from({length:10},(_,i)=>({t:i*step,c:100+i,buy:70,q:100}));
- const down=bars.map((b,i)=>({...b,c:100-i,buy:30}));
- const top=sign=>new Map(bars.map((b,i)=>[b.t+step,.5+sign*i*.001]));
- const pos=Array(8).fill(.4),neg=Array(8).fill(-.4);
- const read=(values,source=bars,positions=top(1),options)=>matrixOi8Reading(source,[0,...values,.9].map((value,i)=>({time:i*step/1000,value})),9*step,positions,options);
- assert.equal(read(pos).context,'Nghi mở Long');
- assert.equal(read(pos,down,top(-1)).context,'Nghi mở Short');
- assert.equal(read(neg).context,'Nghi đóng Short');
- assert.equal(read(neg,down,top(-1)).context,'Nghi đóng Long');
- assert.equal(read(pos,bars,top(-1)).context,'Lệch Top Trader');
- assert.equal(read(pos,bars,new Map()).context,'Chờ Top Trader');
- assert.equal(read(pos,bars,top(0)).context,'Top Trader trung tính');
- assert.equal(read([.15,.15,.15,.15,.15,.15,0,.15]).label,'Giá tăng · OI mở rộng 7/8');
- assert.equal(read(Array(8).fill(0)).label,'OI trung tính 8/8');
- assert.equal(read([...neg.slice(0,6),.4,.4]).state,'pending');
- assert.equal(read([...neg.slice(0,5),.4,.4,.4]).state,'mixed');
- assert.equal(read([undefined,...pos.slice(1)]).state,'wait');
- assert.equal(read(pos,bars.filter((_,i)=>i!==4)).state,'wait');
- assert.equal(read([0,0,0,.4,.4,.4,.4,.4],bars,top(1),{window:6}).label,'Giá tăng · OI mở rộng 5/6');
+test('matrix OI8 votes for each closed candle positioning state',()=>{
+ const step=STEPS['15m'], now=6*step;
+ const types={openLong:[1,.4],openShort:[-1,.4],closeLong:[-1,-.4],closeShort:[1,-.4],neutral:[1,0],unclear:[0,.4]};
+ const top=new Map(Array.from({length:7},(_,i)=>[i*step,.5+i*.001]));
+ const read=(kinds,{positions=new Map(),window=4,gap=false}={})=>{
+   const rows=[...kinds,'openShort'].map((kind,i)=>{
+     const [dir,value]=types[kind],t=(i+(gap&&i>=4?1:0))*step;
+     return {t,o:100,c:100+dir,buy:dir===-1?30:70,q:100,value};
+   });
+   return matrixOi8Reading(rows,rows.map(b=>({time:b.t/1000,value:b.value})),now,positions,{window});
+ };
+ const sample=(main,minor='unclear')=>['neutral','neutral',main,main,minor,main];
+ for(const key of ['openLong','openShort','closeLong','closeShort','neutral']){
+   assert.equal(read(sample(key)).state,key);
+   assert.equal(read(sample(key)).votes[key],3);
+ }
+ const mixed=['neutral','neutral','openLong','openShort','openLong','openShort'];
+ assert.equal(read(mixed).state,'mixed');
+ assert.equal(read(sample('openLong'),{positions:top}).topTraderContext,'Top Trader cùng hướng');
+ assert.equal(read(sample('openShort'),{positions:top}).topTraderContext,'Lệch Top Trader');
+ assert.equal(read(sample('closeShort')).topTraderContext,'Chờ Top Trader');
+ assert.equal(read(sample('openLong'),{gap:true}).state,'wait');
+ assert.equal(read(['unclear',...Array(5).fill('closeLong')],{window:6}).label,'Nghi đóng Long 5/6');
 });
