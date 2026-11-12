@@ -69,3 +69,26 @@ test('matrix OI8 votes for each closed candle positioning state',()=>{
  assert.equal(read(sample('openLong'),{gap:true}).state,'wait');
  assert.equal(read(['unclear',...Array(5).fill('closeLong')],{window:6}).label,'Nghi đóng Long 5/6');
 });
+
+test('locked H1 supports two matching latest votes without replacing a confirmed M15 majority',()=>{
+ const step=STEPS['15m'],hour=4*step,now=2*hour;
+ const read=(kinds,{score=3,color=1,lockedAt=now,preview=false,window=4}={})=>{
+  const rows=kinds.map((type,i)=>{
+   const direction=type==='short'?-1:1;
+   return {t:now-kinds.length*step+i*step,o:100,c:100+direction,buy:direction>0?70:30,q:100,type};
+  });
+  return matrixOi8Reading(rows,rows.map(b=>({time:b.t/1000,value:b.type==='closeShort'?-.4:.4})),now,new Map(),{
+   window,h1Scores:[{blockStart:hour,status:preview?'PREVIEW':'LOCKED',lockedAt,asOf:now,score}],
+   h1Colors:new Map([[hour,{blockStart:hour,blockEnd:now-1,direction:color,preview}]])
+  });
+ };
+ const a=['short','short','closeShort','closeShort'];
+ assert.equal(read(a).label,'Nghi đóng Short 2/4 · H1');
+ assert.equal(read(a,{score:1}).state,'mixed');
+ assert.equal(read(a,{color:-1}).state,'mixed');
+ assert.equal(read(a,{lockedAt:now+step}).state,'mixed');
+ assert.equal(read(a,{preview:true}).state,'mixed');
+ assert.equal(read(['short','closeShort','short','closeShort']).state,'mixed');
+ assert.equal(read(['short','short','short','closeShort']).label,'Nghi mở Short 3/4');
+ assert.equal(read(['short','short','short','short','closeShort','closeShort'],{window:6}).state,'mixed');
+});
