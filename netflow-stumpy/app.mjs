@@ -451,7 +451,8 @@ function init(){
   series.strengthOi8=chart.addSeries(L.BaselineSeries,{
     priceScaleId:'right',baseValue:{type:'price',price:0},topLineColor:'#70b7ff',bottomLineColor:'#f08aff',
     topFillColor1:'transparent',topFillColor2:'transparent',bottomFillColor1:'transparent',bottomFillColor2:'transparent',
-    lineWidth:3,baseLineVisible:false,priceLineVisible:false,lastValueVisible:false,crosshairMarkerRadius:3,
+    lineWidth:3,baseLineVisible:false,priceLineVisible:false,lastValueVisible:true,crosshairMarkerRadius:3,
+    title:'ΔOI8',
     priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},
     autoscaleInfoProvider:()=>({priceRange:{minValue:-1,maxValue:1}})
   },1);
