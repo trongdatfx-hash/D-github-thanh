@@ -439,14 +439,19 @@ function init(){
   series.alignment.priceScale().applyOptions({scaleMargins:{top:.08,bottom:.08}});
   series.oiCandleBars=chart.addSeries(L.HistogramSeries,{priceScaleId:'oi-candle-bars-overlay',base:0,title:'',priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'volume'},autoscaleInfoProvider:original=>{const info=original();if(info)info.priceRange.minValue=0;return info;}},1);
   series.oiCandleBars.priceScale().applyOptions({autoScale:true,scaleMargins:{top:.80,bottom:0}});
-  const spyVolumeBaseline={baseValue:{type:'price',price:0},topLineColor:'#f6c85f',bottomLineColor:'#f3f6fb'};
-  series.volumeStrength=chart.addSeries(L.BaselineSeries,{...spyVolumeBaseline,topFillColor1:'rgba(246,200,95,.12)',topFillColor2:'rgba(246,200,95,0)',bottomFillColor1:'rgba(243,246,251,0)',bottomFillColor2:'rgba(243,246,251,.09)',lineWidth:3,title:'',priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:4,autoscaleInfoProvider:()=>({priceRange:{minValue:-1,maxValue:1}})},1);
-  series.spyBodyVolume=chart.addSeries(L.BaselineSeries,{...spyVolumeBaseline,priceScaleId:'right',topFillColor1:'transparent',topFillColor2:'transparent',bottomFillColor1:'transparent',bottomFillColor2:'transparent',lineStyle:L.LineStyle.Solid,lineWidth:2,title:'SPY V thân nến',priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,visible:false},1);
+  const spyVolumeScale={priceScaleId:'right',priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},autoscaleInfoProvider:symmetricAutoscale};
+  const spyVolumeBaseline={...spyVolumeScale,baseValue:{type:'price',price:0},topLineColor:'#f6c85f',bottomLineColor:'#f3f6fb'};
+  series.volumeStrength=chart.addSeries(L.BaselineSeries,{...spyVolumeBaseline,topFillColor1:'rgba(246,200,95,.12)',topFillColor2:'rgba(246,200,95,0)',bottomFillColor1:'rgba(243,246,251,0)',bottomFillColor2:'rgba(243,246,251,.09)',lineWidth:3,title:'',priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:4,autoscaleInfoProvider:original=>{
+    const info=original();
+    const limit=Math.max(1,Math.abs(info?.priceRange?.minValue??0),Math.abs(info?.priceRange?.maxValue??0));
+    return {...info,priceRange:{minValue:-limit,maxValue:limit}};
+  }},1);
+  series.spyBodyVolume=chart.addSeries(L.BaselineSeries,{...spyVolumeBaseline,baseLineVisible:false,topFillColor1:'transparent',topFillColor2:'transparent',bottomFillColor1:'transparent',bottomFillColor2:'transparent',lineStyle:L.LineStyle.Solid,lineWidth:2,title:'SPY V thân nến',priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,visible:false},1);
   series.nfSmooth=chart.addSeries(L.BaselineSeries,{priceScaleId:'right',baseValue:{type:'price',price:0},topLineColor:'#28ddb0',bottomLineColor:'#ff718e',topFillColor1:'rgba(40,221,176,0)',topFillColor2:'rgba(40,221,176,0)',bottomFillColor1:'rgba(255,113,142,0)',bottomFillColor2:'rgba(255,113,142,0)',lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:3,title:'',priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},autoscaleInfoProvider:()=>({priceRange:{minValue:-1,maxValue:1}})},1);
   series.strengthOi8=chart.addSeries(L.BaselineSeries,{
-    priceScaleId:'right',baseValue:{type:'price',price:0},topLineColor:'#43ddff',bottomLineColor:'#bd8cff',
+    priceScaleId:'right',baseValue:{type:'price',price:0},topLineColor:'#70b7ff',bottomLineColor:'#f08aff',
     topFillColor1:'transparent',topFillColor2:'transparent',bottomFillColor1:'transparent',bottomFillColor2:'transparent',
-    lineWidth:2,baseLineVisible:false,priceLineVisible:false,lastValueVisible:false,crosshairMarkerRadius:3,
+    lineWidth:3,baseLineVisible:false,priceLineVisible:false,lastValueVisible:false,crosshairMarkerRadius:3,
     priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},
     autoscaleInfoProvider:()=>({priceRange:{minValue:-1,maxValue:1}})
   },1);
@@ -1651,7 +1656,7 @@ if(init()){
   nfInput.onchange=()=>render(false);nfWindow.onchange=()=>render(false);
   const oi8Label=document.createElement('label'),oi8Toggle=document.createElement('input');
   oi8Toggle.id='strength-oi8-toggle';oi8Toggle.type='checkbox';oi8Toggle.checked=true;
-  oi8Label.title='SPYUSDT M15 đã đóng · Xanh cyan: OI mở rộng · Tím: OI thu hẹp';
+  oi8Label.title='SPYUSDT M15 đã đóng · Xanh lam sáng: OI mở rộng · Tím hồng sáng: OI thu hẹp';
   oi8Label.append(oi8Toggle,'Strength ΔOI8');nfLabel.after(oi8Label);
   oi8Toggle.onchange=()=>render(false);
   const matrixTakerLabel=document.createElement('label'),matrixTakerToggle=document.createElement('input');
