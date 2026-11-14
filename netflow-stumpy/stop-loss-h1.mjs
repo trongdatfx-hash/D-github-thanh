@@ -10,8 +10,9 @@ export function h1AccumulatedStops({price=[],records=[],now=Date.now()}={}){
   if(!(atr>0))return empty;
   const unique=new Map();
   for(const r of records){
-    if(r.status!=='LOCKED'||r.closedBars!==4||r.blockEnd!==r.blockStart+H-1||r.lockedAt!==r.blockEnd+1||r.blockEnd>=now||r.blockEnd>=last.t+M||!Number.isInteger(r.score)||Math.abs(r.score)>5||r.score===0)continue;
-    unique.set(r.blockStart,r);
+    const partialOi=r.status==='PARTIAL'&&r.missing?.length===1&&r.missing[0]==='OI_P62'&&r.available===4;
+    if((r.status!=='LOCKED'&&!partialOi)||r.closedBars!==4||r.blockEnd!==r.blockStart+H-1||(!partialOi&&r.lockedAt!==r.blockEnd+1)||r.blockEnd>=now||r.blockEnd>=last.t+M||!Number.isInteger(r.score)||Math.abs(r.score)>5||r.score===0)continue;
+    unique.set(r.blockStart,{...r,weight:partialOi?.75:1});
   }
   const candidates=[];
   for(const r of [...unique.values()].sort((a,b)=>a.blockStart-b.blockStart).slice(-120)){
@@ -24,7 +25,7 @@ export function h1AccumulatedStops({price=[],records=[],now=Date.now()}={}){
     const high=direction>0?Math.min(o,c):Math.max(...rows.map(b=>b.h));
     if(!(high>low)|| (direction>0?high>=last.c:low<=last.c))continue;
     if(bars.some(b=>b.t>=r.blockEnd+1&&(direction>0?b.c<low:b.c>high)))continue;
-    candidates.push({kind:direction>0?'support':'resistance',low,high,start:r.blockEnd+1,points:Math.abs(r.score),boxes:1,missing:r.missing?.length??0});
+    candidates.push({kind:direction>0?'support':'resistance',low,high,start:r.blockEnd+1,points:Math.abs(r.score)*r.weight,boxes:1,missing:r.missing?.length??0});
   }
   const groups=[];
   for(const z of candidates){
