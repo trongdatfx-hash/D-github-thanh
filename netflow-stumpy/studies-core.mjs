@@ -3,7 +3,7 @@ import {aggregateHourlyRows} from './h1-h4-strip.mjs?v=20261101-h1h4-align1';
 import {trendSessionAt,trendSessionRows} from './trend-session.mjs?v=20261029-price-delta1';
 import {analyze,composite,calculateVolumeStrength,STEPS,sessionAt} from './engine.mjs?v=20261029-price-delta1';
 import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeometry} from './geometry.mjs?v=20261108-price-break-only1';
-import {pivotZones} from './pivot-zones.mjs?v=20261029-price-delta1';
+import {stopLossZones} from './stop-loss-zones.mjs?v=20261114-sl1';
 import {causalTrendChannels} from './causal-trend-channel.mjs?v=20261029-price-delta1';
 import {channelStrengthBoxes} from './channel-strength-boxes.mjs?v=20261029-weekly-map1';
 import {buildWeeklyDailyPackets,h1CandleColorStates} from './weekly-trend-map.mjs?v=20261103-day247-1';
@@ -47,7 +47,7 @@ export function computeStudies({rows,volumeRows,symbol,interval,options,now,tren
   const geometry=matrixEnabled?analyzeMatrixGeometry({...input,h1CandleColors,oiByTime:geometryOi,oiSamples:geometryOiSamples},{...options,replayState:matrixReplayState}):analyzeGeometry({...input,h1CandleColors},options),channels=causalTrendChannels(closedPrice,{volumeRows:input.volume,maxHistory:12});
   const breakout=matrixEnabled?geometry.breakout:analyzeBreakoutRetest(input,options),points=matrixEnabled?geometry.points:recentCausalLineStates(input,{...options,stateLookbackBars:600},4),backtest=backtestGeometry(closedPrice,geometry.events,{horizon:4,minMoveAtr:.35});
   const model=interval==='15m'&&trend?trend:{rows,volume:volumeRows},modelPrice=(model.rows[symbol]??p).filter(r=>(r.end??r.t)<now),modelTimes=new Set(modelPrice.map(r=>r.t));
-  const pivot=pivotZones({price:modelPrice,composite:(model.rows.COMPOSITE??[]).filter(r=>modelTimes.has(r.t)),volume:model.volume.filter(r=>modelTimes.has(r.t))},STEPS[interval]);
+  const pivot=stopLossZones({price:modelPrice,oiSamples:geometryOiSamples,h1CandleColors,volume:model.volume.filter(r=>modelTimes.has(r.t))},STEPS[interval]);
   const packets=interval==='15m'&&symbol==='SPYUSDT'?buildWeeklyDailyPackets({priceRows:[...tRows,...p.filter(r=>r.t<=now&&(r.end??r.t+899999)>=now&&r.t>(tRows.at(-1)?.t??-Infinity))],strengthRows:trend?.rows.COMPOSITE??[],volumeRows:trendVolume,boxSnapshots:weeklyBoxes.snapshots,trendStates:channelStates,now}):[];
   const latestDay=packets.at(-1)?.week,weekly={label:'WAIT',cells:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(name=>({name,packet:packets.filter(p=>p.week===latestDay).find(p=>p.weekday===name)??null}))};
   weekly.h4Age=continuousH4Age(h1H4CandleColors,now);
