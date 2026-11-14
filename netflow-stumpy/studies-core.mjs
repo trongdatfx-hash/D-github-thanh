@@ -8,7 +8,7 @@ import {causalTrendChannels} from './causal-trend-channel.mjs?v=20261029-price-d
 import {channelStrengthBoxes} from './channel-strength-boxes.mjs?v=20261029-weekly-map1';
 import {buildWeeklyDailyPackets,h1CandleColorStates} from './weekly-trend-map.mjs?v=20261103-day247-1';
 import {chartFeatureRows} from './analogs-features.mjs?v=20261029-price-delta1';
-import {analyzeMatrixGeometry} from './matrix-geometry.mjs?v=20261108-price-break-only1';
+import {analyzeMatrixGeometry} from './matrix-geometry.mjs?v=20261114-trend-oi8';
 
 const H1_MS=STEPS['1h'];
 function aggregateHourlySignals(rows=[],hourlyRows=[]){
@@ -22,7 +22,7 @@ export function analyzeTrendSource(raw,now){
   const rows={SPYUSDT:analyze(closed.SPYUSDT,step),QQQUSDT:analyze(closed.QQQUSDT,step),COMPOSITE:analyze(composite(closed.SPYUSDT,closed.QQQUSDT),step)};
   return {rows,rawSpy:closed.SPYUSDT,volume:analyze(closed.SPYUSDT,step,{strength:calculateVolumeStrength(closed.SPYUSDT,step)})};
 }
-export function computeStudies({rows,volumeRows,symbol,interval,options,now,trend=null,onH1Ready=null,useH1Smooth=false,geometryOi=new Map(),matrixReplayState=null}){
+export function computeStudies({rows,volumeRows,symbol,interval,options,now,trend=null,onH1Ready=null,useH1Smooth=false,geometryOi=new Map(),matrixReplayState=null,geometryOiSamples=[]}){
   const p=rows[symbol]??[],closedPrice=p.filter(r=>(r.end??r.t)<now),times=new Set(closedPrice.map(r=>r.t));
   const input={price:closedPrice,spy:(rows.SPYUSDT??[]).filter(r=>times.has(r.t)),qqq:(rows.QQQUSDT??[]).filter(r=>times.has(r.t)),flow:(rows.COMPOSITE??[]).filter(r=>times.has(r.t)),volume:volumeRows.filter(r=>times.has(r.t))};
   const tRows=trend?.rows[symbol]??[],closedTrend=trendSessionRows(tRows.filter(r=>(r.end??r.t)<now)),trendTimes=new Set(closedTrend.map(r=>r.t)),trendVolume=(trend?.volume??[]).filter(r=>trendTimes.has(r.t));
@@ -44,7 +44,7 @@ export function computeStudies({rows,volumeRows,symbol,interval,options,now,tren
   }
   if(typeof onH1Ready==='function')onH1Ready(h1CandleColors,h1H4CandleColors);
   const matrixEnabled=options.matrixGeometry===true&&symbol==='SPYUSDT'&&interval==='15m';
-  const geometry=matrixEnabled?analyzeMatrixGeometry({...input,h1CandleColors,oiByTime:geometryOi},{...options,replayState:matrixReplayState}):analyzeGeometry({...input,h1CandleColors},options),channels=causalTrendChannels(closedPrice,{volumeRows:input.volume,maxHistory:12});
+  const geometry=matrixEnabled?analyzeMatrixGeometry({...input,h1CandleColors,oiByTime:geometryOi,oiSamples:geometryOiSamples},{...options,replayState:matrixReplayState}):analyzeGeometry({...input,h1CandleColors},options),channels=causalTrendChannels(closedPrice,{volumeRows:input.volume,maxHistory:12});
   const breakout=matrixEnabled?geometry.breakout:analyzeBreakoutRetest(input,options),points=matrixEnabled?geometry.points:recentCausalLineStates(input,{...options,stateLookbackBars:600},4),backtest=backtestGeometry(closedPrice,geometry.events,{horizon:4,minMoveAtr:.35});
   const model=interval==='15m'&&trend?trend:{rows,volume:volumeRows},modelPrice=(model.rows[symbol]??p).filter(r=>(r.end??r.t)<now),modelTimes=new Set(modelPrice.map(r=>r.t));
   const pivot=pivotZones({price:modelPrice,composite:(model.rows.COMPOSITE??[]).filter(r=>modelTimes.has(r.t)),volume:model.volume.filter(r=>modelTimes.has(r.t))},STEPS[interval]);
