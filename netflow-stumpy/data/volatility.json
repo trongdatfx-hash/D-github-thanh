@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "checkedAt": 1794608190051,
+  "checkedAt": 1794623473858,
   "quotes": {
     "VIX": {
       "symbol": "^VIX",
@@ -15,7 +15,7 @@
       "sessionChangePct": 2.7688993308944143,
       "source": "Yahoo Finance",
       "nominalDelayMinutes": 15,
-      "lastSuccessAt": 1794608190051,
+      "lastSuccessAt": 1794623473858,
       "fetchStatus": "ok"
     },
     "VIX9D": {
@@ -31,7 +31,7 @@
       "sessionChangePct": 5.008843376773764,
       "source": "Yahoo Finance",
       "nominalDelayMinutes": 15,
-      "lastSuccessAt": 1794608190051,
+      "lastSuccessAt": 1794623473858,
       "fetchStatus": "ok"
     },
     "SP500": {
@@ -47,7 +47,7 @@
       "sessionChangePct": -0.7244477303449792,
       "source": "Yahoo Finance",
       "nominalDelayMinutes": 15,
-      "lastSuccessAt": 1794608190051,
+      "lastSuccessAt": 1794623473858,
       "fetchStatus": "ok"
     }
   }
