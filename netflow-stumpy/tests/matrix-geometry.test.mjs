@@ -66,7 +66,7 @@ test('real fixture runs bounded matrix replay with missing OI and excludes previ
   const input={price,flow,spy:price,qqq:[],volume:[],h1CandleColors:states,oiByTime:new Map()};
   const score=geometryScoreRecords({...input,now});assert(score.every(r=>r.closedBars===4&&r.status!=='PREVIEW'));
   const result=analyzeMatrixGeometry(input,{maxLines:4,minScore:55,matrixOptions:{window:9,size:3,groups:2}});
-  assert.equal(result.matrixVersion,'matrix-lines-v1');assert(result.lines.length<=4);assert(result.replayBars<=600);assert(result.points.every(p=>p.armedAt<=p.at&&p.confirmationRule==='TWO_M15_PRICE_ONLY'));
+  assert.equal(result.matrixVersion,'matrix-lines-oi8-v2');assert(result.lines.length<=4);assert(result.replayBars<=600);assert(result.points.every(p=>p.armedAt<=p.at&&p.confirmationRule==='TWO_M15_PRICE_ONLY'));
 });
 test('live resume keeps frozen anchors when the 800-bar window slides',()=>{
   const shifted=n=>{const s=source(n,Infinity);s.price=s.price.map((b,i)=>{const c=Math.max(98,99+(i-800)*.025);return {...b,o:c-.06,h:c+.3,l:c-.3,c};});return s;};
@@ -80,7 +80,7 @@ test('studies worker core supports matrix mode and restores classic selection wh
   const read=n=>JSON.parse(fs.readFileSync(new URL('../../netflow-ml/tests/fixtures/'+n,import.meta.url),'utf8').replace(/^\uFEFF/,''));
   const now=read('time.json').serverTime,raw={SPYUSDT:parseKlines(read('SPYUSDT.json'),now,STEPS['15m']),QQQUSDT:parseKlines(read('QQQUSDT.json'),now,STEPS['15m'])};
   const trend=analyzeTrendSource(raw,now),input={rows:trend.rows,volumeRows:trend.volume,symbol:'SPYUSDT',interval:'15m',now,trend,options:{minScore:55,maxLines:4,matrixGeometry:true,matrixOptions:{window:9,size:3,groups:2}},geometryOi:new Map()};
-  const result=computeStudies(input);assert.equal(result.geometry.matrixVersion,'matrix-lines-v1');assert.deepEqual(result.points,result.geometry.points);assert(result.geometry.lines.length<=4);
+  const result=computeStudies(input);assert.equal(result.geometry.matrixVersion,'matrix-lines-oi8-v2');assert.deepEqual(result.points,result.geometry.points);assert(result.geometry.lines.length<=4);
   const restored=computeStudies({...input,options:{...input.options,matrixGeometry:false}});assert.equal(restored.geometry.matrixVersion,undefined);assert(restored.geometry.lines.length<=4);
 });
 
