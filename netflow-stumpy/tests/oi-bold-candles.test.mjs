@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {OiBoldCandles,oiBodyWidth,oiBodyContrast} from '../oi-bold-candles.mjs';
-test('width stays inside candle spacing, including tight zoom',()=>{
-  for(const spacing of [2,3,6,10,30]){assert.ok(oiBodyWidth(spacing)>spacing*.65);assert.ok(oiBodyWidth(spacing)<spacing);}
+test('width emphasizes OI candles while tapering at tight zoom',()=>{
+  for(const spacing of [2,3,6,10,30]){assert.ok(oiBodyWidth(spacing)>spacing*.65);assert.ok(oiBodyWidth(spacing)<=spacing*1.3);if(spacing>=6)assert.ok(Math.abs(oiBodyWidth(spacing)-spacing*1.3)<1e-9);}
   assert.equal(oiBodyWidth(1),0);assert.equal(oiBodyWidth(NaN),0);
 });
 test('body uses original OHLC and state palette, with no wick or autoscale changes',()=>{
