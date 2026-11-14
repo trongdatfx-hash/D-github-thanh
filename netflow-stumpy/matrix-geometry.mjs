@@ -1,10 +1,12 @@
+import {strengthOi8} from './strength-oi8.mjs?v=20261111-oi8';
+import {oi8PivotLevels} from './oi8-pivot-levels.mjs?v=20261114-trend-oi8';
 import {analyzeGeometry,causalAtr,classifyBreakoutRetest} from './geometry.mjs?v=20261108-price-break-only1';
 import {weightedPriceBands,directionalVolumeDelta} from './engine.mjs?v=20261105-spyv-h1-1';
 import {lockedH1Blocks,scoreH1Box,h1ScoreBars} from './h1-box-score.mjs?v=20261107-outside-fast1';
 import {buildH1Matrix,matrixOptions} from './h1-matrix-state.mjs?v=20261107-matrix-2m15-1';
 import {oiCandleBars} from './oi-candle-bars.mjs?v=20261104-oi-p62-1';
 
-export const MATRIX_GEOMETRY_VERSION='matrix-lines-v1';
+export const MATRIX_GEOMETRY_VERSION='matrix-lines-oi8-v2';
 const M15=900000,H1=3600000,finite=Number.isFinite;
 const clamp=x=>Math.max(0,Math.min(1,x));
 const at=(line,index)=>line.startValue+line.slope*(index-line.startIndex);
@@ -69,12 +71,21 @@ function labelFor(line,evidence,pressure,armed){
   if(evidence.weak)return `${base} · lực suy yếu`;
   return evidence.confirmed&&pressure.ready?`${base} · nén ${arrow}`:`${base} · ${armed?'chờ phá':'theo dõi'}`;
 }
-function annotate(f,bars,index,atr,matrix,armed=false){
+function annotate(f,bars,index,atr,matrix,armed=false,oi8Levels=[]){
   const projected=project(f,bars,index);
   const rails=projected.rails.map(l=>{
     const evidence=matrixLineEvidence(matrix,l.kind==='resistance'?1:-1),pressure=breakoutPressure(l,bars.slice(0,index+1),atr.slice(0,index+1));
-    const geometryScore=l.geometryScore??l.score,rankScore=Math.max(0,Math.min(100,Math.round(.8*geometryScore+20*(.5+.5*evidence.signed))));
-    return {...l,geometryScore,rankScore,score:geometryScore,matrixEvidence:evidence,pressure,setupLabel:f.type==='wedge'?`Nêm · ${armed?'chờ phá':'theo dõi'}`:labelFor(l,evidence,pressure,armed),setupState:armed?'ARMED':'WATCH',armedAt:f.armedAt??null};
+    const asOf=bars[index].t+M15;
+    const hits=l.anchors.map(anchor=>oi8Levels.find(level=>level.pivotTime===anchor.t&&level.knownAt<=asOf&&level.type===(l.kind==='support'?'low':'high')));
+    const oi8Evidence=armed&&l.oi8Evidence?l.oi8Evidence:{
+      matched:hits.filter(Boolean).length,aligned:hits.filter(hit=>hit?.aligned).length,
+      score:average(hits.map(hit=>hit?(hit.aligned?1:.5):0))
+    };
+    const geometryScore=l.geometryScore??l.score;
+    const rankScore=Math.max(0,Math.min(100,Math.round(
+      .8*geometryScore+20*(.5+.5*evidence.signed)+10*oi8Evidence.score)));
+    const oi8Label=oi8Evidence.matched?' · ΔOI8'+(oi8Evidence.aligned?' + NF':''):'';
+    return {...l,geometryScore,rankScore,oi8Evidence,score:geometryScore,matrixEvidence:evidence,pressure,setupLabel:(f.type==='wedge'?`Nêm · ${armed?'chờ phá':'theo dõi'}`:labelFor(l,evidence,pressure,armed))+oi8Label,setupState:armed?'ARMED':'WATCH',armedAt:f.armedAt??null};
   });
   return {...projected,rails,rank:Math.max(...rails.map(l=>l.rankScore)),ready:rails.some(l=>l.pressure.ready)};
 }
@@ -87,6 +98,8 @@ function confirmDirections(input,time){
  * copied once. New candidates cannot refit it, even after a breakout candle. */
 export function replayMatrixGeometry(input,records,options={},candidateBuilder=null){
   const full=input.price,offset=Math.max(0,full.length-800),bars=full.slice(offset),atr=causalAtr(bars);
+  const oi8Now=(full.at(-1)?.t??0)+M15;
+  const oi8Levels=oi8PivotLevels(full,strengthOi8(full,input.oiSamples??[],oi8Now),oi8Now);
   const limit=Math.max(4,Number(options.maxLines)||4),classicBudget=Math.ceil(limit/2),wedgeBudget=Math.floor(Math.floor(limit/2)/2);
   const quotas={classic:classicBudget,wedge:wedgeBudget},armed=[],seen=new Set(),events=[];
   let pool=[],lastRefresh=-1,matrix=null;
@@ -132,7 +145,7 @@ export function replayMatrixGeometry(input,records,options={},candidateBuilder=n
       const candidates=candidateBuilder?candidateBuilder(part,options,i):analyzeGeometry(part,{...options,maxLines:Math.max(12,limit*3)});
       pool=families(candidates,from);lastRefresh=i;
     }
-    const ranked=pool.filter(f=>!seen.has(f.id)).map(f=>annotate(f,bars,i,atr,matrix)).sort((a,b)=>b.rank-a.rank);
+    const ranked=pool.filter(f=>!seen.has(f.id)).map(f=>annotate(f,bars,i,atr,matrix,false,oi8Levels)).sort((a,b)=>b.rank-a.rank);
     for(const f of ranked){
       if(!f.ready||armed.filter(a=>a.type===f.type).length>=quotas[f.type]||armed.some(a=>duplicate(a,f,i,scale)))continue;
       // Both wedge rails must still enclose price. No post-breakout arming.
@@ -142,10 +155,10 @@ export function replayMatrixGeometry(input,records,options={},candidateBuilder=n
     }
   }
   const index=bars.length-1;if(index<first||!matrix)return {lines:[],patterns:[],points:[],breakout:null,selectionBudget:{classic:classicBudget,pattern:wedgeBudget*2},matrix:null};
-  const active=armed.map(f=>annotate(f,bars,index,atr,matrix,true));
+  const active=armed.map(f=>annotate(f,bars,index,atr,matrix,true,oi8Levels));
   // Distant structures remain WATCH candidates. They can move until armed;
   // watches never generate confirmed break notifications.
-  const watches=pool.filter(f=>!seen.has(f.id)).map(f=>annotate(f,bars,index,atr,matrix)).sort((a,b)=>b.rank-a.rank);
+  const watches=pool.filter(f=>!seen.has(f.id)).map(f=>annotate(f,bars,index,atr,matrix,false,oi8Levels)).sort((a,b)=>b.rank-a.rank);
   for(const f of watches){if(active.filter(a=>a.type===f.type).length>=quotas[f.type]||active.some(a=>duplicate(a,f,index,atr[index])))continue;if(f.type==='wedge'&&at(f.rails[1],index)<=at(f.rails[0],index))continue;active.push(f);}
   for(const f of active)for(const l of f.rails){
     if(f.event){l.setupLabel=f.event.label;l.setupState=f.event.key;}
