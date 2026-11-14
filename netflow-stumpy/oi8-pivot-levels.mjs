@@ -21,6 +21,6 @@ export function oi8PivotLevels(bars,points,now){
     if(!before||!signs.slice(3).includes(-before))return [];
     const flows=window.slice(3).map(bar=>bar.net);
     const aligned=flows.every(Number.isFinite)&&flows.reduce((sum,net)=>sum+net,0)*(type==='low'?1:-1)>0;
-    return [{type,level:pivot.value,start:confirmed.t/1000,aligned}];
+    return [{type,level:pivot.value,start:confirmed.t/1000,pivotTime:pivot.t,knownAt:confirmed.t+STEP,aligned}];
   });
 }
