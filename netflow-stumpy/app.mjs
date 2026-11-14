@@ -1,4 +1,5 @@
-import {StopLossBands} from './stop-loss-band.mjs?v=20261114-sl1';
+import {h1AccumulatedStops} from './stop-loss-h1.mjs?v=20261114-slh1';
+import {StopLossBands} from './stop-loss-band.mjs?v=20261114-slh1';
 import {scoreH1OiMarkers} from './h1-oi-markers.mjs?v=20261110-h1-oi-visible2';
 import {buildH1ScoreLine,h1ScoreLineReading} from './h1-score-line.mjs?v=20261107-h1-score-line1';
 import {LargeTakerLoader,largeTakerDetail} from './large-taker-spectrum.mjs?v=20261109-m15-flow1';
@@ -1453,27 +1454,33 @@ function updateFixedPaneReadouts(){
 }
 function updatePivotZones(){
   const enabled=$('pivot-zones').checked,node=$('pivot-zone-readout');
-  const key=$('symbol').value+'|'+$('interval').value;
-  const zones=[];
-  node.id='pivot-zone-readout';node.style.setProperty('display',enabled?'flex':'none','important');
-  node.style.gap='6px';node.style.flexWrap='wrap';node.setAttribute('aria-hidden',String(!enabled));node.replaceChildren();
+  const symbol=$('symbol').value,interval=$('interval').value,key=symbol+'|'+interval;
+  const accumulation=symbol==='SPYUSDT'&&interval==='15m'?h1AccumulatedStops({price:cache?.SPYUSDT??[],records:h1ScoreLayer?.getLineScores()??[],now:cache?.serverTime??Date.now()}):{zones:[]};
+  const zones=enabled?[...accumulation.zones]:[];
+  const actions=document.querySelector('.chart-actions');
+  if(actions&&node.parentElement!==actions)actions.append(node);
+  node.style.cssText='position:static!important;display:'+(enabled?'flex':'none')+'!important;gap:3px;flex-wrap:wrap;align-items:center;padding:0;border:0;background:transparent;max-width:100%;font-size:10px;pointer-events:auto';
+  node.setAttribute('aria-hidden',String(!enabled));node.replaceChildren();
   for(const [kind,prefix,label] of [['resistance','pivotResistance','SL SELL'],['support','pivotSupport','SL BUY']]){
     const lockKey=key+'|'+kind,locked=lockedStops.get(lockKey);
-    const zone=enabled?(locked??pivotZoneState[kind]):null;
+    const zone=enabled?(locked??accumulation[kind]??pivotZoneState[kind]):null;
     const line=series[prefix+'Mid'];if(!line)continue;
-    const current=cache?.[$('symbol').value]?.at(-1)?.c;
+    const current=cache?.[symbol]?.at(-1)?.c;
     const distance=zone&&current>0?100*Math.abs(current-zone.level)/current:null;
     setOptions(line,{lineWidth:2,lineStyle:L.LineStyle.Solid,title:label+(locked?' · KHÓA':'')});
     writeSeries(prefix+'Mid',line,zone?[
       {time:zone.start/1000,value:zone.level},
-      {time:Math.max(zone.start+STEPS[$('interval').value],cache?.[$('symbol').value]?.at(-1)?.t??zone.end)/1000,value:zone.level}
+      {time:Math.max(zone.start+STEPS[interval],cache?.[symbol]?.at(-1)?.t??zone.end)/1000,value:zone.level}
     ]:[],String(enabled)+'|'+lockKey+'|'+Boolean(locked));
-    if(zone)zones.push(zone);
+    if(zone&&!zones.includes(zone))zones.push(zone);
     const button=document.createElement('button');button.type='button';button.disabled=!zone;
-    button.textContent=zone?label+' '+zone.level.toFixed(2)+' · '+distance?.toFixed(2)+'% · '+zone.distanceAtr.toFixed(1)+' ATR'+(locked?' · Mở khóa':' · Khóa'):label+' · Chưa có vùng đủ mạnh';
-    button.title=zone?'Điểm '+zone.score+'/100 · '+(zone.oiReady?'Đủ OI':'Thiếu OI')+' · SL tham khảo trên SPYUSDT. Khóa giữ mức cho lệnh trong phiên mở trang.':'Chờ vùng đạt 60 điểm';
+    button.style.cssText='font-size:10px!important;line-height:1.2;padding:3px 5px;min-height:24px;white-space:nowrap';
+    const evidence=zone?.source==='H1'?zone.boxes+'H1 · Σ'+zone.points:'pivot';
+    button.textContent=zone?label+' '+zone.level.toFixed(2)+' · '+evidence+(locked?' · Mở khóa':' · Khóa'):label+' · Chờ vùng';
+    button.title=zone?(zone.source==='H1'?zone.boxes+' hộp H1 cùng dấu · Tổng |điểm| '+zone.points+' · '+(zone.missing?'Có thành phần thiếu':'Đủ thành phần'):'Vùng pivot gốc · Điểm '+zone.score+'/100 · '+(zone.oiReady?'Đủ OI':'Thiếu OI'))+' · Cách giá '+distance?.toFixed(2)+'% · SL tham khảo, không phải lượng stop trên sàn. Khóa trong phiên mở trang.':'Chờ vùng H1 tích lũy hoặc pivot đủ mạnh';
     button.onclick=()=>{if(locked)lockedStops.delete(lockKey);else lockedStops.set(lockKey,{...zone});updatePivotZones();};node.append(button);
   }
+  $('chart').dataset.slH1Zones=String(accumulation.zones.length);
   stopLossBands.setData(zones);
 }
 
