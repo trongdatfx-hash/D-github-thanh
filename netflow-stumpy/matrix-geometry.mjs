@@ -83,7 +83,7 @@ function annotate(f,bars,index,atr,matrix,armed=false,oi8Levels=[]){
     };
     const geometryScore=l.geometryScore??l.score;
     const rankScore=Math.max(0,Math.min(100,Math.round(
-      .8*geometryScore+20*(.5+.5*evidence.signed)+10*oi8Evidence.score)));
+      .8*geometryScore+20*(.5+.5*evidence.signed)+30*oi8Evidence.score)));
     const oi8Label=oi8Evidence.matched?' · ΔOI8'+(oi8Evidence.aligned?' + NF':''):'';
     return {...l,geometryScore,rankScore,oi8Evidence,score:geometryScore,matrixEvidence:evidence,pressure,setupLabel:(f.type==='wedge'?`Nêm · ${armed?'chờ phá':'theo dõi'}`:labelFor(l,evidence,pressure,armed))+oi8Label,setupState:armed?'ARMED':'WATCH',armedAt:f.armedAt??null};
   });
