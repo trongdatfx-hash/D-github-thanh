@@ -8,7 +8,7 @@ import {causalTrendChannels} from './causal-trend-channel.mjs?v=20261029-price-d
 import {channelStrengthBoxes} from './channel-strength-boxes.mjs?v=20261029-weekly-map1';
 import {buildWeeklyDailyPackets,h1CandleColorStates} from './weekly-trend-map.mjs?v=20261103-day247-1';
 import {chartFeatureRows} from './analogs-features.mjs?v=20261029-price-delta1';
-import {analyzeMatrixGeometry} from './matrix-geometry.mjs?v=20261114-trend-oi8';
+import {analyzeMatrixGeometry} from './matrix-geometry.mjs?v=20261114-trend-oi8-30';
 
 const H1_MS=STEPS['1h'];
 function aggregateHourlySignals(rows=[],hourlyRows=[]){
