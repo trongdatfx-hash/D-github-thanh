@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {h1AccumulatedStops} from './stop-loss-h1.mjs';
+const M=900000,H=4*M;
+const price=Array.from({length:32},(_,i)=>({t:i*M,o:102,c:103,h:104,l:100,sourceComplete:true}));
+const records=[1,2,3].map(i=>({blockStart:i*H,blockEnd:(i+1)*H-1,lockedAt:(i+1)*H,status:'LOCKED',closedBars:4,score:3,missing:[]}));
+const run=(p=price,r=records,now=32*M)=>h1AccumulatedStops({price:p,records:r,now});
+const a=run();assert.equal(a.support.boxes,3);assert.equal(a.support.points,9);assert.ok(a.support.level<a.support.low);assert.equal(a.zones.length,1);
+assert.deepEqual(run(price,[...records,records[0]]),a);
+assert.equal(run(price,records.map(r=>({...r,status:'PREVIEW'}))).zones.length,0);
+assert.equal(run(price,records,7*M).zones.length,0);
+const broken=price.map((b,i)=>i===20?{...b,c:99}:b);assert.equal(run(broken).zones.length,0);
+const gap=price.filter(b=>b.t!==5*M);assert.equal(run(gap).support.boxes,2);
+assert.ok(run(price,records.slice(0,2)).support.opacity<a.support.opacity);
+const negative=price.map(b=>({...b,o:103,c:102}));const sell=run(negative,records.map(r=>({...r,score:-3}))).resistance;
+assert.ok(sell.level>sell.high);assert.equal(sell.boxes,3);
+assert.equal(run(price,records.map(r=>({...r,score:0}))).zones.length,0);
+console.log('9 H1 accumulation checks passed');
