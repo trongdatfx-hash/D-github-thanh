@@ -9,7 +9,7 @@ import {matrixOptions,mountMatrixSettings} from './h1-matrix-state.mjs?v=2026110
 import {mountGptPattern} from './gpt-pattern-ui.mjs?v=20261106-chatflow1';
 import {CurrentOiLoader,RunningOiState} from './oi-current.mjs?v=20261106-oi-live1';
 import {matrixOi8Reading,createM15PositionMemory} from './matrix-oi8-reading.mjs?v=20261112-position-stale';
-import {oi8PivotLevels} from './oi8-pivot-levels.mjs?v=20261114-pivot-oi8';
+import {oi8PivotLevels} from './oi8-pivot-levels.mjs?v=20261114-trend-oi8';
 import {strengthOi8} from './strength-oi8.mjs?v=20261111-oi8';
 import {h1ScoreWithoutOi,m15OiEndpointWeight,smoothH1OiNet,smoothH1OiStrength} from './h1-oi-score-smooth.mjs?v=20261112-h1-oi-m15-endpoints1';
 import {compositeNfSmooth} from './composite-nf-smooth.mjs?v=20261108-c-taker-smooth1';
@@ -342,7 +342,7 @@ function restoreH1Colors(data){
 }
 function ensureStudiesWorker(){
   if(!studiesWorker){
-    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261108-matrix-trend-no-oi1',import.meta.url),{type:'module'});
+    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261114-trend-oi8',import.meta.url),{type:'module'});
     studiesWorker.onmessage=({data})=>{
       if(data.type==='history-ready'){
         h1HistoryKnown=true;h1HistoryRevision=archiveColorRevision(data.archive);
@@ -376,7 +376,7 @@ function requestStudies(){
   ensureStudiesWorker();
   studyColorInput={key,raw:cache,sourceKey};
   $('chart').dataset.studyStatus='loading';$('chart').dataset.studyRequests=String(Number($('chart').dataset.studyRequests??0)+1);
-  studiesWorker.postMessage({key,sourceKey,rows,volumeRows:volumeStrengthRows,symbol,interval,options,now:cache.serverTime,raw:cache,useH1Smooth,geometryOi:options.matrixGeometry&&oiStamp==='15m'?oiWidths:new Map()});
+  studiesWorker.postMessage({key,sourceKey,rows,volumeRows:volumeStrengthRows,symbol,interval,options,now:cache.serverTime,raw:cache,useH1Smooth,geometryOiSamples:options.matrixGeometry&&oiStamp==='15m'?oiAppliedSamples:[],geometryOi:options.matrixGeometry&&oiStamp==='15m'?oiWidths:new Map()});
 }
 function requestStats(){
   if(!cache)return;
