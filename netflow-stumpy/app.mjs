@@ -9,6 +9,7 @@ import {matrixOptions,mountMatrixSettings} from './h1-matrix-state.mjs?v=2026110
 import {mountGptPattern} from './gpt-pattern-ui.mjs?v=20261106-chatflow1';
 import {CurrentOiLoader,RunningOiState} from './oi-current.mjs?v=20261106-oi-live1';
 import {matrixOi8Reading,createM15PositionMemory} from './matrix-oi8-reading.mjs?v=20261112-position-stale';
+import {oi8PivotLevels} from './oi8-pivot-levels.mjs?v=20261114-pivot-oi8';
 import {strengthOi8} from './strength-oi8.mjs?v=20261111-oi8';
 import {h1ScoreWithoutOi,m15OiEndpointWeight,smoothH1OiNet,smoothH1OiStrength} from './h1-oi-score-smooth.mjs?v=20261112-h1-oi-m15-endpoints1';
 import {compositeNfSmooth} from './composite-nf-smooth.mjs?v=20261108-c-taker-smooth1';
@@ -105,8 +106,9 @@ let nfSmoothRows=[],nfSmoothMap=new Map();
 const spyBodyVolumeEnabled=()=>$('spy-volume-body-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
 const nfSmoothEnabled=()=>$('nf-smooth-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
 let matrixOi8Points=[];
+const oi8PivotLines={low:[],high:[]};
 const strengthOi8Enabled=()=>$('strength-oi8-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
-const SETUP_CONTROL_IDS=['h1-matrix-taker-smooth','h1-matrix-oi-smooth','strength-oi8-toggle','nf-smooth-toggle','nf-smooth-window','symbol','interval','days','signal','composite','alignment','confirmed-delta-toggle','oi-width-toggle','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-h1-box-color','m15-h1-score-color','cvd-spectrum-toggle','large-taker-toggle','large-taker-percentile','h1-oi-markers-toggle','oi-candle-bars-toggle','oi-candle-pin-toggle','oi-delta-percentile','oi-bold-candles-toggle','show-strength','spy-volume-strength','spy-volume-body-toggle','spy-volume-h1-smooth','h1-score-line-toggle','bands','markers','double-tap-full','geometry-toggle','geometry-matrix-toggle','geometry-provisional','causal-trend-channel','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
+const SETUP_CONTROL_IDS=['oi8-pivot-toggle','h1-matrix-taker-smooth','h1-matrix-oi-smooth','strength-oi8-toggle','nf-smooth-toggle','nf-smooth-window','symbol','interval','days','signal','composite','alignment','confirmed-delta-toggle','oi-width-toggle','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-h1-box-color','m15-h1-score-color','cvd-spectrum-toggle','large-taker-toggle','large-taker-percentile','h1-oi-markers-toggle','oi-candle-bars-toggle','oi-candle-pin-toggle','oi-delta-percentile','oi-bold-candles-toggle','show-strength','spy-volume-strength','spy-volume-body-toggle','spy-volume-h1-smooth','h1-score-line-toggle','bands','markers','double-tap-full','geometry-toggle','geometry-matrix-toggle','geometry-provisional','causal-trend-channel','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
 let statsMap=new Map(),candleColorMap=new Map(),candleClusterMap=new Map(),matrixFlowWindow=null,pivotZoneState={ready:false,reason:'history',support:null,resistance:null},pivotZoneKey='',inspectedTime=null;
 let calendarState={events:[],updatedAt:null,loading:false};
 let pendingSavedTimeRange=null,saveSetupTimer=null,strengthBoxLayer=null,quantileLayer=null;
@@ -456,6 +458,12 @@ function init(){
     priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},
     autoscaleInfoProvider:()=>({priceRange:{minValue:-1,maxValue:1}})
   },1);
+  for(const [type,color] of [['low','#42e6bf'],['high','#ff8d9e']]){
+    for(let i=0;i<2;i++)oi8PivotLines[type].push(chart.addSeries(L.LineSeries,{
+      color,visible:false,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,
+      autoscaleInfoProvider:()=>null
+    },0));
+  }
   const nfReadout=document.createElement('div');nfReadout.id='nf-smooth-readout';nfReadout.className='pane-fixed-readout';nfReadout.hidden=true;nfReadout.style.display='none';$('chart').append(nfReadout);
   series.confirmedDelta=chart.addCustomSeries(new OiDottedSeries,{priceScaleId:'right',color:PRICE_DELTA_COLORS.positive,priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},autoscaleInfoProvider:symmetricAutoscale},1);
   for(const [key,style] of [['h1ScoreLine',L.LineStyle.Solid],['h1ScorePreview',L.LineStyle.Dotted]])series[key]=chart.addSeries(L.LineSeries,{priceScaleId:'right',color:'rgba(210,194,174,.55)',lineWidth:1,lineStyle:style,title:'',priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:2,pointMarkersVisible:true,pointMarkersRadius:key==='h1ScorePreview'?2:1,priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},autoscaleInfoProvider:()=>({priceRange:{minValue:-1,maxValue:1}})},1);
@@ -1333,9 +1341,24 @@ function render(fit=false){
   $('chart').dataset.oiCandleBarsMatched=String(oiBarState.matched);$('chart').dataset.oiCandleBarsEligible=String(oiBarState.eligible);
   $('oi-candle-bars-status').textContent=$('symbol').value!=='SPYUSDT'?'ΔOI theo nến · chỉ SPY':!oiBarsEnabled?'ΔOI theo nến':oiBarState.gateReady?`ΔOI theo nến · ${oiBarState.matched}/${oiBarState.eligible} · lịch sử`:oiBarState.eligible?'ΔOI · chờ nền 10 nến':'ΔOI theo nến · WAIT';
   const oi8On=Boolean(strengthOi8Enabled());
-  matrixOi8Points=(oi8On||h1Wlr)&&oiStamp==='15m'&&cache?.interval==='15m'
+  const oi8PivotsOn=$('oi8-pivot-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&step===900000;
+  matrixOi8Points=(oi8On||h1Wlr||oi8PivotsOn)&&oiStamp==='15m'&&cache?.interval==='15m'
     ?strengthOi8(cache.SPYUSDT??[],oiAppliedSamples,cache.serverTime):[];
   writeSeries('strengthOi8',series.strengthOi8,oi8On?matrixOi8Points:[],seriesContext+'|oi8');
+  const oi8Levels=oi8PivotsOn?oi8PivotLevels(p,matrixOi8Points,cache?.serverTime??0):[];
+  for(const [type,lines] of Object.entries(oi8PivotLines)){
+    const levels=oi8Levels.filter(level=>level.type===type).slice(-lines.length).reverse();
+    lines.forEach((line,i)=>{
+      const level=levels[i];
+      setOptions(line,{visible:Boolean(level),lineWidth:level?.aligned?2:1,
+        lineStyle:level?.aligned?L.LineStyle.Solid:L.LineStyle.Dashed,
+        title:(type==='low'?'HT':'KC')+' ΔOI8'+(level?.aligned?' + NF':'')});
+      writeSeries('oi8-pivot-'+type+i,line,level?[
+        {time:level.start,value:level.level},
+        {time:Math.max(level.start+900,p.at(-1).t/1000),value:level.level}
+      ]:[],seriesContext+'|'+(level?.start??''));
+    });
+  }
   updateH1MatrixOi8();
   setOptions(series.strengthOi8,{visible:oi8On});
   const nfOn=nfSmoothEnabled(),nfWindow=Number($('nf-smooth-window')?.value??4);
@@ -1660,6 +1683,11 @@ if(init()){
   oi8Label.title='SPYUSDT M15 đã đóng · Xanh lam sáng: OI mở rộng · Tím hồng sáng: OI thu hẹp';
   oi8Label.append(oi8Toggle,'Strength ΔOI8');nfLabel.after(oi8Label);
   oi8Toggle.onchange=()=>render(false);
+  const oi8PivotLabel=document.createElement('label'),oi8PivotToggle=document.createElement('input');
+  oi8PivotToggle.id='oi8-pivot-toggle';oi8PivotToggle.type='checkbox';oi8PivotToggle.checked=true;
+  oi8PivotLabel.title='SPYUSDT M15 · PRE–RTH · Nét đứt: ΔOI8 xoay đổi dấu · Nét liền: thêm Taker NF riêng SPY cùng hướng';
+  oi8PivotLabel.append(oi8PivotToggle,'Pivot ΔOI8 · thử');oi8Label.after(oi8PivotLabel);
+  oi8PivotToggle.onchange=()=>render(false);
   const matrixTakerLabel=document.createElement('label'),matrixTakerToggle=document.createElement('input');
   matrixTakerToggle.id='h1-matrix-taker-smooth';matrixTakerToggle.type='checkbox';matrixTakerToggle.checked=true;
   matrixTakerLabel.title='Ma trận H1 SPY M15: điểm H1 đã khóa (|điểm| ≥ 2) điều chỉnh tỷ lệ Taker Buy/Sell trong vùng 42–58%; mạnh nhất ở 50/50.';
