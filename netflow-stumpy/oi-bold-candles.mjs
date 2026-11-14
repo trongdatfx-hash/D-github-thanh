@@ -2,7 +2,8 @@
 // A primitive follows chart zoom, pane resizing and price-axis dragging.
 export function oiBodyWidth(spacing){
   if(!Number.isFinite(spacing)||spacing<2)return 0;
-  return Math.min(spacing*.94,Math.max(1,spacing*.65)*1.5);
+  const emphasis=Math.max(0,Math.min(1,(spacing-3)/3));
+  return spacing*(.94+.36*emphasis);
 }
 export function oiBodyContrast(color,kind){
   if(kind==='up-oi-increase')return {body:'#1243be',border:null};
@@ -37,7 +38,7 @@ export class OiBoldCandles {
         const left=Math.round((x-width/2)*rx),right=Math.round((x+width/2)*rx),top=Math.round(Math.min(open,close)*ry),bottom=Math.round(Math.max(open,close)*ry);
         const palette=oiBodyContrast(row.color,row.oiKind),w=Math.max(1,right-left),h=Math.max(1,bottom-top);
         context.fillStyle=palette.body;context.fillRect(left,top,w,h);
-        // Draw inside the body bounds so neither OHLC height nor spacing changes.
+        // Draw inside the body bounds to preserve the original OHLC height.
         if(palette.border&&w>=3*rx&&h>=3*ry){
           const edge=Math.max(1,Math.min(rx,ry));context.strokeStyle=palette.border;context.lineWidth=edge;
           context.strokeRect(left+edge/2,top+edge/2,w-edge,h-edge);
