@@ -12,8 +12,14 @@ export class StopLossBands{
         const top=this.series.priceToCoordinate(zone.high),bottom=this.series.priceToCoordinate(zone.low);
         const x=this.chart.timeScale().timeToCoordinate(zone.start/1000)??0;
         if(top===null||bottom===null)continue;
-        context.fillStyle=zone.kind==='support'?'rgba(35,216,165,.16)':'rgba(255,110,130,.16)';
-        context.fillRect(Math.max(0,x*rx),top*ry,bitmapSize.width-Math.max(0,x*rx),Math.max(1,(bottom-top)*ry));
+        const rgb=zone.kind==='support'?'35,216,165':'255,110,130';
+        context.fillStyle='rgba('+rgb+','+(zone.opacity??.16)+')';
+        const left=Math.max(0,x*rx),width=bitmapSize.width-left,height=Math.max(1,(bottom-top)*ry);
+        if(width<=0)continue;
+        context.fillRect(left,top*ry,width,height);
+        context.strokeStyle='rgba('+rgb+',.75)';context.lineWidth=(zone.borderWidth??1)*ry;
+        context.strokeRect(left,top*ry,width,height);
+        if(zone.boxes){context.font=(11*ry)+'px sans-serif';context.fillStyle='rgb('+rgb+')';context.fillText(zone.boxes+' H1 · Σ'+zone.points,Math.max(left+5*rx,bitmapSize.width-180*rx),Math.max(12*ry,top*ry-4*ry));}
       }
     });
   }
