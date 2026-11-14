@@ -1,4 +1,4 @@
-import {h1AccumulatedStops} from './stop-loss-h1.mjs?v=20261114-slh1';
+import {h1AccumulatedStops} from './stop-loss-h1.mjs?v=20261114-slh1b';
 import {StopLossBands} from './stop-loss-band.mjs?v=20261114-slh1';
 import {scoreH1OiMarkers} from './h1-oi-markers.mjs?v=20261110-h1-oi-visible2';
 import {buildH1ScoreLine,h1ScoreLineReading} from './h1-score-line.mjs?v=20261107-h1-score-line1';
@@ -1477,7 +1477,7 @@ function updatePivotZones(){
     button.style.cssText='font-size:10px!important;line-height:1.2;padding:3px 5px;min-height:24px;white-space:nowrap';
     const evidence=zone?.source==='H1'?zone.boxes+'H1 · Σ'+zone.points:'pivot';
     button.textContent=zone?label+' '+zone.level.toFixed(2)+' · '+evidence+(locked?' · Mở khóa':' · Khóa'):label+' · Chờ vùng';
-    button.title=zone?(zone.source==='H1'?zone.boxes+' hộp H1 cùng dấu · Tổng |điểm| '+zone.points+' · '+(zone.missing?'Có thành phần thiếu':'Đủ thành phần'):'Vùng pivot gốc · Điểm '+zone.score+'/100 · '+(zone.oiReady?'Đủ OI':'Thiếu OI'))+' · Cách giá '+distance?.toFixed(2)+'% · SL tham khảo, không phải lượng stop trên sàn. Khóa trong phiên mở trang.':'Chờ vùng H1 tích lũy hoặc pivot đủ mạnh';
+    button.title=zone?(zone.source==='H1'?zone.boxes+' hộp H1 cùng dấu · Tổng |điểm| '+zone.points+' · '+(zone.missing?'Thiếu OI: hộp này tính 75% điểm':'Đủ thành phần'):'Vùng pivot gốc · Điểm '+zone.score+'/100 · '+(zone.oiReady?'Đủ OI':'Thiếu OI'))+' · Cách giá '+distance?.toFixed(2)+'% · SL tham khảo, không phải lượng stop trên sàn. Khóa trong phiên mở trang.':'Chờ vùng H1 tích lũy hoặc pivot đủ mạnh';
     button.onclick=()=>{if(locked)lockedStops.delete(lockKey);else lockedStops.set(lockKey,{...zone});updatePivotZones();};node.append(button);
   }
   $('chart').dataset.slH1Zones=String(accumulation.zones.length);
