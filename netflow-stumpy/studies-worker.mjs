@@ -1,4 +1,4 @@
-import {analyzeTrendSource,computeStudies} from './studies-core.mjs?v=20261114-sl1';
+import {analyzeTrendSource,computeStudies} from './studies-core.mjs?v=20261117-h1-body';
 import {loadPersistentHistory} from './history-store.mjs?v=20261029-price-delta1';
 let serial=0,trend=null,trendKey='',historyPending=null;
 let matrixReplayState=null,matrixReplayKey='';
