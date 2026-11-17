@@ -110,7 +110,7 @@ const nfSmoothEnabled=()=>$('nf-smooth-toggle')?.checked&&$('symbol').value==='S
 let matrixOi8Points=[];
 const oi8PivotLines={low:[],high:[]};
 const strengthOi8Enabled=()=>$('strength-oi8-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
-const SETUP_CONTROL_IDS=['oi8-pivot-toggle','h1-matrix-taker-smooth','h1-matrix-oi-smooth','strength-oi8-toggle','nf-smooth-toggle','nf-smooth-window','symbol','interval','days','signal','composite','alignment','confirmed-delta-toggle','oi-width-toggle','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-h1-box-color','m15-h1-score-color','cvd-spectrum-toggle','large-taker-toggle','large-taker-percentile','h1-oi-markers-toggle','oi-candle-bars-toggle','oi-candle-pin-toggle','oi-delta-percentile','oi-bold-candles-toggle','show-strength','spy-volume-strength','spy-volume-body-toggle','spy-volume-h1-smooth','h1-score-line-toggle','bands','markers','double-tap-full','geometry-toggle','geometry-matrix-toggle','geometry-provisional','causal-trend-channel','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
+const SETUP_CONTROL_IDS=['oi8-pivot-toggle','h1-matrix-taker-smooth','h1-matrix-oi-smooth','strength-oi8-toggle','nf-smooth-toggle','nf-smooth-window','symbol','interval','days','signal','composite','alignment','confirmed-delta-toggle','oi-width-toggle','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-h1-box-color','m15-h1-score-color','cvd-spectrum-toggle','large-taker-toggle','large-taker-percentile','h1-oi-markers-toggle','oi-candle-bars-toggle','oi-candle-pin-toggle','oi-delta-percentile','oi-bold-candles-toggle','show-strength','spy-volume-strength','spy-volume-body-toggle','spy-volume-h1-smooth','bands','markers','double-tap-full','geometry-toggle','causal-trend-channel','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
 let statsMap=new Map(),candleColorMap=new Map(),candleClusterMap=new Map(),matrixFlowWindow=null,pivotZoneState={ready:false,reason:'history',support:null,resistance:null},pivotZoneKey='',inspectedTime=null;
 let calendarState={events:[],updatedAt:null,loading:false};
 let pendingSavedTimeRange=null,saveSetupTimer=null,strengthBoxLayer=null,quantileLayer=null;
@@ -244,7 +244,6 @@ function setupChartActions(){
   if(!$('spyusdt-session-change')){const badge=document.createElement('span');badge.id='spyusdt-session-change';badge.textContent='SPY —';badge.setAttribute('aria-live','polite');live.insertAdjacentElement('afterend',badge);}
   if(!$('causal-trend-channel')){const input=document.createElement('input');input.id='causal-trend-channel';input.type='checkbox';input.checked=true;const label=document.createElement('label');label.title='Flow-Leg: SPY V khóa hướng khi mở · chỉ giá hoặc SPY V bất lợi 2 nến đóng liên tiếp mới kết thúc · dốc OLS chỉ dùng chẩn đoán, không cắt tuổi trend · tối thiểu 8 nến · kênh đã đóng: UP vàng, DOWN trắng · kênh đang sống nét chấm: UP cyan, DOWN trắng';label.append(input,'Kênh trend causal');$('geometry-toggle').closest('label').insertAdjacentElement('afterend',label);}
   $('geometry-toggle').parentElement.title='50% line nối pivot hỗ trợ/kháng cự + 50% line biên nêm giá (2 line/nêm). Không đủ mẫu đạt điểm thì để trống; HT/KC SỚM có nút bật tắt riêng.';
-  if(!$('geometry-provisional')){const input=document.createElement('input');input.id='geometry-provisional';input.type='checkbox';input.checked=true;const label=document.createElement('label');label.title='Hiện/ẩn riêng các Trendline causal sớm HT SỚM và KC SỚM; chỉ có tác dụng khi Trendline causal đang bật';label.append(input,'Trendline causal nét chấm');$('geometry-toggle').closest('label').insertAdjacentElement('afterend',label);}
   $('geometry-pivots').closest('label').title='Ưu tiên điểm xoay từ màu Hộp H1 đã khóa cho Pivot, phân kỳ và mẫu nêm tăng/giảm; khi chưa đủ ít nhất 2 đỉnh và 2 đáy H1, tự dùng pivot giá M15. Trendline chỉ dùng điểm đã xác nhận causal.';
   $('geometry-overlay').setAttribute('aria-label','Trendline đã xác nhận, trendline sớm nét chấm, pivot, phân kỳ, Kênh trend causal và bốn thông báo cắt line gần nhất');
   fit.insertAdjacentElement('afterend',live);
@@ -374,7 +373,7 @@ function requestStudies(){
   if(!cache)return;
   const symbol=$('symbol').value,interval=$('interval').value,p=rows[symbol]??[],closed=p.filter(r=>r.end<cache.serverTime);
   if(!closed.length)return;
-  const options={minScore:Number($('geometry-score').value),maxLines:Number($('geometry-lines').value),matrixGeometry:($('geometry-matrix-toggle')?.checked??true)&&symbol==='SPYUSDT'&&interval==='15m',matrixOptions:getH1MatrixOptions()};
+  const options={minScore:Number($('geometry-score').value),maxLines:Number($('geometry-lines').value),matrixGeometry:false,matrixOptions:getH1MatrixOptions()};
   const sourceKey=h1BodyColorSourceKey(cache);
   const useH1Smooth=Boolean($('spy-volume-h1-smooth')?.checked&&symbol==='SPYUSDT'&&interval==='15m');
   const key=`${symbol}|${interval}|${$('days').value}|${closed[0]?.t}|${closed.at(-1)?.t}|${closed.length}|${options.minScore}|${options.maxLines}|${sourceKey??''}|ageH1:${Number(useH1Smooth)}|matrix:${Number(options.matrixGeometry)}:${JSON.stringify(options.matrixOptions)}:${geometryOiRevision}`;
@@ -1232,7 +1231,7 @@ function drawGeometryOverlay(){
   const canvas=$('geometry-overlay'),host=$('chart'),width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1;
   const bitmapWidth=Math.round(width*dpr),bitmapHeight=Math.round(height*dpr);if(canvas.width!==bitmapWidth||canvas.height!==bitmapHeight){canvas.width=bitmapWidth;canvas.height=bitmapHeight;}
   const context=canvas.getContext('2d');context.setTransform(dpr,0,0,dpr,0,0);context.clearRect(0,0,width,height);canvas.dataset.lines=String(geometryState.lines?.length??0);canvas.dataset.provisionalLines=String(geometryState.provisionalLines?.length??0);canvas.dataset.pivots=String(geometryState.pivots?.length??0);canvas.dataset.states=String(geometryStatePoints.length);canvas.dataset.causalTrends=String(causalChannelState.trends?.length??0);canvas.dataset.pivotSource=geometryState.pivotSource??'M15_PRICE';
-  const showGeometry=$('geometry-toggle').checked,showGeometryProvisional=$('geometry-provisional').checked,showCausal=$('causal-trend-channel').checked;const showPivots=$('geometry-pivots').checked;
+  const showGeometry=$('geometry-toggle').checked,showGeometryProvisional=false,showCausal=$('causal-trend-channel').checked;const showPivots=$('geometry-pivots').checked;
   if(!showGeometry&&!showCausal&&!showPivots)return;
   const paneHeight=chart.panes()[0]?.getHeight?.()??height*.5,scaleWidth=chart.priceScale('right',0)?.width?.()??56,right=width-scaleWidth;
   context.save();context.beginPath();context.rect(0,0,right,paneHeight);context.clip();canvas.dataset.clipHeight=String(paneHeight);context.lineJoin='round';context.lineCap='round';
@@ -1554,7 +1553,6 @@ function toggle(){
   scheduleAbaBandColors();
   for(const key of ['h1ScoreLine','h1ScorePreview'])setOptions(series[key],{visible:!!$('h1-score-line-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m'});
   updateH1ScoreLineReadout(inspectedTime);
-  const mirrorButton=$('h1-score-line-button');if(mirrorButton){mirrorButton.lastChild.textContent=`Điểm H1 mượt: ${$('h1-score-line-toggle').checked?'BẬT':'TẮT'}`;mirrorButton.setAttribute('aria-pressed',String($('h1-score-line-toggle').checked));}
   for(const [id,key] of [['composite','COMPOSITE'],['show-strength','strength'],['spy-volume-strength','volumeStrength']])setOptions(series[key],{visible:$(id).checked});
   setOptions(strengthMarks,{visible:$('show-strength').checked});
   $('cvd-spectrum').style.display=$('cvd-spectrum-toggle').checked?'block':'none';scheduleCvdSpectrum();
@@ -1668,7 +1666,6 @@ if(init()){
   const chartCard=document.querySelector('.chart-card');
   const indicatorTools=document.createElement('section');indicatorTools.id='chart-indicator-tools';indicatorTools.className='chart-options chart-indicator-tools';indicatorTools.setAttribute('aria-label','Điều khiển hộp sức mạnh và phân vị');($('chart-settings-panel')??chartCard.parentElement).append(indicatorTools);
   getH1MatrixOptions=mountMatrixSettings(indicatorTools,colorStorage(),()=>{h1ScoreLayer?.schedule();studyKey='';if(cache)render(false);});
-  const matrixLineLabel=document.createElement('label'),matrixLineToggle=document.createElement('input');matrixLineToggle.id='geometry-matrix-toggle';matrixLineToggle.type='checkbox';matrixLineToggle.checked=true;matrixLineLabel.title='Thử trên SPY M15: H1 đã khóa và ma trận xếp hạng 50% line breakout, 50% biên nêm. Khóa điểm neo khi chờ phá; xác nhận phá bằng hai M15 đóng; OI/C Taker không là điều kiện chặn. Chỉ 4/4 M15 đóng. Tắt để dùng bộ chọn 50/50 cũ.';matrixLineLabel.append(matrixLineToggle,'Trendline 50/50 · ma trận H1');indicatorTools.append(matrixLineLabel);matrixLineToggle.onchange=()=>{studyKey='';render(false);};
   const chartNotes=document.createElement('details');chartNotes.id='chart-notes';const notesSummary=document.createElement('summary');notesSummary.textContent='Giải thích và trạng thái chỉ báo';chartNotes.append(notesSummary);chartCard.after(chartNotes);
   for(const node of chartCard.querySelectorAll('#tooltip,.hint'))chartNotes.append(node);
   strengthBoxLayer=createStrengthBoxLayer({chart,host:$('chart'),actions:indicatorTools,getContext:()=>({rows:rows[$('symbol').value]??[],symbol:$('symbol').value,interval:$('interval').value,step:STEPS[$('interval').value],now:cache?.serverTime??0,price,composite:maps.COMPOSITE??new Map(),compositeRevision:studyResultKey,volume:volumeStrengthMap,channels:studyResultKey===studyKey&&$('causal-trend-channel').checked?(causalChannelState.trends??[]).filter(c=>!c.provisional):[]}),onChange:()=>quantileLayer?.update()});
@@ -1703,7 +1700,6 @@ if(init()){
   spyBodyLabel.title='Nét liền trong pane SPY V trên SPY M15, vàng khi trên 0 và trắng khi dưới 0. Thay volume bằng |Close − Open|, giữ dấu theo hướng thân nến và dùng cùng chế độ làm mượt SPY V đang chọn.';
   spyBodyLabel.append(spyBodyToggle,'SPY V thân nến · nét liền');spyH1Label.after(spyBodyLabel);
   spyBodyToggle.onchange=()=>render(false);
-  const scoreLineInput=document.createElement('input'),scoreLineButton=document.createElement('button');scoreLineInput.id='h1-score-line-toggle';scoreLineInput.type='checkbox';scoreLineInput.checked=true;scoreLineInput.hidden=true;scoreLineButton.id='h1-score-line-button';scoreLineButton.type='button';scoreLineButton.className='display-mode-button';scoreLineButton.append(scoreLineInput,'Điểm H1 mượt: BẬT');scoreLineButton.title='Nguồn trực tiếp điểm hộp H1 −5…+5, không dùng đường SPY V. Mỗi điểm chính thức đặt tại lúc H1 đóng; mượt 0,75, đổi dấu mạnh dùng 0,90; chia 5 để cùng thang pane SPY V. Hộp 3/4 chỉ có đoạn xem trước nét chấm. Thiếu điểm thì ngắt đường.';spyH1Label.after(scoreLineButton);scoreLineButton.onclick=()=>{scoreLineInput.checked=!scoreLineInput.checked;render(false);};
   const nfLabel=document.createElement('label'),nfInput=document.createElement('input'),nfWindow=document.createElement('select');
   nfInput.id='nf-smooth-toggle';nfInput.type='checkbox';nfInput.checked=true;nfWindow.id='nf-smooth-window';
   for(const n of [4,8]){const option=document.createElement('option');option.value=String(n);option.textContent=n+' M15';nfWindow.append(option);}
@@ -1751,7 +1747,7 @@ if(init()){
   syncDisplayModeButtons();
   $('refresh').onclick=()=>refresh();$('interval').onchange=()=>{syncChartFrameButtons();syncDisplayModeButtons();updateH1TrendAgeReadout();updateGeometryReadout();refresh(true);};$('days').onchange=()=>refresh(true);
   for(const id of ['symbol','signal'])$(id).onchange=()=>{syncDisplayModeButtons();resetStudies();render(false);setLive();};
-  for(const id of ['composite','alignment','price-bands','pivot-zones','cvd-spectrum-toggle','show-strength','spy-volume-strength','bands','markers','geometry-toggle','geometry-provisional','causal-trend-channel','geometry-pivots'])$(id).onchange=toggle;
+  for(const id of ['composite','alignment','price-bands','pivot-zones','cvd-spectrum-toggle','show-strength','spy-volume-strength','bands','markers','geometry-toggle','causal-trend-channel','geometry-pivots'])$(id).onchange=toggle;
   $('confirmed-delta-toggle').onchange=toggle;$('oi-width-toggle').onchange=()=>render(false);
   for(const id of ['geometry-score','geometry-lines'])$(id).onchange=()=>render(false);
   $('wlr-soft-color-mode').onclick=()=>{const input=$('wlr-soft-colors');input.checked=!input.checked;syncDisplayModeButtons();render(false);};
