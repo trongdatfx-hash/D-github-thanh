@@ -31,7 +31,11 @@ export function computeStudies({rows,volumeRows,symbol,interval,options,now,tren
   const weeklyBoxes=interval==='15m'&&symbol==='SPYUSDT'?channelStrengthBoxes(tRows,{channels:channelState.episodes,showEarly:false,back:8,now,step:STEPS['15m'],compositeRows:new Map((trend?.rows.COMPOSITE??[]).map(x=>[x.t,x])),volumeRows:new Map(trendVolume.map(x=>[x.t,x])),compositeMode:'annotate'}):{snapshots:new Map()};
   let h1CandleColors=[],h1H4CandleColors=[];
   if(symbol==='SPYUSDT'&&interval==='15m'){
-    h1CandleColors=h1CandleColorStates({priceRows:tRows,boxSnapshots:weeklyBoxes.snapshots,trendStates:channelStates,volumeRows:trend?.volume??[],now,sourceStep:STEPS['15m'],boxHours:1});
+    // Use unsmoothed body strength because the H1 smoother consumes these box colors.
+    const bodyBars=(trend?.rawSpy??[]).map(bar=>({...bar,v:Math.abs(bar.c-bar.o)}));
+    const step=STEPS['15m'];
+    const bodyVolume=analyze(bodyBars,step,{strength:calculateVolumeStrength(bodyBars,step)});
+    h1CandleColors=h1CandleColorStates({priceRows:tRows,boxSnapshots:weeklyBoxes.snapshots,trendStates:channelStates,volumeRows:bodyVolume,now,sourceStep:STEPS['15m'],boxHours:1});
     const h1Rows=aggregateHourlyRows(tRows,now),h1Closed=h1Rows.filter(row=>row.sourceComplete&&row.end<now),h1Volume=aggregateHourlySignals(trend?.volume??[],h1Rows),h1Composite=aggregateHourlySignals(trend?.rows.COMPOSITE??[],h1Rows);
     const h1Channels=causalTrendChannels(h1Closed,{volumeRows:h1Volume,maxHistory:64});
     const h4Boxes=channelStrengthBoxes(h1Closed,{channels:h1Channels.episodes,showEarly:false,back:8,now,step:H1_MS,compositeRows:new Map(h1Composite.map(row=>[row.t,row])),volumeRows:new Map(h1Volume.map(row=>[row.t,row])),compositeMode:'annotate'});
