@@ -1321,8 +1321,14 @@ function render(fit=false){
   const h1ScoreRecords=h1Wlr?(h1ScoreLayer?.getLineScores()??[]):[];
   $('chart').dataset.candleH1ScoreColor=scoreCandleColor?'active':'off';
   $('chart').dataset.candleH1BoxColor=h1BoxColor?'active':'off';$('chart').dataset.candleH1BoxPreviewBars=String([...h1CandleMap.values()].filter(x=>x.preview).length);$('chart').dataset.candleH1BoxStates=String(h1CandleMap.size);
+  const bodyVolumeBars=(cache?.SPYUSDT??[]).map(bar=>({...bar,v:Math.abs(bar.c-bar.o)}));
+  const bodyVolumeStep=STEPS[$('interval').value];
+  const bodyVolumeRows=bodyVolumeBars.length?(spyH1Enabled
+    ?h1AdaptiveVolumeRows(bodyVolumeBars,h1CandleMap,{step:bodyVolumeStep,now:cache.serverTime})
+    :analyze(bodyVolumeBars,bodyVolumeStep,{strength:calculateVolumeStrength(bodyVolumeBars,bodyVolumeStep)})):[];
+  const bodyVolumeByTime=new Map(bodyVolumeRows.map(row=>[row.t,row]));
   const priceData=p.map(x=>{
-    const color=spyVSignColor(wlrVolumeStrengthMap.get(x.t)?.adjusted);
+    const color=spyVSignColor(bodyVolumeByTime.get(x.t)?.adjusted);
     return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color,wickColor:color,borderColor:color};
   });
   writeSeries('price',price,priceData,seriesContext+'|'+scoreCandleColor);
@@ -1335,7 +1341,7 @@ function render(fit=false){
   writeSeries('priceMid',series.priceMid,priceLineData(priceBands,maps.COMPOSITE??new Map(),wlrVolumeStrengthMap,trendThickness),seriesContext);updateAbaBandColors();
   writeSeries('COMPOSITE',series.COMPOSITE,flowData(rows.COMPOSITE??[],'COMPOSITE'),seriesContext);
   const step=STEPS[$('interval').value];
-  writeSeries('alignment',series.alignment,volumeDeltaBandData(spyVolumeDeltaRows,wlrVolumeStrengthMap),seriesContext);
+  writeSeries('alignment',series.alignment,volumeDeltaBandData(spyVolumeDeltaRows,bodyVolumeByTime),seriesContext);
   const oiBarsEnabled=$('oi-candle-bars-toggle')?.checked&&$('symbol').value==='SPYUSDT';
   oiBarState=oiCandleBars(p,spyVolumeDeltaRows,rows.COMPOSITE??[],oiWidths,step,cache?.serverTime??0,{filterPin:$('oi-candle-pin-toggle')?.checked??true,history:true,minOiMultiplier:1,oiPercentile:Number($('oi-delta-percentile')?.value??.62)});
   writeSeries('oiCandleBars',series.oiCandleBars,oiBarState.data,seriesContext+'|'+$('oi-candle-pin-toggle')?.checked);
@@ -1376,11 +1382,6 @@ function render(fit=false){
   writeSeries('confirmedDelta',series.confirmedDelta,priceDeltaStrengthData(rows.COMPOSITE??[]),seriesContext);
   writeSeries('strength',series.strength,lineData(signalRows,'adjusted'),seriesContext);
   writeSeries('volumeStrength',series.volumeStrength,lineData(displayVolumeStrengthRows,'adjusted'),seriesContext);
-  const bodyVolumeBars=spyBodyVolumeEnabled()?(cache?.SPYUSDT??[]).map(bar=>({...bar,v:Math.abs(bar.c-bar.o)})):[];
-  const bodyVolumeStep=STEPS['15m'];
-  const bodyVolumeRows=bodyVolumeBars.length?(spyH1Enabled
-    ?h1AdaptiveVolumeRows(bodyVolumeBars,h1CandleMap,{step:bodyVolumeStep,now:cache.serverTime})
-    :analyze(bodyVolumeBars,bodyVolumeStep,{strength:calculateVolumeStrength(bodyVolumeBars,bodyVolumeStep)})):[];
   writeSeries('spyBodyVolume',series.spyBodyVolume,lineData(bodyVolumeRows,'adjusted'),seriesContext);
   setOptions(series.spyBodyVolume,{visible:!!spyBodyVolumeEnabled()});
   const scoreLineEnabled=$('h1-score-line-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
