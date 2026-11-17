@@ -1222,7 +1222,8 @@ function drawGeometryOverlay(){
   const canvas=$('geometry-overlay'),host=$('chart'),width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1;
   const bitmapWidth=Math.round(width*dpr),bitmapHeight=Math.round(height*dpr);if(canvas.width!==bitmapWidth||canvas.height!==bitmapHeight){canvas.width=bitmapWidth;canvas.height=bitmapHeight;}
   const context=canvas.getContext('2d');context.setTransform(dpr,0,0,dpr,0,0);context.clearRect(0,0,width,height);canvas.dataset.lines=String(geometryState.lines?.length??0);canvas.dataset.provisionalLines=String(geometryState.provisionalLines?.length??0);canvas.dataset.pivots=String(geometryState.pivots?.length??0);canvas.dataset.states=String(geometryStatePoints.length);canvas.dataset.causalTrends=String(causalChannelState.trends?.length??0);canvas.dataset.pivotSource=geometryState.pivotSource??'M15_PRICE';
-  const showGeometry=$('geometry-toggle').checked,showGeometryProvisional=$('geometry-provisional').checked,showCausal=$('causal-trend-channel').checked;if(!showGeometry&&!showCausal)return;
+  const showGeometry=$('geometry-toggle').checked,showGeometryProvisional=$('geometry-provisional').checked,showCausal=$('causal-trend-channel').checked;const showPivots=$('geometry-pivots').checked;
+  if(!showGeometry&&!showCausal&&!showPivots)return;
   const paneHeight=chart.panes()[0]?.getHeight?.()??height*.5,scaleWidth=chart.priceScale('right',0)?.width?.()??56,right=width-scaleWidth;
   context.save();context.beginPath();context.rect(0,0,right,paneHeight);context.clip();canvas.dataset.clipHeight=String(paneHeight);context.lineJoin='round';context.lineCap='round';
   if(showCausal){
@@ -1238,36 +1239,37 @@ function drawGeometryOverlay(){
       if(trend.confirmationTime!==trend.startTime&&confirmPoint&&confirmPoint.x>=0&&confirmPoint.x<=right){context.setLineDash([]);context.strokeStyle=color;context.lineWidth=1.5;context.beginPath();context.arc(confirmPoint.x,confirmPoint.center,3,0,Math.PI*2);context.stroke();}
     }
   }
-  if(!showGeometry){context.restore();return;}
-  for(const setup of geometryState.patterns??[]){
-    const [lower,upper]=setup.rails,x1=chart.timeScale().timeToCoordinate(lower.startTime/1000),x2=chart.timeScale().timeToCoordinate(lower.endTime/1000);
-    const ys=[upper.startValue,upper.endValue,lower.endValue,lower.startValue].map(v=>price.priceToCoordinate(v));
-    if(![x1,x2,...ys].every(Number.isFinite))continue;
-    context.fillStyle=setup.phase==='accumulation'?'rgba(54,221,189,.07)':setup.phase==='distribution'?'rgba(255,99,131,.07)':'rgba(154,140,255,.07)';
-    context.beginPath();context.moveTo(x1,ys[0]);context.lineTo(x2,ys[1]);context.lineTo(x2,ys[2]);context.lineTo(x1,ys[3]);context.closePath();context.fill();
+  if(showGeometry){
+    for(const setup of geometryState.patterns??[]){
+      const [lower,upper]=setup.rails,x1=chart.timeScale().timeToCoordinate(lower.startTime/1000),x2=chart.timeScale().timeToCoordinate(lower.endTime/1000);
+      const ys=[upper.startValue,upper.endValue,lower.endValue,lower.startValue].map(v=>price.priceToCoordinate(v));
+      if(![x1,x2,...ys].every(Number.isFinite))continue;
+      context.fillStyle=setup.phase==='accumulation'?'rgba(54,221,189,.07)':setup.phase==='distribution'?'rgba(255,99,131,.07)':'rgba(154,140,255,.07)';
+      context.beginPath();context.moveTo(x1,ys[0]);context.lineTo(x2,ys[1]);context.lineTo(x2,ys[2]);context.lineTo(x1,ys[3]);context.closePath();context.fill();
+    }
+    if(showGeometryProvisional)for(const line of geometryState.provisionalLines??[]){
+      const x1=chart.timeScale().timeToCoordinate(line.startTime/1000),x2=chart.timeScale().timeToCoordinate(line.endTime/1000),y1=price.priceToCoordinate(line.startValue),y2=price.priceToCoordinate(line.endValue);
+      if(![x1,x2,y1,y2].every(Number.isFinite)||Math.max(x1,x2)<0||Math.min(x1,x2)>right||Math.max(y1,y2)<0||Math.min(y1,y2)>paneHeight)continue;
+      const provisionalColor=line.kind==='support'?'rgba(54,221,189,.82)':'rgba(255,180,84,.82)';context.strokeStyle=provisionalColor;context.lineWidth=2.1;context.setLineDash([2,4]);context.beginPath();context.moveTo(x1,y1);context.lineTo(x2,y2);context.stroke();
+      if(width>=650&&x2>70&&x2<right-6&&y2>10&&y2<paneHeight-8){context.setLineDash([]);context.font='700 9px Inter,system-ui,sans-serif';context.textAlign='right';context.textBaseline='bottom';context.fillStyle=line.kind==='support'?'#71f7d6':'#ffd092';context.fillText(`${line.kind==='support'?'HT':'KC'} SỚM · ${line.lookbackBars}n`,x2-4,y2-3);}
+    }
+    for(const line of [...geometryState.lines].reverse()){
+      const x1=chart.timeScale().timeToCoordinate(line.startTime/1000),x2=chart.timeScale().timeToCoordinate(line.endTime/1000),y1=price.priceToCoordinate(line.startValue),y2=price.priceToCoordinate(line.endValue);
+      if(![x1,x2,y1,y2].every(Number.isFinite)||Math.max(x1,x2)<0||Math.min(x1,x2)>right||Math.max(y1,y2)<0||Math.min(y1,y2)>paneHeight)continue;
+      const alpha=.48+.45*Math.max(0,Math.min(1,(line.score-55)/35));context.strokeStyle=line.kind==='support'?`rgba(54,221,189,${alpha})`:`rgba(255,180,84,${alpha})`;context.lineWidth=1.2+2*Math.max(0,Math.min(1,(line.score-55)/35));context.setLineDash(line.setupState==='WATCH'?[3,5]:line.setupState==='BREAK_WAIT'?[2,3]:line.source==='pattern'?[10,3]:line.score>=75?[]:[6,4]);context.beginPath();context.moveTo(x1,y1);context.lineTo(x2,y2);context.stroke();
+      if(width>=650&&x2>70&&x2<right-6&&y2>10&&y2<paneHeight-8){context.setLineDash([]);context.font='700 9px Inter,system-ui,sans-serif';context.textAlign='right';context.textBaseline='bottom';context.fillStyle=line.kind==='support'?'#7dffd9':'#ffd092';context.fillText(`${line.setupLabel??line.patternLabel??(line.kind==='support'?'HT':'KC')} ${line.score} · ${line.touches}x`,x2-4,y2-3);}
+    }
+    context.setLineDash([]);for(const point of geometryStatePoints){
+      const x=chart.timeScale().timeToCoordinate(point.at/1000),y=price.priceToCoordinate(point.lineValue);if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||x>right||y<0||y>paneHeight)continue;
+      const color=point.breakDirection>0?'#1ae0a3':'#ff6383',trueBreak=['true_break','strong_break'].includes(point.key);context.fillStyle=trueBreak?color:'rgba(9,18,31,.96)';context.strokeStyle=color;context.lineWidth=trueBreak?1.4:2.4;context.beginPath();context.arc(x,y,point.strongBreak?8:5,0,Math.PI*2);context.fill();context.stroke();context.font='900 8px Inter,system-ui,sans-serif';context.textAlign='center';context.textBaseline='middle';context.fillStyle=trueBreak?'#07131f':color;context.fillText(point.breakDirection>0?'↑':'↓',x,y+.3);
+    }
+    for(const point of geometryStatePoints.filter(p=>p.strongBreak)){
+      const x=chart.timeScale().timeToCoordinate(point.at/1000),y=price.priceToCoordinate(point.lineValue);
+      if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||x>right||y<0||y>paneHeight)continue;
+      context.fillStyle=point.breakDirection>0?'#1ae0a3':'#ff6383';context.font='800 10px Inter,system-ui,sans-serif';context.textAlign='left';context.fillText('BREAK MẠNH '+(point.breakDirection>0?'↑':'↓')+' · RVOL '+fmt(point.relativeVolume),x+11,y-12);
+    }
   }
-  if(showGeometryProvisional)for(const line of geometryState.provisionalLines??[]){
-    const x1=chart.timeScale().timeToCoordinate(line.startTime/1000),x2=chart.timeScale().timeToCoordinate(line.endTime/1000),y1=price.priceToCoordinate(line.startValue),y2=price.priceToCoordinate(line.endValue);
-    if(![x1,x2,y1,y2].every(Number.isFinite)||Math.max(x1,x2)<0||Math.min(x1,x2)>right||Math.max(y1,y2)<0||Math.min(y1,y2)>paneHeight)continue;
-    const provisionalColor=line.kind==='support'?'rgba(54,221,189,.82)':'rgba(255,180,84,.82)';context.strokeStyle=provisionalColor;context.lineWidth=2.1;context.setLineDash([2,4]);context.beginPath();context.moveTo(x1,y1);context.lineTo(x2,y2);context.stroke();
-    if(width>=650&&x2>70&&x2<right-6&&y2>10&&y2<paneHeight-8){context.setLineDash([]);context.font='700 9px Inter,system-ui,sans-serif';context.textAlign='right';context.textBaseline='bottom';context.fillStyle=line.kind==='support'?'#71f7d6':'#ffd092';context.fillText(`${line.kind==='support'?'HT':'KC'} SỚM · ${line.lookbackBars}n`,x2-4,y2-3);}
-  }
-  for(const line of [...geometryState.lines].reverse()){
-    const x1=chart.timeScale().timeToCoordinate(line.startTime/1000),x2=chart.timeScale().timeToCoordinate(line.endTime/1000),y1=price.priceToCoordinate(line.startValue),y2=price.priceToCoordinate(line.endValue);
-    if(![x1,x2,y1,y2].every(Number.isFinite)||Math.max(x1,x2)<0||Math.min(x1,x2)>right||Math.max(y1,y2)<0||Math.min(y1,y2)>paneHeight)continue;
-    const alpha=.48+.45*Math.max(0,Math.min(1,(line.score-55)/35));context.strokeStyle=line.kind==='support'?`rgba(54,221,189,${alpha})`:`rgba(255,180,84,${alpha})`;context.lineWidth=1.2+2*Math.max(0,Math.min(1,(line.score-55)/35));context.setLineDash(line.setupState==='WATCH'?[3,5]:line.setupState==='BREAK_WAIT'?[2,3]:line.source==='pattern'?[10,3]:line.score>=75?[]:[6,4]);context.beginPath();context.moveTo(x1,y1);context.lineTo(x2,y2);context.stroke();
-    if(width>=650&&x2>70&&x2<right-6&&y2>10&&y2<paneHeight-8){context.setLineDash([]);context.font='700 9px Inter,system-ui,sans-serif';context.textAlign='right';context.textBaseline='bottom';context.fillStyle=line.kind==='support'?'#7dffd9':'#ffd092';context.fillText(`${line.setupLabel??line.patternLabel??(line.kind==='support'?'HT':'KC')} ${line.score} · ${line.touches}x`,x2-4,y2-3);}
-  }
-  context.setLineDash([]);for(const point of geometryStatePoints){
-    const x=chart.timeScale().timeToCoordinate(point.at/1000),y=price.priceToCoordinate(point.lineValue);if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||x>right||y<0||y>paneHeight)continue;
-    const color=point.breakDirection>0?'#1ae0a3':'#ff6383',trueBreak=['true_break','strong_break'].includes(point.key);context.fillStyle=trueBreak?color:'rgba(9,18,31,.96)';context.strokeStyle=color;context.lineWidth=trueBreak?1.4:2.4;context.beginPath();context.arc(x,y,point.strongBreak?8:5,0,Math.PI*2);context.fill();context.stroke();context.font='900 8px Inter,system-ui,sans-serif';context.textAlign='center';context.textBaseline='middle';context.fillStyle=trueBreak?'#07131f':color;context.fillText(point.breakDirection>0?'↑':'↓',x,y+.3);
-  }
-  for(const point of geometryStatePoints.filter(p=>p.strongBreak)){
-    const x=chart.timeScale().timeToCoordinate(point.at/1000),y=price.priceToCoordinate(point.lineValue);
-    if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||x>right||y<0||y>paneHeight)continue;
-    context.fillStyle=point.breakDirection>0?'#1ae0a3':'#ff6383';context.font='800 10px Inter,system-ui,sans-serif';context.textAlign='left';context.fillText('BREAK MẠNH '+(point.breakDirection>0?'↑':'↓')+' · RVOL '+fmt(point.relativeVolume),x+11,y-12);
-  }
-  if($('geometry-pivots').checked){
+  if(showPivots){
     context.setLineDash([]);for(const pivot of geometryState.pivots.slice(-60)){
       const x=chart.timeScale().timeToCoordinate(pivot.t/1000),y=price.priceToCoordinate(pivot.value);if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||x>right||y<0||y>paneHeight)continue;
       context.fillStyle=pivot.type==='low'?'rgba(54,221,189,.8)':'rgba(255,180,84,.8)';context.beginPath();context.arc(x,y,Math.min(4,2+pivot.prominenceAtr),0,Math.PI*2);context.fill();
@@ -1550,7 +1552,7 @@ function toggle(){
   setOptions(strengthMarks,{visible:$('show-strength').checked});
   $('cvd-spectrum').style.display=$('cvd-spectrum-toggle').checked?'block':'none';scheduleCvdSpectrum();
   $('day-separators').style.display=$('markers').checked?'block':'none';scheduleDaySeparators();
-  $('geometry-overlay').style.display=$('geometry-toggle').checked||$('causal-trend-channel').checked?'block':'none';scheduleGeometryOverlay();updateGeometryReadout();
+  $('geometry-overlay').style.display=$('geometry-toggle').checked||$('causal-trend-channel').checked||$('geometry-pivots').checked?'block':'none';scheduleGeometryOverlay();updateGeometryReadout();
   setOptions(series.alignment,{visible:$('alignment').checked});
   setOptions(series.confirmedDelta,{visible:$('confirmed-delta-toggle').checked});
   for(const key of ['priceMid','priceUpper','priceLower'])setOptions(series[key],{visible:$('price-bands').checked});
