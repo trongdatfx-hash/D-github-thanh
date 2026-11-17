@@ -334,9 +334,13 @@ function resetStudies(){
 }
 function colorStorage(){try{return globalThis.localStorage;}catch{return null;}}
 function recordH1ColorPaint(){if(h1CandleMap.size||h1H4CandleMap.size)requestAnimationFrame(()=>{$('chart').dataset.firstH1ColorPaintMs??=String(Math.round(performance.now()));});}
+function h1BodyColorSourceKey(data){
+  const key=closedColorSourceKey(data);
+  return key?`body-v1|${key}`:key;
+}
 function restoreH1Colors(data){
   if($('symbol').value!=='SPYUSDT'||h1CandleMap.size||h1H4CandleMap.size)return;
-  const sourceKey=closedColorSourceKey(data);if(!sourceKey||sourceKey===h1CacheAttempt)return;h1CacheAttempt=sourceKey;
+  const sourceKey=h1BodyColorSourceKey(data);if(!sourceKey||sourceKey===h1CacheAttempt)return;h1CacheAttempt=sourceKey;
   if(h1HistoryKnown&&h1HistoryRevision===null)return;
   const saved=readH1ColorCache(colorStorage(),data,{sourceKey,archiveRevision:h1HistoryRevision});if(!saved)return;
   h1CacheArchive=saved.archiveRevision;h1CandleMap=new Map(saved.h1.map(state=>[state.t,state]));h1H4CandleMap=new Map(saved.strip.map(state=>[state.t,state]));
@@ -344,7 +348,7 @@ function restoreH1Colors(data){
 }
 function ensureStudiesWorker(){
   if(!studiesWorker){
-    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261114-sl1',import.meta.url),{type:'module'});
+    studiesWorker=new Worker(new URL('./studies-worker.mjs?v=20261117-h1-body',import.meta.url),{type:'module'});
     studiesWorker.onmessage=({data})=>{
       if(data.type==='history-ready'){
         h1HistoryKnown=true;h1HistoryRevision=archiveColorRevision(data.archive);
@@ -371,7 +375,7 @@ function requestStudies(){
   const symbol=$('symbol').value,interval=$('interval').value,p=rows[symbol]??[],closed=p.filter(r=>r.end<cache.serverTime);
   if(!closed.length)return;
   const options={minScore:Number($('geometry-score').value),maxLines:Number($('geometry-lines').value),matrixGeometry:($('geometry-matrix-toggle')?.checked??true)&&symbol==='SPYUSDT'&&interval==='15m',matrixOptions:getH1MatrixOptions()};
-  const sourceKey=closedColorSourceKey(cache);
+  const sourceKey=h1BodyColorSourceKey(cache);
   const useH1Smooth=Boolean($('spy-volume-h1-smooth')?.checked&&symbol==='SPYUSDT'&&interval==='15m');
   const key=`${symbol}|${interval}|${$('days').value}|${closed[0]?.t}|${closed.at(-1)?.t}|${closed.length}|${options.minScore}|${options.maxLines}|${sourceKey??''}|ageH1:${Number(useH1Smooth)}|matrix:${Number(options.matrixGeometry)}:${JSON.stringify(options.matrixOptions)}:${geometryOiRevision}`;
   if(key===studyKey)return;studyKey=key;
