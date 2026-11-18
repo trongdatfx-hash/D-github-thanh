@@ -35,7 +35,7 @@ import {wlrSoftColors} from './wlr-soft-color.mjs?v=20261029-price-delta1';
 import {wlrH1Styles} from './wlr-h1-style.mjs?v=20261108-wlr-score-color3';
 import {wlrDisplayColors,WLR_COLOR_DEFAULTS} from './wlr-display-color.mjs?v=20261029-price-delta1';
 import {createSeriesWriter} from './chart-data-cache.mjs?v=20261029-price-delta1';
-import {COMPOSITE_STRENGTH_VERSION,STEPS,composite,strengthAgreementCandleSignal,strengthPhaseLineStyle,directionalVolumeDelta,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,weightedPriceBands,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs?v=20261105-spyv-h1-1';
+import {COMPOSITE_STRENGTH_VERSION,STEPS,composite,strengthAgreementCandleSignal,strengthPhaseLineStyle,directionalVolumeDelta,volumeDeltaStrengthValue,symmetricPriceRange,calculateVolumeStrength,analyze,weightedPriceBands,candleRegimeClusters,continuousCvdSpectrum,projectNetFlowToPrice,dayBoundaryTimes} from './engine.mjs?v=20261118-wlr-band-slope';
 import {spyUsdtSessionChange} from './spy-session-change.mjs?v=20261110-spy-post-close1';
 import {load,getJSON} from './data.mjs?v=20261107-outside-fast1';
 import {oiWidthByBar} from './oi-width.mjs?v=20261029-oi-width1';
@@ -608,13 +608,18 @@ function scheduleAbaBandColors(){
   if(abaBandFrame)return;
   abaBandFrame=requestAnimationFrame(()=>{abaBandFrame=0;updateAbaBandColors();});
 }
+function wlrBandColor(field,slope,muted){
+  if(field==='lower'&&slope>0)return muted?'rgba(8,232,169,.55)':'#08e8a9';
+  if(field==='upper'&&slope<0)return muted?'rgba(255,65,99,.55)':'#ff4163';
+  return 'rgba(145,165,189,.35)';
+}
 function updateAbaBandColors(){
  if(!series.priceUpper||!series.priceLower)return;
  const on=Boolean($('aba-band-colors')?.checked),supported=$('symbol').value==='SPYUSDT'&&$('interval').value==='15m',enabled=on&&supported&&$('causal-trend-channel').checked,bands=[...priceBandMap.values()];
  const channels=enabled?(causalChannelState.trends??[]).filter(c=>!c.provisional):[],result=causalChannelAba({channels,bands,now:cache?.serverTime??0});
  abaBandPhaseMap=result.phases;
  $('aba-band-history').disabled=!abaBandPhaseMap.size;
- for(const [name,field] of [['priceUpper','upper'],['priceLower','lower']])writeSeries(name,series[name],bands.map(r=>Number.isFinite(r[field])?{time:r.t/1000,value:r[field],color:result.phases.has(r.t)?wlrColorMap.get(r.t)?.color??'#91a5bd':'rgba(145,165,189,.35)'}:{time:r.t/1000}),[$('symbol').value,$('interval').value,enabled,$('wlr-soft-colors').checked].join('|'));
+ for(const [name,field] of [['priceUpper','upper'],['priceLower','lower']])writeSeries(name,series[name],bands.map(r=>Number.isFinite(r[field])?{time:r.t/1000,value:r[field],color:wlrBandColor(field,r.slope,enabled&&!result.phases.has(r.t))}:{time:r.t/1000}),[$('symbol').value,$('interval').value,enabled,$('wlr-soft-colors').checked].join('|'));
  $('chart').dataset.causalA1Count=String(result.channelCount);
  $('aba-band-color-status').textContent=!on?'Đã tắt màu biên theo kênh causal.':!supported?'Biên theo kênh causal hỗ trợ SPY M15.':`Biên theo kênh trend causal · ${result.channelCount} kênh. Hộp sức mạnh ghi loại hộp thay nhãn A1.`;
 }
