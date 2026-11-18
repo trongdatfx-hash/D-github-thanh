@@ -405,13 +405,17 @@ function init(){
   price.attachPrimitive(stopLossBands);
   price.attachPrimitive(spectrumPrimitive);
   const takerHover=document.createElement('div');takerHover.id='large-taker-hover';takerHover.hidden=true;takerHover.style.cssText='position:absolute;z-index:12;left:8px;max-width:calc(100% - 80px);padding:5px 8px;background:rgba(9,18,31,.92);color:#e5effb;border:1px solid #39516c;border-radius:4px;font:12px/1.4 system-ui;pointer-events:none';$('chart').append(takerHover);
+  const paneLegends=[1,2].map(index=>{
+    const legend=document.createElement('div');legend.id='pane-legend-'+index;legend.className='pane-legend';
+    $('chart').append(legend);return legend;
+  });
   const markerLayer=document.createElement('div');markerLayer.id='h1-oi-markers';markerLayer.setAttribute('aria-label','Tam giác OI theo hộp H1');
   markerLayer.style.cssText='position:absolute;inset:0;z-index:9;pointer-events:none';
   const markerDetail=document.createElement('output');markerDetail.setAttribute('popover','auto');
   markerDetail.style.cssText='max-width:min(360px,calc(100vw - 24px));margin:auto;padding:8px 10px;border:1px solid #60748c;border-radius:6px;background:#0e1726;color:#edf4ff;font:12px/1.5 system-ui;white-space:normal';
   const markerStatus=document.createElement('span');markerStatus.hidden=true;
-  markerStatus.style.cssText='position:absolute;max-width:calc(100% - 100px);padding:2px 5px;background:#0e1726;color:#c5d6eb;border-radius:3px;font:10px/1.4 system-ui;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
-  markerLayer.append(markerDetail,markerStatus);$('chart').append(markerLayer);
+  markerStatus.className='pane-fixed-readout missing pane-marker-status';
+  markerLayer.append(markerDetail);$('chart').append(markerLayer);
   h1OiMarkerLayer={root:markerLayer,detail:markerDetail,status:markerStatus,signature:''};
   const spectrumReadout=document.createElement('div');spectrumReadout.id='oi-cvd-readout';spectrumReadout.className='oi-cvd-readout';spectrumReadout.setAttribute('role','note');spectrumReadout.hidden=true;$('chart').after(spectrumReadout);
   $('chart').addEventListener('pointermove',inspectSpectrum,{passive:true});$('chart').addEventListener('pointerdown',inspectSpectrum,{passive:true});$('chart').addEventListener('pointerleave',()=>updateSpectrumReadout());
@@ -472,7 +476,9 @@ function init(){
   series.COMPOSITE.priceScale().applyOptions({autoScale:true,scaleMargins:LOWER_PANE_SCALE_MARGINS});
   $('chart').dataset.compositeHistogramPane=String(series.COMPOSITE.getPane().paneIndex());
   for(const [id,label] of [['composite-flow-fixed','C Taker NF'],['spy-volume-fixed','SPY V']]){const node=document.createElement('div');node.id=id;node.className='pane-fixed-readout missing';node.textContent=`${label} —`;$('chart').append(node);}
-  $('chart').dataset.compositeNetflowPane='removed';$('chart').dataset.netflowPane='removed';$('chart').dataset.takerFlowOverlay='spy-qqq-composite';$('chart').dataset.compositeStrengthOverlay='pane-2-independent-scales-shared-zero-center';$('chart').dataset.compositeStrengthOverlayLabel='C Taker NF';$('chart').dataset.fixedReadoutSide='right-price-scale';$('chart').dataset.strengthLineWidth='1';$('chart').dataset.spyVolumeDeltaPane='1';$('chart').dataset.spyVolumeDeltaScale='symmetric-overlay';$('chart').dataset.spyVolumeDeltaTitle='hidden';$('chart').dataset.compositeStrengthSource='spy-price-confirmed-taker';$('chart').dataset.spyVolumeStrengthLabel='fixed-right';$('chart').dataset.spyVolumeStrengthUnits='signed-2dp';$('chart').dataset.spyVolumeStrengthPositive='#f6c85f';$('chart').dataset.spyVolumeStrengthNegative='#f3f6fb';
+  for(const node of [$('spy-volume-fixed'),$('nf-smooth-readout'),$('h1-score-line-readout'),markerStatus])paneLegends[0].append(node);
+  paneLegends[1].append($('composite-flow-fixed'),$('strength-readout'));
+  $('chart').dataset.compositeNetflowPane='removed';$('chart').dataset.netflowPane='removed';$('chart').dataset.takerFlowOverlay='spy-qqq-composite';$('chart').dataset.compositeStrengthOverlay='pane-2-independent-scales-shared-zero-center';$('chart').dataset.compositeStrengthOverlayLabel='C Taker NF';$('chart').dataset.fixedReadoutSide='left-legend';$('chart').dataset.strengthLineWidth='1';$('chart').dataset.spyVolumeDeltaPane='1';$('chart').dataset.spyVolumeDeltaScale='symmetric-overlay';$('chart').dataset.spyVolumeDeltaTitle='hidden';$('chart').dataset.compositeStrengthSource='spy-price-confirmed-taker';$('chart').dataset.spyVolumeStrengthLabel='pane-legend';$('chart').dataset.spyVolumeStrengthUnits='signed-2dp';$('chart').dataset.spyVolumeStrengthPositive='#f6c85f';$('chart').dataset.spyVolumeStrengthNegative='#f3f6fb';
   $('chart').dataset.wlrColorMode='hysteresis-closed-bars';$('chart').dataset.wlrColorEnter=String(WLR_COLOR_DEFAULTS.enter);$('chart').dataset.wlrColorExit=String(WLR_COLOR_DEFAULTS.exit);
   $('chart').dataset.compositeStrengthVersion=COMPOSITE_STRENGTH_VERSION;
   $('chart').dataset.commonVolumeInput='true-taker-quote-delta-70-30';
@@ -483,9 +489,9 @@ function init(){
   chart.subscribeCrosshairMove(p=>{if(!p.sourceEvent)return;inspectedTime=p.time?p.time*1000:null;showTooltip(inspectedTime??rows[$('symbol').value]?.at(-1)?.t);});
   $('chart').addEventListener('pointerleave',()=>{inspectedTime=null;showTooltip(rows[$('symbol').value]?.at(-1)?.t);});
   chart.timeScale().subscribeVisibleLogicalRangeChange(()=>{scheduleCvdSpectrum();scheduleDaySeparators();scheduleGeometryOverlay();scheduleH1H4Strip();});
-  window.addEventListener('resize',()=>{applyResponsiveChartOptions();scheduleCvdSpectrum();scheduleDaySeparators();scheduleGeometryOverlay();scheduleH1H4Strip();scheduleH1Status();requestAnimationFrame(positionStrengthReadout);requestAnimationFrame(positionFixedPaneReadouts);requestAnimationFrame(updateCandleCountdown);});
+  window.addEventListener('resize',()=>{applyResponsiveChartOptions();scheduleCvdSpectrum();scheduleDaySeparators();scheduleGeometryOverlay();scheduleH1H4Strip();scheduleH1Status();requestAnimationFrame(positionFixedPaneReadouts);requestAnimationFrame(updateCandleCountdown);});
   window.addEventListener('orientationchange',()=>setTimeout(()=>{applyResponsiveChartOptions();window.dispatchEvent(new Event('resize'));},120));
-  const paneLayoutObserver=new ResizeObserver(()=>{scheduleH1H4Strip();requestAnimationFrame(positionFixedPaneReadouts);});
+  const paneLayoutObserver=new ResizeObserver(()=>{scheduleH1H4Strip();scheduleH1Status();requestAnimationFrame(positionFixedPaneReadouts);});
   for(const element of [$('chart'),...chart.panes().map(pane=>pane.getHTMLElement())].filter(Boolean))paneLayoutObserver.observe(element);
   let scoreInputs=null;
   h1ScoreLayer=mountH1ScoreHistogram({chart,host:$('chart'),storage:colorStorage(),getState:({forScoreLine=false}={})=>{
@@ -672,14 +678,13 @@ function drawH1OiPriceMarkers(){
   });
   const valid=h1OiMarkerCoverage.validHours??0;
   const status=markers.length?'':hiddenReasons.size?`OI H1 · ${[...hiddenReasons].join(' · ')}`:valid<37?`OI H1 · đủ dữ liệu ${valid}/37 hộp`:'OI H1 · chưa có hộp đạt 4/5';
-  const spyPane=paneBounds(1);
-  drawH1OiMarkers(markers,status,right,spyPane?spyPane.top+11:bounds.top+4);
+  drawH1OiMarkers(markers,status);
 }
-function drawH1OiMarkers(markers,message='',right=0,y=0){
+function drawH1OiMarkers(markers,message=''){
   const layer=h1OiMarkerLayer;if(!layer)return;
   const {root,detail,status}=layer,signature=JSON.stringify(markers);
   status.hidden=!message;status.textContent=message;
-  if(message){status.style.right=(root.clientWidth-right+4)+'px';status.style.top=y+'px';}
+  status.title=message;
   if(signature===layer.signature)return;
   layer.signature=signature;
   const buttons=markers.map(mark=>{
@@ -999,20 +1004,18 @@ function render(fit=false){
 }
 function statValue(id,text,color='neutral'){const node=$(id);node.textContent=text;node.className=color;}
 function latestStrength(key){const data=rows[key]??[];for(let i=data.length-1;i>=0;i--)if(Number.isFinite(data[i].adjusted))return data[i].adjusted;return null;}
-function positionStrengthReadout(){
+function measureStrengthPane(){
   const host=$('strength-readout'),bounds=paneBounds(2);if(!host||!bounds||!series.strength)return;
-  const paneTop=bounds.top,paneHeight=bounds.height,topLimit=paneTop+4,bottomLimit=paneTop+paneHeight-4;
+  const paneTop=bounds.top,paneHeight=bounds.height;
   const zeroCoordinate=series.strength.priceToCoordinate(0),compositeZeroCoordinate=series.COMPOSITE?.priceToCoordinate(0);if(!Number.isFinite(zeroCoordinate))return;
-  const points=['strength-spy','strength-qqq','strength-composite'].map(id=>{const node=$(id);return {node,height:node.offsetHeight||20};}),labelGap=4,stackHeight=points.reduce((sum,point)=>sum+point.height,0)+labelGap*(points.length-1),zeroY=paneTop+zeroCoordinate;
-  let top=Math.max(topLimit,Math.min(bottomLimit-stackHeight,zeroY-stackHeight/2));
-  for(const point of points){point.node.style.top=`${Math.round(top)}px`;top+=point.height+labelGap;}
+  const zeroY=paneTop+zeroCoordinate;
   host.dataset.paneTop=String(Math.round(paneTop));host.dataset.paneBottom=String(Math.round(paneTop+paneHeight));host.dataset.zeroY=String(Math.round(zeroY));
   const chartNode=$('chart');chartNode.dataset.strengthCZero=String(zeroCoordinate);chartNode.dataset.compositeNfZero=Number.isFinite(compositeZeroCoordinate)?String(compositeZeroCoordinate):'';chartNode.dataset.lowerPaneZeroAligned=String(Number.isFinite(compositeZeroCoordinate)&&Math.abs(compositeZeroCoordinate-zeroCoordinate)<=.5);
 }
 function updateStrengthLabels(){
-  $('strength-readout').style.display=$('show-strength').checked?'block':'none';
-  for(const [key,id,label] of [['SPYUSDT','strength-spy','SPY'],['QQQUSDT','strength-qqq','QQQ'],['COMPOSITE','strength-composite','']]){const value=latestStrength(key),node=$(id);node.textContent=label?`${label} ${fmt(value)}`:fmt(value);node.className=Number.isFinite(value)?value>=0?'positive':'negative':'missing';}
-  requestAnimationFrame(positionStrengthReadout);
+  $('strength-readout').style.display=$('show-strength').checked?'flex':'none';
+  for(const [key,id,label] of [['SPYUSDT','strength-spy','SPY'],['QQQUSDT','strength-qqq','QQQ'],['COMPOSITE','strength-composite','C']]){const value=latestStrength(key),node=$(id);node.textContent=label?`${label} ${fmt(value)}`:fmt(value);node.className=Number.isFinite(value)?value>=0?'positive':'negative':'missing';}
+
 }
 function paneBounds(index){
   const pane=chart?.panes?.()[index],host=$('chart'),element=pane?.getHTMLElement?.();
@@ -1022,8 +1025,12 @@ function paneBounds(index){
   return {top:rect.top-hostRect.top-(host.clientTop||0),height:rect.height};
 }
 function positionFixedPaneReadouts(){
-  updateNfSmoothReadout(inspectedTime);
-  for(const [id,index] of [['composite-flow-fixed',2],['spy-volume-fixed',1]]){const node=$(id),bounds=paneBounds(index);if(!node||!bounds)continue;node.style.top=`${Math.round(bounds.top+6)}px`;node.dataset.paneTop=String(Math.round(bounds.top));node.dataset.paneBottom=String(Math.round(bounds.top+bounds.height));}
+  for(const index of [1,2]){
+    const legend=$('pane-legend-'+index),bounds=paneBounds(index);if(!legend||!bounds)continue;
+    legend.style.top=`${Math.round(bounds.top+(index===1?13:4))}px`;
+    legend.style.right=`${(chart.priceScale('right',index)?.width?.()??64)+6}px`;
+  }
+  measureStrengthPane();
 }
 function latestFiniteValue(data,key){for(let i=data.length-1;i>=0;i--)if(Number.isFinite(data[i]?.[key]))return data[i][key];return null;}
 function updateFixedPaneReadouts(){
@@ -1054,7 +1061,7 @@ function updatePivotZones(){
   const zones=enabled?[...accumulation.zones]:[];
   const actions=document.querySelector('.chart-actions');
   if(actions&&node.parentElement!==actions)actions.append(node);
-  node.style.cssText='position:static!important;display:'+(enabled?'flex':'none')+'!important;gap:3px;flex-wrap:wrap;align-items:center;padding:0;border:0;background:transparent;max-width:100%;font-size:10px;pointer-events:auto';
+  node.hidden=!enabled;
   node.setAttribute('aria-hidden',String(!enabled));node.replaceChildren();
   for(const [kind,prefix,label] of [['resistance','pivotResistance','SL SELL'],['support','pivotSupport','SL BUY']]){
     const lockKey=key+'|'+kind,locked=lockedStops.get(lockKey);
@@ -1069,10 +1076,11 @@ function updatePivotZones(){
     ]:[],String(enabled)+'|'+lockKey+'|'+Boolean(locked));
     if(zone&&!zones.includes(zone))zones.push(zone);
     const button=document.createElement('button');button.type='button';button.disabled=!zone;
-    button.style.cssText='font-size:10px!important;line-height:1.2;padding:3px 5px;min-height:24px;white-space:nowrap';
-    const evidence=zone?.source==='H1'?zone.boxes+'H1 · Σ'+zone.points:'pivot';
-    button.textContent=zone?label+' '+zone.level.toFixed(2)+' · '+evidence+(locked?' · Mở khóa':' · Khóa'):label+' · Chờ vùng';
+    button.dataset.side=kind;
+    button.dataset.locked=String(Boolean(locked));
+    button.textContent=zone?label+' '+zone.level.toFixed(2):label+' —';
     button.title=zone?(zone.source==='H1'?zone.boxes+' hộp H1 cùng dấu · Tổng |điểm| '+zone.points+' · '+(zone.missing?'Thiếu OI: hộp này tính 75% điểm':'Đủ thành phần'):'Vùng pivot gốc · Điểm '+zone.score+'/100 · '+(zone.oiReady?'Đủ OI':'Thiếu OI'))+' · Cách giá '+distance?.toFixed(2)+'% · SL tham khảo, không phải lượng stop trên sàn. Khóa trong phiên mở trang.':'Chờ vùng H1 tích lũy hoặc pivot đủ mạnh';
+    if(zone){button.setAttribute('aria-label',button.textContent+(locked?' · Mở khóa':' · Khóa'));button.setAttribute('aria-pressed',String(Boolean(locked)));}
     button.onclick=()=>{if(locked)lockedStops.delete(lockKey);else lockedStops.set(lockKey,{...zone});updatePivotZones();};node.append(button);
   }
   $('chart').dataset.slH1Zones=String(accumulation.zones.length);
@@ -1087,7 +1095,7 @@ function updateH1ScoreLineReadout(t){
   const node=$('h1-score-line-readout');if(!node)return;
   const enabled=$('h1-score-line-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
   const bar=maps.SPYUSDT?.get(t),asOf=Math.min(cache?.serverTime??Date.now(),bar?.end!==undefined?bar.end+1:t??0),text=enabled&&t!==null?h1ScoreLineText(asOf):'';
-  node.hidden=!text;node.style.display=text?'block':'none';node.textContent=text;const bounds=paneBounds(1);if(bounds)node.style.top=`${Math.round(bounds.top+26)}px`;
+  node.hidden=!text;node.style.display=text?'block':'none';node.textContent=text;
 }
 function updateNfSmoothReadout(t=null){
   const node=$('nf-smooth-readout');if(!node)return;
@@ -1096,7 +1104,6 @@ function updateNfSmoothReadout(t=null){
   node.textContent='C NF'+($('nf-smooth-window')?.value??'4')+' '+(Number.isFinite(value)?signed(value):r?.reason==='forming_excluded'?'chờ đóng':'chờ nền');
   node.className='pane-fixed-readout '+(Number.isFinite(value)?value>=0?'positive':'negative':'missing');
   node.title='C Taker NF mượt: NF thật SPY + QQQ / SMA20(tổng quote volume), cộng '+($('nf-smooth-window')?.value??'4')+' M15 → EWMA tự thích ứng α=0,18–0,60 → chuẩn hóa đối xứng −1…+1 bằng nền 500 điểm. Chỉ nến đóng có đủ hai mã; không lọc theo thân giá, H1 hay OI và không dịch tâm theo phiên. Đây là chỉ số không đơn vị, không phải NF USDT của riêng nến mới nhất. '+(r?'Trạng thái: '+r.reason+(Number.isFinite(r.alpha)?' · α='+r.alpha.toFixed(3):''):'Chưa có dữ liệu.');
-  const bounds=paneBounds(1);if(bounds)node.style.top=Math.round(bounds.top+46)+'px';
 }
 function showTooltip(t){
   updateNfSmoothReadout(inspectedTime);
@@ -1250,6 +1257,9 @@ if(init()){
   }});
   
   setupChartActions();
+  const actions=document.querySelector('.chart-actions'),shareButton=$('gpt-pattern-button');
+  actions.prepend($('fullscreen'),$('live-indicator'),$('spyusdt-session-change'),$('chart-frame-switch'));
+  if(shareButton)actions.append(shareButton);
   const chartCard=document.querySelector('.chart-card');
   const indicatorTools=document.createElement('section');indicatorTools.id='chart-indicator-tools';indicatorTools.className='chart-options chart-indicator-tools';indicatorTools.setAttribute('aria-label','Điều khiển hộp sức mạnh và phân vị');($('chart-settings-panel')??chartCard.parentElement).append(indicatorTools);
   const chartNotes=document.createElement('details');chartNotes.id='chart-notes';const notesSummary=document.createElement('summary');notesSummary.textContent='Giải thích và trạng thái chỉ báo';chartNotes.append(notesSummary);chartCard.after(chartNotes);
