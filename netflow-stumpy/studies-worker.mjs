@@ -1,7 +1,6 @@
-import {analyzeTrendSource,computeStudies} from './studies-core.mjs?v=20261117-h1-body';
+import {analyzeTrendSource,computeStudies} from './studies-core.mjs?v=20261118-remove-h1-matrix-m15-status';
 import {loadPersistentHistory} from './history-store.mjs?v=20261029-price-delta1';
 let serial=0,trend=null,trendKey='',historyPending=null;
-let matrixReplayState=null,matrixReplayKey='';
 function historyTask(){
   if(!historyPending)historyPending=loadPersistentHistory({days:365}).finally(()=>{historyPending=null;});
   return historyPending;
@@ -24,11 +23,7 @@ self.onmessage=async({data})=>{
       const stamp=['SPYUSDT','QQQUSDT'].map(s=>{const a=source[s].filter(r=>r.end<data.now);return `${a[0]?.t}:${a.at(-1)?.t}:${a.length}`;}).join('|')+'|'+JSON.stringify(history?.manifest??null)+'|'+(data.sourceKey??'');
       if(stamp!==trendKey){trend=analyzeTrendSource(source,data.now);trendKey=stamp;}
     }else{trend=null;trendKey='';}
-    const nextMatrixKey=JSON.stringify([data.symbol,data.interval,data.options.minScore,data.options.maxLines,data.options.matrixGeometry,data.options.matrixOptions]);
-    if(nextMatrixKey!==matrixReplayKey){matrixReplayState=null;matrixReplayKey=nextMatrixKey;}
-    const result=computeStudies({...data,trend,matrixReplayState,onH1Ready:(h1CandleColors,h1H4CandleColors)=>{if(token===serial)self.postMessage({key:data.key,partial:'h1',result:{h1CandleColors,h1H4CandleColors},archive:history?.manifest??null});}});
-    matrixReplayState=result.geometry?.replayState??null;
-    if(result.geometry)delete result.geometry.replayState;
+    const result=computeStudies({...data,trend,onH1Ready:(h1CandleColors,h1H4CandleColors)=>{if(token===serial)self.postMessage({key:data.key,partial:'h1',result:{h1CandleColors,h1H4CandleColors},archive:history?.manifest??null});}});
     if(token===serial)self.postMessage({key:data.key,result,archive:history?.manifest??null,computeMs:performance.now()-started});
   }catch(error){if(token===serial)self.postMessage({key:data.key,error:error.message});}
 };
