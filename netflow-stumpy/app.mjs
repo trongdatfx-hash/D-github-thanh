@@ -1,3 +1,4 @@
+import {mountOrderBook} from './orderbook-ui.mjs?v=20261119-book1';
 import {h1AccumulatedStops} from './stop-loss-h1.mjs?v=20261114-slh1b';
 import {StopLossBands} from './stop-loss-band.mjs?v=20261114-slh1';
 import {scoreH1OiMarkers} from './h1-oi-markers.mjs?v=20261110-h1-oi-visible2';
@@ -404,6 +405,7 @@ function init(){
   price.attachPrimitive(oiBoldCandles);
   price.attachPrimitive(stopLossBands);
   price.attachPrimitive(spectrumPrimitive);
+  mountOrderBook({chart,price,host:$('chart'),actions:document.querySelector('.chart-actions'),symbolControl:$('symbol')});
   const takerHover=document.createElement('div');takerHover.id='large-taker-hover';takerHover.hidden=true;takerHover.style.cssText='position:absolute;z-index:12;left:8px;max-width:calc(100% - 80px);padding:5px 8px;background:rgba(9,18,31,.92);color:#e5effb;border:1px solid #39516c;border-radius:4px;font:12px/1.4 system-ui;pointer-events:none';$('chart').append(takerHover);
   const paneLegends=[1,2].map(index=>{
     const legend=document.createElement('div');legend.id='pane-legend-'+index;legend.className='pane-legend';
