@@ -13,6 +13,10 @@ import {oi8PivotLevels} from './oi8-pivot-levels.mjs?v=20261114-trend-oi8-50';
 import {strengthOi8} from './strength-oi8.mjs?v=20261111-oi8';
 import {strengthOiPhase,oiPhasePrimitive} from './strength-oi-phase.mjs?v=20261119-oi-phase1';
 let oiPhaseLayer;
+import {bodyReversalCache} from './spy-body-reversal.mjs?v=20261119-dao-v2-1';
+import {bodyReversalPrimitive} from './spy-body-reversal-ui.mjs?v=20261119-dao-v2-1';
+const daoV2Cache=bodyReversalCache();
+let daoV2Layer;
 import {compositeNfSmooth} from './composite-nf-smooth.mjs?v=20261108-c-taker-smooth1';
 import {h1AdaptiveVolumeRows} from './spy-volume-h1.mjs?v=20261105-spyv-h1-1';
 import {OiFastLoader} from './oi-fast-load.mjs?v=20261109-m15-flow1';
@@ -98,7 +102,7 @@ const spyBodyVolumeEnabled=()=>$('spy-volume-body-toggle')?.checked&&$('symbol')
 const nfSmoothEnabled=()=>$('nf-smooth-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
 const oi8PivotLines={low:[],high:[]};
 const strengthOi8Enabled=()=>$('strength-oi8-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
-const SETUP_CONTROL_IDS=['oi8-phase-reset-toggle','oi8-pivot-toggle','strength-oi8-toggle','nf-smooth-toggle','nf-smooth-window','symbol','interval','days','signal','composite','alignment','confirmed-delta-toggle','oi-width-toggle','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-h1-box-color','m15-h1-score-color','cvd-spectrum-toggle','large-taker-toggle','large-taker-percentile','h1-oi-markers-toggle','oi-candle-bars-toggle','oi-candle-pin-toggle','oi-delta-percentile','oi-bold-candles-toggle','show-strength','spy-volume-strength','spy-volume-body-toggle','spy-volume-h1-smooth','bands','markers','double-tap-full','geometry-toggle','causal-trend-channel','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
+const SETUP_CONTROL_IDS=['dao-v2-toggle','oi8-phase-reset-toggle','oi8-pivot-toggle','strength-oi8-toggle','nf-smooth-toggle','nf-smooth-window','symbol','interval','days','signal','composite','alignment','confirmed-delta-toggle','oi-width-toggle','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-h1-box-color','m15-h1-score-color','cvd-spectrum-toggle','large-taker-toggle','large-taker-percentile','h1-oi-markers-toggle','oi-candle-bars-toggle','oi-candle-pin-toggle','oi-delta-percentile','oi-bold-candles-toggle','show-strength','spy-volume-strength','spy-volume-body-toggle','spy-volume-h1-smooth','bands','markers','double-tap-full','geometry-toggle','causal-trend-channel','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
 let statsMap=new Map(),candleColorMap=new Map(),candleClusterMap=new Map(),pivotZoneState={ready:false,reason:'history',support:null,resistance:null},pivotZoneKey='',inspectedTime=null;
 let calendarState={events:[],updatedAt:null,loading:false};
 let pendingSavedTimeRange=null,saveSetupTimer=null,strengthBoxLayer=null,quantileLayer=null;
@@ -315,6 +319,7 @@ function saveChartSetup(){
 }
 
 function resetStudies(){
+  daoV2Cache.clear();daoV2Layer?.setData({points:[],last:null},false);
   studyKey='';studyResultKey='';statsMap=new Map();++statsRequest;h1CacheAttempt='';h1CacheArchive=null;studyColorInput=null;$('chart').dataset.h1ColorCache='empty';
   geometryState={pivots:[],events:[],lines:[],summary:{}};causalChannelState={trends:[],total:0};breakoutState=null;geometryStatePoints=[];
   pivotZoneState={ready:false,reason:'history',support:null,resistance:null};h1CandleMap=new Map();h1H4CandleMap=new Map();renderWeeklyTrendMap(null);
@@ -406,6 +411,7 @@ function init(){
   price=chart.addSeries(L.CandlestickSeries,{title:'',priceFormat:{type:'price',precision:1,minMove:.1},priceLineVisible:true,priceLineColor:'#36ddbd',priceLineWidth:1,priceLineStyle:L.LineStyle.Dashed,lastValueVisible:true,borderVisible:false},0);
   price.attachPrimitive(oiBoldCandles);
   price.attachPrimitive(stopLossBands);
+  daoV2Layer=bodyReversalPrimitive(chart,price);
   price.attachPrimitive(spectrumPrimitive);
   mountOrderBook({chart,price,host:$('chart'),actions:document.querySelector('.chart-actions'),symbolControl:$('symbol')});
   const takerHover=document.createElement('div');takerHover.id='large-taker-hover';takerHover.hidden=true;takerHover.style.cssText='position:absolute;z-index:12;left:8px;max-width:calc(100% - 80px);padding:5px 8px;background:rgba(9,18,31,.92);color:#e5effb;border:1px solid #39516c;border-radius:4px;font:12px/1.4 system-ui;pointer-events:none';$('chart').append(takerHover);
@@ -930,6 +936,11 @@ function render(fit=false){
     ?h1AdaptiveVolumeRows(bodyVolumeBars,h1CandleMap,{step:bodyVolumeStep,now:cache.serverTime})
     :analyze(bodyVolumeBars,bodyVolumeStep,{strength:calculateVolumeStrength(bodyVolumeBars,bodyVolumeStep)})):[];
   const bodyVolumeByTime=new Map(bodyVolumeRows.map(row=>[row.t,row]));
+  const daoV2On=Boolean($('dao-v2-toggle')?.checked)&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
+  const daoV2State=daoV2On?daoV2Cache.get(cache?.SPYUSDT??[],h1CandleMap,{now:cache?.serverTime??Date.now(),adaptive:spyH1Enabled}):{points:[],last:null};
+  daoV2Layer?.setData(daoV2State,daoV2On);
+  $('chart').dataset.daoV2=daoV2On?'active':'off';
+  $('chart').dataset.daoV2Points=String(daoV2State.points.length);
   const priceData=p.map(x=>{
     const color=spyVSignColor(bodyVolumeByTime.get(x.t)?.adjusted);
     return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color,wickColor:color,borderColor:color};
@@ -1313,6 +1324,11 @@ if(init()){
   spyBodyLabel.title='Nét liền trong pane SPY V trên SPY M15, vàng khi trên 0 và trắng khi dưới 0. Thay volume bằng |Close − Open|, giữ dấu theo hướng thân nến và dùng cùng chế độ làm mượt SPY V đang chọn.';
   spyBodyLabel.append(spyBodyToggle,'SPY V thân nến · nét liền');spyH1Label.after(spyBodyLabel);
   spyBodyToggle.onchange=()=>render(false);
+  const daoV2Label=document.createElement('label'),daoV2Toggle=document.createElement('input');
+  daoV2Toggle.id='dao-v2-toggle';daoV2Toggle.type='checkbox';daoV2Toggle.checked=true;
+  daoV2Label.title='Ngưỡng giá theo kịch bản hai nến M15 có thân bằng nhau, ngược dấu SPY V thân nến. Chỉ dùng nến đã đóng và H1 đã biết; nối các mốc lịch sử bằng nét gạch–chấm, chấm tròn tại lần SPY V đảo dấu. Đây là mốc đóng nến giả định, chưa phải lệnh SL.';
+  daoV2Label.append(daoV2Toggle,'ĐẢO V₂');spyBodyLabel.after(daoV2Label);
+  daoV2Toggle.onchange=()=>render(false);
   const nfLabel=document.createElement('label'),nfInput=document.createElement('input'),nfWindow=document.createElement('select');
   nfInput.id='nf-smooth-toggle';nfInput.type='checkbox';nfInput.checked=true;nfWindow.id='nf-smooth-window';
   for(const n of [4,8]){const option=document.createElement('option');option.value=String(n);option.textContent=n+' M15';nfWindow.append(option);}
