@@ -6,7 +6,8 @@ const bar=(i,o=100,h=102,l=99.5,c=101)=>({t:T+i*STEP,o,h,l,c});
 const line=(i,value,direction,extra={})=>({time:(T+i*STEP)/1000,value,direction,knownAt:T+(i+1)*STEP,preview:false,...extra});
 const rows=signs=>signs.map((adjusted,i)=>({t:T+i*STEP,adjusted}));
 function run({bars=[bar(0),bar(1,100,102,98,101),bar(2),bar(3,102,103,101,102)],signs=[-1,1,1,1],points=[line(1,99,1),line(2,100.5,1)],...options}={}){
-  return backtestReversalTrades({bars,bodyRows:rows(signs),points,now:T+bars.length*STEP,...options});
+  // Isolate execution/session regressions from the configurable hold guard.
+  return backtestReversalTrades({bars,bodyRows:rows(signs),points,now:T+bars.length*STEP,minHoldBars:0,...options});
 }
 
 test('BUY enters after the flip, locks first SL and exits next open after second same-phase point',()=>{
@@ -27,9 +28,9 @@ test('gap through SL fills at worse open even with a queued TP signal',()=>{
   const r=run({bars:[bar(0),bar(1,100,102,98,101),bar(2),bar(3,98,99,97,98)]});
   assert.equal(r.trades[0].reason,'SL_GAP');assert.equal(r.trades[0].exit,98);assert.equal(r.summary.netR,-2);
 });
-test('opposite-color point and same-color point in a NEW phase cannot count as TP',()=>{
+test('opposite color closes by SPY flip, never as same-phase TP',()=>{
   const r=run({bars:[bar(0),bar(1,100,102,98,101),bar(2),bar(3),bar(4)],signs:[-1,1,-1,1,1],points:[line(1,99,1),line(2,103,-1),line(3,99.2,1),line(4,99.3,1)]});
-  assert.equal(r.trades.length,0);assert.ok(r.open);assert.equal(r.open.tpExpired,true);assert.equal(r.open.stop,99);
+  assert.equal(r.trades.length,1);assert.equal(r.trades[0].reason,'SPY_FLIP');assert.equal(r.trades[0].stop,99);assert.equal(r.summary.flip,1);
 });
 test('missing first SL skips the flip and does not invent a later entry',()=>{
   const r=run({points:[line(2,99,1)]});assert.equal(r.trades.length,0);assert.equal(r.open,null);assert.equal(r.skipped.noFirstLine,1);
@@ -92,7 +93,7 @@ function shiftedScenario(entryClock,{stopAfterClose=false}={}){
   const bars=[bar(0),bar(1,100,102,98,101),bar(2),stopAfterClose?bar(3,100,101,98,100):bar(3,102,103,101,102)].map((b,i)=>({...b,t:start+i*STEP,session:'PRE'}));
   const bodyRows=[-1,1,1,1].map((adjusted,i)=>({t:bars[i].t,adjusted}));
   const points=(stopAfterClose?[line(1,99,1)]:[line(1,99,1),line(2,100.5,1)]).map((p,i)=>({...p,time:bars[i+1].t/1000,knownAt:bars[i+1].t+STEP}));
-  return {bars,bodyRows,points,now:bars.at(-1).t+STEP};
+  return {bars,bodyRows,points,now:bars.at(-1).t+STEP,minHoldBars:0};
 }
 
 test('a signal confirmed exactly at PRE open can enter at 04:00 NY',()=>{
@@ -125,3 +126,80 @@ test('entering the clock window does not replay an earlier NIGHT flip',()=>{
   const r=backtestReversalTrades({bars,bodyRows,points,now:bars.at(-1).t+STEP});
   assert.equal(r.trades.length,0);assert.equal(r.open,null);assert.equal(r.signals,1);assert.equal(r.skipped.outsideSession,1);
 });
+
+function holdingScenario({secondAt=5,flipAt=null,direction=1}={}){
+  const bars=Array.from({length:8},(_,i)=>direction>0?bar(i):bar(i,100,100.5,98,99));
+  bars[1]=direction>0?bar(1,100,102,98,101):bar(1,100,102,98,99);
+  const signs=bars.map((_,i)=>i===0?-direction:flipAt!==null&&i>=flipAt?-direction:direction);
+  const stop=direction>0?99:101;
+  const points=[line(1,stop,direction)];
+  if(secondAt!==null)points.push(line(secondAt,direction>0?100.5:99.5,direction));
+  return {bars,bodyRows:rows(signs),points,now:T+bars.length*STEP};
+}
+
+test('default TP minimum is exactly four completed M15 candles from ENTRY, not from signal',()=>{
+  for(const direction of [1,-1]){
+    const input=holdingScenario({direction});
+    input.bars[6]=direction>0?bar(6,102,103,101,102):bar(6,98,99,97,98);
+    const before=backtestReversalTrades({...input,now:T+5*STEP+STEP/2});
+    assert.equal(before.trades.length,0);assert.ok(before.open);
+    const r=backtestReversalTrades(input),t=r.trades[0];
+    assert.equal(r.minHoldBars,4);assert.equal(t.reason,'TP_SIGNAL');assert.equal(t.heldBars,4);
+    assert.equal(t.entryTime,T+2*STEP);assert.equal(t.exitTime,T+6*STEP);assert.equal(t.netR,2);
+  }
+});
+
+test('a second point before four bars switches permanently to waiting for SPY flip',()=>{
+  const input=holdingScenario({secondAt:4,flipAt:6});
+  input.points.push(line(5,100.7,1)); // now four bars, but the early-TP fallback stays latched
+  const waiting=backtestReversalTrades({...input,now:T+5*STEP});
+  assert.equal(waiting.trades.length,0);assert.equal(waiting.open.waitForFlip,true);assert.equal(waiting.open.earlyTpHeldBars,3);
+  const r=backtestReversalTrades(input);
+  assert.equal(r.trades[0].reason,'SPY_FLIP');assert.equal(r.trades[0].exitTime,T+7*STEP);
+  assert.equal(r.summary.tp,0);assert.equal(r.summary.flip,1);
+});
+
+test('early TP without a subsequent SPY flip stays open even after the minimum elapses',()=>{
+  const input=holdingScenario({secondAt:2});input.points.push(line(5,100.7,1));
+  const r=backtestReversalTrades(input);
+  assert.equal(r.trades.length,0);assert.equal(r.open.waitForFlip,true);assert.equal(r.open.stop,99);
+});
+
+test('a confirmed SPY flip may close before four candles and does not require a V2 point',()=>{
+  for(const secondAt of [2,null]){
+    const input=holdingScenario({secondAt,flipAt:3});
+    const r=backtestReversalTrades(input),t=r.trades[0];
+    assert.equal(t.reason,'SPY_FLIP');assert.equal(t.exitTime,T+4*STEP);assert.equal(t.heldBars,2);
+  }
+});
+
+test('a changing live SPY sign cannot close a position until that candle is confirmed',()=>{
+  const input=holdingScenario({secondAt:2,flipAt:3});
+  const live=backtestReversalTrades({...input,now:T+3*STEP+STEP/2});
+  assert.equal(live.trades.length,0);assert.ok(live.open);assert.equal(live.open.tpDue,null);
+  const confirmed=backtestReversalTrades({...input,now:T+4*STEP});
+  assert.equal(confirmed.trades[0].reason,'SPY_FLIP');
+});
+
+test('SL remains active before four bars and while waiting for a flip',()=>{
+  for(const stopAt of [2,3]){
+    const input=holdingScenario({secondAt:2,flipAt:3});input.bars[stopAt]=bar(stopAt,100,102,98.5,101);
+    const r=backtestReversalTrades(input);
+    assert.equal(r.trades[0].reason,'SL');assert.equal(r.trades[0].exit,99);assert.equal(r.trades[0].netR,-1);
+  }
+});
+
+test('a gap through fixed SL takes precedence over a queued flip exit',()=>{
+  const input=holdingScenario({secondAt:2,flipAt:3});input.bars[4]=bar(4,98,99,97,98);
+  const r=backtestReversalTrades(input);
+  assert.equal(r.trades[0].reason,'SL_GAP');assert.equal(r.trades[0].exit,98);
+});
+
+test('flip exits remain active after POST while new entries remain filtered',()=>{
+  const input=holdingScenario({secondAt:2,flipAt:4}),entry=Date.parse('2026-11-19T19:45:00-05:00'),delta=entry-(T+2*STEP);
+  input.bars=input.bars.map(b=>({...b,t:b.t+delta}));input.bodyRows=input.bodyRows.map(r=>({...r,t:r.t+delta}));
+  input.points=input.points.map(p=>({...p,time:p.time+delta/1000,knownAt:p.knownAt+delta}));input.now+=delta;
+  const r=backtestReversalTrades(input);
+  assert.equal(r.trades[0].reason,'SPY_FLIP');assert.equal(r.trades[0].exitTime,entry+3*STEP);
+});
+

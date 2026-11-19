@@ -14,7 +14,7 @@ export function summarizeReversalTrades(trades){
   const wins=trades.filter(t=>t.netPoints>EPS).length,losing=trades.filter(t=>t.netPoints< -EPS).length;
   return {count:trades.length,wins,losses:losing,flat:trades.length-wins-losing,
     winRate:trades.length?100*wins/trades.length:null,
-    tp:trades.filter(t=>t.reason==='TP_SIGNAL').length,sl:trades.filter(t=>t.reason.startsWith('SL')).length,
+    tp:trades.filter(t=>t.reason==='TP_SIGNAL').length,flip:trades.filter(t=>t.reason==='SPY_FLIP').length,sl:trades.filter(t=>t.reason.startsWith('SL')).length,
     grossPoints:trades.reduce((s,t)=>s+t.grossPoints,0),netPoints:trades.reduce((s,t)=>s+t.netPoints,0),
     netR:equity,meanR:trades.length?equity/trades.length:null,
     profitFactor:lossesR>EPS?gainsR/lossesR:gainsR>EPS?Infinity:null,
@@ -24,10 +24,11 @@ export function summarizeReversalTrades(trades){
 
 // One position at a time. Signals require a closed SPY-body sign flip and a
 // valid first V2 level on that candle. Entry is the next observed candle open.
-// TP is the next V2 POINT on a later closed candle of the SAME sign phase.
-// TP is an exit event, filled at the next open, not at the untraded line price.
-export function backtestReversalTrades({bars=[],bodyRows=[],points=[],now=Date.now(),step=STEP,roundTripBps=0,entryWindow='PRE_POST'}={}){
-  if(!Number.isFinite(now)||!Number.isFinite(step)||step<=0||!Number.isFinite(roundTripBps)||roundTripBps<0||!['PRE_POST','ALL'].includes(entryWindow))throw Error('Invalid reversal backtest parameters');
+// The second same-phase V2 point may take TP only after minHoldBars complete
+// candles since entry. If it arrives early, wait for a closed SPY-body flip
+// instead, even if later same-phase levels appear. SL is always active.
+export function backtestReversalTrades({bars=[],bodyRows=[],points=[],now=Date.now(),step=STEP,roundTripBps=0,entryWindow='PRE_POST',minHoldBars=4}={}){
+  if(!Number.isFinite(now)||!Number.isFinite(step)||step<=0||!Number.isFinite(roundTripBps)||roundTripBps<0||!['PRE_POST','ALL'].includes(entryWindow)||!Number.isInteger(minHoldBars)||minHoldBars<0)throw Error('Invalid reversal backtest parameters');
   const ordered=[...new Map(bars.filter(b=>Number.isFinite(b.t)&&b.t<=now).map(b=>[b.t,b])).values()].sort((a,b)=>a.t-b.t);
   const readings=new Map(bodyRows.map(r=>[r.t,r.adjusted]));
   const levels=new Map(points.filter(p=>!p.preview&&Number.isFinite(p.time)&&Number.isFinite(p.value)&&p.value>0).map(p=>[p.time*1000,p]));
@@ -54,7 +55,7 @@ export function backtestReversalTrades({bars=[],bodyRows=[],points=[],now=Date.n
     // A gap through SL fills at the open, never at a better obsolete SL price.
     if(position){
       if(position.direction*(bar.o-position.stop)<=0)finish(bar,bar.o,'SL_GAP');
-      else if(position.tpDue===bar.t)finish(bar,bar.o,'TP_SIGNAL');
+      else if(position.tpDue===bar.t)finish(bar,bar.o,position.pendingReason??'TP_SIGNAL');
     }
     if(entryPlan){
       const plan=entryPlan;entryPlan=null;
@@ -62,7 +63,7 @@ export function backtestReversalTrades({bars=[],bodyRows=[],points=[],now=Date.n
       else if(!reversalEntryAllowed(bar.t,entryWindow))skipped.outsideSession++;
       else if(position)skipped.overlap++;
       else if(plan.direction*(bar.o-plan.stop)<=EPS)skipped.invalidStop++;
-      else position={...plan,entry:bar.o,entryTime:bar.t,risk:plan.direction*(bar.o-plan.stop),tpDue:null,tpSignalTime:null,tpExpired:false};
+      else position={...plan,entry:bar.o,entryTime:bar.t,risk:plan.direction*(bar.o-plan.stop),tpDue:null,tpSignalTime:null,tpExpired:false,waitForFlip:false,pendingReason:null};
     }
     // The live OPEN is already observable. Its evolving high/low and sign
     // never generate closed statistics or a second TP point.
@@ -76,9 +77,19 @@ export function backtestReversalTrades({bars=[],bodyRows=[],points=[],now=Date.n
     else if(sign){if(!lastSign||flipped)phase++;lastSign=sign;}
     if(position&&phase!==position.phase)position.tpExpired=true;
 
+    // A confirmed opposite SPY sign closes an existing position, with or
+    // without an early TP point. This is not subject to the TP minimum or
+    // the entry-session window. Live color changes cannot close a trade.
+    if(position&&flipped&&sign===-position.direction){
+      position.tpDue=bar.t+step;position.pendingReason='SPY_FLIP';position.flipSignalTime=bar.t;
+    }
+
     const level=levels.get(bar.t),known=level&&(!Number.isFinite(level.knownAt)||level.knownAt<=bar.t+step)?level:null;
-    if(position&&known&&!position.tpExpired&&phase===position.phase&&sign===position.direction&&known.direction===position.direction&&bar.t>position.signalTime){
-      position.tpDue=bar.t+step;position.tpSignalTime=bar.t;position.secondLine=known.value;
+    if(position&&known&&!position.tpExpired&&!position.waitForFlip&&phase===position.phase&&sign===position.direction&&known.direction===position.direction&&bar.t>position.signalTime){
+      const heldAtExit=(bar.t+step-position.entryTime)/step;
+      position.secondLine=known.value;position.tpSignalTime=bar.t;
+      if(heldAtExit>=minHoldBars){position.tpDue=bar.t+step;position.pendingReason='TP_SIGNAL';}
+      else{position.waitForFlip=true;position.earlyTpHeldBars=heldAtExit;}
     }
     if(flipped){
       signals++;
@@ -97,6 +108,7 @@ export function backtestReversalTrades({bars=[],bodyRows=[],points=[],now=Date.n
     previous=bar;
   }
   return {trades,summary:summarizeReversalTrades(trades),buy:summarizeReversalTrades(trades.filter(t=>t.direction>0)),sell:summarizeReversalTrades(trades.filter(t=>t.direction<0)),
-    open:position,pending:entryPlan,censored,skipped,signals,inSessionSignals,closedBars,roundTripBps,entryWindow,
+    open:position,pending:entryPlan,censored,skipped,signals,inSessionSignals,closedBars,roundTripBps,entryWindow,minHoldBars,
     from:ordered.find(validBar)?.t??null,to:previous?previous.t+step:null};
 }
+

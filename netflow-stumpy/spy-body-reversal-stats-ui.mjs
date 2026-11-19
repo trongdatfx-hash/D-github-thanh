@@ -1,4 +1,4 @@
-import {backtestReversalTrades} from './spy-body-reversal-trades.mjs?v=20261119-v2-session1';
+import {backtestReversalTrades} from './spy-body-reversal-trades.mjs?v=20261119-v2-hold4';
 
 const STEP=900000;
 const number=(v,n=2)=>v===null||v===undefined?'—':v===Infinity?'∞':Number.isFinite(v)?v.toLocaleString('vi-VN',{minimumFractionDigits:n,maximumFractionDigits:n}):'—';
@@ -37,12 +37,14 @@ export function mountReversalStats({host,actions,requestContext}){
   const panel=document.createElement('section');panel.id='dao-v2-stats';panel.hidden=true;panel.setAttribute('role','dialog');panel.setAttribute('aria-label','Thống kê ĐẢO V₂');
   panel.innerHTML=`<header><h3>Thống kê ĐẢO V₂</h3><button type="button" aria-label="Đóng thống kê">✕</button></header>
     <p data-v2-period></p><p data-v2-source></p><p><strong>PRE → RTH → POST</strong> · 04:00–20:00 New York · Thứ 2–6 · tự đổi DST</p>
+    <p><strong>TP từ đủ 4 M15</strong> · Mốc TP đến sớm: chờ SPY V đổi dấu · SL luôn hoạt động</p>
     <label class="v2-cost">Chi phí khứ hồi <input type="number" min="0" max="10000" step="0.5" value="0" aria-label="Chi phí khứ hồi bps"> bps <small>1 bps = 0,01%</small></label>
     <div data-v2-results></div>
     <div class="v2-rule"><strong>Quy tắc mô phỏng</strong>
     <p>Vào BUY/SELL ở mở nến sau lần SPY V thân nến đổi dấu, khi nến tín hiệu có mốc ĐẢO V₂ làm SL hợp lệ. SL cố định tại mốc đầu. Chỉ vào lệnh khi tín hiệu xác nhận và mở nến vào lệnh nằm trong 04:00–20:00 New York, thứ 2–6. Vẫn theo dõi SL/TP của lệnh đang mở ngoài giờ này.</p>
-    <p>TP khi có mốc kế tiếp trên một nến đóng khác, vẫn cùng màu và cùng pha SPY V; thoát ở mở nến sau. Cập nhật live không tạo thêm mốc TP.</p>
-    <p>Nếu đổi pha trước TP, lệnh cũ chỉ còn SL; không lấy mốc của pha mới làm TP. Mỗi lần giữ một lệnh. SL chạm trong nến được xử lý trước TP chỉ biết khi nến đóng; gap qua SL khớp ở giá mở.</p>
+    <p>TP bằng mốc kế tiếp cùng màu, cùng pha SPY V chỉ khi đã giữ đủ 4 nến M15 hoàn chỉnh tính từ giá mở vào lệnh (60 phút). Thoát ở mở nến sau khi mốc được xác nhận.</p>
+    <p>Nếu mốc TP đến trước 4 nến, bỏ chốt bằng mốc này và các mốc cùng pha về sau; giữ đến khi SPY V thân nến đổi dấu trên nến đóng rồi thoát ở mở nến kế tiếp. Đổi dấu trước khi có mốc TP cũng thoát theo quy tắc này, kể cả chưa đủ 4 nến. Live chưa đóng không kích hoạt thoát.</p>
+    <p>SL cố định có hiệu lực ngay từ lúc vào lệnh, kể cả chưa đủ 4 nến hoặc đang chờ đổi dấu. Mỗi lần giữ một lệnh. SL chạm trong nến được xử lý trước tín hiệu thoát chỉ biết khi nến đóng; gap qua SL khớp ở giá mở.</p>
     <p>Lệnh chưa đóng, tín hiệu thiếu SL và khoảng dữ liệu gián đoạn được đếm riêng. Lãi/lỗ theo PnL sau chi phí; thoát TP theo tín hiệu vẫn có thể lỗ. Điểm giá tính cho 1 đơn vị; R theo khoảng vào–SL ban đầu. Tổng R, PF và sụt giảm dùng rủi ro ban đầu 1R/lệnh.</p></div>`;
   host.append(panel);
   const close=panel.querySelector('header button'),cost=panel.querySelector('input'),results=panel.querySelector('[data-v2-results]');
@@ -67,15 +69,16 @@ export function mountReversalStats({host,actions,requestContext}){
     panel.querySelector('[data-v2-source]').textContent=source+(fee===0?' · Chưa tính phí/trượt giá':' · Đã trừ '+number(fee,1)+' bps khứ hồi');
     const color=v=>v>0?'v2-positive':v<0?'v2-negative':'';
     const groups=[['Tất cả',s],['BUY',report.buy],['SELL',report.sell]];
-    const open=report.open?`${report.open.direction>0?'BUY':'SELL'} đang mở: vào ${number(report.open.entry)}, SL ${number(report.open.stop)}${report.open.tpExpired?' · Đã đổi pha, còn SL':report.open.tpDue?' · Chờ mở nến để thoát TP':''}`:'Không có lệnh đang mở';
+    const open=report.open?`${report.open.direction>0?'BUY':'SELL'} đang mở: vào ${number(report.open.entry)}, SL ${number(report.open.stop)} · Đã giữ ${Math.max(0,Math.floor((now-report.open.entryTime)/STEP))} M15${report.open.tpDue?(report.open.pendingReason==='SPY_FLIP'?' · Chờ mở nến thoát đổi dấu':' · Chờ mở nến thoát TP'):report.open.waitForFlip?' · TP đến sớm, chờ SPY V đổi dấu':report.open.tpExpired?' · Thiếu pha liên tục, giữ SL':''}`:'Không có lệnh đang mở';
     results.innerHTML=`<div class="v2-tiles"><div><small>LỆNH ĐÃ ĐÓNG</small><strong>${s.count}</strong></div><div><small>TỶ LỆ LÃI</small><strong>${s.winRate===null?'—':number(s.winRate,1)+'%'}</strong></div><div><small>TỔNG R RÒNG</small><strong class="${color(s.netR)}">${signed(s.netR)}</strong></div><div><small>PF THEO R</small><strong>${number(s.profitFactor)}</strong></div></div>
       <div class="v2-scroll"><table><thead><tr><th>Nhóm</th><th>Lệnh</th><th>Lãi %</th><th>Điểm ròng</th><th>R ròng</th></tr></thead><tbody>${groups.map(([label,g])=>`<tr><td>${label}</td><td>${g.count}</td><td>${number(g.winRate,1)}</td><td class="${color(g.netPoints)}">${signed(g.netPoints)}</td><td class="${color(g.netR)}">${signed(g.netR)}</td></tr>`).join('')}</tbody></table></div>
-      <p>Lãi ${s.wins} · Lỗ ${s.losses} · Hòa ${s.flat} | TP tín hiệu ${s.tp} · SL ${s.sl}</p>
+      <p>Lãi ${s.wins} · Lỗ ${s.losses} · Hòa ${s.flat} | TP ≥4 M15 ${s.tp} · Thoát đổi dấu ${s.flip} · SL ${s.sl}</p>
       <p>R/lệnh ${number(s.meanR)} · Sụt giảm tối đa ${number(s.drawdownR)} R · Giữ TB ${number(s.meanBars,1)} M15</p>
       <p>${open}${report.pending?' · 1 tín hiệu chờ vào ở nến sau':''}</p>
       <p>Đổi dấu ${report.signals} · Trong phiên ${report.inSessionSignals} · Ngoài phiên ${report.skipped.outsideSession} · Bỏ thiếu mốc đầu ${report.skipped.noFirstLine} · SL sai phía ${report.skipped.invalidStop} · Đang có lệnh ${report.skipped.overlap} · Gián đoạn ${report.censored.length}</p>
-      <details><summary>12 lệnh đóng gần nhất</summary><div class="v2-scroll"><table><thead><tr><th>Vào · hướng</th><th>Giá vào</th><th>SL đầu</th><th>Thoát</th><th>Lý do</th><th>R ròng</th></tr></thead><tbody>${report.trades.slice(-12).reverse().map(t=>`<tr><td>${date(t.entryTime)} · ${t.direction>0?'BUY':'SELL'}</td><td>${number(t.entry)}</td><td>${number(t.stop)}</td><td>${number(t.exit)}</td><td>${t.reason==='TP_SIGNAL'?'TP tín hiệu':t.reason==='SL_GAP'?'SL gap':'SL'}</td><td class="${color(t.netR)}">${signed(t.netR)}</td></tr>`).join('')}</tbody></table></div></details>`;
+      <details><summary>12 lệnh đóng gần nhất</summary><div class="v2-scroll"><table><thead><tr><th>Vào · hướng</th><th>Giá vào</th><th>SL đầu</th><th>Thoát</th><th>Lý do</th><th>R ròng</th></tr></thead><tbody>${report.trades.slice(-12).reverse().map(t=>`<tr><td>${date(t.entryTime)} · ${t.direction>0?'BUY':'SELL'}</td><td>${number(t.entry)}</td><td>${number(t.stop)}</td><td>${number(t.exit)}</td><td>${t.reason==='TP_SIGNAL'?'TP ≥4 M15':t.reason==='SPY_FLIP'?'Đổi dấu SPY V':t.reason==='SL_GAP'?'SL gap':'SL'}</td><td class="${color(t.netR)}">${signed(t.netR)}</td></tr>`).join('')}</tbody></table></div></details>`;
     panel.dataset.closed=String(s.count);panel.dataset.winRate=String(s.winRate??'');panel.dataset.netR=String(s.netR);panel.dataset.netPoints=String(s.netPoints);
   }
   return {isOpen:()=>!panel.hidden,setContext(next){context=next;render();}};
 }
+
