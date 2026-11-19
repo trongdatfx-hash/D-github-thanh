@@ -13,8 +13,8 @@ import {oi8PivotLevels} from './oi8-pivot-levels.mjs?v=20261114-trend-oi8-50';
 import {strengthOi8} from './strength-oi8.mjs?v=20261111-oi8';
 import {strengthOiPhase,oiPhasePrimitive} from './strength-oi-phase.mjs?v=20261119-oi-phase1';
 let oiPhaseLayer;
-import {bodyReversalCache} from './spy-body-reversal.mjs?v=20261119-dao-v2-2';
-import {bodyReversalPrimitive} from './spy-body-reversal-ui.mjs?v=20261119-dao-v2-2';
+import {bodyReversalCache} from './spy-body-reversal.mjs?v=20261119-dao-v2-3';
+import {bodyReversalPrimitive} from './spy-body-reversal-ui.mjs?v=20261119-dao-v2-3';
 const daoV2Cache=bodyReversalCache();
 let daoV2Layer;
 import {compositeNfSmooth} from './composite-nf-smooth.mjs?v=20261108-c-taker-smooth1';
@@ -942,6 +942,7 @@ function render(fit=false){
   $('chart').dataset.daoV2=daoV2On?'active':'off';
   $('chart').dataset.daoV2Points=String(daoV2State.points.length);
   $('chart').dataset.daoV2Preview=String(Boolean(daoV2State.preview));
+  $('chart').dataset.daoV2NoNearby=String(daoV2On&&!daoV2State.last);
   const priceData=p.map(x=>{
     const color=spyVSignColor(bodyVolumeByTime.get(x.t)?.adjusted);
     return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color,wickColor:color,borderColor:color};
@@ -1327,7 +1328,7 @@ if(init()){
   spyBodyToggle.onchange=()=>render(false);
   const daoV2Label=document.createElement('label'),daoV2Toggle=document.createElement('input');
   daoV2Toggle.id='dao-v2-toggle';daoV2Toggle.type='checkbox';daoV2Toggle.checked=true;
-  daoV2Label.title='Ngưỡng hai nến M15 theo màu SPY V thân nến: đỏ tính từ High và hướng lên, xanh tính từ Low và hướng xuống. Lịch sử dùng High/Low nến đã đóng; nến live dùng High/Low hiện tại và vẽ nhạt, cập nhật theo giá. Hai thân giả định bằng nhau; chỉ dùng H1 đã biết. Nhãn chỉ ĐẢO V₂; chưa phải lệnh SL.';
+  daoV2Label.title='ĐẢO V₂: tìm nghiệm đảo dấu thật sau hai M15 theo đường giá liên tục từ Close. Nến đỏ phải vượt High, xanh phải vượt Low. Thử tỷ lệ hai thân 25/75, 50/50 và 75/25, giữ nghiệm gần nhất. Biên tìm theo P85 dao động hai nến quá khứ, tối đa 3 ATR; không có nghiệm gần thì ngắt nét, không ép giá. Có xem trước live nhạt; chỉ dùng H1 đã biết.';
   daoV2Label.append(daoV2Toggle,'ĐẢO V₂');spyBodyLabel.after(daoV2Label);
   daoV2Toggle.onchange=()=>render(false);
   const nfLabel=document.createElement('label'),nfInput=document.createElement('input'),nfWindow=document.createElement('select');

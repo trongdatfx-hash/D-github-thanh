@@ -32,10 +32,11 @@ test('solved two-candle prices really reverse the production indicator',()=>{
   for(const adaptive of [false,true]){
     const history=bodyReversalHistory(bars,states,{now,adaptive});assert.ok(history.points.length>30);
     for(const point of history.points.filter((_,i)=>i%23===0)){
-      const prefix=bars.filter(b=>b.t<=point.time*1000),anchor=prefix.at(-1),d=(point.value-point.anchor)/2;
+      const prefix=bars.filter(b=>b.t<=point.time*1000),anchor=prefix.at(-1),delta=point.value-anchor.c;
       assert.equal(point.anchor,point.direction<0?anchor.h:anchor.l);
       assert.ok(point.direction<0?point.value>=anchor.h:point.value<=anchor.l);
-      for(let k=1;k<=2;k++){const o=point.anchor+(k-1)*d,c=o+d,t=anchor.t+k*STEP;prefix.push({t,end:t+STEP-1,o,c,h:Math.max(o,c),l:Math.min(o,c),v:Math.abs(d),...sessionAt(t)});}
+      let open=anchor.c;
+      for(let k=1;k<=2;k++){const o=open,c=anchor.c+delta*(k===1?point.firstFraction:1),t=anchor.t+k*STEP;prefix.push({t,end:t+STEP-1,o,c,h:Math.max(o,c),l:Math.min(o,c),v:Math.abs(c-o),...sessionAt(t)});open=c;}
       const known=new Map([...states].filter(([,s])=>s.blockEnd<point.knownAt));
       const rows=adaptive?h1AdaptiveVolumeRows(prefix,known,{step:STEP,now:prefix.at(-1).t+STEP}):analyze(prefix,STEP,{strength:calculateVolumeStrength(prefix,STEP)});
       assert.ok(rows.at(-1).adjusted*point.direction<0);closeEnough(rows.at(-1).adjusted,point.second);
@@ -63,15 +64,15 @@ test('missing bars break the line and require the full strength warmup again',()
 
 test('no bounded solution stays missing; live wick changes reuse locked history',()=>{
   assert.equal(solveBodyReversal(createBodyState(),fixture(1)[0],1,{maxDistance:1}),null);
-  const bars=fixture(),now=bars.at(-1).t+STEP/2,cache=bodyReversalCache();
+  const bars=fixture(717),now=bars.at(-1).t+STEP/2,cache=bodyReversalCache();
   const first=cache.get(bars,new Map(),{now,adaptive:false});
   assert.ok(first.preview);
-  const changed=bars.map((b,i)=>i===bars.length-1?{...b,h:b.h+1,l:b.l-1}:b);
+  const changed=bars.map((b,i)=>i===bars.length-1?{...b,h:b.h+.02,l:b.l-.02}:b);
   const updated=cache.get(changed,new Map(),{now,adaptive:false});
   assert.equal(updated.points,first.points);
   assert.ok(updated.preview);
-  assert.equal(updated.preview.anchor,first.preview.anchor+(first.preview.direction<0?1:-1));
-  assert.ok(Math.abs(updated.preview.value-first.preview.value-(first.preview.direction<0?1:-1))<1e-6);
+  assert.equal(updated.preview.anchor,first.preview.anchor+(first.preview.direction<0?.02:-.02));
+  assert.ok(Math.abs(updated.preview.value-first.preview.value-(first.preview.direction<0?.02:-.02))<1e-6);
   assert.deepEqual(updated,bodyReversalHistory(changed,new Map(),{now,adaptive:false}));
 });
 
@@ -88,7 +89,7 @@ test('red anchors at High and green at Low even when the price body has the oppo
 });
 
 test('live direction follows the same current H1 preview as candle coloring',()=>{
-  const bars=fixture(),now=bars.at(-1).t+STEP/2,states=statesFor(bars);
+  const bars=fixture(717),now=bars.at(-1).t+STEP/2,states=statesFor(bars);
   const live=bars.at(-1),blockStart=Math.floor(live.t/3600000)*3600000;
   states.set(live.t,{t:live.t,blockStart,blockEnd:blockStart+3600000-1,direction:1,quality:.9,preview:true});
   const actual=h1AdaptiveVolumeRows(bars,states,{step:STEP,now}).at(-1);
@@ -100,7 +101,7 @@ test('live direction follows the same current H1 preview as candle coloring',()=
 });
 
 test('live updates never double count impulses; at close the point locks once',()=>{
-  const bars=fixture(),last=bars.at(-1),cache=bodyReversalCache(),states=new Map();
+  const bars=fixture(717),last=bars.at(-1),cache=bodyReversalCache(),states=new Map();
   const before=cache.get(bars,states,{now:last.t+STEP/4,adaptive:false});
   cache.get(bars.map((b,i)=>i===bars.length-1?{...b,c:b.c+.3,h:b.h+.3}:b),states,{now:last.t+STEP/2,adaptive:false});
   const restored=cache.get(bars,states,{now:last.t+STEP*3/4,adaptive:false});
@@ -109,4 +110,38 @@ test('live updates never double count impulses; at close the point locks once',(
   assert.equal(locked.preview,null);assert.equal(locked.points.filter(p=>p.time===last.t/1000).length,1);
   assert.equal(locked.last.preview,false);closeEnough(locked.last.value,before.preview.value);
   assert.deepEqual(locked,bodyReversalHistory(bars,states,{now:last.t+STEP,adaptive:false}));
+});
+
+test('wick reference does not add a fictitious gap to the genuine reversal distance',()=>{
+  const bars=fixture(703),snapshot=createBodyState();let reading;
+  for(const b of bars)reading=advanceBodyState(snapshot.raw,snapshot.pools,b);
+  const bar=bars.at(-1),direction=Math.sign(reading.adjusted);
+  const before=solveBodyReversal(snapshot,bar,direction,{maxDistance:2});
+  const after=solveBodyReversal(snapshot,{...bar,h:bar.h+.03,l:bar.l-.03},direction,{maxDistance:2});
+  assert.ok(before&&after);assert.equal(before.start,bar.c);
+  assert.ok(Math.abs(before.value-after.value)<1e-6);
+  assert.ok(Math.abs(before.value-bar.c-before.distance*-direction)<1e-8);
+});
+
+test('all displayed thresholds stay within the causal two-bar budget and 3 ATR',()=>{
+  const bars=fixture(),states=statesFor(bars);
+  for(const adaptive of [false,true]){
+    const result=bodyReversalHistory(bars,states,{now:bars.at(-1).t+STEP/2,adaptive});
+    assert.ok(result.points.length>10);
+    for(const p of [...result.points,...(result.preview?[result.preview]:[])]){
+      assert.ok(p.distance<=p.moveLimit+1e-8);
+      assert.ok(p.distance<=3*p.atr+1e-8);
+      assert.ok(p.second*p.direction<0); // no price clipping that invents a reversal
+    }
+  }
+});
+
+test('no plausible two-bar reversal is left missing instead of clamped to a nearby price',()=>{
+  const bars=fixture(),result=bodyReversalHistory(bars,new Map(),{now:bars.at(-1).t+STEP});
+  assert.equal(result.last,null);
+  assert.ok(!result.points.some(p=>p.time===bars.at(-1).t/1000));
+  const s=createBodyState();for(const b of bars)advanceBodyState(s.raw,s.pools,b);
+  const bar=bars.at(-1);
+  assert.equal(solveBodyReversal(s,{...bar,h:bar.c+2},-1,{maxDistance:.5}),null);
+  assert.equal(solveBodyReversal(s,{...bar,l:bar.c-2},1,{maxDistance:.5}),null);
 });
