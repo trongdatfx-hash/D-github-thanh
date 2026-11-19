@@ -225,7 +225,8 @@ body.chart-fullscreen::before{display:none}
 }
 #h1-cvd-status-row #h1-trend-age-text{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #h1-cvd-status-row #h1-oi-status{font-size:10px}
-#h1-cvd-status-row #h1-candle-countdown{font-size:10px;padding:1px 4px}
+#h1-cvd-status-row #h1-candle-countdown{flex:0 0 auto;min-width:104px;padding:4px 8px;border:1px solid #79c9ff;border-radius:6px;background:#0b3551;color:#fff;font-size:14px;font-weight:900;line-height:1.2;letter-spacing:.02em;text-align:center;box-shadow:0 0 0 1px rgba(121,201,255,.18);font-variant-numeric:tabular-nums}
+@media(max-width:650px){#h1-cvd-status-row #h1-candle-countdown{min-width:95px;padding:4px 6px;font-size:13px}}
 @media(max-width:650px){
   .chart-card .chart-actions #fullscreen{min-height:32px}
   .pane-legend{left:5px;gap:3px}
