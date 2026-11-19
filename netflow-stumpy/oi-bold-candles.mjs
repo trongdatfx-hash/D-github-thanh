@@ -3,7 +3,7 @@
 export function oiBodyWidth(spacing){
   if(!Number.isFinite(spacing)||spacing<2)return 0;
   const emphasis=Math.max(0,Math.min(1,(spacing-3)/3));
-  return spacing*(.94+.36*emphasis);
+  return spacing*(.72+.18*emphasis);
 }
 export function oiBodyContrast(color,kind){
   if(kind==='up-oi-increase')return {body:'#1243be',border:null};
