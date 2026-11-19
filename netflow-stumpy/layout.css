@@ -232,3 +232,7 @@ body.chart-fullscreen::before{display:none}
   .pane-legend{left:5px;gap:3px}
   .pane-legend .pane-fixed-readout,.pane-legend #strength-readout span{font-size:9px;padding-inline:4px}
 }
+
+/* Make the OI percentage in the H1 preview readout easier to read. */
+#h1-cvd-status-row #h1-oi-percent{font-size:14px}
+@media(max-width:650px){#h1-cvd-status-row #h1-oi-percent{font-size:12px}}
