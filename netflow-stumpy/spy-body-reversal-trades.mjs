@@ -1,5 +1,12 @@
+import {sessionAt} from './engine.mjs?v=20261118-wlr-band-slope';
+
 const STEP=900000,EPS=1e-9;
 const validBar=b=>b.sourceComplete!==false&&[b.t,b.o,b.h,b.l,b.c].every(Number.isFinite)&&b.l>0&&b.l<=Math.min(b.o,b.c)&&b.h>=Math.max(b.o,b.c);
+
+export function reversalEntryAllowed(time,entryWindow='PRE_POST'){
+  if(entryWindow==='ALL')return true;
+  return ['PRE','RTH','POST'].includes(sessionAt(time).session);
+}
 
 export function summarizeReversalTrades(trades){
   let gains=0,losses=0,gainsR=0,lossesR=0,equity=0,peak=0,drawdownR=0;
@@ -19,13 +26,13 @@ export function summarizeReversalTrades(trades){
 // valid first V2 level on that candle. Entry is the next observed candle open.
 // TP is the next V2 POINT on a later closed candle of the SAME sign phase.
 // TP is an exit event, filled at the next open, not at the untraded line price.
-export function backtestReversalTrades({bars=[],bodyRows=[],points=[],now=Date.now(),step=STEP,roundTripBps=0}={}){
-  if(!Number.isFinite(now)||!Number.isFinite(step)||step<=0||!Number.isFinite(roundTripBps)||roundTripBps<0)throw Error('Invalid reversal backtest parameters');
+export function backtestReversalTrades({bars=[],bodyRows=[],points=[],now=Date.now(),step=STEP,roundTripBps=0,entryWindow='PRE_POST'}={}){
+  if(!Number.isFinite(now)||!Number.isFinite(step)||step<=0||!Number.isFinite(roundTripBps)||roundTripBps<0||!['PRE_POST','ALL'].includes(entryWindow))throw Error('Invalid reversal backtest parameters');
   const ordered=[...new Map(bars.filter(b=>Number.isFinite(b.t)&&b.t<=now).map(b=>[b.t,b])).values()].sort((a,b)=>a.t-b.t);
   const readings=new Map(bodyRows.map(r=>[r.t,r.adjusted]));
   const levels=new Map(points.filter(p=>!p.preview&&Number.isFinite(p.time)&&Number.isFinite(p.value)&&p.value>0).map(p=>[p.time*1000,p]));
-  const trades=[],censored=[],skipped={noFirstLine:0,invalidStop:0,overlap:0,gapEntry:0,invalidData:0};
-  let position=null,entryPlan=null,previous=null,lastSign=0,phase=0,signals=0,closedBars=0;
+  const trades=[],censored=[],skipped={noFirstLine:0,invalidStop:0,overlap:0,gapEntry:0,invalidData:0,outsideSession:0};
+  let position=null,entryPlan=null,previous=null,lastSign=0,phase=0,signals=0,inSessionSignals=0,closedBars=0;
   function finish(bar,value,reason,intrabar=false){
     const p=position,grossPoints=p.direction*(value-p.entry),costPoints=(p.entry+value)*roundTripBps/20000;
     trades.push({...p,exit:value,exitTime:bar.t,exitKnownAt:intrabar?bar.t+step:bar.t,reason,
@@ -52,6 +59,7 @@ export function backtestReversalTrades({bars=[],bodyRows=[],points=[],now=Date.n
     if(entryPlan){
       const plan=entryPlan;entryPlan=null;
       if(plan.due!==bar.t)skipped.gapEntry++;
+      else if(!reversalEntryAllowed(bar.t,entryWindow))skipped.outsideSession++;
       else if(position)skipped.overlap++;
       else if(plan.direction*(bar.o-plan.stop)<=EPS)skipped.invalidStop++;
       else position={...plan,entry:bar.o,entryTime:bar.t,risk:plan.direction*(bar.o-plan.stop),tpDue:null,tpSignalTime:null,tpExpired:false};
@@ -74,14 +82,21 @@ export function backtestReversalTrades({bars=[],bodyRows=[],points=[],now=Date.n
     }
     if(flipped){
       signals++;
-      if(position)skipped.overlap++;
-      else if(!known||known.direction!==sign)skipped.noFirstLine++;
-      else if(sign*(bar.c-known.value)<=EPS)skipped.invalidStop++;
-      else entryPlan={signalTime:bar.t,signalKnownAt:bar.t+step,due:bar.t+step,direction:sign,phase,stop:known.value,firstLineTime:bar.t};
+      // Filter at signal confirmation / intended entry OPEN. A 03:45 NY
+      // candle confirmed at 04:00 is eligible; a 19:45 candle at 20:00 is not.
+      // Keep the sign phase and all indicators continuous outside this window.
+      if(!reversalEntryAllowed(bar.t+step,entryWindow))skipped.outsideSession++;
+      else{
+        inSessionSignals++;
+        if(position)skipped.overlap++;
+        else if(!known||known.direction!==sign)skipped.noFirstLine++;
+        else if(sign*(bar.c-known.value)<=EPS)skipped.invalidStop++;
+        else entryPlan={signalTime:bar.t,signalKnownAt:bar.t+step,due:bar.t+step,direction:sign,phase,stop:known.value,firstLineTime:bar.t};
+      }
     }
     previous=bar;
   }
   return {trades,summary:summarizeReversalTrades(trades),buy:summarizeReversalTrades(trades.filter(t=>t.direction>0)),sell:summarizeReversalTrades(trades.filter(t=>t.direction<0)),
-    open:position,pending:entryPlan,censored,skipped,signals,closedBars,roundTripBps,
+    open:position,pending:entryPlan,censored,skipped,signals,inSessionSignals,closedBars,roundTripBps,entryWindow,
     from:ordered.find(validBar)?.t??null,to:previous?previous.t+step:null};
 }

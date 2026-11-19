@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {backtestReversalTrades,summarizeReversalTrades} from '../netflow-stumpy/spy-body-reversal-trades.mjs';
+import {backtestReversalTrades,summarizeReversalTrades,reversalEntryAllowed} from '../netflow-stumpy/spy-body-reversal-trades.mjs';
 const STEP=900000,T=Date.UTC(2026,10,10,14);
 const bar=(i,o=100,h=102,l=99.5,c=101)=>({t:T+i*STEP,o,h,l,c});
 const line=(i,value,direction,extra={})=>({time:(T+i*STEP)/1000,value,direction,knownAt:T+(i+1)*STEP,preview:false,...extra});
@@ -70,4 +70,58 @@ test('profit factor and drawdown use the same 1R-per-trade risk convention as to
     {netPoints:-2,grossPoints:-2,netR:-1,heldBars:1,reason:'SL'}
   ]);
   assert.equal(r.profitFactor,2);assert.equal(r.profitFactorPoints,.5);assert.equal(r.netR,1);assert.equal(r.drawdownR,1);
+});
+
+test('PRE through POST uses New York 04:00 inclusive and 20:00 exclusive in winter and summer',()=>{
+  for(const [day,offset] of [['2026-11-19','-05:00'],['2026-07-10','-04:00']]){
+    for(const [clock,expected] of [['03:59:59',false],['04:00:00',true],['09:30:00',true],['16:00:00',true],['19:59:59',true],['20:00:00',false]]){
+      assert.equal(reversalEntryAllowed(Date.parse(day+'T'+clock+offset)),expected,day+' '+clock);
+    }
+  }
+  assert.equal(reversalEntryAllowed(Date.parse('2026-11-19T08:30:00Z')),false);
+  assert.equal(reversalEntryAllowed(Date.parse('2026-07-10T08:30:00Z')),true);
+});
+
+test('weekends are excluded even inside the New York clock window',()=>{
+  assert.equal(reversalEntryAllowed(Date.parse('2026-11-21T12:00:00-05:00')),false);
+  assert.equal(reversalEntryAllowed(Date.parse('2026-11-22T12:00:00-05:00')),false);
+});
+
+function shiftedScenario(entryClock,{stopAfterClose=false}={}){
+  const entry=Date.parse(entryClock),start=entry-2*STEP;
+  const bars=[bar(0),bar(1,100,102,98,101),bar(2),stopAfterClose?bar(3,100,101,98,100):bar(3,102,103,101,102)].map((b,i)=>({...b,t:start+i*STEP,session:'PRE'}));
+  const bodyRows=[-1,1,1,1].map((adjusted,i)=>({t:bars[i].t,adjusted}));
+  const points=(stopAfterClose?[line(1,99,1)]:[line(1,99,1),line(2,100.5,1)]).map((p,i)=>({...p,time:bars[i+1].t/1000,knownAt:bars[i+1].t+STEP}));
+  return {bars,bodyRows,points,now:bars.at(-1).t+STEP};
+}
+
+test('a signal confirmed exactly at PRE open can enter at 04:00 NY',()=>{
+  const r=backtestReversalTrades(shiftedScenario('2026-11-19T04:00:00-05:00'));
+  assert.equal(r.trades.length,1);assert.equal(r.trades[0].entryTime,Date.parse('2026-11-19T04:00:00-05:00'));
+});
+
+test('entry at POST end or NIGHT is excluded by timestamp, ignoring misleading session labels',()=>{
+  for(const clock of ['2026-11-19T20:00:00-05:00','2026-11-19T02:00:00-05:00']){
+    const input=shiftedScenario(clock),r=backtestReversalTrades(input);
+    assert.equal(r.trades.length,0);assert.equal(r.open,null);assert.equal(r.skipped.outsideSession,1);
+    assert.equal(backtestReversalTrades({...input,entryWindow:'ALL'}).trades.length,1);
+  }
+});
+
+test('existing trades may still take TP or SL after POST ends',()=>{
+  const clock='2026-11-19T19:45:00-05:00';
+  const tp=backtestReversalTrades(shiftedScenario(clock));
+  assert.equal(tp.trades.length,1);assert.equal(tp.trades[0].reason,'TP_SIGNAL');
+  assert.equal(tp.trades[0].exitTime,Date.parse('2026-11-19T20:00:00-05:00'));
+  const sl=backtestReversalTrades(shiftedScenario(clock,{stopAfterClose:true}));
+  assert.equal(sl.trades[0].reason,'SL');assert.equal(sl.trades[0].exitTime,Date.parse('2026-11-19T20:00:00-05:00'));
+});
+
+test('entering the clock window does not replay an earlier NIGHT flip',()=>{
+  const start=Date.parse('2026-11-19T03:15:00-05:00');
+  const bars=Array.from({length:5},(_,i)=>({...bar(i),t:start+i*STEP}));
+  const bodyRows=[-1,1,1,1,1].map((adjusted,i)=>({t:bars[i].t,adjusted}));
+  const points=bars.slice(1).map(b=>({time:b.t/1000,value:99,direction:1,knownAt:b.t+STEP}));
+  const r=backtestReversalTrades({bars,bodyRows,points,now:bars.at(-1).t+STEP});
+  assert.equal(r.trades.length,0);assert.equal(r.open,null);assert.equal(r.signals,1);assert.equal(r.skipped.outsideSession,1);
 });
