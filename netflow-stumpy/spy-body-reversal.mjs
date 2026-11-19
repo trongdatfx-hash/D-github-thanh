@@ -41,13 +41,16 @@ export function advanceBodyState(s,pools,bar,h1=null){
 }
 export function createBodyState(){return {raw:rawState(),pools:poolsState()};}
 
-// Two equal adverse bodies, no gaps. Future H1 states are unknown: hold only
-// the latest H1 already confirmed at this anchor, with the existing 1h expiry.
+// Two equal adverse bodies measured from the candle's wick extreme: red SPY V
+// starts at High and green SPY V at Low. Future H1 states remain unknown.
 export function solveBodyReversal(snapshot,bar,direction,{h1=null,maxDistance,step=STEP}={}){
   if(!direction||!Number.isFinite(maxDistance)||maxDistance<=0)return null;
+  const anchor=direction<0?bar.h:bar.l;
+  if(!Number.isFinite(anchor)||anchor<=0)return null;
+  if(direction>0)maxDistance=Math.min(maxDistance,anchor*.99);
   const sessions=[sessionAt(bar.t+step).session,sessionAt(bar.t+2*step).session];
   function trial(distance){
-    const s=cloneRaw(snapshot.raw),p=clonePools(snapshot.pools);let close=bar.c,first=null,last=null;
+    const s=cloneRaw(snapshot.raw),p=clonePools(snapshot.pools);let close=anchor,first=null,last=null;
     for(let k=1;k<=2;k++){
       const t=bar.t+k*step,next=close-direction*distance/2;
       const known=h1&&t+step-h1.blockEnd<=3600000?h1:null;
@@ -64,10 +67,10 @@ export function solveBodyReversal(snapshot,bar,direction,{h1=null,maxDistance,st
     for(let i=0;i<26;i++){const mid=(low+high)/2;if(reversed(trial(mid)))high=mid;else low=mid;}
     result=trial(high);
   }
-  return {value:bar.c-direction*high,distance:high,direction,first:result.first,second:result.last};
+  return {value:anchor-direction*high,anchor,reference:direction<0?'high':'low',distance:high,direction,first:result.first,second:result.last};
 }
 
-export function bodyReversalHistory(bars,states=new Map(),{now=Date.now(),adaptive=false,step=STEP}={}){
+function closedReversalHistory(bars,states=new Map(),{now=Date.now(),adaptive=false,step=STEP}={}){
   const closed=bars.filter(b=>b.t+step<=now),schedule=adaptive?h1VolumeAlphaSchedule(closed,states,{step,now}):new Map();
   const confirmed=adaptive?[...states.values()].filter(s=>!s.preview&&Number.isFinite(s.blockEnd)).sort((a,b)=>a.blockEnd-b.blockEnd):[];
   const points=[],ranges=[],snapshot=createBodyState();
@@ -82,19 +85,49 @@ export function bodyReversalHistory(bars,states=new Map(),{now=Date.now(),adapti
     const result=direction?solveBodyReversal(snapshot,bar,direction,{step,h1:known,maxDistance:Math.min(bar.c*.9,16*scale)}):null;
     const flip=Boolean(direction&&lastSign&&direction!==lastSign);
     if(direction)lastSign=direction;
-    if(result)points.push({time:bar.t/1000,...result,segment,flip,knownAt:bar.t+step});
+    if(result)points.push({time:bar.t/1000,...result,segment,flip,knownAt:bar.t+step,preview:false});
     else segment++; // never join over missing / unsolved thresholds
     previous=bar;
   }
-  return {points,last:points.at(-1)?.knownAt===closed.at(-1)?.t+step?points.at(-1):null};
+  const value={points,last:points.at(-1)?.knownAt===closed.at(-1)?.t+step?points.at(-1):null,preview:null};
+  Object.defineProperty(value,'context',{value:{snapshot,ranges,previous,lastSign,segment}});
+  return value;
 }
 
-// Historical thresholds are stable while only the open candle changes.
+function withLivePreview(value,bars,states,{now=Date.now(),adaptive=false,step=STEP}={}){
+  const bar=bars.findLast(b=>b.t<=now&&b.t+step>now);
+  if(!bar)return value;
+  const noPreview=()=>({points:value.points,last:null,preview:null});
+  if(bar.sourceComplete===false||![bar.o,bar.c,bar.h,bar.l].every(Number.isFinite)||bar.c<=0)return noPreview();
+  const context=value.context,snapshot={raw:cloneRaw(context.snapshot.raw),pools:clonePools(context.snapshot.pools)};
+  let ranges=[...context.ranges],segment=context.segment,lastSign=context.lastSign,previous=context.previous;
+  if(previous&&bar.t!==previous.t+step){snapshot.raw=rawState();ranges=[];previous=null;lastSign=0;segment++;}
+  const currentH1=adaptive?h1VolumeAlphaSchedule([bar],states,{step,now}).get(bar.t):null;
+  const reading=advanceBodyState(snapshot.raw,snapshot.pools,bar,currentH1),direction=Math.sign(reading.adjusted??0);
+  if(!direction)return noPreview();
+  push(ranges,Math.max(bar.h-bar.l,previous?Math.abs(bar.h-previous.c):0,previous?Math.abs(bar.l-previous.c):0),14);
+  const scale=Math.max(sum(ranges)/ranges.length,Math.abs(bar.c-bar.o),bar.c*1e-6);
+  // A current H1 preview may color this live candle; it cannot be assumed
+  // confirmed for either of the two hypothetical future candles.
+  const known=adaptive?[...states.values()].filter(s=>!s.preview&&Number.isFinite(s.blockEnd)&&s.blockEnd<now).sort((a,b)=>a.blockEnd-b.blockEnd||a.t-b.t).at(-1):null;
+  const result=solveBodyReversal(snapshot,bar,direction,{step,h1:known,maxDistance:Math.min(bar.c*.9,16*scale)});
+  if(!result)return noPreview();
+  const preview={time:bar.t/1000,...result,segment,flip:Boolean(lastSign&&direction!==lastSign),knownAt:now,preview:true};
+  return {points:value.points,last:preview,preview};
+}
+
+export function bodyReversalHistory(bars,states=new Map(),options={}){
+  return withLivePreview(closedReversalHistory(bars,states,options),bars,states,options);
+}
+
+// Cache the locked history, then clone its tail once for the changing live
+// candle. Intrabar updates never advance or contaminate the closed state.
 export function bodyReversalCache(){
-  let key='',value={points:[],last:null};
+  let key='',value=null;
   return {get(bars,states,options){
     const closed=bars.filter(b=>b.t+STEP<=options.now);
     const next=JSON.stringify([options.adaptive,closed.map(b=>[b.t,b.o,b.h,b.l,b.c,b.session,b.sourceComplete]),options.adaptive?[...states.values()].filter(s=>!s.preview).map(s=>[s.t,s.blockStart,s.blockEnd,s.direction,s.quality]):[]]);
-    if(next!==key){value=bodyReversalHistory(closed,states,options);key=next;}return value;
-  },clear(){key='';value={points:[],last:null};}};
+    if(next!==key||!value){value=closedReversalHistory(closed,states,options);key=next;}
+    return withLivePreview(value,bars,states,options);
+  },clear(){key='';value=null;}};
 }

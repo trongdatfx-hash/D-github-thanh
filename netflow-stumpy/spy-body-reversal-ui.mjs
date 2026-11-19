@@ -8,10 +8,10 @@ export function bodyReversalPrimitive(chart,price){
     const scale=chart.timeScale(),xOf=t=>scale.timeToCoordinate(t),yOf=v=>price.priceToCoordinate(v);
     let previous=null;
     ctx.lineWidth=1.5;ctx.setLineDash([7,3,1.5,3]);
-    for(const point of state.points){
+    for(const point of state.preview?[...state.points,state.preview]:state.points){
       const x=xOf(point.time),y=yOf(point.value);
       if(!Number.isFinite(x)||!Number.isFinite(y)){previous=null;continue;}
-      const color=point.direction>0?'#52eac0':'#ff8fa7';ctx.strokeStyle=color;ctx.fillStyle=color;
+      const color=point.direction>0?'#52eac0':'#ff8fa7';ctx.strokeStyle=color;ctx.fillStyle=color;ctx.globalAlpha=point.preview?.55:1;
       if(previous&&previous.segment===point.segment){ctx.beginPath();ctx.moveTo(previous.x,previous.y);ctx.lineTo(x,y);ctx.stroke();}
       if(point.flip&&x>=0&&x<=width&&y>=0&&y<=height){ctx.beginPath();ctx.arc(x,y,2.5,0,Math.PI*2);ctx.fill();}
       previous={...point,x,y};
@@ -21,10 +21,10 @@ export function bodyReversalPrimitive(chart,price){
     const x=xOf(last.time),y=yOf(last.value),logical=Number.isFinite(x)?scale.coordinateToLogical(x):null;
     const end=logical===null?null:scale.logicalToCoordinate(logical+2);
     if(![x,y,end].every(Number.isFinite)||end<0||x>width)return;
-    const color=last.direction>0?'#52eac0':'#ff8fa7';ctx.strokeStyle=color;ctx.fillStyle=color;
+    const color=last.direction>0?'#52eac0':'#ff8fa7';ctx.strokeStyle=color;ctx.fillStyle=color;ctx.globalAlpha=last.preview?.65:1;
     ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(end,y);ctx.stroke();ctx.setLineDash([]);
     ctx.beginPath();ctx.arc(x,y,2.5,0,Math.PI*2);ctx.fill();
-    ctx.font='700 12px system-ui';ctx.textBaseline='middle';
+    ctx.globalAlpha=1;ctx.font='700 12px system-ui';ctx.textBaseline='middle';
     const label='ĐẢO V₂',textWidth=ctx.measureText(label).width,labelX=Math.max(4,Math.min(end+6,width-textWidth-9)),labelY=Math.max(12,Math.min(y-12,height-12));
     ctx.fillStyle='#101d2b';ctx.fillRect(labelX-3,labelY-9,textWidth+6,18);ctx.fillStyle=color;ctx.fillText(label,labelX,labelY);
     // Keep the label reachable when the model threshold is outside price autoscale;

@@ -13,8 +13,8 @@ import {oi8PivotLevels} from './oi8-pivot-levels.mjs?v=20261114-trend-oi8-50';
 import {strengthOi8} from './strength-oi8.mjs?v=20261111-oi8';
 import {strengthOiPhase,oiPhasePrimitive} from './strength-oi-phase.mjs?v=20261119-oi-phase1';
 let oiPhaseLayer;
-import {bodyReversalCache} from './spy-body-reversal.mjs?v=20261119-dao-v2-1';
-import {bodyReversalPrimitive} from './spy-body-reversal-ui.mjs?v=20261119-dao-v2-1';
+import {bodyReversalCache} from './spy-body-reversal.mjs?v=20261119-dao-v2-2';
+import {bodyReversalPrimitive} from './spy-body-reversal-ui.mjs?v=20261119-dao-v2-2';
 const daoV2Cache=bodyReversalCache();
 let daoV2Layer;
 import {compositeNfSmooth} from './composite-nf-smooth.mjs?v=20261108-c-taker-smooth1';
@@ -941,6 +941,7 @@ function render(fit=false){
   daoV2Layer?.setData(daoV2State,daoV2On);
   $('chart').dataset.daoV2=daoV2On?'active':'off';
   $('chart').dataset.daoV2Points=String(daoV2State.points.length);
+  $('chart').dataset.daoV2Preview=String(Boolean(daoV2State.preview));
   const priceData=p.map(x=>{
     const color=spyVSignColor(bodyVolumeByTime.get(x.t)?.adjusted);
     return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color,wickColor:color,borderColor:color};
@@ -1326,7 +1327,7 @@ if(init()){
   spyBodyToggle.onchange=()=>render(false);
   const daoV2Label=document.createElement('label'),daoV2Toggle=document.createElement('input');
   daoV2Toggle.id='dao-v2-toggle';daoV2Toggle.type='checkbox';daoV2Toggle.checked=true;
-  daoV2Label.title='Ngưỡng giá theo kịch bản hai nến M15 có thân bằng nhau, ngược dấu SPY V thân nến. Chỉ dùng nến đã đóng và H1 đã biết; nối các mốc lịch sử bằng nét gạch–chấm, chấm tròn tại lần SPY V đảo dấu. Đây là mốc đóng nến giả định, chưa phải lệnh SL.';
+  daoV2Label.title='Ngưỡng hai nến M15 theo màu SPY V thân nến: đỏ tính từ High và hướng lên, xanh tính từ Low và hướng xuống. Lịch sử dùng High/Low nến đã đóng; nến live dùng High/Low hiện tại và vẽ nhạt, cập nhật theo giá. Hai thân giả định bằng nhau; chỉ dùng H1 đã biết. Nhãn chỉ ĐẢO V₂; chưa phải lệnh SL.';
   daoV2Label.append(daoV2Toggle,'ĐẢO V₂');spyBodyLabel.after(daoV2Label);
   daoV2Toggle.onchange=()=>render(false);
   const nfLabel=document.createElement('label'),nfInput=document.createElement('input'),nfWindow=document.createElement('select');
