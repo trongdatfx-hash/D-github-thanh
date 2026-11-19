@@ -9,16 +9,18 @@ export function reversalEntryAllowed(time,entryWindow='PRE_POST'){
 }
 
 export function summarizeReversalTrades(trades){
-  let gains=0,losses=0,gainsR=0,lossesR=0,equity=0,peak=0,drawdownR=0;
-  for(const t of trades){if(t.netPoints>EPS)gains+=t.netPoints;else if(t.netPoints< -EPS)losses-=t.netPoints;if(t.netR>EPS)gainsR+=t.netR;else if(t.netR< -EPS)lossesR-=t.netR;equity+=t.netR;peak=Math.max(peak,equity);drawdownR=Math.max(drawdownR,peak-equity);}
+  let gains=0,losses=0,equity=0,peak=0,drawdownPoints=0;
+  for(const t of trades){
+    if(t.netPoints>EPS)gains+=t.netPoints;else if(t.netPoints< -EPS)losses-=t.netPoints;
+    equity+=t.netPoints;peak=Math.max(peak,equity);drawdownPoints=Math.max(drawdownPoints,peak-equity);
+  }
   const wins=trades.filter(t=>t.netPoints>EPS).length,losing=trades.filter(t=>t.netPoints< -EPS).length;
   return {count:trades.length,wins,losses:losing,flat:trades.length-wins-losing,
     winRate:trades.length?100*wins/trades.length:null,
-    tp:trades.filter(t=>t.reason==='TP_SIGNAL').length,flip:trades.filter(t=>t.reason==='SPY_FLIP').length,sl:trades.filter(t=>t.reason.startsWith('SL')).length,
-    grossPoints:trades.reduce((s,t)=>s+t.grossPoints,0),netPoints:trades.reduce((s,t)=>s+t.netPoints,0),
-    netR:equity,meanR:trades.length?equity/trades.length:null,
-    profitFactor:lossesR>EPS?gainsR/lossesR:gainsR>EPS?Infinity:null,
-    profitFactorPoints:losses>EPS?gains/losses:gains>EPS?Infinity:null,drawdownR,
+    tp:trades.filter(t=>t.reason==='TP_SIGNAL').length,flip:trades.filter(t=>t.reason==='SPY_FLIP').length,
+    grossPoints:trades.reduce((s,t)=>s+t.grossPoints,0),netPoints:equity,
+    meanPoints:trades.length?equity/trades.length:null,
+    profitFactor:losses>EPS?gains/losses:gains>EPS?Infinity:null,drawdownPoints,
     meanBars:trades.length?trades.reduce((s,t)=>s+t.heldBars,0)/trades.length:null};
 }
 
@@ -26,19 +28,19 @@ export function summarizeReversalTrades(trades){
 // valid first V2 level on that candle. Entry is the next observed candle open.
 // The second same-phase V2 point may take TP only after minHoldBars complete
 // candles since entry. If it arrives early, wait for a closed SPY-body flip
-// instead, even if later same-phase levels appear. SL is always active.
+// instead, even if later same-phase levels appear. There is no stop-loss exit.
 export function backtestReversalTrades({bars=[],bodyRows=[],points=[],now=Date.now(),step=STEP,roundTripBps=0,entryWindow='PRE_POST',minHoldBars=4}={}){
   if(!Number.isFinite(now)||!Number.isFinite(step)||step<=0||!Number.isFinite(roundTripBps)||roundTripBps<0||!['PRE_POST','ALL'].includes(entryWindow)||!Number.isInteger(minHoldBars)||minHoldBars<0)throw Error('Invalid reversal backtest parameters');
   const ordered=[...new Map(bars.filter(b=>Number.isFinite(b.t)&&b.t<=now).map(b=>[b.t,b])).values()].sort((a,b)=>a.t-b.t);
   const readings=new Map(bodyRows.map(r=>[r.t,r.adjusted]));
   const levels=new Map(points.filter(p=>!p.preview&&Number.isFinite(p.time)&&Number.isFinite(p.value)&&p.value>0).map(p=>[p.time*1000,p]));
-  const trades=[],censored=[],skipped={noFirstLine:0,invalidStop:0,overlap:0,gapEntry:0,invalidData:0,outsideSession:0};
+  const trades=[],censored=[],skipped={noFirstLine:0,overlap:0,gapEntry:0,invalidData:0,outsideSession:0};
   let position=null,entryPlan=null,previous=null,lastSign=0,phase=0,signals=0,inSessionSignals=0,closedBars=0;
-  function finish(bar,value,reason,intrabar=false){
+  function finish(bar,value,reason){
     const p=position,grossPoints=p.direction*(value-p.entry),costPoints=(p.entry+value)*roundTripBps/20000;
-    trades.push({...p,exit:value,exitTime:bar.t,exitKnownAt:intrabar?bar.t+step:bar.t,reason,
-      grossPoints,costPoints,netPoints:grossPoints-costPoints,netR:(grossPoints-costPoints)/p.risk,
-      heldBars:Math.max(0,(bar.t-p.entryTime)/step)+(intrabar?1:0),intrabar});
+    trades.push({...p,exit:value,exitTime:bar.t,exitKnownAt:bar.t,reason,
+      grossPoints,costPoints,netPoints:grossPoints-costPoints,
+      heldBars:Math.max(0,(bar.t-p.entryTime)/step),intrabar:false});
     position=null;
   }
   function breakData(reason){
@@ -51,25 +53,19 @@ export function backtestReversalTrades({bars=[],bodyRows=[],points=[],now=Date.n
     if(previous&&bar.t!==previous.t+step)breakData('DATA_GAP');
     if(!validBar(bar)){skipped.invalidData++;breakData('INVALID_DATA');continue;}
 
-    // At an observed open, a stop gap takes precedence over a queued TP.
-    // A gap through SL fills at the open, never at a better obsolete SL price.
-    if(position){
-      if(position.direction*(bar.o-position.stop)<=0)finish(bar,bar.o,'SL_GAP');
-      else if(position.tpDue===bar.t)finish(bar,bar.o,position.pendingReason??'TP_SIGNAL');
-    }
+    // Only a confirmed sign flip or eligible second V2 point can queue an exit.
+    if(position?.tpDue===bar.t)finish(bar,bar.o,position.pendingReason);
     if(entryPlan){
       const plan=entryPlan;entryPlan=null;
       if(plan.due!==bar.t)skipped.gapEntry++;
       else if(!reversalEntryAllowed(bar.t,entryWindow))skipped.outsideSession++;
       else if(position)skipped.overlap++;
-      else if(plan.direction*(bar.o-plan.stop)<=EPS)skipped.invalidStop++;
-      else position={...plan,entry:bar.o,entryTime:bar.t,risk:plan.direction*(bar.o-plan.stop),tpDue:null,tpSignalTime:null,tpExpired:false,waitForFlip:false,pendingReason:null};
+      else position={...plan,entry:bar.o,entryTime:bar.t,tpDue:null,tpSignalTime:null,tpExpired:false,waitForFlip:false,pendingReason:null};
     }
     // The live OPEN is already observable. Its evolving high/low and sign
     // never generate closed statistics or a second TP point.
     if(!closed)break;
     closedBars++;
-    if(position&&(position.direction>0?bar.l<=position.stop:bar.h>=position.stop))finish(bar,position.stop,'SL',true);
 
     const value=readings.get(bar.t),sign=Number.isFinite(value)?Math.sign(value):null;
     const flipped=Boolean(sign&&lastSign&&sign!==lastSign);
@@ -101,8 +97,7 @@ export function backtestReversalTrades({bars=[],bodyRows=[],points=[],now=Date.n
         inSessionSignals++;
         if(position)skipped.overlap++;
         else if(!known||known.direction!==sign)skipped.noFirstLine++;
-        else if(sign*(bar.c-known.value)<=EPS)skipped.invalidStop++;
-        else entryPlan={signalTime:bar.t,signalKnownAt:bar.t+step,due:bar.t+step,direction:sign,phase,stop:known.value,firstLineTime:bar.t};
+        else entryPlan={signalTime:bar.t,signalKnownAt:bar.t+step,due:bar.t+step,direction:sign,phase,firstLine:known.value,firstLineTime:bar.t};
       }
     }
     previous=bar;
@@ -111,4 +106,3 @@ export function backtestReversalTrades({bars=[],bodyRows=[],points=[],now=Date.n
     open:position,pending:entryPlan,censored,skipped,signals,inSessionSignals,closedBars,roundTripBps,entryWindow,minHoldBars,
     from:ordered.find(validBar)?.t??null,to:previous?previous.t+step:null};
 }
-

@@ -10,29 +10,29 @@ function run({bars=[bar(0),bar(1,100,102,98,101),bar(2),bar(3,102,103,101,102)],
   return backtestReversalTrades({bars,bodyRows:rows(signs),points,now:T+bars.length*STEP,minHoldBars:0,...options});
 }
 
-test('BUY enters after the flip, locks first SL and exits next open after second same-phase point',()=>{
+test('BUY enters after the flip, records first V2 level and exits next open after second same-phase point',()=>{
   const r=run();assert.equal(r.trades.length,1);const t=r.trades[0];
-  assert.equal(t.entryTime,T+2*STEP);assert.equal(t.entry,100);assert.equal(t.stop,99);
+  assert.equal(t.entryTime,T+2*STEP);assert.equal(t.entry,100);assert.equal(t.firstLine,99);
   assert.equal(t.reason,'TP_SIGNAL');assert.equal(t.exit,102);assert.equal(t.secondLine,100.5);
-  assert.equal(t.netR,2);assert.equal(r.summary.winRate,100);
+  assert.equal(t.netPoints,2);assert.equal(r.summary.winRate,100);
 });
 test('SELL mirrors BUY; TP line price is never assumed filled',()=>{
   const r=run({bars:[bar(0),bar(1,100,102,98,99),bar(2,100,100.5,98,99),bar(3,98,99,97,98)],signs:[1,-1,-1,-1],points:[line(1,101,-1),line(2,99.5,-1)]});
-  assert.equal(r.trades[0].direction,-1);assert.equal(r.trades[0].netR,2);assert.equal(r.trades[0].exit,98);
+  assert.equal(r.trades[0].direction,-1);assert.equal(r.trades[0].netPoints,2);assert.equal(r.trades[0].exit,98);
 });
-test('SL touched before second line becomes known takes precedence over TP',()=>{
+test('crossing first V2 level intrabar does not stop a trade',()=>{
   const r=run({bars:[bar(0),bar(1,100,102,98,101),bar(2,100,102,98.5,101),bar(3,110,111,109,110)]});
-  assert.equal(r.trades[0].reason,'SL');assert.equal(r.trades[0].exit,99);assert.equal(r.summary.netR,-1);
+  assert.equal(r.trades[0].reason,'TP_SIGNAL');assert.equal(r.trades[0].exit,110);assert.equal(r.summary.netPoints,10);
 });
-test('gap through SL fills at worse open even with a queued TP signal',()=>{
+test('gap past first V2 level still executes queued signal exit at observed open',()=>{
   const r=run({bars:[bar(0),bar(1,100,102,98,101),bar(2),bar(3,98,99,97,98)]});
-  assert.equal(r.trades[0].reason,'SL_GAP');assert.equal(r.trades[0].exit,98);assert.equal(r.summary.netR,-2);
+  assert.equal(r.trades[0].reason,'TP_SIGNAL');assert.equal(r.trades[0].exit,98);assert.equal(r.summary.netPoints,-2);
 });
 test('opposite color closes by SPY flip, never as same-phase TP',()=>{
   const r=run({bars:[bar(0),bar(1,100,102,98,101),bar(2),bar(3),bar(4)],signs:[-1,1,-1,1,1],points:[line(1,99,1),line(2,103,-1),line(3,99.2,1),line(4,99.3,1)]});
-  assert.equal(r.trades.length,1);assert.equal(r.trades[0].reason,'SPY_FLIP');assert.equal(r.trades[0].stop,99);assert.equal(r.summary.flip,1);
+  assert.equal(r.trades.length,1);assert.equal(r.trades[0].reason,'SPY_FLIP');assert.equal(r.trades[0].firstLine,99);assert.equal(r.summary.flip,1);
 });
-test('missing first SL skips the flip and does not invent a later entry',()=>{
+test('missing first V2 level skips the flip and does not invent a later entry',()=>{
   const r=run({points:[line(2,99,1)]});assert.equal(r.trades.length,0);assert.equal(r.open,null);assert.equal(r.skipped.noFirstLine,1);
 });
 test('live preview and unobserved future knownAt never create TP',()=>{
@@ -53,11 +53,11 @@ test('TP event is not automatically a winning trade; fee scenarios reduce net Pn
   const bars=[bar(0),bar(1,100,102,98,101),bar(2),bar(3,99.8,101,99.5,100)];
   const r=run({bars,roundTripBps:10});const t=r.trades[0];
   assert.equal(t.reason,'TP_SIGNAL');assert.equal(r.summary.wins,0);assert.equal(r.summary.losses,1);
-  assert.ok(Math.abs(t.costPoints-.0999)<1e-9);assert.ok(Math.abs(t.netR+.2999)<1e-9);
+  assert.ok(Math.abs(t.costPoints-.0999)<1e-9);assert.ok(Math.abs(t.netPoints+.2999)<1e-9);
 });
-test('entry open on wrong side of fixed SL is skipped',()=>{
+test('entry remains eligible when open crosses the first V2 level',()=>{
   const r=run({bars:[bar(0),bar(1,100,102,98,101),bar(2,98,102,97,101),bar(3)]});
-  assert.equal(r.trades.length,0);assert.equal(r.skipped.invalidStop,1);
+  assert.equal(r.trades.length,1);assert.equal(r.trades[0].entry,98);assert.equal(r.trades[0].reason,'TP_SIGNAL');
 });
 test('future bars and future preview points cannot change an as-of result',()=>{
   const bars=[bar(0),bar(1,100,102,98,101),bar(2),bar(3,102,110,80,81)],now=T+2*STEP+STEP/2;
@@ -65,12 +65,13 @@ test('future bars and future preview points cannot change an as-of result',()=>{
   assert.equal(full.trades.length,0);assert.ok(full.open);
 });
 
-test('profit factor and drawdown use the same 1R-per-trade risk convention as total R',()=>{
+test('profit factor and drawdown use net points without a stop-risk denominator',()=>{
   const r=summarizeReversalTrades([
-    {netPoints:1,grossPoints:1,netR:2,heldBars:1,reason:'TP_SIGNAL'},
-    {netPoints:-2,grossPoints:-2,netR:-1,heldBars:1,reason:'SL'}
+    {netPoints:1,grossPoints:1,heldBars:1,reason:'TP_SIGNAL'},
+    {netPoints:-2,grossPoints:-2,heldBars:1,reason:'SPY_FLIP'}
   ]);
-  assert.equal(r.profitFactor,2);assert.equal(r.profitFactorPoints,.5);assert.equal(r.netR,1);assert.equal(r.drawdownR,1);
+  assert.equal(r.profitFactor,.5);assert.equal(r.netPoints,-1);assert.equal(r.drawdownPoints,2);
+  assert.equal(r.meanPoints,-.5);
 });
 
 test('PRE through POST uses New York 04:00 inclusive and 20:00 exclusive in winter and summer',()=>{
@@ -109,13 +110,13 @@ test('entry at POST end or NIGHT is excluded by timestamp, ignoring misleading s
   }
 });
 
-test('existing trades may still take TP or SL after POST ends',()=>{
+test('existing trades may take TP after POST ends; price crossing alone leaves them open',()=>{
   const clock='2026-11-19T19:45:00-05:00';
   const tp=backtestReversalTrades(shiftedScenario(clock));
   assert.equal(tp.trades.length,1);assert.equal(tp.trades[0].reason,'TP_SIGNAL');
   assert.equal(tp.trades[0].exitTime,Date.parse('2026-11-19T20:00:00-05:00'));
   const sl=backtestReversalTrades(shiftedScenario(clock,{stopAfterClose:true}));
-  assert.equal(sl.trades[0].reason,'SL');assert.equal(sl.trades[0].exitTime,Date.parse('2026-11-19T20:00:00-05:00'));
+  assert.equal(sl.trades.length,0);assert.ok(sl.open);
 });
 
 test('entering the clock window does not replay an earlier NIGHT flip',()=>{
@@ -145,7 +146,7 @@ test('default TP minimum is exactly four completed M15 candles from ENTRY, not f
     assert.equal(before.trades.length,0);assert.ok(before.open);
     const r=backtestReversalTrades(input),t=r.trades[0];
     assert.equal(r.minHoldBars,4);assert.equal(t.reason,'TP_SIGNAL');assert.equal(t.heldBars,4);
-    assert.equal(t.entryTime,T+2*STEP);assert.equal(t.exitTime,T+6*STEP);assert.equal(t.netR,2);
+    assert.equal(t.entryTime,T+2*STEP);assert.equal(t.exitTime,T+6*STEP);assert.equal(t.netPoints,2);
   }
 });
 
@@ -162,7 +163,7 @@ test('a second point before four bars switches permanently to waiting for SPY fl
 test('early TP without a subsequent SPY flip stays open even after the minimum elapses',()=>{
   const input=holdingScenario({secondAt:2});input.points.push(line(5,100.7,1));
   const r=backtestReversalTrades(input);
-  assert.equal(r.trades.length,0);assert.equal(r.open.waitForFlip,true);assert.equal(r.open.stop,99);
+  assert.equal(r.trades.length,0);assert.equal(r.open.waitForFlip,true);assert.equal(r.open.firstLine,99);
 });
 
 test('a confirmed SPY flip may close before four candles and does not require a V2 point',()=>{
@@ -181,18 +182,18 @@ test('a changing live SPY sign cannot close a position until that candle is conf
   assert.equal(confirmed.trades[0].reason,'SPY_FLIP');
 });
 
-test('SL remains active before four bars and while waiting for a flip',()=>{
+test('crossing first line before four bars or while waiting cannot stop the position',()=>{
   for(const stopAt of [2,3]){
     const input=holdingScenario({secondAt:2,flipAt:3});input.bars[stopAt]=bar(stopAt,100,102,98.5,101);
     const r=backtestReversalTrades(input);
-    assert.equal(r.trades[0].reason,'SL');assert.equal(r.trades[0].exit,99);assert.equal(r.trades[0].netR,-1);
+    assert.equal(r.trades[0].reason,'SPY_FLIP');assert.equal(r.trades[0].exitTime,T+4*STEP);assert.equal(r.trades[0].exit,100);
   }
 });
 
-test('a gap through fixed SL takes precedence over a queued flip exit',()=>{
+test('a gap past first line executes queued flip exit without a stop reason',()=>{
   const input=holdingScenario({secondAt:2,flipAt:3});input.bars[4]=bar(4,98,99,97,98);
   const r=backtestReversalTrades(input);
-  assert.equal(r.trades[0].reason,'SL_GAP');assert.equal(r.trades[0].exit,98);
+  assert.equal(r.trades[0].reason,'SPY_FLIP');assert.equal(r.trades[0].exit,98);
 });
 
 test('flip exits remain active after POST while new entries remain filtered',()=>{
@@ -203,3 +204,11 @@ test('flip exits remain active after POST while new entries remain filtered',()=
   assert.equal(r.trades[0].reason,'SPY_FLIP');assert.equal(r.trades[0].exitTime,entry+3*STEP);
 });
 
+test('first level on either side of entry is a reference, never an SL entry gate',()=>{
+  for(const firstLine of [98,100,103]){
+    const r=run({points:[line(1,firstLine,1),line(2,100.5,1)]});
+    assert.equal(r.trades.length,1);assert.equal(r.trades[0].firstLine,firstLine);
+    assert.equal(r.trades[0].reason,'TP_SIGNAL');assert.equal(r.trades[0].netPoints,2);
+    assert.equal('stop' in r.trades[0],false);assert.equal('risk' in r.trades[0],false);
+  }
+});
