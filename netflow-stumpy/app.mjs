@@ -16,7 +16,8 @@ let oiPhaseLayer;
 import {bodyReversalCache} from './spy-body-reversal.mjs?v=20261119-dao-v2-3';
 import {bodyReversalPrimitive} from './spy-body-reversal-ui.mjs?v=20261119-dao-v2-4';
 const daoV2Cache=bodyReversalCache();
-let daoV2Layer;
+let daoV2Layer,daoV2Stats;
+import {mountReversalStats} from './spy-body-reversal-stats-ui.mjs?v=20261119-v2-trades3';
 import {compositeNfSmooth} from './composite-nf-smooth.mjs?v=20261108-c-taker-smooth1';
 import {h1AdaptiveVolumeRows} from './spy-volume-h1.mjs?v=20261105-spyv-h1-1';
 import {OiFastLoader} from './oi-fast-load.mjs?v=20261109-m15-flow1';
@@ -319,7 +320,7 @@ function saveChartSetup(){
 }
 
 function resetStudies(){
-  daoV2Cache.clear();daoV2Layer?.setData({points:[],last:null},false);
+  daoV2Cache.clear();daoV2Layer?.setData({points:[],last:null},false);daoV2Stats?.setContext(null);
   studyKey='';studyResultKey='';statsMap=new Map();++statsRequest;h1CacheAttempt='';h1CacheArchive=null;studyColorInput=null;$('chart').dataset.h1ColorCache='empty';
   geometryState={pivots:[],events:[],lines:[],summary:{}};causalChannelState={trends:[],total:0};breakoutState=null;geometryStatePoints=[];
   pivotZoneState={ready:false,reason:'history',support:null,resistance:null};h1CandleMap=new Map();h1H4CandleMap=new Map();renderWeeklyTrendMap(null);
@@ -412,6 +413,7 @@ function init(){
   price.attachPrimitive(oiBoldCandles);
   price.attachPrimitive(stopLossBands);
   daoV2Layer=bodyReversalPrimitive(chart,price);
+  daoV2Stats=mountReversalStats({host:card,actions:document.querySelector('.chart-actions'),requestContext:()=>render(false)});
   price.attachPrimitive(spectrumPrimitive);
   mountOrderBook({chart,price,host:$('chart'),actions:document.querySelector('.chart-actions'),symbolControl:$('symbol')});
   const takerHover=document.createElement('div');takerHover.id='large-taker-hover';takerHover.hidden=true;takerHover.style.cssText='position:absolute;z-index:12;left:8px;max-width:calc(100% - 80px);padding:5px 8px;background:rgba(9,18,31,.92);color:#e5effb;border:1px solid #39516c;border-radius:4px;font:12px/1.4 system-ui;pointer-events:none';$('chart').append(takerHover);
@@ -937,7 +939,9 @@ function render(fit=false){
     :analyze(bodyVolumeBars,bodyVolumeStep,{strength:calculateVolumeStrength(bodyVolumeBars,bodyVolumeStep)})):[];
   const bodyVolumeByTime=new Map(bodyVolumeRows.map(row=>[row.t,row]));
   const daoV2On=Boolean($('dao-v2-toggle')?.checked)&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
-  const daoV2State=daoV2On?daoV2Cache.get(cache?.SPYUSDT??[],h1CandleMap,{now:cache?.serverTime??Date.now(),adaptive:spyH1Enabled}):{points:[],last:null};
+  const daoV2Source=$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
+  const daoV2State=daoV2Source&&(daoV2On||daoV2Stats?.isOpen())?daoV2Cache.get(cache?.SPYUSDT??[],h1CandleMap,{now:cache?.serverTime??Date.now(),adaptive:spyH1Enabled}):{points:[],last:null};
+  daoV2Stats?.setContext({active:daoV2Source,waitingH1:spyH1Enabled&&!h1CandleMap.size,bars:cache?.SPYUSDT??[],bodyRows:bodyVolumeRows,points:daoV2State.points,now:cache?.serverTime??Date.now(),source:spyH1Enabled?'SPY V thân nến · mượt H1':'SPY V thân nến · gốc'});
   daoV2Layer?.setData(daoV2State,daoV2On);
   $('chart').dataset.daoV2=daoV2On?'active':'off';
   $('chart').dataset.daoV2Points=String(daoV2State.points.length);

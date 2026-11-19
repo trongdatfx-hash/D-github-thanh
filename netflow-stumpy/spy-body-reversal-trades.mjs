@@ -1,0 +1,87 @@
+const STEP=900000,EPS=1e-9;
+const validBar=b=>b.sourceComplete!==false&&[b.t,b.o,b.h,b.l,b.c].every(Number.isFinite)&&b.l>0&&b.l<=Math.min(b.o,b.c)&&b.h>=Math.max(b.o,b.c);
+
+export function summarizeReversalTrades(trades){
+  let gains=0,losses=0,gainsR=0,lossesR=0,equity=0,peak=0,drawdownR=0;
+  for(const t of trades){if(t.netPoints>EPS)gains+=t.netPoints;else if(t.netPoints< -EPS)losses-=t.netPoints;if(t.netR>EPS)gainsR+=t.netR;else if(t.netR< -EPS)lossesR-=t.netR;equity+=t.netR;peak=Math.max(peak,equity);drawdownR=Math.max(drawdownR,peak-equity);}
+  const wins=trades.filter(t=>t.netPoints>EPS).length,losing=trades.filter(t=>t.netPoints< -EPS).length;
+  return {count:trades.length,wins,losses:losing,flat:trades.length-wins-losing,
+    winRate:trades.length?100*wins/trades.length:null,
+    tp:trades.filter(t=>t.reason==='TP_SIGNAL').length,sl:trades.filter(t=>t.reason.startsWith('SL')).length,
+    grossPoints:trades.reduce((s,t)=>s+t.grossPoints,0),netPoints:trades.reduce((s,t)=>s+t.netPoints,0),
+    netR:equity,meanR:trades.length?equity/trades.length:null,
+    profitFactor:lossesR>EPS?gainsR/lossesR:gainsR>EPS?Infinity:null,
+    profitFactorPoints:losses>EPS?gains/losses:gains>EPS?Infinity:null,drawdownR,
+    meanBars:trades.length?trades.reduce((s,t)=>s+t.heldBars,0)/trades.length:null};
+}
+
+// One position at a time. Signals require a closed SPY-body sign flip and a
+// valid first V2 level on that candle. Entry is the next observed candle open.
+// TP is the next V2 POINT on a later closed candle of the SAME sign phase.
+// TP is an exit event, filled at the next open, not at the untraded line price.
+export function backtestReversalTrades({bars=[],bodyRows=[],points=[],now=Date.now(),step=STEP,roundTripBps=0}={}){
+  if(!Number.isFinite(now)||!Number.isFinite(step)||step<=0||!Number.isFinite(roundTripBps)||roundTripBps<0)throw Error('Invalid reversal backtest parameters');
+  const ordered=[...new Map(bars.filter(b=>Number.isFinite(b.t)&&b.t<=now).map(b=>[b.t,b])).values()].sort((a,b)=>a.t-b.t);
+  const readings=new Map(bodyRows.map(r=>[r.t,r.adjusted]));
+  const levels=new Map(points.filter(p=>!p.preview&&Number.isFinite(p.time)&&Number.isFinite(p.value)&&p.value>0).map(p=>[p.time*1000,p]));
+  const trades=[],censored=[],skipped={noFirstLine:0,invalidStop:0,overlap:0,gapEntry:0,invalidData:0};
+  let position=null,entryPlan=null,previous=null,lastSign=0,phase=0,signals=0,closedBars=0;
+  function finish(bar,value,reason,intrabar=false){
+    const p=position,grossPoints=p.direction*(value-p.entry),costPoints=(p.entry+value)*roundTripBps/20000;
+    trades.push({...p,exit:value,exitTime:bar.t,exitKnownAt:intrabar?bar.t+step:bar.t,reason,
+      grossPoints,costPoints,netPoints:grossPoints-costPoints,netR:(grossPoints-costPoints)/p.risk,
+      heldBars:Math.max(0,(bar.t-p.entryTime)/step)+(intrabar?1:0),intrabar});
+    position=null;
+  }
+  function breakData(reason){
+    if(position)censored.push({...position,reason,lastObservedTime:previous?.t??null});
+    if(entryPlan)skipped.gapEntry++;
+    position=null;entryPlan=null;lastSign=0;phase++;previous=null;
+  }
+  for(const bar of ordered){
+    const closed=bar.t+step<=now;
+    if(previous&&bar.t!==previous.t+step)breakData('DATA_GAP');
+    if(!validBar(bar)){skipped.invalidData++;breakData('INVALID_DATA');continue;}
+
+    // At an observed open, a stop gap takes precedence over a queued TP.
+    // A gap through SL fills at the open, never at a better obsolete SL price.
+    if(position){
+      if(position.direction*(bar.o-position.stop)<=0)finish(bar,bar.o,'SL_GAP');
+      else if(position.tpDue===bar.t)finish(bar,bar.o,'TP_SIGNAL');
+    }
+    if(entryPlan){
+      const plan=entryPlan;entryPlan=null;
+      if(plan.due!==bar.t)skipped.gapEntry++;
+      else if(position)skipped.overlap++;
+      else if(plan.direction*(bar.o-plan.stop)<=EPS)skipped.invalidStop++;
+      else position={...plan,entry:bar.o,entryTime:bar.t,risk:plan.direction*(bar.o-plan.stop),tpDue:null,tpSignalTime:null,tpExpired:false};
+    }
+    // The live OPEN is already observable. Its evolving high/low and sign
+    // never generate closed statistics or a second TP point.
+    if(!closed)break;
+    closedBars++;
+    if(position&&(position.direction>0?bar.l<=position.stop:bar.h>=position.stop))finish(bar,position.stop,'SL',true);
+
+    const value=readings.get(bar.t),sign=Number.isFinite(value)?Math.sign(value):null;
+    const flipped=Boolean(sign&&lastSign&&sign!==lastSign);
+    if(sign===null){lastSign=0;phase++;if(position)position.tpExpired=true;}
+    else if(sign){if(!lastSign||flipped)phase++;lastSign=sign;}
+    if(position&&phase!==position.phase)position.tpExpired=true;
+
+    const level=levels.get(bar.t),known=level&&(!Number.isFinite(level.knownAt)||level.knownAt<=bar.t+step)?level:null;
+    if(position&&known&&!position.tpExpired&&phase===position.phase&&sign===position.direction&&known.direction===position.direction&&bar.t>position.signalTime){
+      position.tpDue=bar.t+step;position.tpSignalTime=bar.t;position.secondLine=known.value;
+    }
+    if(flipped){
+      signals++;
+      if(position)skipped.overlap++;
+      else if(!known||known.direction!==sign)skipped.noFirstLine++;
+      else if(sign*(bar.c-known.value)<=EPS)skipped.invalidStop++;
+      else entryPlan={signalTime:bar.t,signalKnownAt:bar.t+step,due:bar.t+step,direction:sign,phase,stop:known.value,firstLineTime:bar.t};
+    }
+    previous=bar;
+  }
+  return {trades,summary:summarizeReversalTrades(trades),buy:summarizeReversalTrades(trades.filter(t=>t.direction>0)),sell:summarizeReversalTrades(trades.filter(t=>t.direction<0)),
+    open:position,pending:entryPlan,censored,skipped,signals,closedBars,roundTripBps,
+    from:ordered.find(validBar)?.t??null,to:previous?previous.t+step:null};
+}
