@@ -14,7 +14,7 @@ import {strengthOi8} from './strength-oi8.mjs?v=20261111-oi8';
 import {strengthOiPhase,oiPhasePrimitive} from './strength-oi-phase.mjs?v=20261119-oi-phase1';
 let oiPhaseLayer;
 import {bodyReversalCache} from './spy-body-reversal.mjs?v=20261119-dao-v2-3';
-import {bodyReversalPrimitive} from './spy-body-reversal-ui.mjs?v=20261119-dao-v2-4';
+import {bodyReversalPrimitive} from './spy-body-reversal-ui.mjs?v=20261120-v2-label1';
 const daoV2Cache=bodyReversalCache();
 let daoV2Layer,daoV2Stats;
 import {mountReversalStats} from './spy-body-reversal-stats-ui.mjs?v=20261119-v2-hold4';

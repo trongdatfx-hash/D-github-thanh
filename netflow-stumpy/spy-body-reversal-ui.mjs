@@ -63,20 +63,20 @@ export function bodyReversalPrimitive(chart,price){
     dot(x,y,color,{live:!!last.preview,latest:true});
     if(y>=0&&y<=height){ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(end,y-4);ctx.lineTo(end,y+4);ctx.stroke();}
 
-    // Place the name left of the newest point, away from the order book.
-    const label='ĐẢO V₂';ctx.font='800 '+(compact?12:13)+'px system-ui';ctx.textBaseline='middle';
-    const boxWidth=ctx.measureText(label).width+31,boxHeight=compact?25:27;
+    // Keep the compact tag at the upper reversal price for red SPY V candles.
+    const label='ĐẢO V₂';ctx.font='700 '+(compact?10:11)+'px system-ui';ctx.textBaseline='middle';
+    const boxWidth=ctx.measureText(label).width+25,boxHeight=compact?20:22;
     const rightLimit=width-boxWidth-8-(width>=800&&x>width*.75?180:0);
-    const left=clamp(x-boxWidth-12,8,Math.max(8,rightLimit));
-    const top=clamp(y+(last.direction>0?12:-boxHeight-12),8,Math.max(8,height-boxHeight-8));
+    const left=clamp(x-boxWidth-9,8,Math.max(8,rightLimit));
+    const top=clamp(y+(last.direction>0?10:-boxHeight/2),8,Math.max(8,height-boxHeight-8));
     const centerY=top+boxHeight/2,leaderX=clamp(end,0,width);
     ctx.globalAlpha=.8;ctx.strokeStyle=color;ctx.lineWidth=1;ctx.setLineDash([2,3]);
     ctx.beginPath();ctx.moveTo(leaderX,clamp(y,0,height));ctx.lineTo(left+boxWidth+5,centerY);ctx.lineTo(left+boxWidth,centerY);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;
     ctx.shadowColor='rgba(0,0,0,.8)';ctx.shadowBlur=8;ctx.shadowOffsetY=2;
-    ctx.beginPath();ctx.roundRect(left,top,boxWidth,boxHeight,6);ctx.fillStyle=PALETTE.tag;ctx.fill();ctx.shadowBlur=0;ctx.shadowOffsetY=0;
+    ctx.beginPath();ctx.roundRect(left,top,boxWidth,boxHeight,4);ctx.fillStyle=PALETTE.tag;ctx.fill();ctx.shadowBlur=0;ctx.shadowOffsetY=0;
     ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.stroke();
-    ctx.beginPath();ctx.arc(left+11,centerY,3.3,0,Math.PI*2);ctx.fillStyle=last.preview?PALETTE.tag:color;ctx.fill();ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.stroke();
-    ctx.fillStyle='#f4faff';ctx.fillText(label,left+21,centerY+.5);
+    ctx.beginPath();ctx.arc(left+9,centerY,2.5,0,Math.PI*2);ctx.fillStyle=last.preview?PALETTE.tag:color;ctx.fill();ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.stroke();
+    ctx.fillStyle='#f4faff';ctx.fillText(label,left+17,centerY+.5);
     if(y<0||y>height){
       const tip=y<0?1:height-1,base=y<0?7:height-7,arrowX=clamp(x,6,width-6);
       ctx.beginPath();ctx.moveTo(arrowX,tip);ctx.lineTo(arrowX-4,base);ctx.lineTo(arrowX+4,base);ctx.closePath();ctx.fillStyle=color;ctx.fill();
