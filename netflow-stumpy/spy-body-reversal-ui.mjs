@@ -55,27 +55,44 @@ export function bodyReversalPrimitive(chart,price){
     }
     const last=state.last;
     if(!last)return;
-    const x=xOf(last.time),y=yOf(last.value),logical=Number.isFinite(x)?scale.coordinateToLogical(x):null;
+    const currentX=xOf(last.time),currentY=yOf(last.value),logical=Number.isFinite(currentX)?scale.coordinateToLogical(currentX):null;
     const end=logical===null?null:scale.logicalToCoordinate(logical+2);
-    if(![x,y,end].every(Number.isFinite)||end<0||x>width)return;
     const color=colorOf(last);
-    strokePath([[x,y],[end,y]],color,{live:!!last.preview,strong:true});
-    dot(x,y,color,{live:!!last.preview,latest:true});
-    if(y>=0&&y<=height){ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(end,y-4);ctx.lineTo(end,y+4);ctx.stroke();}
+    if([currentX,currentY,end].every(Number.isFinite)&&end>=0&&currentX<=width){
+      strokePath([[currentX,currentY],[end,currentY]],color,{live:!!last.preview,strong:true});
+      dot(currentX,currentY,color,{live:!!last.preview,latest:true});
+      if(currentY>=0&&currentY<=height){ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(end,currentY-4);ctx.lineTo(end,currentY+4);ctx.stroke();}
+    }
 
-    // Keep the compact tag at the upper reversal price for red SPY V candles.
+    // Anchor red tags to the chain maximum and green tags to its minimum,
+    // including live preview. Stop at a sign change or a missing segment.
+    let anchor=last;
+    if(last.direction){
+      for(let i=state.points.length-1;i>=0;i--){
+        const point=state.points[i];
+        if(point.time>last.time)continue;
+        if(point.segment!==last.segment||point.direction!==last.direction)break;
+        if(Number.isFinite(point.value)&&(last.direction<0?point.value>anchor.value:point.value<anchor.value))anchor=point;
+        if(point.flip)break;
+      }
+    }
+    const x=xOf(anchor.time),y=yOf(anchor.value);
+    if(![x,y].every(Number.isFinite)||x<0||x>width)return;
+    if(anchor!==last)dot(x,y,color,{live:!!anchor.preview,flip:true});
+
+    // Keep the compact name beside its selected reversal point.
     const label='ĐẢO V₂';ctx.font='700 '+(compact?10:11)+'px system-ui';ctx.textBaseline='middle';
     const boxWidth=ctx.measureText(label).width+25,boxHeight=compact?20:22;
     const rightLimit=width-boxWidth-8-(width>=800&&x>width*.75?180:0);
     const left=clamp(x-boxWidth-9,8,Math.max(8,rightLimit));
     const top=clamp(y+(last.direction>0?10:-boxHeight/2),8,Math.max(8,height-boxHeight-8));
-    const centerY=top+boxHeight/2,leaderX=clamp(end,0,width);
+    const centerY=top+boxHeight/2,leaderX=clamp(x,0,width);
     ctx.globalAlpha=.8;ctx.strokeStyle=color;ctx.lineWidth=1;ctx.setLineDash([2,3]);
     ctx.beginPath();ctx.moveTo(leaderX,clamp(y,0,height));ctx.lineTo(left+boxWidth+5,centerY);ctx.lineTo(left+boxWidth,centerY);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;
     ctx.shadowColor='rgba(0,0,0,.8)';ctx.shadowBlur=8;ctx.shadowOffsetY=2;
     ctx.beginPath();ctx.roundRect(left,top,boxWidth,boxHeight,4);ctx.fillStyle=PALETTE.tag;ctx.fill();ctx.shadowBlur=0;ctx.shadowOffsetY=0;
     ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.stroke();
-    ctx.beginPath();ctx.arc(left+9,centerY,2.5,0,Math.PI*2);ctx.fillStyle=last.preview?PALETTE.tag:color;ctx.fill();ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.stroke();
+    ctx.beginPath();ctx.arc(left+9,centerY,2.5,0,Math.PI*2);ctx.fillStyle=anchor.preview?PALETTE.tag:color;ctx.fill();ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.stroke();
     ctx.fillStyle='#f4faff';ctx.fillText(label,left+17,centerY+.5);
     if(y<0||y>height){
       const tip=y<0?1:height-1,base=y<0?7:height-7,arrowX=clamp(x,6,width-6);
