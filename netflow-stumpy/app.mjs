@@ -11,6 +11,8 @@ import {mountGptPattern} from './gpt-pattern-ui.mjs?v=20261106-chatflow1';
 import {CurrentOiLoader,RunningOiState} from './oi-current.mjs?v=20261106-oi-live1';
 import {oi8PivotLevels} from './oi8-pivot-levels.mjs?v=20261114-trend-oi8-50';
 import {strengthOi8} from './strength-oi8.mjs?v=20261111-oi8';
+import {strengthOiPhase,oiPhasePrimitive} from './strength-oi-phase.mjs?v=20261119-oi-phase1';
+let oiPhaseLayer;
 import {compositeNfSmooth} from './composite-nf-smooth.mjs?v=20261108-c-taker-smooth1';
 import {h1AdaptiveVolumeRows} from './spy-volume-h1.mjs?v=20261105-spyv-h1-1';
 import {OiFastLoader} from './oi-fast-load.mjs?v=20261109-m15-flow1';
@@ -96,7 +98,7 @@ const spyBodyVolumeEnabled=()=>$('spy-volume-body-toggle')?.checked&&$('symbol')
 const nfSmoothEnabled=()=>$('nf-smooth-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
 const oi8PivotLines={low:[],high:[]};
 const strengthOi8Enabled=()=>$('strength-oi8-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
-const SETUP_CONTROL_IDS=['oi8-pivot-toggle','strength-oi8-toggle','nf-smooth-toggle','nf-smooth-window','symbol','interval','days','signal','composite','alignment','confirmed-delta-toggle','oi-width-toggle','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-h1-box-color','m15-h1-score-color','cvd-spectrum-toggle','large-taker-toggle','large-taker-percentile','h1-oi-markers-toggle','oi-candle-bars-toggle','oi-candle-pin-toggle','oi-delta-percentile','oi-bold-candles-toggle','show-strength','spy-volume-strength','spy-volume-body-toggle','spy-volume-h1-smooth','bands','markers','double-tap-full','geometry-toggle','causal-trend-channel','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
+const SETUP_CONTROL_IDS=['oi8-phase-reset-toggle','oi8-pivot-toggle','strength-oi8-toggle','nf-smooth-toggle','nf-smooth-window','symbol','interval','days','signal','composite','alignment','confirmed-delta-toggle','oi-width-toggle','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-h1-box-color','m15-h1-score-color','cvd-spectrum-toggle','large-taker-toggle','large-taker-percentile','h1-oi-markers-toggle','oi-candle-bars-toggle','oi-candle-pin-toggle','oi-delta-percentile','oi-bold-candles-toggle','show-strength','spy-volume-strength','spy-volume-body-toggle','spy-volume-h1-smooth','bands','markers','double-tap-full','geometry-toggle','causal-trend-channel','geometry-pivots','geometry-score','geometry-lines','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
 let statsMap=new Map(),candleColorMap=new Map(),candleClusterMap=new Map(),pivotZoneState={ready:false,reason:'history',support:null,resistance:null},pivotZoneKey='',inspectedTime=null;
 let calendarState={events:[],updatedAt:null,loading:false};
 let pendingSavedTimeRange=null,saveSetupTimer=null,strengthBoxLayer=null,quantileLayer=null;
@@ -455,6 +457,7 @@ function init(){
     priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},
     autoscaleInfoProvider:()=>({priceRange:{minValue:-1,maxValue:1}})
   },1);
+  oiPhaseLayer=oiPhasePrimitive(chart,series.strengthOi8);
   for(const [type,color] of [['low','#42e6bf'],['high','#ff8d9e']]){
     for(let i=0;i<2;i++)oi8PivotLines[type].push(chart.addSeries(L.LineSeries,{
       color,visible:false,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,
@@ -955,7 +958,17 @@ function render(fit=false){
   const oi8PivotsOn=$('oi8-pivot-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&step===900000;
   const oi8Points=(oi8On||oi8PivotsOn)&&oiStamp==='15m'&&cache?.interval==='15m'
     ?strengthOi8(cache.SPYUSDT??[],oiAppliedSamples,cache.serverTime):[];
-  writeSeries('strengthOi8',series.strengthOi8,oi8On?oi8Points:[],seriesContext+'|oi8');
+  const oiPhaseOn=Boolean($('oi8-phase-reset-toggle')?.checked);
+  const oiPhaseState=oi8On&&oiPhaseOn&&oiStamp==='15m'&&cache?.interval==='15m'
+    ?strengthOiPhase(cache.SPYUSDT??[],oiAppliedSamples,bodyVolumeRows,cache.serverTime):{points:[],pending:null};
+  const oiDisplayPoints=oiPhaseOn?oiPhaseState.points:oi8Points;
+  writeSeries('strengthOi8',series.strengthOi8,oi8On?oiDisplayPoints.map(({time,value})=>Number.isFinite(value)?{time,value}:{time}):[],seriesContext+'|oi8|phase:'+oiPhaseOn);
+  setOptions(series.strengthOi8,{topLineColor:oiPhaseOn?'transparent':'#70b7ff',bottomLineColor:oiPhaseOn?'transparent':'#f08aff',title:oiPhaseOn?'ΔOI8 pha':'ΔOI8'});
+  oiPhaseLayer?.setData(oiPhaseState,oi8On&&oiPhaseOn);
+  $('chart').dataset.oi8Mode=oiPhaseOn?'spy-body-phase':'continuous';
+  $('chart').dataset.oi8PhasePending=String(Boolean(oiPhaseState.pending));
+  const oiPhaseStatus=$('oi8-phase-status');
+  if(oiPhaseStatus)oiPhaseStatus.textContent=oi8On&&oiPhaseOn&&oiPhaseState.pending?' · pha dự kiến':'';
   const oi8Levels=oi8PivotsOn?oi8PivotLevels(p,oi8Points,cache?.serverTime??0):[];
   for(const [type,lines] of Object.entries(oi8PivotLines)){
     const levels=oi8Levels.filter(level=>level.type===type).slice(-lines.length).reverse();
@@ -1310,6 +1323,12 @@ if(init()){
   oi8Label.title='SPYUSDT M15 đã đóng · Xanh lam sáng: OI mở rộng · Tím hồng sáng: OI thu hẹp';
   oi8Label.append(oi8Toggle,'Strength ΔOI8');nfLabel.after(oi8Label);
   oi8Toggle.onchange=()=>render(false);
+  const oiPhaseLabel=document.createElement('label'),oiPhaseToggle=document.createElement('input'),oiPhaseStatus=document.createElement('small');
+  oiPhaseToggle.id='oi8-phase-reset-toggle';oiPhaseToggle.type='checkbox';oiPhaseToggle.checked=true;
+  oiPhaseStatus.id='oi8-phase-status';
+  oiPhaseLabel.title='Reset tích lũy và làm mượt ΔOI8 khi SPY V thân nến đổi dấu trên nến M15 đã đóng. Giữ thang chuẩn hóa lịch sử; tối đa 8 nến trong pha. Dấu bằng 0 giữ pha. Nét đứt ở 0: pha dự kiến, chưa có ΔOI nến đang chạy.';
+  oiPhaseLabel.append(oiPhaseToggle,'ΔOI8 reset theo SPY V thân nến',oiPhaseStatus);oi8Label.after(oiPhaseLabel);
+  oiPhaseToggle.onchange=()=>render(false);
   const oi8PivotLabel=document.createElement('label'),oi8PivotToggle=document.createElement('input');
   oi8PivotToggle.id='oi8-pivot-toggle';oi8PivotToggle.type='checkbox';oi8PivotToggle.checked=true;
   oi8PivotLabel.title='SPYUSDT M15 · PRE–RTH · Nét đứt: ΔOI8 xoay đổi dấu · Nét liền: thêm Taker NF riêng SPY cùng hướng';
