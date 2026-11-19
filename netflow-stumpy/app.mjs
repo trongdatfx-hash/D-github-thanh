@@ -14,7 +14,7 @@ import {strengthOi8} from './strength-oi8.mjs?v=20261111-oi8';
 import {strengthOiPhase,oiPhasePrimitive} from './strength-oi-phase.mjs?v=20261119-oi-phase1';
 let oiPhaseLayer;
 import {bodyReversalCache} from './spy-body-reversal.mjs?v=20261119-dao-v2-3';
-import {bodyReversalPrimitive} from './spy-body-reversal-ui.mjs?v=20261119-dao-v2-3';
+import {bodyReversalPrimitive} from './spy-body-reversal-ui.mjs?v=20261119-dao-v2-4';
 const daoV2Cache=bodyReversalCache();
 let daoV2Layer;
 import {compositeNfSmooth} from './composite-nf-smooth.mjs?v=20261108-c-taker-smooth1';
@@ -1328,7 +1328,7 @@ if(init()){
   spyBodyToggle.onchange=()=>render(false);
   const daoV2Label=document.createElement('label'),daoV2Toggle=document.createElement('input');
   daoV2Toggle.id='dao-v2-toggle';daoV2Toggle.type='checkbox';daoV2Toggle.checked=true;
-  daoV2Label.title='ĐẢO V₂: tìm nghiệm đảo dấu thật sau hai M15 theo đường giá liên tục từ Close. Nến đỏ phải vượt High, xanh phải vượt Low. Thử tỷ lệ hai thân 25/75, 50/50 và 75/25, giữ nghiệm gần nhất. Biên tìm theo P85 dao động hai nến quá khứ, tối đa 3 ATR; không có nghiệm gần thì ngắt nét, không ép giá. Có xem trước live nhạt; chỉ dùng H1 đã biết.';
+  daoV2Label.title='ĐẢO V₂: tìm nghiệm đảo dấu thật sau hai M15 theo đường giá liên tục từ Close. Nến đỏ phải vượt High, xanh phải vượt Low. Thử tỷ lệ hai thân 25/75, 50/50 và 75/25, giữ nghiệm gần nhất. Biên tìm theo P85 dao động hai nến quá khứ, tối đa 3 ATR; không có nghiệm gần thì ngắt nét, không ép giá. Chỉ dùng H1 đã biết. Mốc trên vàng, mốc dưới xanh lam; nến live dùng vòng rỗng và nét ngắn.';
   daoV2Label.append(daoV2Toggle,'ĐẢO V₂');spyBodyLabel.after(daoV2Label);
   daoV2Toggle.onchange=()=>render(false);
   const nfLabel=document.createElement('label'),nfInput=document.createElement('input'),nfWindow=document.createElement('select');
