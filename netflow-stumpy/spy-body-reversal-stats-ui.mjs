@@ -59,7 +59,6 @@ export function mountReversalStats({host,actions,requestContext}){
   function render(){
     if(panel.hidden)return;
     if(!context?.active){results.textContent=context?'Chọn SPYUSDT M15 để xem thống kê.':'Đang chờ dữ liệu chart…';panel.querySelector('[data-v2-period]').textContent='';panel.querySelector('[data-v2-source]').textContent='';key='';return;}
-    if(context.waitingH1){results.textContent='Đang chờ hộp H1 để thống kê đúng chế độ mượt H1. Có thể tắt mượt H1 để xem bản gốc.';panel.querySelector('[data-v2-period]').textContent='';panel.querySelector('[data-v2-source]').textContent=context.source;key='';return;}
     const {bars,bodyRows,points,now,source}=context,fee=Number(cost.value||0);
     if(!Number.isFinite(fee)||fee<0||fee>10000){results.textContent='Chi phí phải từ 0 đến 10.000 bps.';return;}
     const closed=bars.filter(b=>b.t+STEP<=now),signs=new Map(bodyRows.map(r=>[r.t,r.adjusted])),live=bars.findLast(b=>b.t<=now&&b.t+STEP>now);

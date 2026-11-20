@@ -16,9 +16,8 @@ import {bodyReversalCache} from './spy-body-reversal.mjs?v=20261120-v2-first-lin
 import {bodyReversalPrimitive} from './spy-body-reversal-ui.mjs?v=20261120-v2-first-line1';
 const daoV2Cache=bodyReversalCache();
 let daoV2Layer,daoV2Stats;
-import {mountReversalStats} from './spy-body-reversal-stats-ui.mjs?v=20261120-v2-hold3';
+import {mountReversalStats} from './spy-body-reversal-stats-ui.mjs?v=20261120-body-ewma1';
 import {compositeNfSmooth} from './composite-nf-smooth.mjs?v=20261108-c-taker-smooth1';
-import {h1AdaptiveVolumeRows} from './spy-volume-h1.mjs?v=20261105-spyv-h1-1';
 import {OiFastLoader} from './oi-fast-load.mjs?v=20261109-m15-flow1';
 import {spyCandleVolumeFlow,buildSpectrumComparison,drawPairedSpectrum,spectrumPriceGroup,confirmSpectrumGroup} from './paired-spectrum.mjs?v=20261110-h1-oi-visible2';
 import {OiHistory} from './oi-history.mjs?v=20261104-oi-stale-fast2';
@@ -789,10 +788,12 @@ function render(fit=false){
   const p=rows[$('symbol').value]??[];
   const scoreCandleColor=usesH1WlrStyle()&&$('m15-h1-score-color').checked;
   const h1BoxColor=$('candle-h1-box-color')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='1h',h1BoxKey=h1BoxColor?studyResultKey:'off';
-  const spyH1Enabled=usesH1WlrStyle();
+  const h1StyleEnabled=usesH1WlrStyle();
   displayVolumeStrengthRows=volumeStrengthRows;
-  $('chart').dataset.spyVolumeH1Smooth=spyH1Enabled?'experimental':'off';
-  const seriesContext=[spyH1Enabled,spyH1Enabled?studyResultKey:'off',$('symbol').value,$('interval').value,$('signal').value,$('days').value,$('candle-agreement-color').checked ,h1BoxColor,h1BoxKey,$('phase-width').checked,$('wlr-soft-colors').checked].join('|');
+  $('chart').dataset.spyVolumeH1Smooth='off';
+  $('chart').dataset.spyBodySmoothing='ewma-fixed';
+  $('chart').dataset.spyBodyEwmaAlpha=String(1-2**(-.5));
+  const seriesContext=[h1StyleEnabled,h1StyleEnabled?studyResultKey:'off',$('symbol').value,$('interval').value,$('signal').value,$('days').value,$('candle-agreement-color').checked ,h1BoxColor,h1BoxKey,$('phase-width').checked,$('wlr-soft-colors').checked].join('|');
   dayBoundaries=dayBoundaryTimes(p);
   const compositeCvd=$('symbol').value==='SPYUSDT',cvdBars=compositeCvd?projectNetFlowToPrice(p,rows.COMPOSITE??[]):p;
   cvdSourceLabel=compositeCvd?'C→S':'Q';$('cvd-spectrum').dataset.source=compositeCvd?'COMPOSITE→SPY':'QQQUSDT';
@@ -818,14 +819,15 @@ function render(fit=false){
   $('chart').dataset.candleH1BoxColor=h1BoxColor?'active':'off';$('chart').dataset.candleH1BoxPreviewBars=String([...h1CandleMap.values()].filter(x=>x.preview).length);$('chart').dataset.candleH1BoxStates=String(h1CandleMap.size);
   const bodyVolumeBars=(cache?.SPYUSDT??[]).map(bar=>({...bar,v:Math.abs(bar.c-bar.o)}));
   const bodyVolumeStep=STEPS[$('interval').value];
-  const bodyVolumeRows=bodyVolumeBars.length?(spyH1Enabled
-    ?h1AdaptiveVolumeRows(bodyVolumeBars,h1CandleMap,{step:bodyVolumeStep,now:cache.serverTime})
-    :analyze(bodyVolumeBars,bodyVolumeStep,{strength:calculateVolumeStrength(bodyVolumeBars,bodyVolumeStep)})):[];
+  // Fixed half-life 2 bars for the line, candle signs, OI phases and TK V2.
+  // H1 display/score updates cannot change this source or its EWMA speed.
+  const bodyVolumeRows=bodyVolumeBars.length
+    ?analyze(bodyVolumeBars,bodyVolumeStep,{strength:calculateVolumeStrength(bodyVolumeBars,bodyVolumeStep,{halfLife:2})}):[];
   const bodyVolumeByTime=new Map(bodyVolumeRows.map(row=>[row.t,row]));
   const daoV2On=Boolean($('dao-v2-toggle')?.checked)&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
   const daoV2Source=$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
-  const daoV2State=daoV2Source&&(daoV2On||daoV2Stats?.isOpen())?daoV2Cache.get(cache?.SPYUSDT??[],h1CandleMap,{now:cache?.serverTime??Date.now(),adaptive:spyH1Enabled}):{points:[],last:null};
-  daoV2Stats?.setContext({active:daoV2Source,waitingH1:spyH1Enabled&&!h1CandleMap.size,bars:cache?.SPYUSDT??[],bodyRows:bodyVolumeRows,points:daoV2State.points,now:cache?.serverTime??Date.now(),source:spyH1Enabled?'SPY V thân nến · mượt H1':'SPY V thân nến · gốc'});
+  const daoV2State=daoV2Source&&(daoV2On||daoV2Stats?.isOpen())?daoV2Cache.get(cache?.SPYUSDT??[],new Map(),{now:cache?.serverTime??Date.now(),adaptive:false}):{points:[],last:null};
+  daoV2Stats?.setContext({active:daoV2Source,waitingH1:false,bars:cache?.SPYUSDT??[],bodyRows:bodyVolumeRows,points:daoV2State.points,now:cache?.serverTime??Date.now(),source:'SPY V thân nến · EWMA cố định · α 0,2929'});
   daoV2Layer?.setData(daoV2State,daoV2On);
   $('chart').dataset.daoV2=daoV2On?'active':'off';
   $('chart').dataset.daoV2Points=String(daoV2State.points.length);
@@ -1165,7 +1167,7 @@ if(init()){
   const spyBodyLabel=document.createElement('label'),spyBodyToggle=document.createElement('input');
   spyBodyToggle.id='spy-volume-body-toggle';spyBodyToggle.type='checkbox';spyBodyToggle.checked=true;
   spyBodyLabel.title='Nét liền trong pane SPY V trên SPY M15, vàng khi trên 0 và trắng khi dưới 0. Thay volume bằng |Close − Open|, giữ dấu theo hướng thân nến và nguồn H1 đang dùng cho màu nến, ĐẢO V₂.';
-  spyBodyLabel.append(spyBodyToggle,'SPY V thân nến · nét liền');$('alignment').closest('label').after(spyBodyLabel);
+  spyBodyLabel.append(spyBodyToggle,'SPY V thân nến · EWMA cố định');$('alignment').closest('label').after(spyBodyLabel);
   spyBodyToggle.onchange=()=>render(false);
   const daoV2Label=document.createElement('label'),daoV2Toggle=document.createElement('input');
   daoV2Toggle.id='dao-v2-toggle';daoV2Toggle.type='checkbox';daoV2Toggle.checked=true;
