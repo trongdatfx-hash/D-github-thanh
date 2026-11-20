@@ -2,8 +2,8 @@ import {continuousH4Age} from './h4-trend-age.mjs?v=20261103-h4-age1';
 import {aggregateHourlyRows} from './h1-h4-strip.mjs?v=20261101-h1h4-align1';
 import {trendSessionAt,trendSessionRows} from './trend-session.mjs?v=20261029-price-delta1';
 import {analyze,composite,calculateVolumeStrength,STEPS,sessionAt} from './engine.mjs?v=20261029-price-delta1';
-import {analyzeGeometry,analyzeBreakoutRetest,recentCausalLineStates,backtestGeometry} from './geometry.mjs?v=20261108-price-break-only1';
-import {stopLossZones} from './stop-loss-zones.mjs?v=20261114-sl1';
+import {analyzePivotDivergences} from './pivot-divergence.mjs?v=20261120-clean1';
+import {stopLossZones} from './stop-loss-zones.mjs?v=20261120-clean1';
 import {causalTrendChannels} from './causal-trend-channel.mjs?v=20261029-price-delta1';
 import {channelStrengthBoxes} from './channel-strength-boxes.mjs?v=20261029-weekly-map1';
 import {buildWeeklyDailyPackets,h1CandleColorStates} from './weekly-trend-map.mjs?v=20261103-day247-1';
@@ -46,8 +46,8 @@ export function computeStudies({rows,volumeRows,symbol,interval,options,now,tren
     h1H4CandleColors=h1CandleColors;
   }
   if(typeof onH1Ready==='function')onH1Ready(h1CandleColors,h1H4CandleColors);
-  const geometry=analyzeGeometry({...input,h1CandleColors},options),channels=causalTrendChannels(closedPrice,{volumeRows:input.volume,maxHistory:12});
-  const breakout=analyzeBreakoutRetest(input,options),points=recentCausalLineStates(input,{...options,stateLookbackBars:600},4),backtest=backtestGeometry(closedPrice,geometry.events,{horizon:4,minMoveAtr:.35});
+  const geometry=analyzePivotDivergences({...input,h1CandleColors},options),channels=causalTrendChannels(closedPrice,{volumeRows:input.volume,maxHistory:12});
+  const breakout=null,points=[],backtest=null;
   const model=interval==='15m'&&trend?trend:{rows,volume:volumeRows},modelPrice=(model.rows[symbol]??p).filter(r=>(r.end??r.t)<now),modelTimes=new Set(modelPrice.map(r=>r.t));
   const pivot=stopLossZones({price:modelPrice,oiSamples:geometryOiSamples,h1CandleColors,volume:model.volume.filter(r=>modelTimes.has(r.t))},STEPS[interval]);
   const packets=interval==='15m'&&symbol==='SPYUSDT'?buildWeeklyDailyPackets({priceRows:[...tRows,...p.filter(r=>r.t<=now&&(r.end??r.t+899999)>=now&&r.t>(tRows.at(-1)?.t??-Infinity))],strengthRows:trend?.rows.COMPOSITE??[],volumeRows:trendVolume,boxSnapshots:weeklyBoxes.snapshots,trendStates:channelStates,now}):[];

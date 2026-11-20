@@ -1,4 +1,4 @@
-import {confirmedPricePivots,causalAtr} from './geometry.mjs?v=20261029-price-delta1';
+import {confirmedPricePivots,causalAtr} from './pivot-divergence.mjs?v=20261120-clean1';
 
 const STEP=900000;
 const sign=value=>value>.10?1:value<-.10?-1:0;
