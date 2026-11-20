@@ -17,7 +17,7 @@ import {bodyReversalCache} from './spy-body-reversal.mjs?v=20261120-v2-first-lin
 import {bodyReversalPrimitive} from './spy-body-reversal-ui.mjs?v=20261120-v2-first-line1';
 const daoV2Cache=bodyReversalCache();
 let daoV2Layer,daoV2Stats;
-import {mountReversalStats} from './spy-body-reversal-stats-ui.mjs?v=20261120-v2-trend1';
+import {mountReversalStats} from './spy-body-reversal-stats-ui.mjs?v=20261120-v2-hold1';
 import {compositeNfSmooth} from './composite-nf-smooth.mjs?v=20261108-c-taker-smooth1';
 import {h1AdaptiveVolumeRows} from './spy-volume-h1.mjs?v=20261105-spyv-h1-1';
 import {OiFastLoader} from './oi-fast-load.mjs?v=20261109-m15-flow1';
