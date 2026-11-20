@@ -4,6 +4,30 @@ const PALETTE={lower:'#76d7ff',upper:'#ffd166',outline:'#07111f',tag:'#091a2b'};
 const colorOf=point=>point.direction>0?PALETTE.lower:PALETTE.upper;
 const clamp=(value,low,high)=>Math.max(low,Math.min(value,high));
 
+// Select the FIRST uninterrupted reversal line of this candle trend, even when
+// later thresholds are unsolved. Red uses its highest price; green its lowest.
+export function firstTrendReversalAnchor(state){
+  const last=state.last;
+  if(!last)return null;
+  const points=state.points.filter(p=>p.time<=last.time);
+  if(points.at(-1)!==last)points.push(last);
+  let start=points.length-1;
+  while(start>0){
+    const current=points[start],previous=points[start-1];
+    if(current.flip||previous.direction!==last.direction||
+      (last.trend!==undefined&&previous.trend!==last.trend))break;
+    start--;
+  }
+  let anchor=points[start];
+  const firstSegment=anchor.segment;
+  for(let i=start+1;i<points.length;i++){
+    const point=points[i];
+    if(point.segment!==firstSegment)break;
+    if(Number.isFinite(point.value)&&(last.direction<0?point.value>anchor.value:point.value<anchor.value))anchor=point;
+  }
+  return anchor;
+}
+
 export function bodyReversalPrimitive(chart,price){
   let state={points:[],last:null},visible=false;
   const primitive=new SpectrumPrimitive(({context:ctx,mediaSize:{width,height}})=>{
@@ -64,18 +88,7 @@ export function bodyReversalPrimitive(chart,price){
       if(currentY>=0&&currentY<=height){ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(end,currentY-4);ctx.lineTo(end,currentY+4);ctx.stroke();}
     }
 
-    // Anchor red tags to the chain maximum and green tags to its minimum,
-    // including live preview. Stop at a sign change or a missing segment.
-    let anchor=last;
-    if(last.direction){
-      for(let i=state.points.length-1;i>=0;i--){
-        const point=state.points[i];
-        if(point.time>last.time)continue;
-        if(point.segment!==last.segment||point.direction!==last.direction)break;
-        if(Number.isFinite(point.value)&&(last.direction<0?point.value>anchor.value:point.value<anchor.value))anchor=point;
-        if(point.flip)break;
-      }
-    }
+    const anchor=firstTrendReversalAnchor(state);
     const x=xOf(anchor.time),y=yOf(anchor.value);
     if(![x,y].every(Number.isFinite)||x<0||x>width)return;
     if(anchor!==last)dot(x,y,color,{live:!!anchor.preview,flip:true});

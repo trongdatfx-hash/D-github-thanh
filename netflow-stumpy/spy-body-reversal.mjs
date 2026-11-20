@@ -102,10 +102,10 @@ function closedReversalHistory(bars,states=new Map(),{now=Date.now(),adaptive=fa
   const closed=bars.filter(b=>b.t+step<=now),schedule=adaptive?h1VolumeAlphaSchedule(closed,states,{step,now}):new Map();
   const confirmed=adaptive?[...states.values()].filter(s=>!s.preview&&Number.isFinite(s.blockEnd)).sort((a,b)=>a.blockEnd-b.blockEnd):[];
   const points=[],ranges=[],moves=[],trail=[],snapshot=createBodyState();
-  let previous=null,lastSign=0,segment=0,cursor=0,known=null;
+  let previous=null,lastSign=0,segment=0,trend=0,cursor=0,known=null;
   for(const bar of closed){
-    if(previous!==null&&bar.t!==previous.t+step){snapshot.raw=rawState();ranges.length=0;moves.length=0;trail.length=0;lastSign=0;segment++;}
-    if(bar.sourceComplete===false||![bar.o,bar.c,bar.h,bar.l].every(Number.isFinite)||bar.c<=0){snapshot.raw=rawState();ranges.length=0;moves.length=0;trail.length=0;lastSign=0;previous=null;segment++;continue;}
+    if(previous!==null&&bar.t!==previous.t+step){snapshot.raw=rawState();ranges.length=0;moves.length=0;trail.length=0;lastSign=0;segment++;trend++;}
+    if(bar.sourceComplete===false||![bar.o,bar.c,bar.h,bar.l].every(Number.isFinite)||bar.c<=0){snapshot.raw=rawState();ranges.length=0;moves.length=0;trail.length=0;lastSign=0;previous=null;segment++;trend++;continue;}
     while(cursor<confirmed.length&&confirmed[cursor].blockEnd<bar.t+step)known=confirmed[cursor++];
     const reading=advanceBodyState(snapshot.raw,snapshot.pools,bar,schedule.get(bar.t)),direction=Math.sign(reading.adjusted??0);
     push(ranges,Math.max(bar.h-bar.l,previous?Math.abs(bar.h-previous.c):0,previous?Math.abs(bar.l-previous.c):0),14);
@@ -113,13 +113,14 @@ function closedReversalHistory(bars,states=new Map(),{now=Date.now(),adaptive=fa
     const budget=moveBudget(ranges,moves,bar.c);
     const result=direction?solveBodyReversal(snapshot,bar,direction,{step,h1:known,maxDistance:budget.moveLimit}):null;
     const flip=Boolean(direction&&lastSign&&direction!==lastSign);
+    if(flip)trend++;
     if(direction)lastSign=direction;
-    if(result)points.push({time:bar.t/1000,...result,...budget,segment,flip,knownAt:bar.t+step,preview:false});
+    if(result)points.push({time:bar.t/1000,...result,...budget,segment,trend,flip,knownAt:bar.t+step,preview:false});
     else segment++; // never join over missing / unsolved thresholds
     previous=bar;
   }
   const value={points,last:points.at(-1)?.knownAt===closed.at(-1)?.t+step?points.at(-1):null,preview:null};
-  Object.defineProperty(value,'context',{value:{snapshot,ranges,moves,trail,previous,lastSign,segment}});
+  Object.defineProperty(value,'context',{value:{snapshot,ranges,moves,trail,previous,lastSign,segment,trend}});
   return value;
 }
 
@@ -129,8 +130,8 @@ function withLivePreview(value,bars,states,{now=Date.now(),adaptive=false,step=S
   const noPreview=()=>({points:value.points,last:null,preview:null});
   if(bar.sourceComplete===false||![bar.o,bar.c,bar.h,bar.l].every(Number.isFinite)||bar.c<=0)return noPreview();
   const context=value.context,snapshot={raw:cloneRaw(context.snapshot.raw),pools:clonePools(context.snapshot.pools)};
-  let ranges=[...context.ranges],moves=[...context.moves],trail=[...context.trail],segment=context.segment,lastSign=context.lastSign,previous=context.previous;
-  if(previous&&bar.t!==previous.t+step){snapshot.raw=rawState();ranges=[];moves=[];trail=[];previous=null;lastSign=0;segment++;}
+  let ranges=[...context.ranges],moves=[...context.moves],trail=[...context.trail],segment=context.segment,trend=context.trend,lastSign=context.lastSign,previous=context.previous;
+  if(previous&&bar.t!==previous.t+step){snapshot.raw=rawState();ranges=[];moves=[];trail=[];previous=null;lastSign=0;segment++;trend++;}
   const currentH1=adaptive?h1VolumeAlphaSchedule([bar],states,{step,now}).get(bar.t):null;
   const reading=advanceBodyState(snapshot.raw,snapshot.pools,bar,currentH1),direction=Math.sign(reading.adjusted??0);
   if(!direction)return noPreview();
@@ -142,7 +143,7 @@ function withLivePreview(value,bars,states,{now=Date.now(),adaptive=false,step=S
   const known=adaptive?[...states.values()].filter(s=>!s.preview&&Number.isFinite(s.blockEnd)&&s.blockEnd<now).sort((a,b)=>a.blockEnd-b.blockEnd||a.t-b.t).at(-1):null;
   const result=solveBodyReversal(snapshot,bar,direction,{step,h1:known,maxDistance:budget.moveLimit});
   if(!result)return noPreview();
-  const preview={time:bar.t/1000,...result,...budget,segment,flip:Boolean(lastSign&&direction!==lastSign),knownAt:now,preview:true};
+  const preview={time:bar.t/1000,...result,...budget,segment,trend:trend+Number(Boolean(lastSign&&direction!==lastSign)),flip:Boolean(lastSign&&direction!==lastSign),knownAt:now,preview:true};
   return {points:value.points,last:preview,preview};
 }
 
