@@ -6,7 +6,7 @@ import {analyzePivotDivergences} from './pivot-divergence.mjs?v=20261120-clean1'
 import {stopLossZones} from './stop-loss-zones.mjs?v=20261120-clean1';
 import {causalTrendChannels} from './causal-trend-channel.mjs?v=20261029-price-delta1';
 import {channelStrengthBoxes} from './channel-strength-boxes.mjs?v=20261029-weekly-map1';
-import {buildWeeklyDailyPackets,h1CandleColorStates} from './weekly-trend-map.mjs?v=20261103-day247-1';
+import {buildWeeklyDailyPackets,h1CandleColorStates} from './weekly-trend-map.mjs?v=20261120-clean2';
 import {chartFeatureRows} from './analogs-features.mjs?v=20261029-price-delta1';
 
 const H1_MS=STEPS['1h'];

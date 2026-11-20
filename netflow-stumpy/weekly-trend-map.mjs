@@ -3,7 +3,17 @@ const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
 const clampSigned=x=>Math.max(-1,Math.min(1,x));
 const mean=a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:0;
 const clockFormat=new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
-function nyClock(t){const p=Object.fromEntries(clockFormat.formatToParts(t).filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));return {day:`${p.year}-${p.month}-${p.day}`,weekday:p.weekday,minute:Number(p.hour)*60+Number(p.minute)};}
+// H1, H4 and weekday packets reuse the same closed timestamps. Bound the
+// private cache to roughly two years of M15 data; timezone and DST are fixed
+// by the formatter, and callers never mutate these clock records.
+const nyClockCache=new Map(),NY_CLOCK_CACHE_LIMIT=65536;
+function nyClock(t){
+  const cached=nyClockCache.get(t);if(cached)return cached;
+  const p=Object.fromEntries(clockFormat.formatToParts(t).filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));
+  const value={day:`${p.year}-${p.month}-${p.day}`,weekday:p.weekday,minute:Number(p.hour)*60+Number(p.minute)};
+  if(nyClockCache.size>=NY_CLOCK_CACHE_LIMIT)nyClockCache.delete(nyClockCache.keys().next().value);
+  nyClockCache.set(t,value);return value;
+}
 // A New York calendar day contains 23 or 25 hours on DST transition Sundays.
 function slotsInDay(start){const day=nyClock(start).day;for(let hours=23;hours<=25;hours++)if(nyClock(start+hours*3600000).day!==day)return hours*4;return SLOTS;}
 function mondayOf(day){const d=new Date(day+'T12:00:00Z'),w=d.getUTCDay(),offset=w===0?6:w-1;d.setUTCDate(d.getUTCDate()-offset);return d.toISOString().slice(0,10);}
