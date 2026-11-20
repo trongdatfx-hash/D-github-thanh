@@ -23,12 +23,12 @@ test('BUY and SELL hold the eligible second V2 point until a closed sign flip; n
 test('weakened price/WLR alignment releases held V2 without needing another point',()=>{
   const input=scenario();input.bars[27]={...input.bars[27],c:205,h:206};
   const t=backtestReversalTrades(input).trades[0];
-  assert.equal(t.reason,'TP_SIGNAL');assert.equal(t.tpSignalTime,T+27*STEP);
-  assert.equal(t.exitTime,T+28*STEP);assert.equal(t.deferredTpTime,T+25*STEP);
+  assert.equal(t.reason,'TP_SIGNAL');assert.equal(t.tpSignalTime,T+29*STEP);
+  assert.equal(t.exitTime,T+30*STEP);assert.equal(t.deferredTpTime,T+25*STEP);
 });
 test('a live weakening candle cannot release a held exit',()=>{
   const input=scenario();input.bars[27]={...input.bars[27],c:205,h:206};
-  const r=backtestReversalTrades({...input,now:T+27.5*STEP});
+  const r=backtestReversalTrades({...input,now:T+29.5*STEP});
   assert.equal(r.trades.length,0);assert.equal(r.open.holdingTrend,true);assert.equal(r.open.tpDue,null);
 });
 test('early second V2 still waits for sign flip and does not use hold-release',()=>{

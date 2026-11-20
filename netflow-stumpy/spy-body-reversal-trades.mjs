@@ -1,4 +1,4 @@
-import {reversalTrendReadings} from './spy-body-reversal-trend.mjs?v=20261120-v2-trend1';
+import {reversalTrendReadings} from './spy-body-reversal-trend.mjs?v=20261120-v2-hold2';
 import {sessionAt} from './engine.mjs?v=20261118-wlr-band-slope';
 
 const STEP=900000,EPS=1e-9;
@@ -33,7 +33,7 @@ export function summarizeReversalTrades(trades){
 // candles since entry. If it arrives early, wait for a closed SPY-body flip
 // instead, even if later same-phase levels appear. Optional holdStrongTrend
 // defers an eligible V2 exit while closed SPY sign, causal WLR-8 slope and
-// price remain aligned; releases next open once alignment weakens.
+// price group remain aligned; releases next open after two weak closes.
 // There is no stop-loss exit.
 export function backtestReversalTrades({bars=[],bodyRows=[],points=[],now=Date.now(),step=STEP,roundTripBps=0,entryWindow='PRE_POST',minHoldBars=4,trendFilter=false,holdStrongTrend=false}={}){
   if(!Number.isFinite(now)||!Number.isFinite(step)||step<=0||!Number.isFinite(roundTripBps)||roundTripBps<0||!['PRE_POST','ALL'].includes(entryWindow)||typeof trendFilter!=='boolean'||typeof holdStrongTrend!=='boolean'||!Number.isInteger(minHoldBars)||minHoldBars<0)throw Error('Invalid reversal backtest parameters');
@@ -67,7 +67,7 @@ export function backtestReversalTrades({bars=[],bodyRows=[],points=[],now=Date.n
       if(plan.due!==bar.t)skipped.gapEntry++;
       else if(!reversalEntryAllowed(bar.t,entryWindow))skipped.outsideSession++;
       else if(position)skipped.overlap++;
-      else position={...plan,entry:bar.o,entryTime:bar.t,tpDue:null,tpSignalTime:null,tpExpired:false,waitForFlip:false,holdingTrend:false,deferredTpTime:null,pendingReason:null};
+      else position={...plan,entry:bar.o,entryTime:bar.t,tpDue:null,tpSignalTime:null,tpExpired:false,waitForFlip:false,holdingTrend:false,weakTrendBars:0,deferredTpTime:null,pendingReason:null};
     }
     // The live OPEN is already observable. Its evolving high/low and sign
     // never generate closed statistics or a second TP point.
@@ -93,7 +93,7 @@ export function backtestReversalTrades({bars=[],bodyRows=[],points=[],now=Date.n
       position.secondLine=known.value;position.tpSignalTime=bar.t;
       if(heldAtExit>=minHoldBars){
         const trend=trendReadings.get(bar.t);
-        if(holdStrongTrend&&trend?.wlrAligned&&trend.direction===position.direction){
+        if(holdStrongTrend&&trend?.holdReady&&trend.direction===position.direction){
           position.holdingTrend=true;position.deferredTpTime??=bar.t;
         }else{position.tpDue=bar.t+step;position.pendingReason='TP_SIGNAL';}
       }
@@ -105,7 +105,8 @@ export function backtestReversalTrades({bars=[],bodyRows=[],points=[],now=Date.n
     // cannot become a synthetic TP. There is still no stop-loss.
     if(position?.holdingTrend&&!position.tpDue&&!position.tpExpired&&!position.waitForFlip&&phase===position.phase&&sign===position.direction){
       const trend=trendReadings.get(bar.t);
-      if(!trend?.wlrAligned||trend.direction!==position.direction){
+      position.weakTrendBars=trend?.holdReady&&trend.direction===position.direction?0:position.weakTrendBars+1;
+      if(position.weakTrendBars>=2){
         position.tpDue=bar.t+step;position.pendingReason='TP_SIGNAL';position.tpSignalTime=bar.t;
       }
     }
