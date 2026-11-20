@@ -1,4 +1,4 @@
-import {backtestReversalTrades} from './spy-body-reversal-trades.mjs?v=20261120-v2-hold2';
+import {backtestReversalTrades} from './spy-body-reversal-trades.mjs?v=20261120-v2-hold3';
 
 const STEP=900000;
 const number=(v,n=2)=>v===null||v===undefined?'—':v===Infinity?'∞':Number.isFinite(v)?v.toLocaleString('vi-VN',{minimumFractionDigits:n,maximumFractionDigits:n}):'—';

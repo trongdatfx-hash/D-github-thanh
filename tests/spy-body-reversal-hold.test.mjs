@@ -56,3 +56,10 @@ test('hold option is independent of entry filter and validates its type',()=>{
   assert.equal(r.trades[0].entryTime,T+21*STEP);assert.equal(r.trades[0].exitTime,T+31*STEP);
   assert.throws(()=>backtestReversalTrades({...input,holdStrongTrend:'yes'}));
 });
+
+test('later V2 points cannot bypass the two-close weakening confirmation',()=>{
+  const input=scenario();input.bars[27]={...input.bars[27],c:205,h:206};
+  input.points.push({time:(T+28*STEP)/1000,value:201,knownAt:T+29*STEP,direction:-1});
+  const t=backtestReversalTrades(input).trades[0];
+  assert.equal(t.reason,'TP_SIGNAL');assert.equal(t.tpSignalTime,T+29*STEP);assert.equal(t.exitTime,T+30*STEP);
+});

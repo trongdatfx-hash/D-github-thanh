@@ -88,7 +88,7 @@ export function backtestReversalTrades({bars=[],bodyRows=[],points=[],now=Date.n
     }
 
     const level=levels.get(bar.t),known=level&&(!Number.isFinite(level.knownAt)||level.knownAt<=bar.t+step)?level:null;
-    if(position&&known&&!position.tpExpired&&!position.waitForFlip&&phase===position.phase&&sign===position.direction&&known.direction===position.direction&&bar.t>position.signalTime){
+    if(position&&known&&!position.holdingTrend&&!position.tpExpired&&!position.waitForFlip&&phase===position.phase&&sign===position.direction&&known.direction===position.direction&&bar.t>position.signalTime){
       const heldAtExit=(bar.t+step-position.entryTime)/step;
       position.secondLine=known.value;position.tpSignalTime=bar.t;
       if(heldAtExit>=minHoldBars){
