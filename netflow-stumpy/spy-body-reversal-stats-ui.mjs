@@ -1,11 +1,13 @@
 import {backtestReversalTrades} from './spy-body-reversal-trades.mjs?v=20261120-v2-hold3';
 
+import {reversalTradeDisplay,reversalExitLabel} from './spy-body-reversal-display.mjs?v=20261120-tk-display1';
+
 const STEP=900000;
 const number=(v,n=2)=>v===null||v===undefined?'—':v===Infinity?'∞':Number.isFinite(v)?v.toLocaleString('vi-VN',{minimumFractionDigits:n,maximumFractionDigits:n}):'—';
 const signed=v=>Number.isFinite(v)?(v>0?'+':'')+number(v):'—';
 const date=t=>Number.isFinite(t)?new Date(t).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
 
-export function mountReversalStats({host,actions,requestContext}){
+export function mountReversalStats({host,actions,requestContext,onReport}){
   if(!host||!actions)return null;
   if(!document.getElementById('dao-v2-stats-style')){
     const style=document.createElement('style');style.id='dao-v2-stats-style';
@@ -40,7 +42,7 @@ export function mountReversalStats({host,actions,requestContext}){
     <p><strong>TP từ đủ 4 M15</strong> · Mốc TP đến sớm: chờ SPY V đổi dấu · Không SL</p>
     <label class="v2-cost">Chi phí khứ hồi <input type="number" min="0" max="10000" step="0.5" value="0" aria-label="Chi phí khứ hồi bps"> bps <small>1 bps = 0,01%</small></label>
     <label class="v2-cost"><input type="checkbox" data-v2-trend> Ưu tiên trend khỏe · thử</label><label class="v2-cost"><input type="checkbox" data-v2-hold checked> Giữ trend khỏe khi có mốc V₂ · thử</label><p data-v2-mode></p>
-    <div data-v2-results></div>
+    <label class="v2-cost"><input type="checkbox" data-v2-show checked> Hiện điểm vào / thoát TK V₂ trên chart</label><div data-v2-current style="padding:8px;border:1px solid #496988;border-radius:6px"></div><div data-v2-results></div>
     <div class="v2-rule"><strong>Quy tắc mô phỏng</strong>
     <p>Vào BUY/SELL ở mở nến sau lần SPY V thân nến đổi dấu, khi nến tín hiệu có mốc ĐẢO V₂ đầu để theo dõi mốc thứ hai. Không đặt SL. Chỉ vào lệnh khi tín hiệu xác nhận và mở nến vào lệnh nằm trong 04:00–20:00 New York, thứ 2–6. Vẫn theo dõi tín hiệu thoát của lệnh đang mở ngoài giờ này.</p>
     <p><strong>Bộ lọc trend khỏe (tùy chọn):</strong> sau đổi dấu chờ tối đa thêm 3 nến M15 đóng. Cần 2 dấu SPY V liên tiếp cùng hướng, |SPY V| ≥ 0,15 và không yếu đi; giá nằm thuận phía đường hồi quy WLR-8, độ dốc cùng hướng ≥ 0,02 ATR14/nến. WLR-8 dùng 8 nến trước, là bộ lọc riêng với WLR dài trên chart. Vào ở mở nến tiếp theo khi đủ điều kiện; đổi dấu hoặc hết hạn thì bỏ setup. Mốc V₂ đầu vẫn lấy ở nến đổi dấu. Bộ lọc thử nghiệm chưa chứng minh cải thiện ổn định.</p>
@@ -51,21 +53,32 @@ export function mountReversalStats({host,actions,requestContext}){
     <p>Lệnh chưa đóng, tín hiệu thiếu mốc đầu và khoảng dữ liệu gián đoạn được đếm riêng. Lãi/lỗ theo PnL sau chi phí; thoát theo tín hiệu vẫn có thể lỗ. Điểm giá tính cho 1 đơn vị; PF và sụt giảm tính theo điểm ròng của các lệnh đã đóng.</p></div>`;
   host.append(panel);
   const close=panel.querySelector('header button'),cost=panel.querySelector('input[type=number]'),trendToggle=panel.querySelector('[data-v2-trend]'),holdToggle=panel.querySelector('[data-v2-hold]'),results=panel.querySelector('[data-v2-results]');
+  const show=panel.querySelector('[data-v2-show]'),current=panel.querySelector('[data-v2-current]');
   let context=null,key='';
+  show.onchange=()=>{key='';requestContext?.();render();};
   function hide(){panel.hidden=true;button.setAttribute('aria-expanded','false');button.focus();}
   close.onclick=hide;panel.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();hide();}});
   button.onclick=()=>{if(!panel.hidden){hide();return;}panel.hidden=false;button.setAttribute('aria-expanded','true');key='';requestContext?.();render();close.focus();};
   cost.oninput=()=>{key='';render();};trendToggle.onchange=()=>{key='';render();};holdToggle.onchange=()=>{key='';render();};
   function render(){
-    if(panel.hidden)return;
-    if(!context?.active){results.textContent=context?'Chọn SPYUSDT M15 để xem thống kê.':'Đang chờ dữ liệu chart…';panel.querySelector('[data-v2-period]').textContent='';panel.querySelector('[data-v2-source]').textContent='';key='';return;}
+
+    if(!context?.active){onReport?.(null,false);button.textContent='TK V₂';current.textContent='Chọn SPYUSDT M15 để xem trạng thái.';results.textContent=context?'Chọn SPYUSDT M15 để xem thống kê.':'Đang chờ dữ liệu chart…';panel.querySelector('[data-v2-period]').textContent='';panel.querySelector('[data-v2-source]').textContent='';key='';return;}
     const {bars,bodyRows,points,now,source}=context,fee=Number(cost.value||0);
-    if(!Number.isFinite(fee)||fee<0||fee>10000){results.textContent='Chi phí phải từ 0 đến 10.000 bps.';return;}
+    if(!Number.isFinite(fee)||fee<0||fee>10000){onReport?.(null,false);current.textContent='Chi phí không hợp lệ.';button.textContent='TK V₂';results.textContent='Chi phí phải từ 0 đến 10.000 bps.';return;}
     const closed=bars.filter(b=>b.t+STEP<=now),signs=new Map(bodyRows.map(r=>[r.t,r.adjusted])),live=bars.findLast(b=>b.t<=now&&b.t+STEP>now);
-    if(!closed.length){results.textContent='Đang chờ nến đóng từ dữ liệu chart…';panel.querySelector('[data-v2-period]').textContent='';panel.querySelector('[data-v2-source]').textContent=source;key='';return;}
-    const next=JSON.stringify([source,fee,trendToggle.checked,holdToggle.checked,closed.map(b=>[b.t,b.o,b.h,b.l,b.c,b.sourceComplete,signs.get(b.t)]),points.filter(p=>!p.preview).map(p=>[p.time,p.value,p.direction,p.knownAt]),live?[live.t,live.o]:null]);
+    if(!closed.length){onReport?.(null,false);current.textContent='Đang chờ nến đóng';button.textContent='TK V₂';results.textContent='Đang chờ nến đóng từ dữ liệu chart…';panel.querySelector('[data-v2-period]').textContent='';panel.querySelector('[data-v2-source]').textContent=source;key='';return;}
+    const next=JSON.stringify([show.checked,source,fee,trendToggle.checked,holdToggle.checked,closed.map(b=>[b.t,b.o,b.h,b.l,b.c,b.sourceComplete,signs.get(b.t)]),points.filter(p=>!p.preview).map(p=>[p.time,p.value,p.direction,p.knownAt]),live?[live.t,live.o]:null]);
     if(next===key)return;key=next;
     const report=backtestReversalTrades({bars,bodyRows,points,now,roundTripBps:fee,trendFilter:trendToggle.checked,holdStrongTrend:holdToggle.checked});
+    const display=reversalTradeDisplay(report),position=display.position,last=display.latest;
+    const direction=p=>p.direction>0?'BUY':'SELL';
+    const entry=position?`${direction(position)} · vào ${number(position.entry)} · ${date(position.entryTime)}`:report.pending?`${direction(report.pending)} · chờ mở nến ${date(report.pending.due)} · chưa khớp`:report.watching?`${direction(report.watching)} · chưa đủ điều kiện trend · chưa khớp`:'Không có lệnh đang mở';
+    const latest=last?`Lệnh đóng gần nhất: ${direction(last)} · vào ${number(last.entry)} (${date(last.entryTime)}) → thoát ${number(last.exit)} (${date(last.exitTime)}) · ${reversalExitLabel(last)} · ${signed(last.netPoints)} điểm`:'Chưa có lệnh đóng';
+    current.innerHTML=`<strong>${display.status}</strong><div>${entry}</div><div>${latest}</div><small>Mô phỏng · giờ Việt Nam · dấu × là giá thoát · mũi tên là giá vào</small>`;
+    button.textContent='TK V₂ · '+(position?direction(position)+' '+number(position.entry):display.status);
+    button.title=display.status+' · '+entry+'\n'+latest;
+    panel.dataset.tradeStatus=display.status;panel.dataset.entryTime=String(position?.entryTime??'');
+    onReport?.(report,show.checked);
     const baseline=holdToggle.checked?backtestReversalTrades({bars,bodyRows,points,now,roundTripBps:fee,trendFilter:trendToggle.checked}):report;
     panel.querySelector('[data-v2-mode]').textContent=(trendToggle.checked?'Lọc đầu vào trend khỏe. ':'Đầu vào theo quy tắc gốc. ')+(holdToggle.checked?`Giữ trend: ${report.summary.count} lệnh / ${signed(report.summary.netPoints)} điểm · Thoát V₂ cũ cùng đầu vào: ${baseline.summary.count} lệnh / ${signed(baseline.summary.netPoints)} điểm. Cùng dữ liệu và chi phí; kết quả lịch sử chưa xác thực live.`:'Giữ trend: TẮT · Thoát V₂ theo quy tắc cũ.');
     const s=report.summary;
@@ -80,8 +93,9 @@ export function mountReversalStats({host,actions,requestContext}){
       <p>Điểm/lệnh ${number(s.meanPoints)} · Sụt giảm tối đa ${number(s.drawdownPoints)} điểm · Giữ TB ${number(s.meanBars,1)} M15</p>
       <p>${open}${report.pending?' · 1 tín hiệu chờ vào ở nến sau':report.watching?' · Chờ xác nhận trend khỏe':''}</p>
       <p>Đổi dấu ${report.signals} · Trong phiên ${report.inSessionSignals} · Ngoài phiên ${report.skipped.outsideSession} · Bỏ thiếu mốc đầu ${report.skipped.noFirstLine} · Đang có lệnh ${report.skipped.overlap} · Gián đoạn ${report.censored.length}${trendToggle.checked?' · Đã xác nhận trend '+report.skipped.confirmedTrend+' · Bỏ trend yếu/hết hạn '+report.skipped.weakTrend:''}</p>
-      <details><summary>12 lệnh đóng gần nhất</summary><div class="v2-scroll"><table><thead><tr><th>Vào · hướng</th><th>Giá vào</th><th>Mốc V₂ đầu</th><th>Giờ thoát</th><th>Thoát</th><th>Lý do</th><th>Điểm ròng</th></tr></thead><tbody>${report.trades.slice(-12).reverse().map(t=>`<tr><td>${date(t.entryTime)} · ${t.direction>0?'BUY':'SELL'}</td><td>${number(t.entry)}</td><td>${number(t.firstLine)}</td><td>${date(t.exitTime)}</td><td>${number(t.exit)}</td><td>${t.reason==='TP_SIGNAL'?(t.deferredTpTime!==null?'Trend yếu sau mốc V₂':'TP ≥4 M15'):'Đổi dấu SPY V'}</td><td class="${color(t.netPoints)}">${signed(t.netPoints)}</td></tr>`).join('')}</tbody></table></div></details>`;
+      <details open><summary>12 lệnh đóng gần nhất</summary><div class="v2-scroll"><table><thead><tr><th>Vào · hướng</th><th>Giá vào</th><th>Mốc V₂ đầu</th><th>Giờ thoát</th><th>Thoát</th><th>Lý do</th><th>Điểm ròng</th></tr></thead><tbody>${report.trades.slice(-12).reverse().map(t=>`<tr><td>${date(t.entryTime)} · ${t.direction>0?'BUY':'SELL'}</td><td>${number(t.entry)}</td><td>${number(t.firstLine)}</td><td>${date(t.exitTime)}</td><td>${number(t.exit)}</td><td>${t.reason==='TP_SIGNAL'?(t.deferredTpTime!==null?'Trend yếu sau mốc V₂':'TP ≥4 M15'):'Đổi dấu SPY V'}</td><td class="${color(t.netPoints)}">${signed(t.netPoints)}</td></tr>`).join('')}</tbody></table></div></details>`;
     panel.dataset.holdStrongTrend=String(holdToggle.checked);panel.dataset.trendFilter=String(trendToggle.checked);panel.dataset.closed=String(s.count);panel.dataset.winRate=String(s.winRate??'');panel.dataset.netPoints=String(s.netPoints);
   }
-  return {isOpen:()=>!panel.hidden,setContext(next){context=next;render();}};
+  return {isOpen:()=>!panel.hidden,needsContext:()=>true,setContext(next){context=next;render();}};
 }
+

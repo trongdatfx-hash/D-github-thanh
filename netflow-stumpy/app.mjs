@@ -15,8 +15,9 @@ let oiPhaseLayer;
 import {bodyReversalCache} from './spy-body-reversal.mjs?v=20261120-v2-first-line1';
 import {bodyReversalPrimitive} from './spy-body-reversal-ui.mjs?v=20261120-v2-first-line1';
 const daoV2Cache=bodyReversalCache();
-let daoV2Layer,daoV2Stats;
-import {mountReversalStats} from './spy-body-reversal-stats-ui.mjs?v=20261120-body-ewma1';
+import {reversalTradePrimitive} from './spy-body-reversal-display.mjs?v=20261120-tk-display1';
+let daoV2Layer,daoV2Stats,daoV2Trades;
+import {mountReversalStats} from './spy-body-reversal-stats-ui.mjs?v=20261120-tk-display1';
 import {compositeNfSmooth} from './composite-nf-smooth.mjs?v=20261108-c-taker-smooth1';
 import {OiFastLoader} from './oi-fast-load.mjs?v=20261109-m15-flow1';
 import {spyCandleVolumeFlow,buildSpectrumComparison,drawPairedSpectrum,spectrumPriceGroup,confirmSpectrumGroup} from './paired-spectrum.mjs?v=20261110-h1-oi-visible2';
@@ -361,7 +362,8 @@ function init(){
   price.attachPrimitive(oiBoldCandles);
   price.attachPrimitive(stopLossBands);
   daoV2Layer=bodyReversalPrimitive(chart,price);
-  daoV2Stats=mountReversalStats({host:card,actions:document.querySelector('.chart-actions'),requestContext:()=>render(false)});
+  daoV2Trades=reversalTradePrimitive(chart,price);
+  daoV2Stats=mountReversalStats({host:card,actions:document.querySelector('.chart-actions'),requestContext:()=>render(false),onReport:(report,visible)=>daoV2Trades.setData(report,visible)});
   price.attachPrimitive(spectrumPrimitive);
   mountOrderBook({chart,price,host:$('chart'),actions:document.querySelector('.chart-actions'),symbolControl:$('symbol')});
   const paneLegends=[1,2].map(index=>{
@@ -804,7 +806,7 @@ function render(fit=false){
   const bodyVolumeByTime=new Map(bodyVolumeRows.map(row=>[row.t,row]));
   const daoV2On=Boolean($('dao-v2-toggle')?.checked)&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
   const daoV2Source=$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
-  const daoV2State=daoV2Source&&(daoV2On||daoV2Stats?.isOpen())?daoV2Cache.get(cache?.SPYUSDT??[],new Map(),{now:cache?.serverTime??Date.now(),adaptive:false}):{points:[],last:null};
+  const daoV2State=daoV2Source&&(daoV2On||daoV2Stats?.needsContext())?daoV2Cache.get(cache?.SPYUSDT??[],new Map(),{now:cache?.serverTime??Date.now(),adaptive:false}):{points:[],last:null};
   daoV2Stats?.setContext({active:daoV2Source,waitingH1:false,bars:cache?.SPYUSDT??[],bodyRows:bodyVolumeRows,points:daoV2State.points,now:cache?.serverTime??Date.now(),source:'SPY V thân nến · EWMA cố định · α 0,2929'});
   daoV2Layer?.setData(daoV2State,daoV2On);
   $('chart').dataset.daoV2=daoV2On?'active':'off';
