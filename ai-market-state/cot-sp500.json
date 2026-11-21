@@ -1,29 +1,47 @@
 {
-  "reportDate": "2026-11-03",
+  "reportDate": "2026-11-17",
   "contract": "E-MINI S&P 500",
   "code": "13874A",
-  "openInterest": 1986532,
+  "openInterest": 2096958,
   "nonCommercial": {
-    "long": 229322,
-    "short": 358736,
-    "spreads": 53006,
-    "net": -129414,
-    "prevNet": -134368
+    "long": 241667,
+    "short": 335633,
+    "spreads": 69934,
+    "net": -93966,
+    "prevNet": -138634
   },
   "commercial": {
-    "long": 1444052,
-    "short": 1438857,
-    "net": 5195,
-    "prevNet": 17301
+    "long": 1520500,
+    "short": 1554012,
+    "net": -33512,
+    "prevNet": 14694
   },
   "change": {
-    "openInterest": 30821,
-    "nonCommercialLong": 13398,
-    "nonCommercialShort": 8444,
-    "commercialLong": 16369,
-    "commercialShort": 28475
+    "openInterest": 79271,
+    "nonCommercialLong": 30255,
+    "nonCommercialShort": -14413,
+    "commercialLong": 40766,
+    "commercialShort": 88972
   },
   "history": [
+    {
+      "reportDate": "2026-11-17",
+      "oi": 2096958,
+      "ncLong": 241667,
+      "ncShort": 335633,
+      "commLong": 1520500,
+      "commShort": 1554012,
+      "spreads": 69934
+    },
+    {
+      "reportDate": "2026-11-10",
+      "oi": 2017687,
+      "ncLong": 211412,
+      "ncShort": 350046,
+      "commLong": 1479734,
+      "commShort": 1465040,
+      "spreads": 69456
+    },
     {
       "reportDate": "2026-11-03",
       "oi": 1986532,
@@ -1409,24 +1427,6 @@
       "commLong": 1671401,
       "commShort": 1649442,
       "spreads": 67979
-    },
-    {
-      "reportDate": "2023-11-21",
-      "oi": 2240214,
-      "ncLong": 246961,
-      "ncShort": 327041,
-      "commLong": 1665197,
-      "commShort": 1631226,
-      "spreads": 65844
-    },
-    {
-      "reportDate": "2023-11-14",
-      "oi": 2192899,
-      "ncLong": 274348,
-      "ncShort": 327181,
-      "commLong": 1593850,
-      "commShort": 1582793,
-      "spreads": 61720
     }
   ],
   "source": "CFTC Legacy Futures Only annual archives",
