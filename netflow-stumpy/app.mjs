@@ -1,3 +1,4 @@
+import {CHART_SETUP_KEY,readChartSetup,restoreSetupControls} from './chart-setup-state.mjs?v=20261122-setup1';
 import {mountOrderBook} from './orderbook-ui.mjs?v=20261119-book1';
 import {h1AccumulatedStops} from './stop-loss-h1.mjs?v=20261114-slh1b';
 import {StopLossBands} from './stop-loss-band.mjs?v=20261114-slh1';
@@ -17,7 +18,7 @@ import {bodyReversalPrimitive} from './spy-body-reversal-ui.mjs?v=20261120-v2-fi
 const daoV2Cache=bodyReversalCache();
 import {reversalTradePrimitive} from './spy-body-reversal-display.mjs?v=20261120-tk-display1';
 let daoV2Layer,daoV2Stats,daoV2Trades;
-import {mountReversalStats} from './spy-body-reversal-stats-ui.mjs?v=20261120-tk-display1';
+import {mountReversalStats} from './spy-body-reversal-stats-ui.mjs?v=20261122-setup1';
 import {compositeNfSmooth} from './composite-nf-smooth.mjs?v=20261108-c-taker-smooth1';
 import {OiFastLoader} from './oi-fast-load.mjs?v=20261109-m15-flow1';
 import {spyCandleVolumeFlow,buildSpectrumComparison,drawPairedSpectrum,spectrumPriceGroup,confirmSpectrumGroup} from './paired-spectrum.mjs?v=20261110-h1-oi-visible2';
@@ -87,7 +88,7 @@ function setMarkers(target,data){const key=JSON.stringify(data);if(markerCache.g
 let studiesWorker=null,studyKey='',studyResultKey='',statsWorker=null,statsRequest=0,statsData=null,statsContext='';
 const CALENDAR_REFRESH_MS=5*60*1000;
 const FIT_WINDOW_MS=36*60*60*1000,FIT_HALF_WINDOW_MS=12*60*60*1000,DOUBLE_TAP_MS=360,DOUBLE_TAP_DISTANCE=28,TAP_MOVE_TOLERANCE=14;
-const SETUP_STORAGE_KEY='netflow-rth-lite:chart-setup:v1';
+const SETUP_STORAGE_KEY=CHART_SETUP_KEY;
 let nfSmoothRows=[],nfSmoothMap=new Map();
 const spyBodyVolumeEnabled=()=>$('spy-volume-body-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
 const nfSmoothEnabled=()=>$('nf-smooth-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
@@ -235,9 +236,9 @@ function syncDisplayModeButtons(){
 }
 function restoreSavedSetup(){
   try{
-    const saved=JSON.parse(localStorage.getItem(SETUP_STORAGE_KEY)||'null'),valid=saved?.version===1&&typeof saved.controls==='object';
+    const saved=readChartSetup(),valid=Boolean(saved);
     if(valid){
-      for(const id of SETUP_CONTROL_IDS){const node=$(id),value=saved.controls[id];if(!node)continue;if(node.type==='checkbox'){if(typeof value==='boolean')node.checked=value;}else if(typeof value==='string'&&[...node.options].some(option=>option.value===value))node.value=value;}
+      restoreSetupControls(saved.controls,SETUP_CONTROL_IDS,$);
       const from=Number(saved.timeRange?.from),to=Number(saved.timeRange?.to);if(Number.isFinite(from)&&Number.isFinite(to)&&to>from)pendingSavedTimeRange={from,to};
     }
     const migrationKey='netflow:enable-h1-box-candle-default:v1';
@@ -259,9 +260,10 @@ function saveChartSetup(){
   try{
     const controls={};for(const id of SETUP_CONTROL_IDS){const node=$(id);if(node)controls[id]=node.type==='checkbox'?node.checked:node.value;}
     const visible=chart.timeScale().getVisibleRange(),timeRange=visible&&Number.isFinite(Number(visible.from))&&Number.isFinite(Number(visible.to))?{from:Number(visible.from),to:Number(visible.to)}:null;
-    localStorage.setItem(SETUP_STORAGE_KEY,JSON.stringify({version:1,savedAt:Date.now(),controls,timeRange}));
+    if(daoV2Stats&&!daoV2Stats.saveSetup())throw Error('Không lưu được setup TK V₂; kiểm tra phí hoặc quyền lưu trữ');
+    localStorage.setItem(SETUP_STORAGE_KEY,JSON.stringify({...readChartSetup(),version:1,savedAt:Date.now(),controls,timeRange}));
     button.textContent='✓ Đã lưu';button.title='Setup đã được lưu trên trình duyệt này';
-  }catch{button.textContent='Không lưu được';button.title='Trình duyệt đang chặn bộ nhớ cục bộ';}
+  }catch(error){button.textContent='Không lưu được';button.title=error.message;}
   clearTimeout(saveSetupTimer);saveSetupTimer=setTimeout(()=>{button.textContent='Lưu setup';button.title='Lưu toàn bộ lựa chọn và vùng thời gian đang xem trên trình duyệt này';},1800);
 }
 
