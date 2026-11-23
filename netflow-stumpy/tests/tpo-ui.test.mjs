@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mountTpo} from '../tpo-ui.mjs';
+test('mount, paint, source fallback and toggle use chart primitive without changing candles',async()=>{
+  const inputs=new Map(['tpo-toggle','tpo-session','tpo-row-size','tpo-source','tpo-status'].map(id=>[id,{id,checked:true,value:({'tpo-session':'BOTH','tpo-row-size':'.5','tpo-source':'AUTO'})[id],style:{},addEventListener(type,fn){this[type]=fn;}}]));
+  const box={style:{},querySelector:selector=>inputs.get(selector.slice(1)),querySelectorAll:()=>[...inputs.values()].slice(0,4)};
+  globalThis.document={hidden:false,createElement:()=>box};
+  let primitive,paints=0;const start=Date.parse('2026-11-23T14:30Z'),bars=Array.from({length:8},(_,i)=>({t:start+i*900000,l:100,h:102,o:100,c:101}));
+  let state={symbol:'SPYUSDT',interval:'15m',now:start+7200000,bars};
+  const chart={timeScale:()=>({timeToCoordinate:t=>20+(t-start/1000)/60})};
+  const price={attachPrimitive:p=>{primitive=p;p.attached({requestUpdate:()=>paints++});},priceToCoordinate:p=>500-(p-99)*50};
+  const host={dataset:{}},layer=mountTpo({chart,price,controls:{append(){}},host,get:async()=>{throw Error('offline');},context:()=>state});
+  layer.update();assert.equal(host.dataset.tpoState,'ready');assert.match(host.dataset.tpoSource,/M15/);assert.equal(layer.getProfiles().length,1);
+  let cells=0;const labels=[];const ctx=new Proxy({fillRect(){cells++;},fillText(text){labels.push(text);}}, {get:(target,key)=>key in target?target[key]:()=>{}});
+  primitive.paneViews()[0].renderer().draw({useMediaCoordinateSpace:fn=>fn({context:ctx,mediaSize:{width:900,height:650}})});
+  assert.ok(cells>0);assert.ok(labels.some(x=>x.startsWith('IB 1h')));assert.ok(labels.some(x=>x.startsWith('POC')));
+  inputs.get('tpo-toggle').checked=false;inputs.get('tpo-toggle').change();assert.equal(host.dataset.tpoState,'off');assert.equal(layer.getProfiles().length,0);
+  inputs.get('tpo-toggle').checked=true;state={...state,interval:'1h'};layer.update();assert.equal(host.dataset.tpoState,'off');
+  assert.ok(paints>0);await Promise.resolve();delete globalThis.document;
+});

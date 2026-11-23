@@ -1,5 +1,8 @@
 import {CHART_SETUP_KEY,readChartSetup,restoreSetupControls} from './chart-setup-state.mjs?v=20261122-setup1';
 import {mountOrderBook} from './orderbook-ui.mjs?v=20261119-book1';
+import {mountTpo} from './tpo-ui.mjs?v=20261123-tpo1';
+import {TPO_CONTROL_IDS} from './tpo-profile.mjs?v=20261123-tpo1';
+let tpoLayer;
 import {h1AccumulatedStops} from './stop-loss-h1.mjs?v=20261114-slh1b';
 import {StopLossBands} from './stop-loss-band.mjs?v=20261114-slh1';
 import {scoreH1OiMarkers} from './h1-oi-markers.mjs?v=20261110-h1-oi-visible2';
@@ -770,6 +773,7 @@ function drawGeometryOverlay(){
 function render(fit=false){
   const renderStarted=performance.now();
   const p=rows[$('symbol').value]??[];
+  tpoLayer?.update();
   const h1BoxColor=$('candle-h1-box-color')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='1h',h1BoxKey=h1BoxColor?studyResultKey:'off';
   const h1StyleEnabled=usesH1WlrStyle();
   displayVolumeStrengthRows=volumeStrengthRows;
@@ -1177,6 +1181,8 @@ if(init()){
   oi8PivotLabel.title='SPYUSDT M15 · PRE–RTH · Nét đứt: ΔOI8 xoay đổi dấu · Nét liền: thêm Taker NF riêng SPY cùng hướng';
   oi8PivotLabel.append(oi8PivotToggle,'Pivot ΔOI8 · thử');oi8Label.after(oi8PivotLabel);
   oi8PivotToggle.onchange=()=>render(false);
+  tpoLayer=mountTpo({chart,price,controls:document.querySelector('.toggles'),host:$('chart'),get:getJSON,context:()=>({symbol:$('symbol').value,interval:$('interval').value,bars:rows[$('symbol').value]??[],now:cache?.serverTime??Date.now()})});
+  SETUP_CONTROL_IDS.push(...TPO_CONTROL_IDS);
   restoreSavedSetup();syncChartFrameButtons();
   // Restore the C histogram once for setups saved before the taker plot cleanup.
   // Subsequent user choices remain under the normal Save setup control.
@@ -1217,3 +1223,4 @@ if(init()){
   setInterval(()=>{if(!document.hidden)refreshCalendar();},CALENDAR_REFRESH_MS);
   setInterval(updateCandleCountdown,250);
 }
+
