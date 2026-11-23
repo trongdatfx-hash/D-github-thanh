@@ -1,4 +1,4 @@
-export function tpoRenderMode(cellWidth,rowHeight){return cellWidth>=7&&rowHeight>=12?'letters':cellWidth>=3&&rowHeight>=3?'cells':'compact';}
+export function tpoRenderMode(cellWidth,rowHeight){return cellWidth>=3&&rowHeight>=3?'cells':'compact';}
 export function compactTpoRows(rows,yOf){
   const pixels=new Map();
   for(const row of rows){

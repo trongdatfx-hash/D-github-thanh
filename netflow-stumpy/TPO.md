@@ -1,6 +1,6 @@
 # TPO on the M15 chart
 
-Daily profiles start at 00:00 America/New_York, including DST. PRE/RTH anchors remain optional. `tpo-layout` selects stacked profiles or columns at their actual 30-minute times. Zoom changes letters to cells to compact bars without recalculating counts. Orange marks identify internal single prints; they exclude one-block tails. POC, contiguous 70% VA and first-hour IB remain available.
+Daily profiles start at 00:00 America/New_York, including DST. PRE/RTH anchors remain optional. `tpo-layout` selects stacked profiles or columns at their actual 30-minute times. Cells contain no block letters. Zoom changes cells to compact bars without recalculating counts. Orange marks identify internal single prints; they exclude one-block tails. POC, contiguous 70% VA and first-hour IB remain available.
 
 `tpo-source=TRADES` is experimental and uses public Binance USD-M `/fapi/v1/aggTrades`. Each distinct traded price contributes at most one occurrence per price row and 30-minute block. Quantity never weights a TPO. This can differ from profiles built by filling an entire OHLC range, and does not guarantee TakeProfit parity.
 

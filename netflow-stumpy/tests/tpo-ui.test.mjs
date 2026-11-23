@@ -14,6 +14,7 @@ test('mount, paint, source fallback and toggle use chart primitive without chang
   let cells=0;const labels=[];const ctx=new Proxy({fillRect(){cells++;},fillText(text){labels.push(text);}}, {get:(target,key)=>key in target?target[key]:()=>{}});
   primitive.paneViews()[0].renderer().draw({useMediaCoordinateSpace:fn=>fn({context:ctx,mediaSize:{width:900,height:650}})});
   assert.ok(cells>0);assert.ok(labels.some(x=>x.startsWith('IB 1h')));assert.ok(labels.some(x=>x.startsWith('POC')));
+  assert.ok(!labels.some(x=>/^[A-Za-z]$/.test(x)),'TPO cells never draw block letters');
   const before=JSON.stringify(layer.getProfiles().map(p=>p.rows));
   inputs.get('tpo-layout').value='EXPANDED';inputs.get('tpo-layout').change();
   primitive.paneViews()[0].renderer().draw({useMediaCoordinateSpace:fn=>fn({context:ctx,mediaSize:{width:900,height:650}})});

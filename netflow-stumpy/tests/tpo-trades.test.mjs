@@ -48,7 +48,7 @@ test('live incremental ranges keep previous prices and reject ID gaps across ref
   assert.deepEqual([...loader.entries.values()][0].prices,new Set([100]));
 });
 test('zoom aggregation changes drawing only, leaves profile counts untouched',()=>{
-  assert.equal(tpoRenderMode(8,14),'letters');assert.equal(tpoRenderMode(5,6),'cells');assert.equal(tpoRenderMode(1,1),'compact');
+  assert.equal(tpoRenderMode(8,14),'cells');assert.equal(tpoRenderMode(5,6),'cells');assert.equal(tpoRenderMode(1,1),'compact');
   const rows=[{index:1,low:1,high:2,blocks:[0,1]},{index:2,low:2,high:3,blocks:[2]}],copy=JSON.stringify(rows);
   assert.equal(compactTpoRows(rows,()=>10.2).length,1);assert.equal(JSON.stringify(rows),copy);
 });

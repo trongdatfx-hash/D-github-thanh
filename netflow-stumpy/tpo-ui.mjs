@@ -1,7 +1,7 @@
-import {tpoWindows,buildTpo,tpoBlockLetter} from './tpo-profile.mjs?v=20261123-tpo-trades2';
-import {TpoMinuteLoader} from './tpo-minutes.mjs?v=20261123-tpo-trades2';
-import {TpoTradeLoader} from './tpo-trades.mjs?v=20261123-tpo-trades2';
-import {tpoRenderMode,compactTpoRows} from './tpo-layout.mjs?v=20261123-tpo-trades2';
+import {tpoWindows,buildTpo} from './tpo-profile.mjs?v=20261123-tpo-trades3';
+import {TpoMinuteLoader} from './tpo-minutes.mjs?v=20261123-tpo-trades3';
+import {TpoTradeLoader} from './tpo-trades.mjs?v=20261123-tpo-trades3';
+import {tpoRenderMode,compactTpoRows} from './tpo-layout.mjs?v=20261123-tpo-trades3';
 export function mountTpo({chart,price,controls,host,get,context}){
   const box=document.createElement('span');box.className='tpo-controls';
   box.innerHTML='<label><input id="tpo-toggle" type="checkbox" checked>TPO</label><label>Mốc <select id="tpo-anchor"><option value="DAY" selected>Ngày · từ 00h NY</option><option value="BOTH">PRE + RTH</option><option value="PRE">PRE</option><option value="RTH">RTH</option></select></label><label>Bước giá <select id="tpo-row-size"><option value="0.1">0.1</option><option value="0.2">0.2</option><option value="0.5" selected>0.5</option><option value="1">1</option><option value="2">2</option></select></label><label>Kiểu TPO <select id="tpo-layout"><option value="STACKED">Gộp phổ</option><option value="EXPANDED">Trải thời gian</option></select></label><label>Nguồn TPO <select id="tpo-source"><option value="TRADES" selected>Khớp lệnh · thử</option><option value="AUTO">Ưu tiên M1</option><option value="M15">M15</option></select></label><small id="tpo-status" role="status">Chờ nến M15</small>';
@@ -56,7 +56,6 @@ export function mountTpo({chart,price,controls,host,get,context}){
           const block=r.blocks[j],bx=expanded?(time(p.start+block*1800000)??(x+block*cell)):left+j*cell;
           if(bx>width||bx+cell<0)continue;
           ctx.fillStyle=colour(block,total,inVA?.58:.27);ctx.fillRect(bx,top,Math.max(1,cell-.7),Math.max(1,rh-.5));
-          if(mode==='letters'){ctx.fillStyle='#f4f8ff';ctx.font='10px monospace';ctx.textAlign='center';ctx.fillText(tpoBlockLetter(block),bx+cell/2,top+rh/2+3);}
         }
       }
       // Single prints only inside the profile, excluding one-block tails.
@@ -94,7 +93,7 @@ export function mountTpo({chart,price,controls,host,get,context}){
       profiles=windows.map(w=>buildTpo(w,{minutes:loader.read(state.symbol,[w]),trades:tradeLoader.read(state.symbol,w,state.now),now:state.now,rowSize:Number(lookup('tpo-row-size').value),source}));
       const sources=[...new Set(profiles.map(p=>p.source))].join(', '),missing=profiles.some(p=>p.missing),forming=profiles.some(p=>p.forming),n=profiles.reduce((s,p)=>s+p.tradeBlocks,0),fallback=profiles.reduce((s,p)=>s+p.fallbackBlocks,0);
       status.textContent=profiles.length?`TPO 30m · ${sources}${source==='TRADES'?` · khớp ${n}/${n+fallback} block`:''}${profiles.some(p=>p.approximate)?' · OHLC xấp xỉ':''}${missing?' · THIẾU NẾN':''}${forming?' · TẠM':''}${source==='TRADES'&&tradeLoader.note?' · '+tradeLoader.note:''}`:'TPO · chưa có dữ liệu';
-      status.title='Mốc 00:00 New York, tự đổi DST. Xanh lam → vàng theo thời gian, không phải mua/bán. VA 70% số ô TPO; IB một giờ đầu. Vạch cam: single prints bên trong phổ. Khớp lệnh: mỗi mức giá chỉ tính một lần trong block 30m, không nhân volume. Chỉ dùng block tải đủ, phần còn lại dùng M1/M15 xấp xỉ. REST giới hạn 48h, tải dần; dữ liệu đang chạy trễ vài giây. Ba ngày/phiên gần nhất. Gộp phổ tự đổi chữ/ô/thanh theo zoom; Trải thời gian đặt block ở đúng giờ.';
+      status.title='Mốc 00:00 New York, tự đổi DST. Xanh lam → vàng theo thời gian, không phải mua/bán. VA 70% số ô TPO; IB một giờ đầu. Vạch cam: single prints bên trong phổ. Khớp lệnh: mỗi mức giá chỉ tính một lần trong block 30m, không nhân volume. Chỉ dùng block tải đủ, phần còn lại dùng M1/M15 xấp xỉ. REST giới hạn 48h, tải dần; dữ liệu đang chạy trễ vài giây. Ba ngày/phiên gần nhất. Gộp phổ tự đổi ô/thanh theo zoom; Trải thời gian đặt block ở đúng giờ.';
       host.dataset.tpoState=profiles.length?'ready':'empty';host.dataset.tpoSource=sources;host.dataset.tpoProfiles=String(profiles.length);host.dataset.tpoTradeBlocks=String(n);host.dataset.tpoFallbackBlocks=String(fallback);host.dataset.tpoLayout=lookup('tpo-layout')?.value??'STACKED';
       if(summary){summary.textContent=source==='TRADES'?`TPO · Khớp ${n}/${n+fallback} ⚙`:'TPO · '+sources+' ⚙';summary.title=status.textContent;}
     }catch(error){profiles=[];status.textContent=error.message;host.dataset.tpoState='error';}
