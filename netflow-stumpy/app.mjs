@@ -1,7 +1,9 @@
 import {CHART_SETUP_KEY,readChartSetup,restoreSetupControls} from './chart-setup-state.mjs?v=20261122-setup1';
 import {mountOrderBook} from './orderbook-ui.mjs?v=20261119-book1';
-import {mountTpo} from './tpo-ui.mjs?v=20261123-tpo1';
-import {TPO_CONTROL_IDS} from './tpo-profile.mjs?v=20261123-tpo1';
+import {mountTpo} from './tpo-ui.mjs?v=20261123-tpo-midnight1';
+import {TPO_CONTROL_IDS} from './tpo-profile.mjs?v=20261123-tpo-midnight1';
+import {mountPriceChartStyle} from './price-chart-style.mjs?v=20261123-tpo-midnight1';
+let priceStyleLayer;
 let tpoLayer;
 import {h1AccumulatedStops} from './stop-loss-h1.mjs?v=20261114-slh1b';
 import {StopLossBands} from './stop-loss-band.mjs?v=20261114-slh1';
@@ -364,6 +366,7 @@ function init(){
   chart=L.createChart($('chart'),{autoSize:true,layout:{background:{type:'solid',color:'#0e1726'},textColor:'#91a5bd',fontSize:12,attributionLogo:true},grid:{vertLines:{color:'#1a283a'},horzLines:{color:'#1a283a'}},crosshair:{mode:L.CrosshairMode.Normal,doNotSnapToHiddenSeriesIndices:true,vertLine:{visible:true,labelVisible:true},horzLine:{visible:true,labelVisible:true}},timeScale:{timeVisible:true,secondsVisible:false,rightOffsetPixels:96,barSpacing:6,minBarSpacing:.5,lockVisibleTimeRangeOnResize:true},rightPriceScale:{autoScale:true,minimumWidth:64,tickMarkDensity:2.5},handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},handleScale:{mouseWheel:true,pinch:true,axisPressedMouseMove:{time:true,price:true},axisDoubleClickReset:{time:true,price:true}},kineticScroll:{touch:true,mouse:false},localization:{locale:'vi-VN',timeFormatter:t=>new Date(t*1000).toLocaleString('en-US',{timeZone:'America/New_York',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'})}});
   applyResponsiveChartOptions();
   price=chart.addSeries(L.CandlestickSeries,{title:'',priceFormat:{type:'price',precision:1,minMove:.1},priceLineVisible:true,priceLineColor:'#36ddbd',priceLineWidth:1,priceLineStyle:L.LineStyle.Dashed,lastValueVisible:true,borderVisible:false},0);
+  priceStyleLayer=mountPriceChartStyle({chart,price,actions:document.querySelector('.chart-actions'),host:$('chart'),L,writeSeries,onChange:()=>render(false)});
   price.attachPrimitive(oiBoldCandles);
   price.attachPrimitive(stopLossBands);
   daoV2Layer=bodyReversalPrimitive(chart,price);
@@ -823,7 +826,8 @@ function render(fit=false){
     const color=spyVSignColor(bodyVolumeByTime.get(x.t)?.adjusted);
     return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color,wickColor:color,borderColor:color};
   });
-  writeSeries('price',price,priceData,seriesContext);
+  const linePriceMode=priceStyleLayer?.update(p,$('symbol').value==='SPYUSDT'?{type:'price',precision:1,minMove:.1}:{type:'price',precision:2,minMove:.01},seriesContext)??false;
+  writeSeries('price',price,priceStyleLayer?.candleData(priceData)??priceData,seriesContext+'|price-line:'+linePriceMode);
   h1OiMarkerCoverage={};
   h1OiMarkers=h1Wlr&&oiStamp==='15m'&&$('h1-oi-markers-toggle')?.checked?scoreH1OiMarkers({boxes:h1ScoreRecords,bars:p,oi:oiWidths,now:closedBefore,coverage:h1OiMarkerCoverage}):[];
   wlrH1StyleMap=new Map((h1Wlr?wlrH1Styles(priceBands,h1ScoreRecords,{now:cache?.serverTime??Date.now(),alignment:'box',boxStates:h1CandleMap,scoreColor:true}):[]).map(x=>[x.t,x]));
@@ -838,7 +842,7 @@ function render(fit=false){
   setOptions(series.oiCandleBars,{visible:oiBarsEnabled});
   const boldEnabled=$('oi-bold-candles-toggle')?.checked&&$('symbol').value==='SPYUSDT';
   const boldData=boldEnabled?priceData.filter(x=>oiBarState.points.get(x.time*1000)?.matched).map(x=>({...x,oiKind:oiBarState.points.get(x.time*1000).kind})):[];
-  oiBoldCandles.setData(boldData);$('chart').dataset.oiBoldCandlesState=!boldEnabled?'off':oiBarState.gateReady?'ready':'WAIT';$('chart').dataset.oiBoldCandlesCount=String(boldData.length);$('chart').dataset.oiDownIncreaseCount=String(oiBarState.downOiIncrease??0);$('chart').dataset.oiCandleGroups=JSON.stringify(oiBarState.groups);$('chart').dataset.oiThresholdMethod='percentile';$('chart').dataset.oiThresholdPercentile=$('oi-delta-percentile')?.value??'0.62';
+  oiBoldCandles.setData(linePriceMode?[]:boldData);$('chart').dataset.oiBoldCandlesState=linePriceMode||!boldEnabled?'off':oiBarState.gateReady?'ready':'WAIT';$('chart').dataset.oiBoldCandlesCount=String(linePriceMode?0:boldData.length);$('chart').dataset.oiDownIncreaseCount=String(oiBarState.downOiIncrease??0);$('chart').dataset.oiCandleGroups=JSON.stringify(oiBarState.groups);$('chart').dataset.oiThresholdMethod='percentile';$('chart').dataset.oiThresholdPercentile=$('oi-delta-percentile')?.value??'0.62';
   $('chart').dataset.oiCandleBarsState=!oiBarsEnabled?'off':oiBarState.gateReady?'ready':'WAIT';
   $('chart').dataset.oiCandleBarsPane=String(series.oiCandleBars.getPane().paneIndex());
   $('chart').dataset.oiCandleBarsMatched=String(oiBarState.matched);$('chart').dataset.oiCandleBarsEligible=String(oiBarState.eligible);
@@ -1032,7 +1036,9 @@ function toggle(){
 }
 function showStartupPreview(data){
  const bars=data[$('symbol').value]??[];if(!bars.length)return;
- writeSeries('price',price,bars.map(x=>({time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c})),`startup|${data.interval}`);
+ priceStyleLayer?.update(bars,$('symbol').value==='SPYUSDT'?{type:'price',precision:1,minMove:.1}:{type:'price',precision:2,minMove:.01},`startup|${data.interval}`);
+ const previewCandles=bars.map(x=>({time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c}));
+ writeSeries('price',price,priceStyleLayer?.candleData(previewCandles)??previewCandles,`startup|${data.interval}|${priceStyleLayer?.isLine()}`);
  const last=bars.at(-1).t,first=bars.find(x=>x.t>=last-FIT_WINDOW_MS)?.t??bars[0].t;
  chart.timeScale().setVisibleRange({from:first/1000,to:last/1000});
  $('chart').dataset.startupPhase='preview';

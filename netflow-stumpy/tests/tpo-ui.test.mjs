@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mountTpo} from '../tpo-ui.mjs';
 test('mount, paint, source fallback and toggle use chart primitive without changing candles',async()=>{
-  const inputs=new Map(['tpo-toggle','tpo-session','tpo-row-size','tpo-source','tpo-status'].map(id=>[id,{id,checked:true,value:({'tpo-session':'BOTH','tpo-row-size':'.5','tpo-source':'AUTO'})[id],style:{},addEventListener(type,fn){this[type]=fn;}}]));
-  const box={style:{},querySelector:selector=>inputs.get(selector.slice(1)),querySelectorAll:()=>[...inputs.values()].slice(0,4)};
+  const inputs=new Map(['tpo-toggle','tpo-anchor','tpo-row-size','tpo-source','tpo-status'].map(id=>[id,{id,checked:true,value:({'tpo-anchor':'BOTH','tpo-row-size':'.5','tpo-source':'AUTO'})[id],style:{},addEventListener(type,fn){this[type]=fn;}}]));
+  const box={innerHTML:'',style:{},querySelector:selector=>inputs.get(selector.slice(1)),querySelectorAll:()=>[...inputs.values()].slice(0,4)};
   globalThis.document={hidden:false,createElement:()=>box};
   let primitive,paints=0;const start=Date.parse('2026-11-23T14:30Z'),bars=Array.from({length:8},(_,i)=>({t:start+i*900000,l:100,h:102,o:100,c:101}));
   let state={symbol:'SPYUSDT',interval:'15m',now:start+7200000,bars};

@@ -1,4 +1,4 @@
-import {parseTpoMinutes} from './tpo-profile.mjs?v=20261123-tpo1';
+import {parseTpoMinutes} from './tpo-profile.mjs?v=20261123-tpo-levels1';
 // At most three session-sized requests; separate cache from indicator history.
 export class TpoMinuteLoader{
   constructor(get){this.get=get;this.entries=new Map();this.pending=null;this.controller=null;this.generation=0;}
@@ -18,8 +18,14 @@ export class TpoMinuteLoader{
         const from=old?.bars.length?Math.max(w.start,old.bars.at(-1).t-60000):w.start;
         const end=Math.min(now-1,w.end-1);if(end<from)continue;
         try{
-          const raw=await this.get(`/fapi/v1/klines?symbol=${encodeURIComponent(symbol)}&interval=1m&limit=1000&startTime=${from}&endTime=${end}`,controller.signal);
-          const fresh=parseTpoMinutes(raw,now);
+          const fresh=[];let cursor=from;
+          // Daily profiles can span 1,500 minutes on the autumn DST change.
+          for(let page=0;cursor<=end&&page<3;page++){
+            const raw=await this.get(`/fapi/v1/klines?symbol=${encodeURIComponent(symbol)}&interval=1m&limit=1000&startTime=${cursor}&endTime=${end}`,controller.signal);
+            const parsed=parseTpoMinutes(raw,now);fresh.push(...parsed);
+            if(raw.length<1000||!parsed.length)break;
+            const next=parsed.at(-1).t+60000;if(next<=cursor)break;cursor=next;
+          }
           if(token!==this.generation||controller.signal.aborted)break;
           const merged=new Map((old?.bars??[]).map(b=>[b.t,b]));for(const b of fresh)if(b.t>=w.start&&b.t<w.end)merged.set(b.t,b);
           const bars=[...merged.values()].sort((a,b)=>a.t-b.t);

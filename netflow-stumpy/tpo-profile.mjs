@@ -2,11 +2,28 @@ import {isUsMarketTradingDay} from './market-calendar.mjs';
 const minute=60000;
 const sessionCache=new Map();
 const clock=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
-export const TPO_CONTROL_IDS=['tpo-toggle','tpo-session','tpo-row-size','tpo-source'];
-export function tpoSession(t){
-  const stamp=Math.floor(t/minute);if(sessionCache.has(stamp))return sessionCache.get(stamp);
+export const TPO_CONTROL_IDS=['tpo-toggle','tpo-anchor','tpo-row-size','tpo-source','price-chart-style'];
+const midnightCache=new Map();
+function nyMidnight(day){
+  if(midnightCache.has(day))return midnightCache.get(day);
+  const target=Date.parse(day+'T00:00:00Z');let candidate=target+5*3600000;
+  for(let i=0;i<3;i++){
+    const p=Object.fromEntries(clock.formatToParts(candidate).map(x=>[x.type,x.value]));
+    const local=Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute);
+    candidate+=target-local;
+  }
+  if(midnightCache.size>100)midnightCache.clear();midnightCache.set(day,candidate);return candidate;
+}
+export function tpoBlockLetter(index){return String.fromCharCode((index%52<26?65:97)+index%26);}
+export function tpoSession(t,anchor='SESSION'){
+  const stamp=Math.floor(t/minute)+':'+anchor;if(sessionCache.has(stamp))return sessionCache.get(stamp);
   const p=Object.fromEntries(clock.formatToParts(t).map(x=>[x.type,x.value]));
   const day=`${p.year}-${p.month}-${p.day}`,m=+p.hour*60+ +p.minute;
+  if(anchor==='DAY'){
+    const nextDay=new Date(Date.parse(day+'T00:00:00Z')+86400000).toISOString().slice(0,10);
+    const result={day,session:'DAY',start:nyMidnight(day),end:nyMidnight(nextDay),key:day+':DAY'};
+    if(sessionCache.size>12000)sessionCache.clear();sessionCache.set(stamp,result);return result;
+  }
   if(!isUsMarketTradingDay(day)){sessionCache.set(stamp,null);return null;}
   const session=m>=240&&m<570?'PRE':m>=570&&m<960?'RTH':null;
   if(!session){sessionCache.set(stamp,null);return null;}
@@ -17,7 +34,7 @@ export function tpoSession(t){
 }
 export function tpoWindows(bars,{session='BOTH',limit=3}={}){
   const groups=new Map();
-  for(const bar of bars){const s=tpoSession(bar.t);if(!s||(session!=='BOTH'&&s.session!==session))continue;
+  for(const bar of bars){const s=tpoSession(bar.t,session==='DAY'?'DAY':'SESSION');if(!s||(session!=='BOTH'&&s.session!==session))continue;
     if(!groups.has(s.key))groups.set(s.key,{...s,bars:[]});groups.get(s.key).bars.push(bar);
   }
   return [...groups.values()].sort((a,b)=>a.start-b.start).slice(-limit);
