@@ -1,7 +1,7 @@
-import {tpoWindows,buildTpo} from './tpo-profile.mjs?v=20261123-tpo-trades3';
-import {TpoMinuteLoader} from './tpo-minutes.mjs?v=20261123-tpo-trades3';
-import {TpoTradeLoader} from './tpo-trades.mjs?v=20261123-tpo-trades3';
-import {tpoRenderMode,compactTpoRows} from './tpo-layout.mjs?v=20261123-tpo-trades3';
+import {tpoWindows,buildTpo} from './tpo-profile.mjs?v=20261123-tpo-trades4';
+import {TpoMinuteLoader} from './tpo-minutes.mjs?v=20261123-tpo-trades4';
+import {TpoTradeLoader} from './tpo-trades.mjs?v=20261123-tpo-trades4';
+import {tpoRenderMode,compactTpoRows} from './tpo-layout.mjs?v=20261123-tpo-trades4';
 export function mountTpo({chart,price,controls,host,get,context}){
   const box=document.createElement('span');box.className='tpo-controls';
   box.innerHTML='<label><input id="tpo-toggle" type="checkbox" checked>TPO</label><label>Mốc <select id="tpo-anchor"><option value="DAY" selected>Ngày · từ 00h NY</option><option value="BOTH">PRE + RTH</option><option value="PRE">PRE</option><option value="RTH">RTH</option></select></label><label>Bước giá <select id="tpo-row-size"><option value="0.1">0.1</option><option value="0.2">0.2</option><option value="0.5" selected>0.5</option><option value="1">1</option><option value="2">2</option></select></label><label>Kiểu TPO <select id="tpo-layout"><option value="STACKED">Gộp phổ</option><option value="EXPANDED">Trải thời gian</option></select></label><label>Nguồn TPO <select id="tpo-source"><option value="TRADES" selected>Khớp lệnh · thử</option><option value="AUTO">Ưu tiên M1</option><option value="M15">M15</option></select></label><small id="tpo-status" role="status">Chờ nến M15</small>';
@@ -12,8 +12,8 @@ export function mountTpo({chart,price,controls,host,get,context}){
   if(toolbar){
     const settings=document.createElement('details');settings.id='tpo-settings';settings.style.cssText='position:relative';
     summary=document.createElement('summary');summary.textContent='TPO ⚙';summary.style.cssText='cursor:pointer;white-space:nowrap;font-size:12px';settings.append(summary);
-    box.style.cssText='position:absolute;top:100%;right:0;width:min(440px,85vw);display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px;background:#101e30;border:1px solid #36516e;border-radius:8px;z-index:200;box-shadow:0 6px 24px #0008';
-    settings.append(box);toolbar.append(settings);
+    box.style.cssText='position:fixed;top:80px;right:12px;max-height:calc(100vh - 100px);overflow:auto;width:min(440px,85vw);display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px;background:#101e30;border:1px solid #36516e;border-radius:8px;z-index:200;box-shadow:0 6px 24px #0008';
+    settings.append(box);toolbar.insertBefore(settings,toolbar.querySelector('#orderbook-toggle'));
   }
   const lookup=id=>box.querySelector('#'+id),loader=new TpoMinuteLoader(get),tradeLoader=new TpoTradeLoader(get);
   let profiles=[],requestUpdate=()=>{},activeKey='',revision='',timer=null;
