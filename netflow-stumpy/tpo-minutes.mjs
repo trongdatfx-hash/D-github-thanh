@@ -1,4 +1,4 @@
-import {parseTpoMinutes} from './tpo-profile.mjs?v=20261123-tpo-levels1';
+import {parseTpoMinutes} from './tpo-profile.mjs?v=20261123-tpo-trades1';
 // At most three session-sized requests; separate cache from indicator history.
 export class TpoMinuteLoader{
   constructor(get){this.get=get;this.entries=new Map();this.pending=null;this.controller=null;this.generation=0;}
@@ -47,3 +47,4 @@ export class TpoMinuteLoader{
     try{return await task;}finally{if(this.pending===task){this.pending=null;this.controller=null;}}
   }
 }
+

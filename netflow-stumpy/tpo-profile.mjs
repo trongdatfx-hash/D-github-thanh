@@ -2,7 +2,7 @@ import {isUsMarketTradingDay} from './market-calendar.mjs';
 const minute=60000;
 const sessionCache=new Map();
 const clock=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
-export const TPO_CONTROL_IDS=['tpo-toggle','tpo-anchor','tpo-row-size','tpo-source','price-chart-style'];
+export const TPO_CONTROL_IDS=['tpo-toggle','tpo-anchor','tpo-row-size','tpo-source','tpo-layout','price-chart-style'];
 const midnightCache=new Map();
 function nyMidnight(day){
   if(midnightCache.has(day))return midnightCache.get(day);
@@ -68,17 +68,32 @@ export function selectTpoBars(window,minutes,now){
   }
   return {bars,source:fallback?(used.length?'M1/M15':'M15'):'M1',fallback};
 }
-export function buildTpo(window,{minutes=[],now=Date.now(),rowSize=.5,source='AUTO'}={}){
+export function buildTpo(window,{minutes=[],trades=[],now=Date.now(),rowSize=.5,source='AUTO'}={}){
   if(!(rowSize>=.01&&rowSize<=100))throw Error('Bước giá TPO không hợp lệ');
   const selected=source==='M15'?{bars:window.bars.filter(b=>b.t<now),source:'M15',fallback:window.bars.length}:selectTpoBars(window,minutes,now);
   const bins=new Map();let ibLow=Infinity,ibHigh=-Infinity,work=0;
+  const covered=new Map(source==='TRADES'?trades.filter(t=>{
+    const end=Math.min(t.start+1800000,window.end);
+    return t.start>=window.start&&t.start<window.end&&t.until>t.start&&t.until>=(now>=end?end:now-30000);
+  }).map(t=>[Math.floor((t.start-window.start)/1800000),t]):[]);
+  const add=(i,block)=>{if(!bins.has(i))bins.set(i,new Set());bins.get(i).add(block);};
+  const fallbackBlocks=new Set();
+  for(const [block,t] of covered){
+    for(const p of t.prices){
+      if(!Number.isFinite(p)||p<=0)continue;
+      add(Math.floor((p+rowSize*1e-9)/rowSize),block);
+      if(block<2){ibLow=Math.min(ibLow,p);ibHigh=Math.max(ibHigh,p);}
+    }
+  }
   for(const b of selected.bars){
     if(![b.t,b.l,b.h].every(Number.isFinite)||b.l<=0||b.h<b.l||b.t>=now)continue;
     const block=Math.floor((b.t-window.start)/1800000);if(block<0||b.t>=window.end)continue;
+    if(covered.has(block))continue;
+    fallbackBlocks.add(block);
     if(b.t<window.start+3600000){ibLow=Math.min(ibLow,b.l);ibHigh=Math.max(ibHigh,b.h);}
     const first=Math.floor((b.l+rowSize*1e-9)/rowSize),last=Math.floor((b.h+rowSize*1e-9)/rowSize);
     if(last-first>5000||(work+=last-first+1)>500000)throw Error('TPO quá dày; tăng bước giá');
-    for(let i=first;i<=last;i++){if(!bins.has(i))bins.set(i,new Set());bins.get(i).add(block);}
+    for(let i=first;i<=last;i++)add(i,block);
   }
   // Keep zero-count gaps so Value Area always expands through adjacent rows.
   const indexes=[...bins.keys()].sort((a,b)=>a-b),rows=[];
@@ -89,7 +104,11 @@ export function buildTpo(window,{minutes=[],now=Date.now(),rowSize=.5,source='AU
   const observedEnd=Math.min(window.end,Math.ceil(now/900000)*900000);
   const expected=Math.max(0,Math.ceil((observedEnd-window.start)/900000));
   const ibComplete=now>=window.start+3600000&&Array.from({length:4},(_,i)=>window.start+i*900000).every(t=>observed.has(t));
-  return {...window,rows,va,rowSize,source:selected.source,approximate:selected.fallback>0,
+  const tradeSource=covered.size?(fallbackBlocks.size?'TRADES/'+selected.source:'TRADES'):selected.source;
+  const firstMulti=rows.findIndex(r=>r.blocks.length>1),lastMulti=rows.findLastIndex(r=>r.blocks.length>1);
+  const singles=rows.filter((r,i)=>r.blocks.length===1&&i>firstMulti&&firstMulti>=0&&i<lastMulti).map(r=>r.index);
+  return {...window,rows,va,rowSize,source:tradeSource,approximate:fallbackBlocks.size>0,
+    tradeBlocks:covered.size,fallbackBlocks:fallbackBlocks.size,singles,
     missing:Math.max(0,expected-observed.size),forming:now<window.end,
     ib:Number.isFinite(ibLow)?{low:ibLow,high:ibHigh,complete:ibComplete}:null};
 }
@@ -101,3 +120,4 @@ export function parseTpoMinutes(raw,now){
     if(t<now)map.set(t,{t,o,h,l,c,v,end});
   }return [...map.values()].sort((a,b)=>a.t-b.t);
 }
+
