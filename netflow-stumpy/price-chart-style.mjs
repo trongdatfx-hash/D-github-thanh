@@ -2,6 +2,11 @@ export function priceCandleData(data,lineMode){
   if(!lineMode)return data;
   return data.map(row=>({...row,color:'transparent',borderColor:'transparent',wickColor:'transparent'}));
 }
+export function priceCloseLineData(bars,candles=[]){
+  const colors=new Map(candles.map(row=>[row.time,row.color]));
+  return bars.map(bar=>({time:bar.t/1000,value:bar.c,
+    color:colors.get(bar.t/1000)??(bar.c>=bar.o?'#26a69a':'#ef5350')}));
+}
 export function mountPriceChartStyle({chart,price,actions,host,L,writeSeries,onChange}){
   const select=document.createElement('select');select.id='price-chart-style';select.hidden=true;
   select.innerHTML='<option value="CANDLES">Nến</option><option value="LINE">Line</option>';
@@ -12,12 +17,12 @@ export function mountPriceChartStyle({chart,price,actions,host,L,writeSeries,onC
   const line=chart.addSeries(L.LineSeries,{color:'#62bcff',lineWidth:2,visible:false,priceLineVisible:true,lastValueVisible:true,crosshairMarkerVisible:true,title:''},0);
   const isLine=()=>select.value==='LINE';
   button.onclick=()=>{select.value=isLine()?'CANDLES':'LINE';onChange();};
-  function update(bars,priceFormat,key){
+  function update(bars,priceFormat,key,candles=[]){
     const active=isLine();
     // Keep OHLC alive as coordinate host of TPO/orderbook primitives.
     price.applyOptions({priceLineVisible:!active,lastValueVisible:!active});
     line.applyOptions({visible:active,priceFormat});
-    writeSeries('price-close-line',line,active?bars.map(b=>({time:b.t/1000,value:b.c})):[],key+'|'+select.value);
+    writeSeries('price-close-line',line,active?priceCloseLineData(bars,candles):[],key+'|'+select.value);
     button.textContent=active?'Dạng giá: LINE':'Dạng giá: NẾN';button.setAttribute('aria-pressed',String(active));
     host.dataset.priceChartStyle=select.value;
     return active;

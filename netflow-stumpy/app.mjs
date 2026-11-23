@@ -2,7 +2,7 @@ import {CHART_SETUP_KEY,readChartSetup,restoreSetupControls} from './chart-setup
 import {mountOrderBook} from './orderbook-ui.mjs?v=20261119-book1';
 import {mountTpo} from './tpo-ui.mjs?v=20261123-tpo-midnight1';
 import {TPO_CONTROL_IDS} from './tpo-profile.mjs?v=20261123-tpo-midnight1';
-import {mountPriceChartStyle} from './price-chart-style.mjs?v=20261123-tpo-midnight1';
+import {mountPriceChartStyle} from './price-chart-style.mjs?v=20261123-line-colors1';
 let priceStyleLayer;
 let tpoLayer;
 import {h1AccumulatedStops} from './stop-loss-h1.mjs?v=20261114-slh1b';
@@ -826,7 +826,7 @@ function render(fit=false){
     const color=spyVSignColor(bodyVolumeByTime.get(x.t)?.adjusted);
     return {time:x.t/1000,open:x.o,high:x.h,low:x.l,close:x.c,color,wickColor:color,borderColor:color};
   });
-  const linePriceMode=priceStyleLayer?.update(p,$('symbol').value==='SPYUSDT'?{type:'price',precision:1,minMove:.1}:{type:'price',precision:2,minMove:.01},seriesContext)??false;
+  const linePriceMode=priceStyleLayer?.update(p,$('symbol').value==='SPYUSDT'?{type:'price',precision:1,minMove:.1}:{type:'price',precision:2,minMove:.01},seriesContext,priceData)??false;
   writeSeries('price',price,priceStyleLayer?.candleData(priceData)??priceData,seriesContext+'|price-line:'+linePriceMode);
   h1OiMarkerCoverage={};
   h1OiMarkers=h1Wlr&&oiStamp==='15m'&&$('h1-oi-markers-toggle')?.checked?scoreH1OiMarkers({boxes:h1ScoreRecords,bars:p,oi:oiWidths,now:closedBefore,coverage:h1OiMarkerCoverage}):[];
@@ -842,7 +842,7 @@ function render(fit=false){
   setOptions(series.oiCandleBars,{visible:oiBarsEnabled});
   const boldEnabled=$('oi-bold-candles-toggle')?.checked&&$('symbol').value==='SPYUSDT';
   const boldData=boldEnabled?priceData.filter(x=>oiBarState.points.get(x.time*1000)?.matched).map(x=>({...x,oiKind:oiBarState.points.get(x.time*1000).kind})):[];
-  oiBoldCandles.setData(linePriceMode?[]:boldData);$('chart').dataset.oiBoldCandlesState=linePriceMode||!boldEnabled?'off':oiBarState.gateReady?'ready':'WAIT';$('chart').dataset.oiBoldCandlesCount=String(linePriceMode?0:boldData.length);$('chart').dataset.oiDownIncreaseCount=String(oiBarState.downOiIncrease??0);$('chart').dataset.oiCandleGroups=JSON.stringify(oiBarState.groups);$('chart').dataset.oiThresholdMethod='percentile';$('chart').dataset.oiThresholdPercentile=$('oi-delta-percentile')?.value??'0.62';
+  oiBoldCandles.setData(boldData);$('chart').dataset.oiBoldCandlesState=!boldEnabled?'off':oiBarState.gateReady?'ready':'WAIT';$('chart').dataset.oiBoldCandlesCount=String(boldData.length);$('chart').dataset.oiDownIncreaseCount=String(oiBarState.downOiIncrease??0);$('chart').dataset.oiCandleGroups=JSON.stringify(oiBarState.groups);$('chart').dataset.oiThresholdMethod='percentile';$('chart').dataset.oiThresholdPercentile=$('oi-delta-percentile')?.value??'0.62';
   $('chart').dataset.oiCandleBarsState=!oiBarsEnabled?'off':oiBarState.gateReady?'ready':'WAIT';
   $('chart').dataset.oiCandleBarsPane=String(series.oiCandleBars.getPane().paneIndex());
   $('chart').dataset.oiCandleBarsMatched=String(oiBarState.matched);$('chart').dataset.oiCandleBarsEligible=String(oiBarState.eligible);
