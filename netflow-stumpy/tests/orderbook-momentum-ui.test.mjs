@@ -43,9 +43,10 @@ test('shared sequenced depth reaches the readout; toggle persists, symbol resets
       tape.frame({e:'aggTrade',s:'SPYUSDT',E:time,a:t,p:'100',q:'2',m:false});time+=200;layer.momentum.render();
     }
     assert.equal(layer.momentum.node.dataset.quality,'live');
-    assert.match(layer.momentum.node.children[0].textContent,/OB SPYUSDT/);
-    assert.match(layer.momentum.node.children[1].textContent,/15s · Δ .*USDT · Lệch .* · Book/);
+    assert.match(layer.momentum.node.children[0].textContent,/OB 5p/);
+    assert.match(layer.momentum.node.children[1].textContent,/TẠM 15s · Δ .*USDT · Lệch .*\nBook/);
     assert.equal(layer.momentum.node.hidden,false);
+    const horizon=registry.get('orderbook-momentum-horizon');horizon.value='600';horizon.handlers.change();assert.equal(layer.momentum.model.horizon,600);assert.equal(JSON.parse(saved.get('dvp:orderbook:v1')).momentumHorizon,600);
     const toggle=registry.get('orderbook-momentum-toggle');toggle.checked=false;toggle.handlers.change();
     assert.equal(layer.momentum.node.hidden,true);assert.equal(JSON.parse(saved.get('dvp:orderbook:v1')).momentum,false);
     toggle.checked=true;toggle.handlers.change();symbolControl.value='QQQUSDT';symbolControl.handlers.change();

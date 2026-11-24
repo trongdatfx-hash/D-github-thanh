@@ -1,21 +1,25 @@
-import {BinanceDepthFeed,autoBookStep,groupBook} from './orderbook-core.mjs?v=20261124-ob-smooth2';
-import {mountMomentumReadout} from './orderbook-momentum-ui.mjs?v=20261124-ob-smooth2';
+import {BinanceDepthFeed,autoBookStep,groupBook} from './orderbook-core.mjs?v=20261124-ob-long3';
+import {mountMomentumReadout} from './orderbook-momentum-ui.mjs?v=20261124-ob-long3';
 import {SpectrumPrimitive} from './spectrum-primitive.mjs?v=20261104-oi-smooth1';
 
 export function mountOrderBook({chart,price,host,actions,symbolControl}){
-  const key='dvp:orderbook:v1';let options={enabled:true,step:0,width:.18,values:true,momentum:true};
+  const key='dvp:orderbook:v1';let options={enabled:true,step:0,width:.18,values:true,momentum:true,momentumHorizon:300};
   try{const saved=JSON.parse(localStorage.getItem(key));if(saved&&typeof saved==='object')options={...options,...saved};}catch{}
   options.enabled=options.enabled!==false;options.step=[0,.01,.05,.1,.25,.5,1,2,5].includes(options.step)?options.step:0;options.width=[.1,.18,.25].includes(options.width)?options.width:.18;
   let book=null,state='connecting',drawing=0;
   const button=document.createElement('button');button.id='orderbook-toggle';button.type='button';button.title='Lệnh chờ Binance Futures: Bid xanh / Ask đỏ cam';
   const settings=document.createElement('details');settings.id='orderbook-settings';
-  settings.innerHTML='<summary aria-label="Cài đặt Order Book">OB ⚙</summary><div class="orderbook-panel"><label>Bước giá <select id="orderbook-step"><option value="0">Tự động</option><option>0.01</option><option>0.05</option><option>0.1</option><option>0.25</option><option>0.5</option><option>1</option><option>2</option><option>5</option></select></label><label>Độ rộng <select id="orderbook-width"><option value="0.1">10%</option><option value="0.18">18%</option><option value="0.25">25%</option></select></label><label><input id="orderbook-values" type="checkbox">Khối lượng</label><small>Bid: mua chờ · Ask: bán chờ. Đơn vị khối lượng gốc. Động lực dùng thêm giao dịch khớp theo 5–15–60 giây, cần dữ liệu liên tục; REST chỉ hiện lệnh chờ.</small></div>';
+  settings.innerHTML='<summary aria-label="Cài đặt Order Book">OB ⚙</summary><div class="orderbook-panel"><label>Bước giá <select id="orderbook-step"><option value="0">Tự động</option><option>0.01</option><option>0.05</option><option>0.1</option><option>0.25</option><option>0.5</option><option>1</option><option>2</option><option>5</option></select></label><label>Độ rộng <select id="orderbook-width"><option value="0.1">10%</option><option value="0.18">18%</option><option value="0.25">25%</option></select></label><label><input id="orderbook-values" type="checkbox">Khối lượng</label><small>Bid: mua chờ · Ask: bán chờ. Đơn vị khối lượng gốc. Động lực dùng thêm giao dịch khớp theo 3/5/10 phút, cần dữ liệu liên tục; REST chỉ hiện lệnh chờ.</small></div>';
   const style=document.createElement('style');style.textContent='#orderbook-toggle{font-variant-numeric:tabular-nums}#orderbook-toggle[data-state=live]{color:#49e3b7}#orderbook-toggle[data-state=offline]{color:#ffb46b}#orderbook-settings{flex:0 0 auto;margin:0;padding:0;border:0;background:transparent}#orderbook-settings>summary{cursor:pointer;padding:5px 7px;font:600 12px system-ui;color:#cedbea;white-space:nowrap}#orderbook-settings .orderbook-panel{position:absolute;right:8px;top:100%;z-index:65;width:min(300px,calc(100vw - 24px));padding:12px;border:1px solid #48617b;border-radius:6px;background:#101c2d;color:#dce8f6;box-shadow:0 8px 22px #0008;display:grid;gap:12px;font:14px/1.45 system-ui;pointer-events:auto}#orderbook-settings:not([open]) .orderbook-panel{display:none}#orderbook-settings label{display:flex;align-items:center;justify-content:space-between;gap:10px}#orderbook-settings select{font:inherit;padding:4px 7px}#orderbook-settings small{font-size:12px;color:#aebfd3}.chart-head:has(#orderbook-settings[open]){z-index:70!important}';
   host.append(style);const anchor=actions.querySelector('#fullscreen');if(anchor)anchor.after(button,settings);else actions.append(button,settings);
   const stepInput=settings.querySelector('#orderbook-step'),widthInput=settings.querySelector('#orderbook-width'),valueInput=settings.querySelector('#orderbook-values');
   const momentumInput=document.createElement('input');momentumInput.type='checkbox';momentumInput.id='orderbook-momentum-toggle';momentumInput.checked=options.momentum!==false;
   const momentumLabel=document.createElement('label');momentumLabel.append('Động lực mua/bán',momentumInput);settings.querySelector('.orderbook-panel').append(momentumLabel);
-  const momentum=mountMomentumReadout({chart,host,symbolControl});
+  const horizonLabel=document.createElement('label'),horizonInput=document.createElement('select');horizonInput.id='orderbook-momentum-horizon';
+  for(const seconds of [180,300,600]){const option=document.createElement('option');option.value=String(seconds);option.textContent=seconds/60+' phút';horizonInput.append(option);}
+  options.momentumHorizon=[180,300,600].includes(Number(options.momentumHorizon))?Number(options.momentumHorizon):300;horizonInput.value=String(options.momentumHorizon);
+  horizonLabel.append('Tổng kết động lực',horizonInput);settings.querySelector('.orderbook-panel').append(horizonLabel);
+  const momentum=mountMomentumReadout({chart,host,symbolControl,horizon:options.momentumHorizon});
   stepInput.value=String(options.step);widthInput.value=String(options.width);valueInput.checked=options.values;
   const persist=()=>{try{localStorage.setItem(key,JSON.stringify(options));}catch{}};
   const displayState=()=>{
@@ -55,6 +59,7 @@ export function mountOrderBook({chart,price,host,actions,symbolControl}){
   const redraw=()=>{if(!drawing)drawing=requestAnimationFrame(()=>{drawing=0;primitive.redraw();});};
   const feed=new BinanceDepthFeed({onState:(next,error)=>{state=next;button.title=error?`Order Book Binance: ${error}`:'Lệnh chờ Binance Futures: Bid xanh / Ask đỏ cam';displayState();redraw();},onBook:next=>{momentum.onBook(next);book=next;host.dataset.orderbookUpdatedAt=next?String(Date.now()):'';host.dataset.orderbookTransport=next?.transport??'';displayState();redraw();}});
   const restart=()=>{book=null;momentum.stop();if(options.enabled&&!document.hidden){if(momentumInput.checked)momentum.start(symbolControl.value);feed.start(symbolControl.value);}else{feed.stop();state=document.hidden?'offline':'connecting';displayState();redraw();}};
+  horizonInput.addEventListener('change',()=>{options.momentumHorizon=Number(horizonInput.value);persist();momentum.setHorizon(options.momentumHorizon);});
   momentumInput.addEventListener('change',()=>{options.momentum=momentumInput.checked;persist();restart();});
   button.addEventListener('click',()=>{options.enabled=!options.enabled;persist();restart();});
   for(const input of [stepInput,widthInput,valueInput])input.addEventListener('change',()=>{options.step=Number(stepInput.value);options.width=Number(widthInput.value);options.values=valueInput.checked;persist();redraw();});

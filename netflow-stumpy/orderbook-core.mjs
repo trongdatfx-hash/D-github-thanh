@@ -118,7 +118,7 @@ export class BinanceDepthFeed {
           for(const event of buffer){if(!current())break;accept(event);}buffer.length=0;
           if(!current())return;
           clearTimeout(this.timeout);const started=this.now();
-          this.watchdog=setInterval(()=>{if(!current())return;if(this.now()-(this.lastReceived||started)>10000||this.now()-started>180000)fail();},1000);
+          this.watchdog=setInterval(()=>{if(!current())return;if(this.now()-(this.lastReceived||started)>10000||this.now()-started>1200000)fail();},1000);
         }catch{fail();}
       };
       this.socket.onmessage=message=>{

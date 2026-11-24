@@ -1,48 +1,36 @@
-# Động lực orderbook Binance USD-M
+# Động lực orderbook — cửa sổ dài
 
-Nhãn OB là phân tích trực tiếp, độc lập khung nến và lịch sử chart. Nó không thay đổi lệnh, điều kiện TK V2 hay màu nến. Không suy luận mở/đóng Long/Short từ sổ lệnh.
+Mặc định tổng kết 5 phút. OB ⚙ > Tổng kết động lực cho phép chọn 3, 5 hoặc 10 phút; lưu trên trình duyệt. Dữ liệu chưa đủ cửa sổ chọn sẽ dùng cửa sổ nhỏ hơn đã đủ (3 phút, 1 phút, 15 giây) và ghi TẠM trên nhãn. Không dựng lịch sử orderbook từ nến. Cửa sổ 5 giây chỉ phục vụ chẩn đoán.
 
-## Dữ liệu
+## Ngưỡng hướng giá
 
-- Tái sử dụng `BinanceDepthFeed`: snapshot 1.000 mức và diff depth 100 ms, kiểm tra cầu nối U/u và chuỗi pu. Endpoint `/public/ws/`.
-- Thêm aggTrade qua `/market/ws/`, dùng cờ `m`: true là bán chủ động, false là mua chủ động. Tổng hợp `price * quantity` theo USDT.
-- ID aggTrade trùng/bị lùi được bỏ; nhảy ID đặt lại cửa sổ. Mất kết nối, thay mã và quay lại tab cũng đặt lại.
-- Chỉ luồng depth đã nối snapshot mới được dùng. REST fallback vẫn vẽ lệnh chờ, nhưng nhãn động lực ghi CHỈ CÓ LỆNH CHỜ.
-- Depth quá 5 giây hoặc thời gian bản tin trade lệch quá 5 giây không được dùng kết luận. Nếu không có trade mới trong 60 giây, ghi CHỜ GIAO DỊCH. Đồng hồ thiết bị phải đúng giờ.
+| Cửa sổ | Giá ròng tối thiểu | Lệch khớp | Số bản tin khớp tối thiểu |
+|---|---|---|---|
+| 15/60 giây | 1,5 spread bình quân | 30% | 10 |
+| 3 phút | 2 spread bình quân | 30% | 20 |
+| 5 phút | 3 spread bình quân | 30% | 30 |
+| 10 phút | 4 spread bình quân | 30% | 50 |
 
-## Các phép đo
+Giá phải đi cùng dấu delta. Xác nhận cần Book cùng hướng >=12%, hoặc OFI >=10%, hoặc đồng thời Book, OFI và microprice cùng hướng. Spread là ask tốt nhất trừ bid tốt nhất; giá ròng dùng mid đầu/cuối cửa sổ. Ngưỡng là quy tắc thử nghiệm, chưa xác nhận lợi nhuận.
 
-- Book: `(B - A) / (B + A)`, với B/A là tổng `price * quantity / (rank + 1)` của tối đa 20 mức gần nhất mỗi phía.
-- Microprice: `(ask * bidQty + bid * askQty) / (bidQty + askQty)`; chênh so với mid theo bps.
-- OFI theo thay đổi giá/khối lượng tại best bid/ask, chuẩn hóa bằng tổng độ sâu L1 của các lần cập nhật trong cửa sổ. Đây là OFI quote, khác delta giao dịch khớp.
-- Delta giao dịch: mua chủ động trừ bán chủ động. % cửa sổ là delta chia tổng khớp, không phải xác suất thắng.
-- Bổ sung thanh khoản chỉ tính tăng khối lượng tại cùng mức giá có trong hai ảnh liên tiếp; không gọi mức mới đi vào top 20 là bổ sung. Không khẳng định giảm độ sâu là hủy lệnh hay spoofing.
+Book dùng 20 mức mỗi bên, trọng số price*quantity/rank. Delta dùng notional USDT của aggTrade mua chủ động trừ bán chủ động; cờ m=true là bán chủ động. Lệch = delta/tổng khớp. OFI là biến động hàng chờ tại best bid/ask, chuẩn hóa theo độ sâu L1 các lần cập nhật. Microprice = (ask*bidQty+bid*askQty)/(bidQty+askQty).
 
-## Trạng thái thử nghiệm
+Hấp thụ vẫn cần lực khớp >=30%, đủ số bản tin tương ứng cửa sổ, ít nhất 5 mẫu quote; |giá ròng| <=0,25 spread, range <=2 spread, tổng khớp >=15% độ sâu đối ứng có trọng số, bổ sung tại cùng mức giá >=10% |delta|. Đây là giả thuyết, không xác nhận iceberg/spoofing hay mở/đóng Long/Short.
 
-Cửa sổ 5/15/60 giây dùng các bucket 1 giây đã kết thúc. Mỗi cửa sổ phải có đủ thời gian kết nối liên tục và quote trong ít nhất 3 bucket giây. Chỉ 62 bucket được lưu; không lưu từng trade. Quote được lấy mẫu tối đa 5 lần/giây; OFI và biến động độ sâu vẫn tính trên từng diff được chấp nhận.
+## Làm ổn định và nhãn
 
-- MUA ĐẨY GIÁ / BÁN ÉP GIÁ: ít nhất 5 trade, |delta/tổng khớp| >= 25%, giá đi cùng chiều >= 0,5 spread bình quân và có Book/OFI/microprice hỗ trợ.
-- MUA/BÁN BỊ HẤP THỤ: lực chủ động >= 25%, giá ròng <= 0,25 spread, range <= 2 spread, ít nhất 5 mẫu quote, tổng khớp >= 15% độ sâu đối ứng có trọng số và thanh khoản đối ứng bổ sung >= 10% |delta|. Đây là giả thuyết dựa trên các luồng bất đồng bộ, chưa xác nhận iceberg hay ý định của người đặt lệnh.
-- CHƯA RÕ khi thiếu đồng thuận; CHỜ GIAO DỊCH khi số khớp quá ít.
+Giữ nguyên xác nhận hướng mới 8s, đổi loại/hướng 15s và trạng thái cũ tối thiểu 20s trước khi đảo. Về CHƯA RÕ cần 20s. Lệch lớn có thể rút xác nhận còn 5s, vẫn cần điều kiện giá và thời gian giữ. Lệch lớn: >=20 khớp, lệch >=45%, |delta| >=50% độ sâu đối ứng và Book >=20% hoặc OFI >=15% cùng hướng.
 
-Nhãn chính ưu tiên 60 giây; khi chưa đủ thời gian mới dùng 15 giây. Không dùng 5 giây để đảo nhãn chính. Xác nhận hướng mới 8 giây; đổi sang trạng thái khác hướng/loại cần 15 giây và giữ trạng thái cũ tối thiểu 20 giây. Về CHƯA RÕ/ít khớp cần 20 giây. Lệch lớn có thể rút xác nhận còn 5 giây, vẫn giữ điều kiện phản ứng giá và thời gian giữ trước khi đảo. Lệch lớn cần >=20 trade, |delta/tổng| >=45%, |delta| >=50% độ sâu đối ứng có trọng số và Book >=20% hoặc OFI >=15% cùng hướng. Đây là ngưỡng thử nghiệm, không phải ngưỡng tuyệt đối dùng cho mọi thị trường.
+Tiêu đề OB 5p/3p/10p + trạng thái. Hai dòng phụ chứa delta USDT, lệch %, Book %, cờ LỆCH LỚN. TẠM cho biết cửa sổ thực còn ngắn hơn lựa chọn. Cỡ chữ desktop 14/13px, mobile 13/12px. Khung cố định chiều rộng tối đa 370px và giới hạn theo màn hình; chữ xuống dòng, dành sẵn chiều cao dòng tổng kết.
 
-Dòng tổng kết cập nhật mỗi 5 giây; tỷ lệ Book và lệch khớp được EWMA theo thời gian với nửa đời 15 giây, hiển thị làm tròn 5 điểm phần trăm. Delta vẫn là tổng USDT thực trong cửa sổ. Tỷ lệ làm mượt chỉ dùng hiển thị, không giả làm số liệu gốc. Bỏ nhãn xác nhận nhấp nháy và Book tức thời khỏi dòng tiêu đề. Mất đồng bộ/xảy ra gap hoặc đổi mã xóa hướng ngay.
+Tổng kết hiển thị mỗi 5s; tỷ lệ EWMA có nửa đời 15s, làm tròn nấc 5 điểm %. Delta là tổng thực của cửa sổ. Tỷ lệ không phải xác suất thắng. Không sửa điều kiện TK V2.
 
-## Giao diện và giới hạn
+## Đồng bộ và tài nguyên
 
-Nhãn nằm ngay trên nhóm CVD/tuổi H1, hoặc gần đáy pane giá khi nhóm đó ẩn. Bật/tắt ở OB ⚙ > Động lực mua/bán; tự ghi nhớ cùng cài đặt Order Book. Tắt Order Book sẽ dừng cả hai luồng. Trang ẩn sẽ ngắt luồng, mở lại phải tích lũy lại.
+Snapshot depth + U/u/pu theo Binance USD-M, depth 100ms qua /public/ws/, aggTrade qua /market/ws/. Giữ tối đa 602 bucket một giây, không lưu từng trade. Thời gian kết nối phải đủ cửa sổ và có quote trong ít nhất 3 bucket. Đứt chuỗi, reconnect, đổi mã hoặc tab trở lại sẽ tích lũy lại; không ghép qua khoảng mất dữ liệu.
 
-Mỗi mã chỉ phản ánh thị trường Binance USD-M tương ứng, không phải toàn thị trường SPY/QQQ hay ES. Tín hiệu có quy tắc cố định, chưa được hiệu chỉnh/xác thực lợi nhuận trên lịch sử depth thực của SPYUSDT/QQQUSDT. Không dựng lại lịch sử orderbook từ nến M15.
+Chu kỳ nối lại depth chủ động tăng từ 3 lên 20 phút để cửa sổ 5/10 phút có thể tích lũy. Watchdog mất bản tin, giá chéo và các kiểm tra chuỗi vẫn giữ. Chỉ dùng vùng giá đã được snapshot bao phủ. REST chỉ vẽ lệnh chờ, không kết luận động lực. Depth cũ quá 5s bỏ hướng; không trade trong 60s ghi CHỜ GIAO DỊCH.
 
 ## Kiểm tra
 
-`node --test netflow-stumpy/tests/orderbook.test.mjs netflow-stumpy/tests/orderbook-momentum.test.mjs`
-
-## Tham khảo
-
-- https://developers.binance.com/docs/derivatives/usds-margined-futures/websocket-market-streams/How-to-manage-a-local-order-book-correctly
-- https://developers.binance.com/en/docs/products/derivatives-trading-usds-futures/websocket-market-streams/Important-WebSocket-Change-Notice
-- https://hftbacktest.readthedocs.io/en/latest/tutorials/Market%20Making%20with%20Alpha%20-%20Order%20Book%20Imbalance.html
-- https://github.com/mamonet/orderbook-heatmap (ý tưởng giao diện/nhóm chỉ số; không dùng nguyên bộ dựng orderbook hoặc điểm LONG/SHORT)
+node --test netflow-stumpy/tests/orderbook.test.mjs netflow-stumpy/tests/orderbook-momentum.test.mjs netflow-stumpy/tests/orderbook-momentum-stability.test.mjs netflow-stumpy/tests/orderbook-momentum-ui.test.mjs netflow-stumpy/tests/orderbook-long.test.mjs

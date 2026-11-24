@@ -1,5 +1,5 @@
 // Read-only USD-M microstructure analytics. Percentages describe flow, not win probability.
-export const MOMENTUM_WINDOWS=[5,15,60];
+export const MOMENTUM_WINDOWS=[5,15,60,180,300,600];
 export const MOMENTUM_LABELS={buy:'MUA ĐẨY GIÁ',sell:'BÁN ÉP GIÁ',buyAbsorbed:'MUA BỊ HẤP THỤ',sellAbsorbed:'BÁN BỊ HẤP THỤ',mixed:'CHƯA RÕ',quiet:'CHỜ GIAO DỊCH',warming:'ĐANG TÍCH LŨY',offline:'MẤT KẾT NỐI',snapshot:'CHỈ CÓ LỆNH CHỜ'};
 const clamp=(x,lo=-1,hi=1)=>Math.max(lo,Math.min(hi,x));
 const sum=values=>values.reduce((a,b)=>a+b,0);
@@ -23,10 +23,12 @@ export function quoteOfi(previous,next){
 
 export function classifyWindow(w){
   if(!w.ready)return 'warming';
-  if(w.count<5||w.total<=0)return 'quiet';
-  const direction=Math.sign(w.flow),strong=Math.abs(w.flow)>=.25;
-  const supports=direction*w.obi>=.08||direction*w.ofi>=.08||direction*w.microBps>0;
-  if(strong&&direction*w.moveSpreads>=.5&&supports)return direction>0?'buy':'sell';
+  const minCount=w.seconds>=600?50:w.seconds>=300?30:w.seconds>=180?20:10;
+  if(w.count<minCount||w.total<=0)return 'quiet';
+  const direction=Math.sign(w.flow),strong=Math.abs(w.flow)>=.30;
+  const supports=direction*w.obi>=.12||direction*w.ofi>=.10||(direction*w.microBps>0&&direction*w.obi>0&&direction*w.ofi>0);
+  const minMove=w.seconds>=600?4:w.seconds>=300?3:w.seconds>=180?2:1.5;
+  if(strong&&direction*w.moveSpreads>=minMove&&supports)return direction>0?'buy':'sell';
   // Absorption is a hypothesis requiring repeated quotes, turnover and replenishment.
   const refill=direction>0?w.askRefill:w.bidRefill,opposing=direction>0?w.askDepth:w.bidDepth;
   if(strong&&w.samples>=5&&Math.abs(w.moveSpreads)<=.25&&w.rangeSpreads<=2
@@ -37,7 +39,8 @@ export function classifyWindow(w){
 }
 
 export class OrderBookMomentum {
-  constructor({now=()=>Date.now()}={}){this.now=now;this.reset('');}
+  constructor({now=()=>Date.now(),horizon=300}={}){this.now=now;this.setHorizon(horizon);this.reset('');}
+  setHorizon(seconds){this.horizon=[180,300,600].includes(Number(seconds))?Number(seconds):300;this.summary=null;this.candidate=null;this.confirmations=0;this.stable='mixed';this.stateSince=0;}
   reset(symbol){
     this.symbol=symbol;this.buckets=new Map();this.latest=null;this.previous=null;this.bookSince=null;this.tapeSince=null;
     this.lastBookAt=null;this.lastTradeAt=null;this.lastTradeId=null;this.lastSampleAt=null;this.bookRef=null;this.tapeConnected=false;
@@ -52,7 +55,7 @@ export class OrderBookMomentum {
   }
   bucket(now){
     const key=Math.floor(now/1000);
-    for(const k of this.buckets.keys())if(k<key-61)this.buckets.delete(k);
+    for(const k of this.buckets.keys())if(k<key-601)this.buckets.delete(k);
     if(!this.buckets.has(key))this.buckets.set(key,{time:key*1000,buy:0,sell:0,count:0,samples:0,obi:0,micro:0,ofi:0,ofiScale:0,bidRefill:0,askRefill:0});
     return this.buckets.get(key);
   }
@@ -115,13 +118,13 @@ export class OrderBookMomentum {
     if(this.transport==='REST'){quality='snapshot';reason='Snapshot REST không đủ để đọc động lực theo giây.';}
     else if(!this.latest||this.lastBookAt===null||now-this.lastBookAt>5000){quality='offline';reason='Orderbook chưa đồng bộ hoặc đã cũ.';}
     else if(!this.tapeConnected){quality='offline';reason='Luồng giao dịch khớp chưa kết nối.';}
-    else if(!windows[1].ready){quality='warming';reason='Tích lũy 15 giây; nhãn chính ưu tiên tổng kết 60 giây.';}
+    else if(!windows[1].ready){quality='warming';reason='Tích lũy 15 giây; cửa sổ dài sẽ mở khi đủ dữ liệu.';}
     else if(this.lastTradeAt===null||now-this.lastTradeAt>60000){quality='quiet';reason='Không có giao dịch khớp mới trong 60 giây để tổng kết.';}
     if(quality!=='live'){
       this.stable='mixed';this.candidate=null;this.confirmations=0;this.summary=null;this.stateSince=0;
       return {quality,state:quality,label:MOMENTUM_LABELS[quality],reason,windows,book:this.latest};
     }
-    const primary=windows[2].ready?windows[2]:windows[1];let raw=primary.state;
+    const primary=[...windows].reverse().find(w=>w.seconds<=this.horizon&&w.ready)??windows[1];let raw=primary.state;
     // Fast-window disagreement is diagnostic only; it cannot flip the 60s headline.
     const side=Math.sign(primary.flow),opposing=side>0?primary.askDepth:primary.bidDepth;
     const large=primary.count>=20&&Math.abs(primary.flow)>=.45&&opposing>0&&Math.abs(primary.delta)>=opposing*.5
@@ -142,7 +145,7 @@ export class OrderBookMomentum {
     // Sample display totals once every 5s; smooth ratios by elapsed time (15s half-life).
     if(!this.summary||now-this.summary.at>=5000){
       const prior=this.summary,alpha=prior?1-Math.exp(-Math.LN2*(now-prior.at)/15000):1;
-      this.summary={at:now,seconds:primary.seconds,flow:prior?prior.flow+alpha*(primary.flow-prior.flow):primary.flow,
+      this.summary={at:now,seconds:primary.seconds,targetSeconds:this.horizon,flow:prior?prior.flow+alpha*(primary.flow-prior.flow):primary.flow,
         obi:prior?prior.obi+alpha*(primary.obi-prior.obi):primary.obi,delta:primary.delta,large};
     }
     return {quality,state:this.stable,label:MOMENTUM_LABELS[this.stable],pending:raw!==this.stable,raw,windows,book:this.latest,summary:this.summary};

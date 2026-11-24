@@ -28,7 +28,7 @@ test('weighted depth and microprice use the opposing quote; OFI signs are symmet
 test('buy and sell pressure require executed flow and price response across mature windows',()=>{
   for(const direction of [1,-1]){
     const s=simulation({direction}),r=s.read();assert.equal(r.quality,'live');assert.equal(r.state,direction>0?'buy':'sell');
-    assert.deepEqual(r.windows.map(w=>w.ready),[true,true,true]);assert.ok(r.windows.every(w=>w.state===(direction>0?'buy':'sell')));
+    assert.deepEqual(r.windows.slice(0,3).map(w=>w.ready),[true,true,true]);assert.ok(r.windows.slice(0,3).every(w=>w.state===(direction>0?'buy':'sell')));
   }
 });
 test('absorption needs flat price, executed turnover and visible same-price replenishment',()=>{
@@ -59,7 +59,7 @@ test('old depth, no recent trades and REST never retain an actionable headline',
   const q=simulation();q.setTime(q.time+16000);q.model.onBook(q.b);assert.notEqual(q.read().quality,'live');
 });
 test('bounded one-second storage and repeated reads do not manufacture confirmations',()=>{
-  const s=simulation({until:180000});assert.ok(s.model.buckets.size<=63);
+  const s=simulation({until:180000});assert.ok(s.model.buckets.size<=603);
   const m=s.model;m.stable='mixed';m.candidate=null;m.lastConfirmAt=null;for(let i=0;i<100;i++)m.read();assert.equal(m.stable,'mixed');
 });
 class Socket {
