@@ -44,7 +44,7 @@ test('shared sequenced depth reaches the readout; toggle persists, symbol resets
     }
     assert.equal(layer.momentum.node.dataset.quality,'live');
     assert.match(layer.momentum.node.children[0].textContent,/OB SPYUSDT/);
-    assert.match(layer.momentum.node.children[1].textContent,/5s .*15s .*60s chờ/);
+    assert.match(layer.momentum.node.children[1].textContent,/15s · Δ .*USDT · Lệch .* · Book/);
     assert.equal(layer.momentum.node.hidden,false);
     const toggle=registry.get('orderbook-momentum-toggle');toggle.checked=false;toggle.handlers.change();
     assert.equal(layer.momentum.node.hidden,true);assert.equal(JSON.parse(saved.get('dvp:orderbook:v1')).momentum,false);

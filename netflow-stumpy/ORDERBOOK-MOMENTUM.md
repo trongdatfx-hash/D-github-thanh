@@ -8,7 +8,7 @@ Nhãn OB là phân tích trực tiếp, độc lập khung nến và lịch sử
 - Thêm aggTrade qua `/market/ws/`, dùng cờ `m`: true là bán chủ động, false là mua chủ động. Tổng hợp `price * quantity` theo USDT.
 - ID aggTrade trùng/bị lùi được bỏ; nhảy ID đặt lại cửa sổ. Mất kết nối, thay mã và quay lại tab cũng đặt lại.
 - Chỉ luồng depth đã nối snapshot mới được dùng. REST fallback vẫn vẽ lệnh chờ, nhưng nhãn động lực ghi CHỈ CÓ LỆNH CHỜ.
-- Depth quá 5 giây hoặc thời gian bản tin trade lệch quá 5 giây không được dùng kết luận. Nếu không có trade mới trong 15 giây, ghi CHỜ GIAO DỊCH. Đồng hồ thiết bị phải đúng giờ.
+- Depth quá 5 giây hoặc thời gian bản tin trade lệch quá 5 giây không được dùng kết luận. Nếu không có trade mới trong 60 giây, ghi CHỜ GIAO DỊCH. Đồng hồ thiết bị phải đúng giờ.
 
 ## Các phép đo
 
@@ -20,13 +20,15 @@ Nhãn OB là phân tích trực tiếp, độc lập khung nến và lịch sử
 
 ## Trạng thái thử nghiệm
 
-Cửa sổ 5/15/60 giây dùng các bucket 1 giây đã kết thúc. Mỗi cửa sổ phải có đủ thời gian kết nối liên tục và quote trong ít nhất nửa số giây. Chỉ 62 bucket được lưu; không lưu từng trade. Quote được lấy mẫu tối đa 5 lần/giây; OFI và biến động độ sâu vẫn tính trên từng diff được chấp nhận.
+Cửa sổ 5/15/60 giây dùng các bucket 1 giây đã kết thúc. Mỗi cửa sổ phải có đủ thời gian kết nối liên tục và quote trong ít nhất 3 bucket giây. Chỉ 62 bucket được lưu; không lưu từng trade. Quote được lấy mẫu tối đa 5 lần/giây; OFI và biến động độ sâu vẫn tính trên từng diff được chấp nhận.
 
 - MUA ĐẨY GIÁ / BÁN ÉP GIÁ: ít nhất 5 trade, |delta/tổng khớp| >= 25%, giá đi cùng chiều >= 0,5 spread bình quân và có Book/OFI/microprice hỗ trợ.
 - MUA/BÁN BỊ HẤP THỤ: lực chủ động >= 25%, giá ròng <= 0,25 spread, range <= 2 spread, ít nhất 5 mẫu quote, tổng khớp >= 15% độ sâu đối ứng có trọng số và thanh khoản đối ứng bổ sung >= 10% |delta|. Đây là giả thuyết dựa trên các luồng bất đồng bộ, chưa xác nhận iceberg hay ý định của người đặt lệnh.
 - CHƯA RÕ khi thiếu đồng thuận; CHỜ GIAO DỊCH khi số khớp quá ít.
 
-Nhãn chính ưu tiên 15 giây khi đủ, trước đó dùng 5 giây. 5 hoặc 60 giây đi ngược hướng đẩy giá làm kết luận CHƯA RÕ. Đổi nhãn cần cùng ứng viên ít nhất 2,5 giây và 4 lần kiểm tra, tối đa 2 lần/giây. Trạng thái lỗi xóa hướng ngay. Không dùng tỷ lệ này làm xác suất thắng.
+Nhãn chính ưu tiên 60 giây; khi chưa đủ thời gian mới dùng 15 giây. Không dùng 5 giây để đảo nhãn chính. Xác nhận hướng mới 8 giây; đổi sang trạng thái khác hướng/loại cần 15 giây và giữ trạng thái cũ tối thiểu 20 giây. Về CHƯA RÕ/ít khớp cần 20 giây. Lệch lớn có thể rút xác nhận còn 5 giây, vẫn giữ điều kiện phản ứng giá và thời gian giữ trước khi đảo. Lệch lớn cần >=20 trade, |delta/tổng| >=45%, |delta| >=50% độ sâu đối ứng có trọng số và Book >=20% hoặc OFI >=15% cùng hướng. Đây là ngưỡng thử nghiệm, không phải ngưỡng tuyệt đối dùng cho mọi thị trường.
+
+Dòng tổng kết cập nhật mỗi 5 giây; tỷ lệ Book và lệch khớp được EWMA theo thời gian với nửa đời 15 giây, hiển thị làm tròn 5 điểm phần trăm. Delta vẫn là tổng USDT thực trong cửa sổ. Tỷ lệ làm mượt chỉ dùng hiển thị, không giả làm số liệu gốc. Bỏ nhãn xác nhận nhấp nháy và Book tức thời khỏi dòng tiêu đề. Mất đồng bộ/xảy ra gap hoặc đổi mã xóa hướng ngay.
 
 ## Giao diện và giới hạn
 

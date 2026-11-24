@@ -41,11 +41,11 @@ export class OrderBookMomentum {
   reset(symbol){
     this.symbol=symbol;this.buckets=new Map();this.latest=null;this.previous=null;this.bookSince=null;this.tapeSince=null;
     this.lastBookAt=null;this.lastTradeAt=null;this.lastTradeId=null;this.lastSampleAt=null;this.bookRef=null;this.tapeConnected=false;
-    this.transport='';this.stable='mixed';this.candidate=null;this.candidateSince=0;this.lastConfirmAt=null;this.confirmations=0;
+    this.transport='';this.stable='mixed';this.candidate=null;this.candidateSince=0;this.lastConfirmAt=null;this.confirmations=0;this.stateSince=0;this.summary=null;
   }
   clearWindows(){
     this.buckets.clear();this.previous=null;this.bookSince=null;this.tapeSince=this.tapeConnected?this.now():null;
-    this.lastSampleAt=null;this.stable='mixed';this.candidate=null;this.confirmations=0;
+    this.lastSampleAt=null;this.stable='mixed';this.candidate=null;this.confirmations=0;this.stateSince=0;this.summary=null;
   }
   setTapeState(connected){
     if(connected!==this.tapeConnected){this.tapeConnected=connected;this.clearWindows();this.lastTradeAt=null;this.lastTradeId=null;}
@@ -100,7 +100,7 @@ export class OrderBookMomentum {
     const rows=[...this.buckets.values()].filter(b=>b.time>=start&&b.time<end),quoted=rows.filter(b=>b.samples);
     const buy=sum(rows.map(b=>b.buy)),sell=sum(rows.map(b=>b.sell)),total=buy+sell,samples=sum(quoted.map(b=>b.samples));
     const spread=samples?sum(quoted.map(b=>b.spread))/samples:0,first=quoted[0]?.first,last=quoted.at(-1)?.last;
-    const w={seconds,ready:this.bookSince!==null&&this.tapeSince!==null&&start>=Math.max(this.bookSince,this.tapeSince)&&quoted.length>=Math.max(3,seconds*.5),
+    const w={seconds,ready:this.bookSince!==null&&this.tapeSince!==null&&start>=Math.max(this.bookSince,this.tapeSince)&&quoted.length>=3,
       buy,sell,total,delta:buy-sell,flow:total?(buy-sell)/total:0,count:sum(rows.map(b=>b.count)),samples,
       obi:samples?sum(quoted.map(b=>b.obi))/samples:0,microBps:samples?sum(quoted.map(b=>b.micro))/samples:0,
       ofi:clamp(sum(rows.map(b=>b.ofi))/Math.max(1e-12,sum(rows.map(b=>b.ofiScale)))),
@@ -115,23 +115,37 @@ export class OrderBookMomentum {
     if(this.transport==='REST'){quality='snapshot';reason='Snapshot REST không đủ để đọc động lực theo giây.';}
     else if(!this.latest||this.lastBookAt===null||now-this.lastBookAt>5000){quality='offline';reason='Orderbook chưa đồng bộ hoặc đã cũ.';}
     else if(!this.tapeConnected){quality='offline';reason='Luồng giao dịch khớp chưa kết nối.';}
-    else if(!windows[0].ready){quality='warming';reason='Chờ ít nhất 5 giây dữ liệu liên tục.';}
-    else if(this.lastTradeAt===null||now-this.lastTradeAt>15000){quality='quiet';reason='Chưa có giao dịch khớp mới để kết luận.';}
+    else if(!windows[1].ready){quality='warming';reason='Tích lũy 15 giây; nhãn chính ưu tiên tổng kết 60 giây.';}
+    else if(this.lastTradeAt===null||now-this.lastTradeAt>60000){quality='quiet';reason='Không có giao dịch khớp mới trong 60 giây để tổng kết.';}
     if(quality!=='live'){
-      this.stable='mixed';this.candidate=null;this.confirmations=0;
+      this.stable='mixed';this.candidate=null;this.confirmations=0;this.summary=null;this.stateSince=0;
       return {quality,state:quality,label:MOMENTUM_LABELS[quality],reason,windows,book:this.latest};
     }
-    const primary=windows[1].ready?windows[1]:windows[0];let raw=primary.state;
-    const fast=windows[0].state,slow=windows[2];
-    // Withhold a directional headline when the fast window or mature 60s window opposes it.
-    if((raw==='buy'&&(fast==='sell'||(slow.ready&&slow.state==='sell')))||(raw==='sell'&&(fast==='buy'||(slow.ready&&slow.state==='buy'))))raw='mixed';
-    if(this.lastConfirmAt===null||now-this.lastConfirmAt>=500){
+    const primary=windows[2].ready?windows[2]:windows[1];let raw=primary.state;
+    // Fast-window disagreement is diagnostic only; it cannot flip the 60s headline.
+    const side=Math.sign(primary.flow),opposing=side>0?primary.askDepth:primary.bidDepth;
+    const large=primary.count>=20&&Math.abs(primary.flow)>=.45&&opposing>0&&Math.abs(primary.delta)>=opposing*.5
+      &&(side*primary.obi>=.2||side*primary.ofi>=.15);
+    if(this.lastConfirmAt===null||now-this.lastConfirmAt>=1000){
       this.lastConfirmAt=now;
       if(raw!==this.candidate){this.candidate=raw;this.candidateSince=now;this.confirmations=1;}
       else this.confirmations++;
-      if(now-this.candidateSince>=2500&&this.confirmations>=4)this.stable=raw;
+      const directional=s=>['buy','sell','buyAbsorbed','sellAbsorbed'].includes(s);
+      const opposite=directional(raw)&&directional(this.stable)&&raw!==this.stable;
+      const dwell=raw==='mixed'||raw==='quiet'?20000:opposite?15000:8000;
+      // A large imbalance can shorten confirmation, but never overrides price/absorption conditions.
+      const required=large&&directional(raw)?5000:dwell;
+      const hold=opposite?20000:10000;
+      if(raw!==this.stable&&now-this.candidateSince>=required&&this.confirmations>=5
+        &&(!this.stateSince||now-this.stateSince>=hold)){this.stable=raw;this.stateSince=now;}
     }
-    return {quality,state:this.stable,label:MOMENTUM_LABELS[this.stable],pending:raw!==this.stable,raw,windows,book:this.latest};
+    // Sample display totals once every 5s; smooth ratios by elapsed time (15s half-life).
+    if(!this.summary||now-this.summary.at>=5000){
+      const prior=this.summary,alpha=prior?1-Math.exp(-Math.LN2*(now-prior.at)/15000):1;
+      this.summary={at:now,seconds:primary.seconds,flow:prior?prior.flow+alpha*(primary.flow-prior.flow):primary.flow,
+        obi:prior?prior.obi+alpha*(primary.obi-prior.obi):primary.obi,delta:primary.delta,large};
+    }
+    return {quality,state:this.stable,label:MOMENTUM_LABELS[this.stable],pending:raw!==this.stable,raw,windows,book:this.latest,summary:this.summary};
   }
 }
 

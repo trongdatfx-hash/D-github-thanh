@@ -1,5 +1,5 @@
-import {BinanceDepthFeed,autoBookStep,groupBook} from './orderbook-core.mjs?v=20261124-ob-flow1';
-import {mountMomentumReadout} from './orderbook-momentum-ui.mjs?v=20261124-ob-flow1';
+import {BinanceDepthFeed,autoBookStep,groupBook} from './orderbook-core.mjs?v=20261124-ob-smooth2';
+import {mountMomentumReadout} from './orderbook-momentum-ui.mjs?v=20261124-ob-smooth2';
 import {SpectrumPrimitive} from './spectrum-primitive.mjs?v=20261104-oi-smooth1';
 
 export function mountOrderBook({chart,price,host,actions,symbolControl}){
