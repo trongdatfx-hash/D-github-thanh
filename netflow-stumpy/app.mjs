@@ -1,5 +1,5 @@
 import {CHART_SETUP_KEY,readChartSetup,restoreSetupControls} from './chart-setup-state.mjs?v=20261122-setup1';
-import {mountOrderBook} from './orderbook-ui.mjs?v=20261119-book1';
+import {mountOrderBook} from './orderbook-ui.mjs?v=20261124-ob-flow1';
 import {mountTpo} from './tpo-ui.mjs?v=20261123-tpo-trades4';
 import {TPO_CONTROL_IDS} from './tpo-profile.mjs?v=20261123-tpo-trades4';
 import {mountPriceChartStyle} from './price-chart-style.mjs?v=20261123-line-colors1';

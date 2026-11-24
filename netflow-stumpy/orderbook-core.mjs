@@ -106,7 +106,7 @@ export class BinanceDepthFeed {
       this.lastReceived=this.now();this.retry=1000;this.streamLive=true;this.book.transport='WS';this.onState('live');this.onBook(this.book);
     };
     try{
-      this.socket=new this.Socket(`wss://fstream.binance.com/ws/${symbol.toLowerCase()}@depth@500ms`);
+      this.socket=new this.Socket(`wss://fstream.binance.com/public/ws/${symbol.toLowerCase()}@depth@100ms`);
       this.timeout=setTimeout(fail,15000);
       this.socket.onopen=async()=>{
         this.controller=new AbortController();
