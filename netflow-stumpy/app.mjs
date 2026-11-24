@@ -35,7 +35,6 @@ import {oiSpectrum} from './oi-spectrum.mjs?v=20261104-oi-stale-fast2';
 import {closedColorSourceKey,readH1ColorCache,saveH1ColorCache,archiveColorRevision} from './h1-color-cache.mjs?v=20261108-matrix-trend-no-oi1';
 import {h1StripCell} from './h1-h4-strip.mjs?v=20261101-h1h4-align1';
 import {createStrengthBoxLayer} from './strength-box-ui.mjs?v=20261031-h1-box-perf1';
-import {createQuantilePrice} from './quantile-price-ui.mjs?v=20261029-price-delta1';
 import {chartFresh} from './chart-live.mjs?v=20261030-chart-live3';
 import {chartHistoryFallback} from './chart-history-fallback.mjs?v=20261029-price-delta1';
 import {causalChannelAba} from './aba-causal-channels.mjs?v=20261029-price-delta1';
@@ -99,10 +98,10 @@ const spyBodyVolumeEnabled=()=>$('spy-volume-body-toggle')?.checked&&$('symbol')
 const nfSmoothEnabled=()=>$('nf-smooth-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
 const oi8PivotLines={low:[],high:[]};
 const strengthOi8Enabled=()=>$('strength-oi8-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
-const SETUP_CONTROL_IDS=['dao-v2-toggle','oi8-phase-reset-toggle','oi8-pivot-toggle','strength-oi8-toggle','nf-smooth-toggle','nf-smooth-window','symbol','interval','days','signal','composite','alignment','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-h1-box-color','cvd-spectrum-toggle','h1-oi-markers-toggle','oi-candle-bars-toggle','oi-candle-pin-toggle','oi-delta-percentile','oi-bold-candles-toggle','spy-volume-body-toggle','markers','double-tap-full','causal-trend-channel','geometry-pivots','geometry-score','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold','quantile-price-toggle','quantile-price-horizon'];
+const SETUP_CONTROL_IDS=['dao-v2-toggle','oi8-phase-reset-toggle','oi8-pivot-toggle','strength-oi8-toggle','nf-smooth-toggle','nf-smooth-window','symbol','interval','days','signal','composite','alignment','price-bands','wlr-soft-colors','aba-band-colors','pivot-zones','phase-width','candle-agreement-color','candle-h1-box-color','cvd-spectrum-toggle','h1-oi-markers-toggle','oi-candle-bars-toggle','oi-candle-pin-toggle','oi-delta-percentile','oi-bold-candles-toggle','spy-volume-body-toggle','markers','double-tap-full','causal-trend-channel','geometry-pivots','geometry-score','calendar-impact','calendar-currency','strength-box-toggle','strength-box-trigger','strength-box-back','strength-box-early','strength-box-shape','strength-box-composite','strength-box-composite-threshold'];
 let statsMap=new Map(),candleColorMap=new Map(),candleClusterMap=new Map(),pivotZoneState={ready:false,reason:'history',support:null,resistance:null},pivotZoneKey='',inspectedTime=null;
 let calendarState={events:[],updatedAt:null,loading:false};
-let pendingSavedTimeRange=null,saveSetupTimer=null,strengthBoxLayer=null,quantileLayer=null;
+let pendingSavedTimeRange=null,saveSetupTimer=null,strengthBoxLayer=null;
 const sourceName=key=>({SPYUSDT:'SPY',QQQUSDT:'QQQ',COMPOSITE:'Composite'}[key]);
 const signed=x=>Number.isFinite(x)?`${x>0?'+':''}${fmt(x)}`:'—';
 const signLabel=x=>x>0?'+':x<0?'−':'0';
@@ -197,7 +196,7 @@ function setLive(){
  source.hidden=live||!cache;const last=(rows[$('symbol').value]??[]).findLast(r=>r.end<(cache?.serverTime??0));
  const missing=['SPYUSDT','QQQUSDT'].filter(symbol=>!(rows[symbol]?.length));
  source.textContent=live?'':(cache?.historical?'LỊCH SỬ ĐÃ LƯU':'DỮ LIỆU CŨ')+' · DELAYED'+(missing.length?' · thiếu '+missing.join('/'):'')+' · nến đóng cuối '+(last?new Date(last.end+1).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'}):'—')+' (giờ VN). Đang thử kết nối lại Binance; dự báo phân vị tạm dừng.';
- scheduleAbaBandColors();strengthBoxLayer?.update();quantileLayer?.update();
+ scheduleAbaBandColors();strengthBoxLayer?.update();
 }
 function syncChartFrameButtons(){for(const id of ['chart-frame-m15','chart-frame-h1']){const button=$(id);if(!button)continue;const active=$('interval').value===button.dataset.interval;button.setAttribute('aria-pressed',String(active));button.style.background=active?'#1d4e67':'';button.style.color=active?'#e5f4ff':'';button.style.borderColor=active?'#55b8e5':'';}}
 function setupChartActions(){
@@ -311,7 +310,7 @@ function ensureStudiesWorker(){
       h1CacheArchive=null;const r=data.result;geometryState=r.geometry;causalChannelState=r.channels;breakoutState=r.breakout;geometryStatePoints=r.points;pivotZoneState=r.pivot;h1CandleMap=new Map((r.h1CandleColors??[]).map(state=>[state.t,state]));h1H4CandleMap=new Map((r.h1H4CandleColors??[]).map(state=>[state.t,state]));
       $('chart').dataset.h1ColorCache='fresh';studyResultKey=data.key;
       $('chart').dataset.studyStatus='ready';$('chart').dataset.studyComputeMs=String(Math.round(data.computeMs));
-      updateH1TrendAgeReadout();updatePivotZones();scheduleGeometryOverlay();scheduleAbaBandColors();strengthBoxLayer?.update();quantileLayer?.update();if($('candle-h1-box-color')?.checked||usesH1WlrStyle()||$('h1-score-line-toggle')?.checked)render(false);
+      updateH1TrendAgeReadout();updatePivotZones();scheduleGeometryOverlay();scheduleAbaBandColors();strengthBoxLayer?.update();if($('candle-h1-box-color')?.checked||usesH1WlrStyle()||$('h1-score-line-toggle')?.checked)render(false);
     };
     studiesWorker.onerror=()=>{$('chart').dataset.studyStatus='error';studyKey='';studiesWorker?.terminate();studiesWorker=null;h1HistoryKnown=false;h1HistoryRevision=null;};
   }
@@ -1020,7 +1019,7 @@ function showTooltip(t){
 }
 function toggle(){
   setOptions(series.nfSmooth,{visible:!!nfSmoothEnabled()});updateNfSmoothReadout(inspectedTime);
-  strengthBoxLayer?.update();quantileLayer?.update();
+  strengthBoxLayer?.update();
   scheduleAbaBandColors();
   for(const key of ['h1ScoreLine','h1ScorePreview'])setOptions(series[key],{visible:!!$('h1-score-line-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m'});
   updateH1ScoreLineReadout(inspectedTime);
@@ -1139,8 +1138,7 @@ if(init()){
   const indicatorTools=document.createElement('section');indicatorTools.id='chart-indicator-tools';indicatorTools.className='chart-options chart-indicator-tools';indicatorTools.setAttribute('aria-label','Điều khiển hộp sức mạnh và phân vị');($('chart-settings-panel')??chartCard.parentElement).append(indicatorTools);
   const chartNotes=document.createElement('details');chartNotes.id='chart-notes';const notesSummary=document.createElement('summary');notesSummary.textContent='Giải thích và trạng thái chỉ báo';chartNotes.append(notesSummary);chartCard.after(chartNotes);
   for(const node of chartCard.querySelectorAll('#tooltip,.hint'))chartNotes.append(node);
-  strengthBoxLayer=createStrengthBoxLayer({chart,host:$('chart'),actions:indicatorTools,getContext:()=>({rows:rows[$('symbol').value]??[],symbol:$('symbol').value,interval:$('interval').value,step:STEPS[$('interval').value],now:cache?.serverTime??0,price,composite:maps.COMPOSITE??new Map(),compositeRevision:studyResultKey,volume:volumeStrengthMap,channels:studyResultKey===studyKey&&$('causal-trend-channel').checked?(causalChannelState.trends??[]).filter(c=>!c.provisional):[]}),onChange:()=>quantileLayer?.update()});
-  quantileLayer=createQuantilePrice({chart,host:$('chart'),actions:indicatorTools,getContext:()=>({spy:rows.SPYUSDT??[],qqq:rows.QQQUSDT??[],boxes:strengthBoxLayer?.getState(),symbol:$('symbol').value,interval:$('interval').value,now:Date.now()+serverOffsetMs,live:$('live-indicator').className==='live'&&isChartLive()})});
+  strengthBoxLayer=createStrengthBoxLayer({chart,host:$('chart'),actions:indicatorTools,getContext:()=>({rows:rows[$('symbol').value]??[],symbol:$('symbol').value,interval:$('interval').value,step:STEPS[$('interval').value],now:cache?.serverTime??0,price,composite:maps.COMPOSITE??new Map(),compositeRevision:studyResultKey,volume:volumeStrengthMap,channels:studyResultKey===studyKey&&$('causal-trend-channel').checked?(causalChannelState.trends??[]).filter(c=>!c.provisional):[]}),onChange:()=>{}});
   const h1OiMarkerLabel=document.createElement('label'),h1OiMarkerToggle=document.createElement('input');
   h1OiMarkerToggle.id='h1-oi-markers-toggle';h1OiMarkerToggle.type='checkbox';h1OiMarkerToggle.checked=true;
   h1OiMarkerLabel.title='SPY M15 · H1 đã khóa. Vẽ từ 4/5 điểm: 2 điểm khi |ΔOI| vượt P75 của 36 hộp trước, 1 điểm khi OI ròng chiếm ít nhất 60% tổng dao động, 1 điểm khi điểm nền H1 (không OI) có độ lớn ≥2 và cùng màu hộp, thêm 1 điểm nếu ≥3/4 M15 có ΔOI cùng dấu. ▲ OI tăng, ▼ OI giảm. Tam giác đặc khi Taker NF SPY cùng màu hộp.';
