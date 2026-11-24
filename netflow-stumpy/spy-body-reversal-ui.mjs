@@ -28,6 +28,22 @@ export function firstTrendReversalAnchor(state){
   return anchor;
 }
 
+// Limit drawing to the two newest uninterrupted color runs, including preview.
+// The caller retains the complete history for signals and trading statistics.
+export function latestReversalLines(state){
+  const points=state.points??[];
+  const tail=state.preview??points.at(-1);
+  if(!tail)return {...state,points:[]};
+  let start=points.length,runs=1,next=tail;
+  for(let i=points.length-1;i>=0;i--){
+    const point=points[i];
+    if(point.segment!==next.segment||point.direction!==next.direction)runs++;
+    if(runs>2)break;
+    start=i;next=point;
+  }
+  return {...state,points:points.slice(start)};
+}
+
 export function bodyReversalPrimitive(chart,price){
   let state={points:[],last:null},visible=false;
   const primitive=new SpectrumPrimitive(({context:ctx,mediaSize:{width,height}})=>{
@@ -113,5 +129,5 @@ export function bodyReversalPrimitive(chart,price){
     }
   });
   price.attachPrimitive(primitive);
-  return {setData(next,enabled){state=next;visible=enabled;primitive.redraw();}};
+  return {setData(next,enabled){state=latestReversalLines(next);visible=enabled;primitive.redraw();}};
 }

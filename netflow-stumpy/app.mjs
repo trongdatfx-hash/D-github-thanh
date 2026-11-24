@@ -19,7 +19,7 @@ import {strengthOi8} from './strength-oi8.mjs?v=20261111-oi8';
 import {strengthOiPhase,oiPhasePrimitive} from './strength-oi-phase.mjs?v=20261119-oi-phase1';
 let oiPhaseLayer;
 import {bodyReversalCache} from './spy-body-reversal.mjs?v=20261120-v2-first-line1';
-import {bodyReversalPrimitive} from './spy-body-reversal-ui.mjs?v=20261120-v2-first-line1';
+import {bodyReversalPrimitive} from './spy-body-reversal-ui.mjs?v=20261124-v2-last2';
 const daoV2Cache=bodyReversalCache();
 import {reversalTradePrimitive} from './spy-body-reversal-display.mjs?v=20261120-tk-display1';
 let daoV2Layer,daoV2Stats,daoV2Trades;
