@@ -1,4 +1,4 @@
-import {OrderBookMomentum,BinanceAggTradeFeed,MOMENTUM_LABELS} from './orderbook-momentum.mjs?v=20261124-ob-2lines4';
+import {OrderBookMomentum,BinanceAggTradeFeed,MOMENTUM_LABELS} from './orderbook-momentum.mjs?v=20261124-ob-clear5';
 
 const pct=x=>`${x>0?'+':''}${(x*100).toFixed(0)}%`;
 export function mountMomentumReadout({chart,host,symbolControl,horizon=300}){
@@ -6,7 +6,7 @@ export function mountMomentumReadout({chart,host,symbolControl,horizon=300}){
   const node=document.createElement('div');node.id='orderbook-momentum-readout';node.hidden=true;node.setAttribute('aria-label','Động lực orderbook Binance Futures');
   const headline=document.createElement('strong'),detail=document.createElement('span');node.append(headline,detail);host.append(node);
   const style=document.createElement('style');style.textContent=`
-    #orderbook-momentum-readout{position:absolute;z-index:8;right:58px;max-width:calc(100% - 70px);width:370px;box-sizing:border-box;padding:5px 8px;border:1px solid #56718f;border-radius:5px;background:#0b1729ed;color:#d2dfef;font:13px/1.4 system-ui;pointer-events:auto;overflow-wrap:normal;font-variant-numeric:tabular-nums}
+    #orderbook-momentum-readout{position:absolute;z-index:8;right:58px;max-width:calc(100% - 70px);width:370px;box-sizing:border-box;padding:5px 8px;border:1px solid #56718f;border-radius:5px;background:transparent;text-shadow:0 1px 2px #06101f,0 0 3px #06101f;color:#d2dfef;font:13px/1.4 system-ui;pointer-events:auto;overflow-wrap:normal;font-variant-numeric:tabular-nums}
     #orderbook-momentum-readout[hidden]{display:none}
     #orderbook-momentum-readout strong,#orderbook-momentum-readout>span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;height:1.4em;line-height:1.4}
     #orderbook-momentum-readout strong{font-size:14px}
