@@ -28,6 +28,7 @@ test('pane 0 overlay has its own scale; toggle clears/restores data, persists an
   const layer=mountOiBottomBars({chart,actions,host,L:{HistogramSeries:'histogram'},writeSeries:(id,s,data)=>writes.push(data)});
   layer.update({bars,oiByTime:oi,spyVByTime:spyV,step,now:240000,symbol:'SPYUSDT',interval:'1m',oiInterval:'1m'});
   assert.equal(mounted.pane,0);assert.equal(mounted.o.priceScaleId,'oi-bottom-overlay');assert.equal(scale.bottom??scale.scaleMargins.bottom,0);assert.ok(scale.scaleMargins.top>=.8);
+  layer.updateLiveSample({oi:150,time:240500},240500);assert.equal(writes.at(-1).at(-1).value,40);
   assert.equal(host.dataset.oiBottomState,'ready');assert.equal(options.visible,true);assert.equal(writes.at(-1)[0].value,25);
   layer.button.handlers.click();assert.equal(options.visible,false);assert.deepEqual(writes.at(-1),[]);
   const stored=JSON.parse(storage.get(CHART_SETUP_KEY));assert.equal(stored.controls['oi-bottom-toggle'],false);assert.equal(stored.controls['dao-v2-toggle'],false);assert.deepEqual(stored.tkV2,saved.tkV2);assert.deepEqual(stored.timeRange,saved.timeRange);
@@ -48,4 +49,28 @@ test('negative cumulative OI stays signed; gaps and neutral/missing SPY V break 
  assert.deepEqual(oiBottomBars(bars,oiMap,step,300000,phase).map(p=>p.value),[-10,undefined,5,7]);
  assert.deepEqual(oiBottomBars([bars[0],bars[3]],oiMap,step,300000,new Map(bars.map(b=>[b.t,{adjusted:1}]))).map(p=>p.value),[-10,2]);
  assert.deepEqual(oiBottomBars(bars,oiMap,step,300000),[]);
+});
+
+test('live OI uses exact previous close, replaces samples, handles phase flip and finalizes unchanged',()=>{
+ const history=new Map(oi);history.set(3*step,{oi:120});
+ const now=245000;
+ const first=oiBottomBars(bars,history,step,now,spyV,{oi:140,time:244000});
+ assert.equal(first.at(-1).value,30);
+ const second=oiBottomBars(bars,history,step,now,spyV,{oi:150,time:245000});
+ assert.equal(second.at(-1).value,40);
+ assert.deepEqual(oiBottomBars(bars,history,step,now,spyV,{oi:150,time:245000}),second);
+ const flip=new Map(spyV);flip.set(4*step,{adjusted:1});
+ assert.equal(oiBottomBars(bars,history,step,now,flip,{oi:150,time:245000}).at(-1).value,30);
+ history.set(4*step,{oi:150});
+ assert.deepEqual(oiBottomBars(bars,history,step,300000,spyV),second);
+});
+test('live OI rejects missing baseline, stale/wrong candle samples and never alters closed history',()=>{
+ const now=260000,sample={oi:150,time:259000};
+ const missing=new Map(oi);missing.delete(3*step);
+ assert.equal(oiBottomBars(bars,missing,step,now,spyV,sample).at(-1).value,undefined);
+ for(const bad of [null,{oi:150,time:240000},{oi:150,time:239999},{oi:150,time:300000},{oi:NaN,time:259000}]){
+  assert.equal(oiBottomBars(bars,oi,step,now,spyV,bad).at(-1).value,undefined);
+ }
+ assert.equal(oiBottomBars(bars,oi,step,239999,spyV,sample).at(-1).value,undefined);
+ assert.deepEqual(oiBottomBars(bars,oi,step,300000,spyV,sample),oiBottomBars(bars,oi,step,300000,spyV));
 });

@@ -6,7 +6,7 @@ export function clusterTakerNf(bars,flowByTime,spyVByTime,step,now){
     const point={time:bar.t/1000};
     const net=flowByTime.get(bar.t)?.net,spyV=spyVByTime.get(bar.t)?.adjusted;
     const sign=Number.isFinite(spyV)?Math.sign(spyV):0;
-    if(!Number.isFinite(bar.end)||bar.end>=now||!Number.isFinite(net)||!sign){
+    if(!Number.isFinite(bar.end)||bar.t>now||!Number.isFinite(net)||!sign){
       total=0;phase=0;lastTime=null;return point;
     }
     if(sign!==phase||lastTime!==bar.t-step)total=0;

@@ -1,6 +1,6 @@
-import {clusterTakerNf} from './cluster-taker-nf.mjs?v=20261125-nf-sign1';
+import {clusterTakerNf} from './cluster-taker-nf.mjs?v=20261125-cluster-live1';
 let compositeClusterRows=[];
-import {mountOiBottomBars} from './oi-bottom-bars.mjs?v=20261125-oi-cumulative1';
+import {mountOiBottomBars} from './oi-bottom-bars.mjs?v=20261125-cluster-live1';
 let oiBottomLayer;
 import {CHART_SETUP_KEY,readChartSetup,restoreSetupControls} from './chart-setup-state.mjs?v=20261122-setup1';
 import {mountOrderBook} from './orderbook-ui.mjs?v=20261125-ob-persist1';
@@ -76,7 +76,7 @@ const oiHistory=new OiHistory();
 const runningOiState=new RunningOiState();
 const oiPercentColor=new OiPercentColor();
 
-const currentOiLoader=new CurrentOiLoader({get:getJSON,now:()=>Date.now()+serverOffsetMs,onData:updateH1OiReadout});
+const currentOiLoader=new CurrentOiLoader({get:getJSON,now:()=>Date.now()+serverOffsetMs,onData:(sample,error)=>{updateH1OiReadout();oiBottomLayer?.updateLiveSample(error?null:sample,Date.now()+serverOffsetMs);}});
 const oiFastLoader=new OiFastLoader({history:oiHistory,get:getJSON,onData:applyOiHistoryData,onState:handleOiLoadState});
 const oiBoldCandles=new OiBoldCandles();
 const stopLossBands=new StopLossBands();
@@ -218,7 +218,7 @@ function setupChartActions(){
   const save=document.createElement('button');save.id='chart-save';save.type='button';save.title='Lưu toàn bộ lựa chọn và vùng thời gian đang xem trên trình duyệt này';save.textContent='Lưu setup';save.setAttribute('aria-live','polite');half.insertAdjacentElement('afterend',save);
   const vix=$('chart-vix-quote');if(vix)live.insertAdjacentElement('afterend',vix);
   const alignmentLabel=$('alignment')?.closest('label');if(alignmentLabel){alignmentLabel.lastChild.textContent='SPY V Δ nến';alignmentLabel.dataset.pane='strength-spy-v';alignmentLabel.title='Histogram Delta / SMA20(volume): vẽ trực tiếp giá trị chuẩn hóa, không chia 2 và không chặn ±1; spike +3 và +5 giữ đúng biên độ. Thang histogram riêng đối xứng quanh 0. Màu theo dấu SPY V: dương xanh, âm đỏ, bằng 0 hoặc thiếu dữ liệu màu xám.';}
-  const compositeLabel=$('composite')?.closest('label');if(compositeLabel)compositeLabel.title='Σ C Taker NF tích lũy có dấu theo cụm màu SPY V thân nến; đổi màu hoặc thiếu dữ liệu thì bắt đầu lại. Chỉ cộng nến đóng. Màu theo dấu tổng NF: dương xanh, âm đỏ, bằng 0 xám; thang riêng đối xứng chung tâm 0 với Strength.';
+  const compositeLabel=$('composite')?.closest('label');if(compositeLabel)compositeLabel.title='Σ C Taker NF tích lũy có dấu theo cụm màu SPY V thân nến; đổi màu hoặc thiếu dữ liệu thì bắt đầu lại. Cập nhật cả nến live khoảng 3 giây; cột live có thể thay đổi đến khi đóng. Màu theo dấu tổng NF: dương xanh, âm đỏ, bằng 0 xám; thang riêng đối xứng chung tâm 0 với Strength.';
   const phaseLabel=$('phase-width')?.closest('label');if(phaseLabel){phaseLabel.hidden=true;const button=document.createElement('button');button.id='wlr-width-mode';button.type='button';button.className='display-mode-button';phaseLabel.insertAdjacentElement('afterend',button);}
   if(!$('wlr-soft-colors')){const input=document.createElement('input');input.id='wlr-soft-colors';input.type='checkbox';input.checked=true;input.hidden=true;const button=document.createElement('button');button.id='wlr-soft-color-mode';button.type='button';button.className='display-mode-button';button.append(input,document.createElement('span'));$('wlr-width-mode').insertAdjacentElement('afterend',button);}
   const candleLabel=$('candle-agreement-color')?.closest('label');if(candleLabel){candleLabel.hidden=true;const button=document.createElement('button');button.id='candle-color-mode';button.type='button';button.className='display-mode-button';candleLabel.insertAdjacentElement('afterend',button);}
@@ -841,7 +841,7 @@ function render(fit=false){
   writeSeries('COMPOSITE',series.COMPOSITE,compositeClusterRows,seriesContext+'|spy-body-clusters');
   const step=STEPS[$('interval').value];
   writeSeries('alignment',series.alignment,volumeDeltaBandData(spyVolumeDeltaRows,bodyVolumeByTime),seriesContext);
-  oiBottomLayer?.update({bars:p,oiByTime:oiWidths,spyVByTime:bodyVolumeByTime,step,now:cache?.serverTime??0,symbol:$('symbol').value,interval:$('interval').value,oiInterval:oiStamp});
+  oiBottomLayer?.update({bars:p,oiByTime:oiWidths,spyVByTime:bodyVolumeByTime,step,now:cache?Date.now()+serverOffsetMs:0,symbol:$('symbol').value,interval:$('interval').value,oiInterval:oiStamp,liveSample:currentOiLoader.error?null:currentOiLoader.sample});
   const oiBarsEnabled=$('oi-candle-bars-toggle')?.checked&&$('symbol').value==='SPYUSDT';
   oiBarState=oiCandleBars(p,spyVolumeDeltaRows,rows.COMPOSITE??[],oiWidths,step,cache?.serverTime??0,{filterPin:$('oi-candle-pin-toggle')?.checked??true,history:true,minOiMultiplier:1,oiPercentile:Number($('oi-delta-percentile')?.value??.62)});
   writeSeries('oiCandleBars',series.oiCandleBars,oiBarState.data,seriesContext+'|'+$('oi-candle-pin-toggle')?.checked);
@@ -936,7 +936,7 @@ function updateFixedPaneReadouts(){
     'Σ C Taker NF — cộng dồn NF có dấu trong từng cụm màu SPY V thân nến.',
     'Mỗi mã: NF = taker buy quote − taker sell quote = 2 × taker buy quote − tổng quote volume. C Taker NF = NF(SPY) + NF(QQQ).',
     'Đơn vị USDT; K = nghìn, M = triệu. Dương: tổng mua chủ động trội trong cụm; âm: tổng bán chủ động trội. Màu cột theo dấu tổng NF: dương xanh, âm đỏ, bằng 0 xám.',
-    'Đổi màu SPY V hoặc thiếu dữ liệu thì bắt đầu lại. Chỉ cộng nến đã đóng. Không phải dòng tiền ròng vào/ra thị trường và không xác định chắc mở/đóng Long–Short.'
+    'Đổi màu SPY V hoặc thiếu dữ liệu thì bắt đầu lại. Cập nhật cả nến live khoảng 3 giây; luôn tính lại từ dữ liệu để không cộng trùng. Không phải dòng tiền ròng vào/ra thị trường và không xác định chắc mở/đóng Long–Short.'
   ].join('\n');
   requestAnimationFrame(positionFixedPaneReadouts);
 }
