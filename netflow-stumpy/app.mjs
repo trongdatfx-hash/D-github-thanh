@@ -1,3 +1,5 @@
+import {clusterTakerNf} from './cluster-taker-nf.mjs?v=20261125-nf-cluster1';
+let compositeClusterRows=[];
 import {mountOiBottomBars} from './oi-bottom-bars.mjs?v=20261125-oi-cumulative1';
 let oiBottomLayer;
 import {CHART_SETUP_KEY,readChartSetup,restoreSetupControls} from './chart-setup-state.mjs?v=20261122-setup1';
@@ -216,7 +218,7 @@ function setupChartActions(){
   const save=document.createElement('button');save.id='chart-save';save.type='button';save.title='Lưu toàn bộ lựa chọn và vùng thời gian đang xem trên trình duyệt này';save.textContent='Lưu setup';save.setAttribute('aria-live','polite');half.insertAdjacentElement('afterend',save);
   const vix=$('chart-vix-quote');if(vix)live.insertAdjacentElement('afterend',vix);
   const alignmentLabel=$('alignment')?.closest('label');if(alignmentLabel){alignmentLabel.lastChild.textContent='SPY V Δ nến';alignmentLabel.dataset.pane='strength-spy-v';alignmentLabel.title='Histogram Delta / SMA20(volume): vẽ trực tiếp giá trị chuẩn hóa, không chia 2 và không chặn ±1; spike +3 và +5 giữ đúng biên độ. Thang histogram riêng đối xứng quanh 0. Màu theo dấu SPY V: dương xanh, âm đỏ, bằng 0 hoặc thiếu dữ liệu màu xám.';}
-  const compositeLabel=$('composite')?.closest('label');if(compositeLabel)compositeLabel.title='C Taker NF hiển thị trong pane Strength C, dùng thang riêng đối xứng nhưng chung chính xác tâm 0 với đường Strength.';
+  const compositeLabel=$('composite')?.closest('label');if(compositeLabel)compositeLabel.title='Σ C Taker NF tích lũy có dấu theo cụm màu SPY V thân nến; đổi màu hoặc thiếu dữ liệu thì bắt đầu lại. Chỉ cộng nến đóng. Màu cột theo SPY V, thang riêng đối xứng chung tâm 0 với Strength.';
   const phaseLabel=$('phase-width')?.closest('label');if(phaseLabel){phaseLabel.hidden=true;const button=document.createElement('button');button.id='wlr-width-mode';button.type='button';button.className='display-mode-button';phaseLabel.insertAdjacentElement('afterend',button);}
   if(!$('wlr-soft-colors')){const input=document.createElement('input');input.id='wlr-soft-colors';input.type='checkbox';input.checked=true;input.hidden=true;const button=document.createElement('button');button.id='wlr-soft-color-mode';button.type='button';button.className='display-mode-button';button.append(input,document.createElement('span'));$('wlr-width-mode').insertAdjacentElement('afterend',button);}
   const candleLabel=$('candle-agreement-color')?.closest('label');if(candleLabel){candleLabel.hidden=true;const button=document.createElement('button');button.id='candle-color-mode';button.type='button';button.className='display-mode-button';candleLabel.insertAdjacentElement('afterend',button);}
@@ -835,7 +837,8 @@ function render(fit=false){
   wlrH1StyleMap=new Map((h1Wlr?wlrH1Styles(priceBands,h1ScoreRecords,{now:cache?.serverTime??Date.now(),alignment:'box',boxStates:h1CandleMap,scoreColor:true}):[]).map(x=>[x.t,x]));
   wlrThicknessMap=trendThickness;const currentThickness=trendThickness.get(p.at(-1)?.t);$('chart').dataset.wlrThicknessModel='slope-r2-flow-noise';$('chart').dataset.wlrThicknessMax=String(WLR_SLOPE_DEFAULTS.maxWidth);$('chart').dataset.wlrThicknessTrendWeight=String(WLR_SLOPE_DEFAULTS.trendWeight);$('chart').dataset.wlrThicknessWindow=String(WLR_SLOPE_DEFAULTS.window);$('chart').dataset.wlrThicknessPairs=String(currentThickness?.pairs??0);
   writeSeries('priceMid',series.priceMid,priceLineData(priceBands,maps.COMPOSITE??new Map(),wlrVolumeStrengthMap,trendThickness),seriesContext);updateAbaBandColors();
-  writeSeries('COMPOSITE',series.COMPOSITE,flowData(rows.COMPOSITE??[],'COMPOSITE'),seriesContext);
+  compositeClusterRows=clusterTakerNf(p,new Map((rows.COMPOSITE??[]).map(row=>[row.t,row])),bodyVolumeByTime,STEPS[$('interval').value],cache?.serverTime??0);
+  writeSeries('COMPOSITE',series.COMPOSITE,compositeClusterRows,seriesContext+'|spy-body-clusters');
   const step=STEPS[$('interval').value];
   writeSeries('alignment',series.alignment,volumeDeltaBandData(spyVolumeDeltaRows,bodyVolumeByTime),seriesContext);
   oiBottomLayer?.update({bars:p,oiByTime:oiWidths,spyVByTime:bodyVolumeByTime,step,now:cache?.serverTime??0,symbol:$('symbol').value,interval:$('interval').value,oiInterval:oiStamp});
@@ -928,12 +931,12 @@ function positionFixedPaneReadouts(){
 }
 function latestFiniteValue(data,key){for(let i=data.length-1;i>=0;i--)if(Number.isFinite(data[i]?.[key]))return data[i][key];return null;}
 function updateFixedPaneReadouts(){
-  const compositeValue=latestFiniteValue(rows.COMPOSITE??[],'net'),compositeNode=$('composite-flow-fixed');compositeNode.textContent=`C Taker NF ${fmtK(compositeValue)}`;compositeNode.className=`pane-fixed-readout ${Number.isFinite(compositeValue)?compositeValue>=0?'positive':'negative':'missing'}`;compositeNode.style.display=$('composite').checked?'block':'none';
+  const compositeValue=latestFiniteValue(compositeClusterRows,'value'),compositeNode=$('composite-flow-fixed');compositeNode.textContent=`Σ C Taker NF ${fmtK(compositeValue)}`;compositeNode.className=`pane-fixed-readout ${Number.isFinite(compositeValue)?compositeValue>=0?'positive':'negative':'missing'}`;compositeNode.style.display=$('composite').checked?'block':'none';
   compositeNode.title=[
-    'C Taker NF — chênh lệch giao dịch chủ động SPYUSDT + QQQUSDT ở cùng nến.',
+    'Σ C Taker NF — cộng dồn NF có dấu trong từng cụm màu SPY V thân nến.',
     'Mỗi mã: NF = taker buy quote − taker sell quote = 2 × taker buy quote − tổng quote volume. C Taker NF = NF(SPY) + NF(QQQ).',
-    'Đơn vị USDT; K = nghìn, M = triệu. Dương: bên mua chủ động trội; âm: bên bán chủ động trội. Đây là giá trị của một nến, không phải CVD cộng dồn.',
-    'Không phải dòng tiền ròng vào/ra thị trường và không xác định chắc mở/đóng Long–Short. Giá trị nến đang chạy có thể đổi đến khi đóng.'
+    'Đơn vị USDT; K = nghìn, M = triệu. Dương: tổng mua chủ động trội trong cụm; âm: tổng bán chủ động trội. Màu cột theo SPY V thân nến, độc lập dấu tổng NF.',
+    'Đổi màu SPY V hoặc thiếu dữ liệu thì bắt đầu lại. Chỉ cộng nến đã đóng. Không phải dòng tiền ròng vào/ra thị trường và không xác định chắc mở/đóng Long–Short.'
   ].join('\n');
   requestAnimationFrame(positionFixedPaneReadouts);
 }
@@ -1171,7 +1174,7 @@ if(init()){
   const nfLabel=document.createElement('label'),nfInput=document.createElement('input'),nfWindow=document.createElement('select');
   nfInput.id='nf-smooth-toggle';nfInput.type='checkbox';nfInput.checked=true;nfWindow.id='nf-smooth-window';
   for(const n of [4,8]){const option=document.createElement('option');option.value=String(n);option.textContent=n+' M15';nfWindow.append(option);}
-  nfLabel.append(nfInput,'C Taker NF mượt · thử ',nfWindow);nfLabel.title='Line trong pane SPY trên SPY M15: NF SPY + QQQ thật, chuẩn hóa SMA20, cộng 4/8 nến, EWMA tự thích ứng, nền 500. Chỉ nến đóng; thiếu cặp thì ngắt. Giữ histogram NF để đối chiếu.';spyBodyLabel.after(nfLabel);
+  nfLabel.append(nfInput,'C Taker NF mượt · thử ',nfWindow);nfLabel.title='Line trong pane SPY trên SPY M15: NF SPY + QQQ thật, chuẩn hóa SMA20, cộng 4/8 nến, EWMA tự thích ứng, nền 500. Chỉ nến đóng; thiếu cặp thì ngắt. Histogram NF tích lũy theo cụm màu SPY V thân nến để đối chiếu.';spyBodyLabel.after(nfLabel);
   nfInput.onchange=()=>render(false);nfWindow.onchange=()=>render(false);
   const oi8Label=document.createElement('label'),oi8Toggle=document.createElement('input');
   oi8Toggle.id='strength-oi8-toggle';oi8Toggle.type='checkbox';oi8Toggle.checked=true;
