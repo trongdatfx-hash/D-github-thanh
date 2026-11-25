@@ -1,4 +1,4 @@
-import {clusterTakerNf} from './cluster-taker-nf.mjs?v=20261125-nf-cluster1';
+import {clusterTakerNf} from './cluster-taker-nf.mjs?v=20261125-nf-sign1';
 let compositeClusterRows=[];
 import {mountOiBottomBars} from './oi-bottom-bars.mjs?v=20261125-oi-cumulative1';
 let oiBottomLayer;
@@ -218,7 +218,7 @@ function setupChartActions(){
   const save=document.createElement('button');save.id='chart-save';save.type='button';save.title='Lưu toàn bộ lựa chọn và vùng thời gian đang xem trên trình duyệt này';save.textContent='Lưu setup';save.setAttribute('aria-live','polite');half.insertAdjacentElement('afterend',save);
   const vix=$('chart-vix-quote');if(vix)live.insertAdjacentElement('afterend',vix);
   const alignmentLabel=$('alignment')?.closest('label');if(alignmentLabel){alignmentLabel.lastChild.textContent='SPY V Δ nến';alignmentLabel.dataset.pane='strength-spy-v';alignmentLabel.title='Histogram Delta / SMA20(volume): vẽ trực tiếp giá trị chuẩn hóa, không chia 2 và không chặn ±1; spike +3 và +5 giữ đúng biên độ. Thang histogram riêng đối xứng quanh 0. Màu theo dấu SPY V: dương xanh, âm đỏ, bằng 0 hoặc thiếu dữ liệu màu xám.';}
-  const compositeLabel=$('composite')?.closest('label');if(compositeLabel)compositeLabel.title='Σ C Taker NF tích lũy có dấu theo cụm màu SPY V thân nến; đổi màu hoặc thiếu dữ liệu thì bắt đầu lại. Chỉ cộng nến đóng. Màu cột theo SPY V, thang riêng đối xứng chung tâm 0 với Strength.';
+  const compositeLabel=$('composite')?.closest('label');if(compositeLabel)compositeLabel.title='Σ C Taker NF tích lũy có dấu theo cụm màu SPY V thân nến; đổi màu hoặc thiếu dữ liệu thì bắt đầu lại. Chỉ cộng nến đóng. Màu theo dấu tổng NF: dương xanh, âm đỏ, bằng 0 xám; thang riêng đối xứng chung tâm 0 với Strength.';
   const phaseLabel=$('phase-width')?.closest('label');if(phaseLabel){phaseLabel.hidden=true;const button=document.createElement('button');button.id='wlr-width-mode';button.type='button';button.className='display-mode-button';phaseLabel.insertAdjacentElement('afterend',button);}
   if(!$('wlr-soft-colors')){const input=document.createElement('input');input.id='wlr-soft-colors';input.type='checkbox';input.checked=true;input.hidden=true;const button=document.createElement('button');button.id='wlr-soft-color-mode';button.type='button';button.className='display-mode-button';button.append(input,document.createElement('span'));$('wlr-width-mode').insertAdjacentElement('afterend',button);}
   const candleLabel=$('candle-agreement-color')?.closest('label');if(candleLabel){candleLabel.hidden=true;const button=document.createElement('button');button.id='candle-color-mode';button.type='button';button.className='display-mode-button';candleLabel.insertAdjacentElement('afterend',button);}
@@ -935,7 +935,7 @@ function updateFixedPaneReadouts(){
   compositeNode.title=[
     'Σ C Taker NF — cộng dồn NF có dấu trong từng cụm màu SPY V thân nến.',
     'Mỗi mã: NF = taker buy quote − taker sell quote = 2 × taker buy quote − tổng quote volume. C Taker NF = NF(SPY) + NF(QQQ).',
-    'Đơn vị USDT; K = nghìn, M = triệu. Dương: tổng mua chủ động trội trong cụm; âm: tổng bán chủ động trội. Màu cột theo SPY V thân nến, độc lập dấu tổng NF.',
+    'Đơn vị USDT; K = nghìn, M = triệu. Dương: tổng mua chủ động trội trong cụm; âm: tổng bán chủ động trội. Màu cột theo dấu tổng NF: dương xanh, âm đỏ, bằng 0 xám.',
     'Đổi màu SPY V hoặc thiếu dữ liệu thì bắt đầu lại. Chỉ cộng nến đã đóng. Không phải dòng tiền ròng vào/ra thị trường và không xác định chắc mở/đóng Long–Short.'
   ].join('\n');
   requestAnimationFrame(positionFixedPaneReadouts);

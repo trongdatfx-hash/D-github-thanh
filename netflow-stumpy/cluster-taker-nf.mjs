@@ -11,6 +11,6 @@ export function clusterTakerNf(bars,flowByTime,spyVByTime,step,now){
     }
     if(sign!==phase||lastTime!==bar.t-step)total=0;
     total+=net;phase=sign;lastTime=bar.t;
-    return {...point,value:total,color:sign>0?'#08e8a9':'#ff4163'};
+    return {...point,value:total,color:total>0?'#08e8a9':total<0?'#ff4163':'#68778a'};
   });
 }
