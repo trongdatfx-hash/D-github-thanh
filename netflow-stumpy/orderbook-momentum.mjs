@@ -38,6 +38,17 @@ export function classifyWindow(w){
   return 'mixed';
 }
 
+// Three disjoint one-minute blocks ending at the latest completed second.
+export function sustainedTradePressure(primary,minutes){
+  if(primary.seconds<180||!['buy','sell'].includes(primary.state))return {applied:false,passed:true,reason:'not-directional',aligned:0};
+  const side=primary.state==='buy'?1:-1;
+  if(minutes.length!==3||minutes.some(w=>!w.ready))return {applied:true,passed:false,reason:'history',aligned:0};
+  const aligned=minutes.filter(w=>w.count>=5&&w.total>0&&side*w.delta>0).length;
+  const recent=minutes[0],recentActive=recent.count>=10&&recent.total>0;
+  const recentConfirmed=recentActive&&side*recent.flow>=.10;
+  return {applied:true,passed:recentConfirmed&&aligned>=2,reason:!recentActive?'recent-quiet':!recentConfirmed?'recent-opposed':aligned<2?'not-sustained':'confirmed',aligned,recentFlow:recent.flow};
+}
+
 export class OrderBookMomentum {
   constructor({now=()=>Date.now(),horizon=300}={}){this.now=now;this.setHorizon(horizon);this.reset('');}
   setHorizon(seconds){this.horizon=[180,300,600].includes(Number(seconds))?Number(seconds):300;this.summary=null;this.candidate=null;this.confirmations=0;this.stable='mixed';this.stateSince=0;}
@@ -125,9 +136,12 @@ export class OrderBookMomentum {
       return {quality,state:quality,label:MOMENTUM_LABELS[quality],reason,windows,book:this.latest};
     }
     const primary=[...windows].reverse().find(w=>w.seconds<=this.horizon&&w.ready)??windows[1];let raw=primary.state;
-    // Fast-window disagreement is diagnostic only; it cannot flip the 60s headline.
+    const minutes=[0,1,2].map(offset=>this.window(60,now-offset*60000));
+    const persistence=sustainedTradePressure(primary,minutes);
+    if(!persistence.passed)raw='mixed';
+    // Long directional labels require recent executed pressure, not a five-second quote fluctuation.
     const side=Math.sign(primary.flow),opposing=side>0?primary.askDepth:primary.bidDepth;
-    const large=primary.count>=20&&Math.abs(primary.flow)>=.45&&opposing>0&&Math.abs(primary.delta)>=opposing*.5
+    const large=persistence.passed&&primary.count>=20&&Math.abs(primary.flow)>=.45&&opposing>0&&Math.abs(primary.delta)>=opposing*.5
       &&(side*primary.obi>=.2||side*primary.ofi>=.15);
     if(this.lastConfirmAt===null||now-this.lastConfirmAt>=1000){
       this.lastConfirmAt=now;
@@ -146,9 +160,9 @@ export class OrderBookMomentum {
     if(!this.summary||now-this.summary.at>=5000){
       const prior=this.summary,alpha=prior?1-Math.exp(-Math.LN2*(now-prior.at)/15000):1;
       this.summary={at:now,seconds:primary.seconds,targetSeconds:this.horizon,flow:prior?prior.flow+alpha*(primary.flow-prior.flow):primary.flow,
-        obi:prior?prior.obi+alpha*(primary.obi-prior.obi):primary.obi,delta:primary.delta,large};
+        obi:prior?prior.obi+alpha*(primary.obi-prior.obi):primary.obi,delta:primary.delta,large,persistence};
     }
-    return {quality,state:this.stable,label:MOMENTUM_LABELS[this.stable],pending:raw!==this.stable,raw,windows,book:this.latest,summary:this.summary};
+    return {quality,state:this.stable,label:MOMENTUM_LABELS[this.stable],pending:raw!==this.stable,raw,windows,book:this.latest,summary:this.summary,persistence};
   }
 }
 

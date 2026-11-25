@@ -4,7 +4,7 @@ import {OrderBookMomentum} from '../orderbook-momentum.mjs';
 function controlled(){
  let now=100000,state='buy',fast='sell',large=false;
  const m=new OrderBookMomentum({now:()=>now});m.reset('SPYUSDT');m.transport='WS';m.latest={};m.tapeConnected=true;
- m.window=seconds=>({seconds,ready:true,state:seconds===5?fast:state,count:30,flow:state==='sell'?-.7:.7,delta:large?100:20,bidDepth:100,askDepth:100,obi:.5,ofi:.3});
+ m.window=seconds=>({seconds,ready:true,state:seconds===5?fast:state,count:30,total:(large?100:20)/.7,flow:state==='sell'?-.7:.7,delta:(state==='sell'?-1:1)*(large?100:20),bidDepth:100,askDepth:100,obi:.5,ofi:.3});
  const read=()=>{m.lastBookAt=m.lastTradeAt=now;return m.read();};
  const advance=seconds=>{let r;for(let i=0;i<seconds;i++){now+=1000;r=read();}return r;};
  return {m,read,advance,setState:s=>{state=s;},setLarge:()=>{large=true;},setFast:s=>{fast=s;}};

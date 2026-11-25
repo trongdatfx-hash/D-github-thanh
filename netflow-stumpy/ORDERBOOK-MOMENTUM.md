@@ -34,3 +34,7 @@ Chu kỳ nối lại depth chủ động tăng từ 3 lên 20 phút để cửa 
 ## Kiểm tra
 
 node --test netflow-stumpy/tests/orderbook.test.mjs netflow-stumpy/tests/orderbook-momentum.test.mjs netflow-stumpy/tests/orderbook-momentum-stability.test.mjs netflow-stumpy/tests/orderbook-momentum-ui.test.mjs netflow-stumpy/tests/orderbook-long.test.mjs
+
+## Lọc lực khớp duy trì (25/11/2026)
+
+Chỉ áp dụng khi cửa sổ thực >=3 phút và ứng viên là MUA ĐẨY GIÁ/BÁN ÉP GIÁ. Ba đoạn một phút không chồng lấn, lùi từ giây hoàn tất gần nhất. Phút mới nhất cần >=10 aggTrade và lệch cùng hướng >=10%; ít nhất 2/3 đoạn có delta cùng hướng với >=5 aggTrade/đoạn. Cần đủ lịch sử của cả 3 đoạn. Không đạt chuyển ứng viên về CHƯA RÕ, vẫn qua thời gian xác nhận/giữ nhãn đang dùng. LỆCH LỚN không được rút xác nhận khi bộ lọc thất bại. Cửa sổ TẠM dưới 3 phút và dấu hiệu hấp thụ giữ logic riêng. Book nghịch hướng không tự loại bỏ ứng viên nếu giá/OFI/microprice vẫn đáp ứng điều kiện cũ. Dùng tổng khớp q, không tự loại giao dịch liên quan RPI hoặc giả định đã tách lệnh market/limit. Đây là bộ lọc thử nghiệm, chưa có kết quả lợi nhuận từ tick thực.

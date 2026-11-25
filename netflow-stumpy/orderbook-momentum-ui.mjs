@@ -1,4 +1,4 @@
-import {OrderBookMomentum,BinanceAggTradeFeed,MOMENTUM_LABELS} from './orderbook-momentum.mjs?v=20261124-ob-clear5';
+import {OrderBookMomentum,BinanceAggTradeFeed,MOMENTUM_LABELS} from './orderbook-momentum.mjs?v=20261125-ob-persist1';
 
 const pct=x=>`${x>0?'+':''}${(x*100).toFixed(0)}%`;
 export function mountMomentumReadout({chart,host,symbolControl,horizon=300}){
@@ -31,6 +31,7 @@ export function mountMomentumReadout({chart,host,symbolControl,horizon=300}){
     node.title=[detail.textContent, 'L: lệch khớp · B: Book · $: USDT · ~: cửa sổ tạm · !: lệch lớn.',`${model.symbol} · Binance USD-M · chỉ đọc thời điểm hiện tại, độc lập dữ liệu nến M15.`,
       'Book: lệch thanh khoản chờ, có trọng số theo 20 mức gần giá. % cửa sổ: (mua chủ động − bán chủ động) / tổng khớp, tính theo USDT; không phải xác suất thắng.',
       'Chọn 3/5/10 phút, mặc định 5 phút; khi chưa đủ dùng cửa sổ nhỏ hơn và ghi TẠM. Lệch khớp ≥30%; giá ≥2/3/4 spread tương ứng 3/5/10 phút; cửa sổ ngắn ≥1,5 spread. Số khớp tối thiểu 20/30/50 tương ứng 3/5/10 phút. Xác nhận 8s, đảo trạng thái 15s và giữ tối thiểu 20s trước khi đảo; về chưa rõ cần 20s. Lệch lớn có thể xác nhận sau 5s, không bỏ qua điều kiện giá. Tổng kết cập nhật mỗi 5s; tỷ lệ làm mượt với nửa đời 15s, làm tròn 5 điểm %. Lệch lớn: ≥20 khớp, lệch ≥45%, |delta| ≥50% độ sâu đối ứng và Book/OFI cùng hướng. Hấp thụ là giả thuyết, chưa phải tín hiệu vào lệnh.',
+      `Lọc lực duy trì: ${r.persistence?.applied?(r.persistence.passed?'ĐẠT':'CHƯA ĐẠT')+' · '+r.persistence.aligned+'/3 phút cùng chiều · '+({history:'chưa đủ lịch sử', 'recent-quiet':'phút mới nhất ít khớp', 'recent-opposed':'lệch phút mới nhất chưa cùng hướng ≥10%', 'not-sustained':'lực chưa duy trì', confirmed:'đã xác nhận'}[r.persistence.reason]??'chưa rõ'):'chưa áp dụng: dữ liệu chưa đủ hoặc không phải nhãn đẩy giá cửa sổ dài'}. Với nhãn đẩy giá 3/5/10 phút: phút gần nhất cần >=10 bản tin khớp, lệch cùng hướng >=10%; ít nhất 2/3 phút rời nhau có delta cùng hướng và >=5 bản tin/phút. Lệch lớn không bỏ qua bộ lọc này.`,
       ...r.windows.map(w=>`${w.seconds}s: ${w.ready?MOMENTUM_LABELS[w.state]:'chưa đủ mẫu'}; khớp ${w.count}; Δ ${w.delta.toFixed(2)} USDT; OFI ${pct(w.ofi)}; micro ${w.microBps.toFixed(3)} bps; giá ${Number.isFinite(w.moveSpreads)?w.moveSpreads.toFixed(2):'—'} spread.`)].join('\n');
     host.dataset.orderbookMomentum=r.state;host.dataset.orderbookMomentumQuality=r.quality;
     position();
