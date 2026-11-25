@@ -1,4 +1,4 @@
-import {mountOiBottomBars} from './oi-bottom-bars.mjs?v=20261125-oi-bottom1';
+import {mountOiBottomBars} from './oi-bottom-bars.mjs?v=20261125-oi-cumulative1';
 let oiBottomLayer;
 import {CHART_SETUP_KEY,readChartSetup,restoreSetupControls} from './chart-setup-state.mjs?v=20261122-setup1';
 import {mountOrderBook} from './orderbook-ui.mjs?v=20261125-ob-persist1';
@@ -838,7 +838,7 @@ function render(fit=false){
   writeSeries('COMPOSITE',series.COMPOSITE,flowData(rows.COMPOSITE??[],'COMPOSITE'),seriesContext);
   const step=STEPS[$('interval').value];
   writeSeries('alignment',series.alignment,volumeDeltaBandData(spyVolumeDeltaRows,bodyVolumeByTime),seriesContext);
-  oiBottomLayer?.update({bars:p,oiByTime:oiWidths,step,now:cache?.serverTime??0,symbol:$('symbol').value,interval:$('interval').value,oiInterval:oiStamp});
+  oiBottomLayer?.update({bars:p,oiByTime:oiWidths,spyVByTime:bodyVolumeByTime,step,now:cache?.serverTime??0,symbol:$('symbol').value,interval:$('interval').value,oiInterval:oiStamp});
   const oiBarsEnabled=$('oi-candle-bars-toggle')?.checked&&$('symbol').value==='SPYUSDT';
   oiBarState=oiCandleBars(p,spyVolumeDeltaRows,rows.COMPOSITE??[],oiWidths,step,cache?.serverTime??0,{filterPin:$('oi-candle-pin-toggle')?.checked??true,history:true,minOiMultiplier:1,oiPercentile:Number($('oi-delta-percentile')?.value??.62)});
   writeSeries('oiCandleBars',series.oiCandleBars,oiBarState.data,seriesContext+'|'+$('oi-candle-pin-toggle')?.checked);
