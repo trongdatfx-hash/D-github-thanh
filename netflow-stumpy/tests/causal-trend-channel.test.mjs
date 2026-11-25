@@ -3,6 +3,19 @@ import assert from 'node:assert/strict';
 import {sessionAt} from '../engine.mjs';
 import {causalTrendChannels} from '../causal-trend-channel.mjs';
 
+test('active channel qualifies on its eighth closed member without waiting for an exit',()=>{
+ const all=breakoutRows(),volumeRows=all.map(row=>({t:row.t,adjusted:-.7}));
+ const seven=causalTrendChannels(all.slice(0,23),{volumeRows:volumeRows.slice(0,23)});
+ const eight=causalTrendChannels(all.slice(0,24),{volumeRows:volumeRows.slice(0,24)});
+ assert.equal(seven.episodes[0].bars,7);assert.equal(seven.trends.length,0);
+ const channel=eight.trends[0];assert(channel);assert.equal(channel.bars,8);
+ assert.equal(channel.provisional,true);assert.equal(channel.exitTime,null);
+ assert.equal(channel.insideEndTime,all[23].t);assert.equal(channel.renderPoints.length,8);
+ const nine=causalTrendChannels(all.slice(0,25),{volumeRows:volumeRows.slice(0,25)}).trends[0];
+ assert.equal(nine.startTime,channel.startTime);assert.equal(nine.bars,9);
+ assert.deepEqual(nine.points.slice(0,8),channel.points);
+});
+
 function breakoutRows(){
   const start=Date.UTC(2026,7,10,8),rows=[];
   for(let i=0;i<34;i++){
@@ -109,3 +122,4 @@ test('an opposite OLS slope stays diagnostic and does not cut an active UP sampl
   assert.equal(full.direction,1);assert.equal(full.exitTime,null);assert.equal(full.exitReason,null);assert.equal(full.provisional,true);assert.equal(full.insideEndTime,rows.at(-1).t);
   assert(full.points.at(-1).oppositeSlopeBars>=2);assert.equal(full.absorbing,true);assert.equal(full.bars,rows.length-16);
 });
+
