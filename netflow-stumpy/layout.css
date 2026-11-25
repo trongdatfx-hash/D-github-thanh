@@ -236,3 +236,32 @@ body.chart-fullscreen::before{display:none}
 /* Make the OI percentage in the H1 preview readout easier to read. */
 #h1-cvd-status-row #h1-oi-percent{font-size:14px}
 @media(max-width:650px){#h1-cvd-status-row #h1-oi-percent{font-size:12px}}
+
+/* Keep H1 readable above the OI band with a light, state-colored backdrop. */
+#h1-cvd-status-row>#h1-trend-age-readout{
+  background:rgba(12,24,39,.18);border-color:rgba(128,151,178,.40);
+  box-shadow:none;backdrop-filter:none;text-shadow:0 1px 2px #080e18;
+}
+#h1-cvd-status-row>#h1-trend-age-readout.up{color:#69efc0;border-color:rgba(70,230,175,.48)}
+#h1-cvd-status-row>#h1-trend-age-readout.down{color:#ff93a9;border-color:rgba(255,130,153,.48)}
+#h1-cvd-status-row>#h1-trend-age-readout.wait{color:#c6d1df;border-color:rgba(128,151,178,.40)}
+#h1-cvd-status-row #h1-candle-countdown{
+  min-width:0;padding:2px 5px;font-size:12px;border-color:rgba(144,194,230,.35);
+  background:rgba(17,42,62,.22);color:#d9efff;box-shadow:none;
+}
+@media(max-width:650px),(max-width:950px) and (orientation:landscape) and (pointer:coarse){
+  #h1-cvd-status-row{width:260px;gap:2px}
+  #h1-cvd-status-row>#h1-trend-age-readout{
+    display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 7px;
+    padding:3px 5px;line-height:1.2;
+  }
+  #h1-cvd-status-row #h1-oi-status{grid-column:1;grid-row:1;font-size:10.5px}
+  #h1-cvd-status-row #h1-oi-percent{font-size:12px}
+  #h1-cvd-status-row #h1-candle-countdown{
+    grid-column:2;grid-row:1;min-width:0;padding:1px 4px;font-size:11.5px;
+  }
+  #h1-cvd-status-row #h1-trend-age-text{
+    grid-column:1/-1;grid-row:2;font-size:10.5px;line-height:1.25;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+}

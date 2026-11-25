@@ -371,6 +371,7 @@ function init(){
   price=chart.addSeries(L.CandlestickSeries,{title:'',priceFormat:{type:'price',precision:1,minMove:.1},priceLineVisible:true,priceLineColor:'#36ddbd',priceLineWidth:1,priceLineStyle:L.LineStyle.Dashed,lastValueVisible:true,borderVisible:false},0);
   priceStyleLayer=mountPriceChartStyle({chart,price,actions:document.querySelector('.chart-actions'),host:$('chart'),L,writeSeries,onChange:()=>render(false)});
   oiBottomLayer=mountOiBottomBars({chart,actions:document.querySelector('.chart-actions'),host:$('chart'),L,writeSeries});
+  oiBottomLayer.button.addEventListener('click',scheduleH1Status);
   price.attachPrimitive(oiBoldCandles);
   price.attachPrimitive(stopLossBands);
   daoV2Layer=bodyReversalPrimitive(chart,price);
@@ -655,7 +656,15 @@ function scheduleH1Status(){
 }
 function positionH1Status(){
  const row=$('h1-cvd-status-row'),paneHeight=chart?.panes?.()[0]?.getHeight?.();
- if(row&&!row.hidden&&Number.isFinite(paneHeight))row.style.top=`${Math.max(8,paneHeight-row.offsetHeight-10)}px`;
+ if(!row||row.hidden||!Number.isFinite(paneHeight))return;
+ const oiVisible=$('oi-bottom-toggle')?.checked&&$('symbol').value==='SPYUSDT';
+ // Match the histogram's bottom 14% scale margin and leave a clear gap above it.
+ const reserved=oiVisible?Math.ceil(paneHeight*.14):0;
+ const axis=chart.priceScale('right',0)?.width?.()??58;
+ row.style.right=`${axis+6}px`;
+ row.style.maxWidth=`calc(100% - ${axis+12}px)`;
+ row.style.top=`${Math.max(4,paneHeight-reserved-Math.ceil(row.getBoundingClientRect().height)-8)}px`;
+ row.dataset.oiClearance=String(reserved);
 }
 function currentH1TrendAge(){
   const blocks=new Map();for(const state of h1CandleMap.values()){if(!Number.isFinite(state.blockStart))continue;const old=blocks.get(state.blockStart);if(!old||state.t>old.t)blocks.set(state.blockStart,state);}
@@ -683,7 +692,7 @@ function updateH1TrendAgeReadout(){
   }
   const visible=usesH1WlrStyle();row.hidden=!visible;if(!visible)return;
   const state=currentH1TrendAge(),direction=state?.direction??0,word=direction>0?'↑':direction<0?'↓':'WAIT';
-  $('h1-trend-age-text').textContent=state?`${word} ${state.ageH1} H1${state.preview?' · XEM TRƯỚC':' · ĐÃ KHÓA'}${h1CacheArchive!==null?' · ĐANG CẬP NHẬT':''}`:'H1 · WAIT';
+  $('h1-trend-age-text').textContent=state?`${word} ${state.ageH1} H1`:'H1 · WAIT';
   node.className=direction>0?'up':direction<0?'down':'wait';
   node.title=$('h1-trend-age-text').textContent+'. Hộp H1 đếm các hộp H1 liên tiếp cùng màu với nến: xanh ↑, đỏ ↓, xám WAIT. Đổi màu hoặc sang ngày New York mới sẽ đặt lại tuổi. XEM TRƯỚC gồm hộp H1 đang hình thành và có thể đổi màu. Đồng hồ là thời gian đến hết giờ H1 hiện tại, không xác nhận dữ liệu LIVE.';
   updateH1OiReadout();updateH1CandleCountdown();scheduleH1Status();
@@ -692,7 +701,7 @@ function updateH1CandleCountdown(){
   const node=$('h1-candle-countdown'),show=$('interval').value==='15m'&&$('symbol').value==='SPYUSDT';
   if(!node)return;node.hidden=!show;if(!show)return;
   const serverNow=Date.now()+serverOffsetMs,remaining=Math.max(0,(Math.floor(serverNow/3600000)+1)*3600000-serverNow),seconds=Math.ceil(remaining/1000),minutes=Math.floor(seconds/60),rest=seconds%60;
-  const label=`H1 CÒN ${String(minutes).padStart(2,'0')}:${String(rest).padStart(2,'0')}`;
+  const label=`H1 ${String(minutes).padStart(2,'0')}:${String(rest).padStart(2,'0')}`;
   if(node.textContent!==label){
     node.textContent=label;
     node.setAttribute('aria-label',`Nến H1 đóng sau ${minutes} phút ${rest} giây`);
