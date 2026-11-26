@@ -1,4 +1,4 @@
-import {parseGex,drawGex} from './gex-profile.mjs?v=20261126-gex1';
+import {parseGex,drawGex} from './gex-profile.mjs?v=20261126-gex2';
 import {SpectrumPrimitive} from './spectrum-primitive.mjs?v=20261104-oi-smooth1';
 const KEY='netflow:gex:v1';
 export function mountGex({chart,price,context}){
