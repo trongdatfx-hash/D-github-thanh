@@ -20,10 +20,10 @@ test('load, toggle, bad import, reload and clear preserve applied state',()=>{
  try{
   mount();const raw='S:12|L:7000,ZG,ZERO GAMMA|P:6990,-2,-1;7010,4,1';
   nodes.get('gex-data').value=raw;nodes.get('gex-load').onclick();
-  assert.equal(nodes.get('gex-spectrum-toggle').checked,true);assert.equal(nodes.get('gex-basis').value,'12');assert.match(nodes.get('gex-status').textContent,/2 mức/);
+  assert.equal(nodes.get('gex-spectrum-toggle').checked,true);assert.equal(nodes.get('gex-basis').value,'12');assert.match(nodes.get('gex-status').textContent,/2 mức/);assert.match(nodes.get('gex-status').textContent,/Đã lưu tự động/);assert.ok(JSON.parse(storage.get('netflow:gex:v1')).savedAt>0);
   nodes.get('gex-data').value='bad';nodes.get('gex-load').onclick();assert.match(nodes.get('gex-status').textContent,/giữ nguyên/);
   nodes.get('gex-spectrum-toggle').checked=false;nodes.get('gex-spectrum-toggle').onchange();assert.equal(JSON.parse(storage.get('netflow:gex:v1')).text,raw);
-  mount();assert.equal(nodes.get('gex-data').value,raw);assert.equal(nodes.get('gex-spectrum-toggle').checked,false);
+  mount();assert.equal(nodes.get('gex-data').value,raw);assert.equal(nodes.get('gex-spectrum-toggle').checked,false);assert.match(nodes.get('gex-status').textContent,/Đã khôi phục bản tự lưu/);
   nodes.get('gex-reference-time').value='2026-11-26T22:45';nodes.get('gex-chart-reference').onclick();assert.equal(nodes.get('gex-target-reference').value,'722');
   nodes.get('gex-map-mode').value='PAIR_RATIO';nodes.get('gex-source-reference').value='7600';nodes.get('gex-apply-calibration').onclick();
   assert.equal(JSON.parse(storage.get('netflow:gex:v1')).mapping.ratio,722/7600);
@@ -32,6 +32,7 @@ test('load, toggle, bad import, reload and clear preserve applied state',()=>{
   nodes.get('gex-panel-toggle').checked=true;nodes.get('gex-panel-toggle').onchange();assert.equal(nodes.get('gex-spectrum-toggle').checked,true);
   symbol='QQQUSDT';assert.doesNotThrow(()=>primitive.paint({}));
   nodes.get('gex-clear').onclick();assert.equal(JSON.parse(storage.get('netflow:gex:v1')).text,'');assert.ok(redraws>0);
+  globalThis.localStorage={getItem:()=>null,setItem(){throw Error('quota');}};nodes.get('gex-data').value=raw;assert.doesNotThrow(()=>nodes.get('gex-load').onclick());assert.match(nodes.get('gex-status').textContent,/CHƯA LƯU/);
  }finally{globalThis.document=originalDocument;globalThis.localStorage=originalStorage;}
 });
 

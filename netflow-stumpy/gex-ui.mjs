@@ -12,12 +12,16 @@ export function mountGex({chart,price,context}){
   settings.append(style);document.querySelector('.chart-actions').append(settings);
   const $=id=>document.getElementById(id),status=$('gex-status'),panelToggle=$('gex-panel-toggle');
   $('gex-scale').value='10';$('gex-basis').value='0';$('gex-map-mode').value='BASIS';
-  let profile=null,loadedAt=null,appliedText='',activeMapping=gexMapping({mode:'BASIS',basis:0,scale:10});
+  let profile=null,loadedAt=null,appliedText='',saveState='empty',savedAt=null,activeMapping=gexMapping({mode:'BASIS',basis:0,scale:10});
   const primitive=new SpectrumPrimitive(scope=>{
     const state=context();if(!toggle.checked||!profile||state.symbol!=='SPYUSDT'||!Number.isFinite(state.anchor))return;
     drawGex({...scope,profile,mapping:activeMapping,anchor:chart.timeScale().timeToCoordinate(state.anchor/1000),priceToY:v=>price.priceToCoordinate(v)});
   });price.attachPrimitive(primitive);
-  function save(){try{localStorage.setItem(KEY,JSON.stringify({version:2,text:appliedText,basis:activeMapping.basis??0,scale:String(activeMapping.scale),mapping:activeMapping,enabled:toggle.checked,loadedAt}));}catch{status.textContent+=' · Không lưu được trên trình duyệt';}}
+  function save(){
+    try{const stamp=Date.now();localStorage.setItem(KEY,JSON.stringify({version:2,text:appliedText,basis:activeMapping.basis??0,scale:String(activeMapping.scale),mapping:activeMapping,enabled:toggle.checked,loadedAt,savedAt:stamp}));savedAt=stamp;saveState='saved';}
+    catch{saveState='error';}
+    update();
+  }
   function fields(){const mode=$('gex-map-mode').value;settings.querySelector('.gex-pair-fields').hidden=mode==='BASIS';settings.querySelector('.gex-basis-field').hidden=mode!=='BASIS';settings.querySelector('.gex-scale-field').hidden=mode==='PAIR_RATIO';}
   function describe(){
     const m=activeMapping;
@@ -25,7 +29,8 @@ export function mountGex({chart,price,context}){
   }
   function update(){
     panelToggle.checked=toggle.checked;settings.querySelector('summary').textContent=profile?'GEX · '+(toggle.checked?'BẬT':'TẮT'):'GEX · Nạp data';
-    status.textContent=profile?profile.bins.length+' mức · '+(profile.zeroGamma===null?'không có Zero Gamma':'Zero Gamma '+projectGexStrike(profile.zeroGamma,activeMapping).toFixed(2))+' · nạp '+new Date(loadedAt).toLocaleString('vi-VN')+(context().symbol!=='SPYUSDT'?' · chỉ vẽ trên SPYUSDT':''):'Chưa nạp dữ liệu GEX';
+    const storageNote=saveState==='error'?' · CHƯA LƯU: trình duyệt chặn hoặc bộ nhớ đã đầy':saveState==='restored'?' · Đã khôi phục bản tự lưu':saveState==='saved'?' · Đã lưu tự động trên thiết bị này':'';
+    status.textContent=(profile?profile.bins.length+' mức · '+(profile.zeroGamma===null?'không có Zero Gamma':'Zero Gamma '+projectGexStrike(profile.zeroGamma,activeMapping).toFixed(2))+' · nạp '+new Date(loadedAt).toLocaleString('vi-VN')+(context().symbol!=='SPYUSDT'?' · chỉ vẽ trên SPYUSDT':''):'Chưa nạp dữ liệu GEX')+(profile||saveState==='error'?storageNote:'');
     describe();primitive.redraw();
   }
   function applyCalibration(){
@@ -62,7 +67,7 @@ export function mountGex({chart,price,context}){
       try{activeMapping=gexMapping(saved.version===2&&saved.mapping?saved.mapping:{mode:'BASIS',basis:saved.basis??profile.spread,scale:saved.scale==='1'?1:10});}catch{activeMapping=gexMapping({mode:'BASIS',basis:profile.spread,scale:10});}
       $('gex-map-mode').value=activeMapping.mode;$('gex-basis').value=String(activeMapping.basis??profile.spread);$('gex-scale').value=String(activeMapping.scale);
       if(activeMapping.mode!=='BASIS'){$('gex-source-reference').value=String(activeMapping.source);$('gex-target-reference').value=String(activeMapping.target);$('gex-reference-time').value=gexReferenceInput(activeMapping.referenceTime);}
-      toggle.checked=Boolean(saved.enabled);loadedAt=saved.loadedAt||Date.now();
+      toggle.checked=Boolean(saved.enabled);loadedAt=saved.loadedAt||Date.now();savedAt=saved.savedAt??loadedAt;saveState='restored';
     }
   }catch{}
   fields();update();return {update};
