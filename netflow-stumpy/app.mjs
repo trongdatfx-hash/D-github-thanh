@@ -55,9 +55,9 @@ import {spyUsdtSessionChange} from './spy-session-change.mjs?v=20261110-spy-post
 import {load,getJSON} from './data.mjs?v=20261107-outside-fast1';
 import {oiWidthByBar} from './oi-width.mjs?v=20261029-oi-width1';
 import {loadForexCalendar,selectCalendarEvents,calendarEventState,actualVsForecast,CALENDAR_TIME_ZONE} from './forex-calendar.mjs?v=20261126-calendar-path1';
-const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'�',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'�';
+const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('en-US',{maximumFractionDigits:2}):'—',fmtK=x=>Number.isFinite(x)?`${(x/1000).toLocaleString('en-US',{maximumFractionDigits:2})}K`:'—';
 const L=window.LightweightCharts;
-let chart,price,series={},marks,cache=null,chartLiveResponse=false,rows={},volumeStrengthRows=[],spyVolumeDeltaRows=[],maps={},priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C?S',dayBoundaries=[],dayFrame=0,geometryFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},causalChannelState={trends:[],total:0},geometryStatePoints=[],geometryStatePointsKey='',breakoutState=null,controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
+let chart,price,series={},marks,cache=null,chartLiveResponse=false,rows={},volumeStrengthRows=[],spyVolumeDeltaRows=[],maps={},priceBandMap=new Map(),cvdProfile={bins:[],maxAbs:0,binStep:.5,range:12},cvdAnchorTime=null,cvdSourceLabel='C→S',dayBoundaries=[],dayFrame=0,geometryFrame=0,geometryState={pivots:[],events:[],lines:[],summary:{}},causalChannelState={trends:[],total:0},geometryStatePoints=[],geometryStatePointsKey='',breakoutState=null,controller,generation=0,loading=false,lastSuccess=null,serverOffsetMs=0;
 const colors={SPYUSDT:'#5ba8ff',QQQUSDT:'#c194ff',COMPOSITE:'#38dfba'};
 let displayVolumeStrengthRows=[];
 let h1ScoreLineState={points:[],preview:[],timeline:[],previewMeta:null};
@@ -69,10 +69,10 @@ let h1CacheAttempt='',h1CacheArchive=null,h1HistoryKnown=false,h1HistoryRevision
 let volumeStrengthMap=new Map(),wlrThicknessMap=new Map(),wlrColorMap=new Map(),wlrH1StyleMap=new Map();
 const usesH1WlrStyle=()=>$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
 function wlrH1StyleText(x){
-  if(!x?.ready)return 'WLR theo H1: x�m, 2 px � ch? �i?m H1 �? d? li?u ho?c �i?m tr�?c �? h?t h?n; kh�ng coi thi?u d? li?u l� �i?m 0.';
-  const score=x.score>0?'+'+x.score:String(x.score),tone={confirmed:'�?ng thu?n',weak:'l?c y?u',conflict:'�i?m ngh?ch m�u h?p � v�ng m?nh',neutral:'h?p trung t�nh'}[x.tone];
-  const time=t=>new Date(t).toLocaleTimeString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',hour:'2-digit',minute:'2-digit'}),box=Number.isFinite(x.blockStart)?`${time(x.blockStart)}�${time(x.blockStart+3600000)} (VN)`:'�';
-  return `WLR theo H1 ${box} � �i?m ${score}/�5 � h?p ${x.boxDirection>0?'?':x.boxDirection<0?'?':'?'} � ${tone} � ${fmt(x.width)}/7 px${x.preview?' � T?M 3/4: m�u h?p xem tr�?c, n�t nh?t t?i �a 3 px':x.historical?' � t� ��ng h?p trong l?ch s? sau khi H1 ��ng; kh�ng ph?i t�n hi?u �? bi?t t? �?u h?p':' � �i?m kh�a'}. �i?m m� t? �?ng thu?n, kh�ng ph?i x�c su?t.`;
+  if(!x?.ready)return 'WLR theo H1: xám, 2 px · chờ điểm H1 đủ dữ liệu hoặc điểm trước đã hết hạn; không coi thiếu dữ liệu là điểm 0.';
+  const score=x.score>0?'+'+x.score:String(x.score),tone={confirmed:'đồng thuận',weak:'lực yếu',conflict:'điểm nghịch màu hộp · vàng mảnh',neutral:'hộp trung tính'}[x.tone];
+  const time=t=>new Date(t).toLocaleTimeString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',hour:'2-digit',minute:'2-digit'}),box=Number.isFinite(x.blockStart)?`${time(x.blockStart)}–${time(x.blockStart+3600000)} (VN)`:'—';
+  return `WLR theo H1 ${box} · điểm ${score}/±5 · hộp ${x.boxDirection>0?'↑':x.boxDirection<0?'↓':'↔'} · ${tone} · ${fmt(x.width)}/7 px${x.preview?' · TẠM 3/4: màu hộp xem trước, nét nhạt tối đa 3 px':x.historical?' · tô đúng hộp trong lịch sử sau khi H1 đóng; không phải tín hiệu đã biết từ đầu hộp':' · điểm khóa'}. Điểm mô tả đồng thuận, không phải xác suất.`;
 }
 const oiHistory=new OiHistory();
 const runningOiState=new RunningOiState();
@@ -109,14 +109,14 @@ let statsMap=new Map(),candleColorMap=new Map(),candleClusterMap=new Map(),pivot
 let calendarState={events:[],updatedAt:null,loading:false};
 let pendingSavedTimeRange=null,saveSetupTimer=null,strengthBoxLayer=null;
 const sourceName=key=>({SPYUSDT:'SPY',QQQUSDT:'QQQ',COMPOSITE:'Composite'}[key]);
-const signed=x=>Number.isFinite(x)?`${x>0?'+':''}${fmt(x)}`:'�';
-const signLabel=x=>x>0?'+':x<0?'?':'0';
+const signed=x=>Number.isFinite(x)?`${x>0?'+':''}${fmt(x)}`:'—';
+const signLabel=x=>x>0?'+':x<0?'−':'0';
 const symmetricAutoscale=original=>{const info=original();return info?.priceRange?{...info,priceRange:symmetricPriceRange(info.priceRange)}:info;};
 const LOWER_PANE_SCALE_MARGINS={top:.08,bottom:.08};
 const tone=x=>x>0?'positive':x<0?'negative':'neutral';
 const calendarDay=new Intl.DateTimeFormat('vi-VN',{timeZone:CALENDAR_TIME_ZONE,weekday:'short',day:'2-digit',month:'2-digit'});
 const calendarTime=new Intl.DateTimeFormat('vi-VN',{timeZone:CALENDAR_TIME_ZONE,hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
-const calendarImpactLabel={High:'High',Medium:'Medium',Low:'Low',Holiday:'Ngh?','Non-Economic':'Kh�c'};
+const calendarImpactLabel={High:'High',Medium:'Medium',Low:'Low',Holiday:'Nghỉ','Non-Economic':'Khác'};
 
 function renderCalendar(){
   const list=$('calendar-list'),statusNode=$('calendar-status');if(!list||!statusNode)return;
@@ -125,29 +125,29 @@ function renderCalendar(){
   for(const event of events){
     const key=`${event.timestamp}|${event.country}|${event.title}`,state=calendarEventState(event),comparison=actualVsForecast(event);let row=oldRows.get(key);
     if(!row){row=document.createElement('div');row.dataset.key=key;row.innerHTML='<span class="calendar-time"><b></b><small></small></span><span class="calendar-currency"></span><span class="calendar-impact"></span><span class="calendar-title"></span><span class="calendar-value calendar-actual"></span><span class="calendar-value calendar-forecast"></span><span class="calendar-value calendar-previous"></span>';}
-    row.className=`calendar-row ${state.key}${event.actual?' released':''}`;row.title=`${event.title} � ${state.label}${event.actual?` � ${comparison.label}`:''}`;
+    row.className=`calendar-row ${state.key}${event.actual?' released':''}`;row.title=`${event.title} · ${state.label}${event.actual?` · ${comparison.label}`:''}`;
     row.querySelector('.calendar-time b').textContent=calendarTime.format(event.timestamp);row.querySelector('.calendar-time small').textContent=calendarDay.format(event.timestamp);
     row.querySelector('.calendar-currency').textContent=event.country;
     const impact=row.querySelector('.calendar-impact');impact.className=`calendar-impact ${event.impact.toLowerCase().replace(/[^a-z]+/g,'-')}`;impact.textContent=calendarImpactLabel[event.impact]??event.impact;
     row.querySelector('.calendar-title').textContent=event.title;
-    const actual=row.querySelector('.calendar-actual');actual.className=`calendar-value calendar-actual ${comparison.key}`;actual.textContent=event.actual||'�';actual.title=`Th?c t? � ${comparison.label}`;
-    const forecast=row.querySelector('.calendar-forecast');forecast.textContent=event.forecast||'�';forecast.title='D? b�o';
-    const previous=row.querySelector('.calendar-previous');previous.textContent=event.previous||'�';previous.title='K? tr�?c';
+    const actual=row.querySelector('.calendar-actual');actual.className=`calendar-value calendar-actual ${comparison.key}`;actual.textContent=event.actual||'—';actual.title=`Thực tế · ${comparison.label}`;
+    const forecast=row.querySelector('.calendar-forecast');forecast.textContent=event.forecast||'—';forecast.title='Dự báo';
+    const previous=row.querySelector('.calendar-previous');previous.textContent=event.previous||'—';previous.title='Kỳ trước';
     fragment.append(row);
   }
-  if(!events.length){const empty=document.createElement('div');empty.className='calendar-empty';empty.textContent=calendarState.events.length?'Kh�ng c� tin ph� h?p trong kho?ng g?n ��y. Th? ch?n �T?t c?�.':'Ch�a c� d? li?u l?ch.';fragment.append(empty);}
+  if(!events.length){const empty=document.createElement('div');empty.className='calendar-empty';empty.textContent=calendarState.events.length?'Không có tin phù hợp trong khoảng gần đây. Thử chọn “Tất cả”.':'Chưa có dữ liệu lịch.';fragment.append(empty);}
   list.replaceChildren(fragment);
   if(positioned)list.scrollTop=scrollTop;else requestAnimationFrame(()=>{const next=[...list.children].find(row=>row.classList.contains('future')||row.classList.contains('now'));if(next)list.scrollTop=Math.max(0,next.offsetTop-list.offsetTop-Math.round(list.clientHeight*.45));list.dataset.positioned='true';});
   if(calendarState.updatedAt){
-    const age=Date.now()-calendarState.updatedAt,stale=age>26*60*60000,released=events.filter(event=>event.actual).length;statusNode.className=`calendar-status${stale?' stale':''}`;statusNode.textContent=`${events.length} tin � ${released} �? c� th?c t? � c?p nh?t ${calendarTime.format(calendarState.updatedAt)} ${calendarDay.format(calendarState.updatedAt)}${stale?' � snapshot c?':''}`;
+    const age=Date.now()-calendarState.updatedAt,stale=age>26*60*60000,released=events.filter(event=>event.actual).length;statusNode.className=`calendar-status${stale?' stale':''}`;statusNode.textContent=`${events.length} tin · ${released} đã có thực tế · cập nhật ${calendarTime.format(calendarState.updatedAt)} ${calendarDay.format(calendarState.updatedAt)}${stale?' · snapshot cũ':''}`;
   }
 }
 
 async function refreshCalendar(){
   if(calendarState.loading)return;calendarState.loading=true;$('calendar-refresh').disabled=true;$('calendar-refresh').classList.add('loading');
-  const statusNode=$('calendar-status');statusNode.className='calendar-status';statusNode.textContent='�ang n?p l?ch Forex Factory�';
+  const statusNode=$('calendar-status');statusNode.className='calendar-status';statusNode.textContent='Đang nạp lịch Forex Factory…';
   try{const data=await loadForexCalendar();calendarState={...data,loading:false};renderCalendar();}
-  catch(error){calendarState.loading=false;statusNode.className='calendar-status error';statusNode.textContent=`${error.message}. ${calendarState.events.length?'�ang gi? b?n g?n nh?t.':'M? Forex Factory b?ng li�n k?t b�n d�?i.'}`;}
+  catch(error){calendarState.loading=false;statusNode.className='calendar-status error';statusNode.textContent=`${error.message}. ${calendarState.events.length?'Đang giữ bản gần nhất.':'Mở Forex Factory bằng liên kết bên dưới.'}`;}
   finally{$('calendar-refresh').disabled=false;$('calendar-refresh').classList.remove('loading');}
 }
 class VariableWidthLineRenderer{
@@ -185,64 +185,64 @@ function updateSpyUsdtSessionChange(){
  if(!node)return;
  const state=spyUsdtSessionChange(rows.SPYUSDT??[],{step:STEPS[$('interval').value],now:Date.now()+serverOffsetMs});
  node.hidden=false;
- if(!state){node.textContent='SPY �';node.title='Ch? gi� SPYUSDT v� n?n ��ng phi�n Post';node.className='';delete node.dataset.changePct;delete node.dataset.session;return;}
+ if(!state){node.textContent='SPY —';node.title='Chờ giá SPYUSDT và nến đóng phiên Post';node.className='';delete node.dataset.changePct;delete node.dataset.session;return;}
  const signed=`${state.changePct>=0?'+':''}${state.changePct.toFixed(2)}%`;
- const freshness=isChartLive()?'':' � D? LI?U C?';
- const label=`SPY ${signed}${state.volatile?' � TT BI?N �?NG � GI?M VOLUME':''}${freshness}`;
+ const freshness=isChartLive()?'':' · DỮ LIỆU CŨ';
+ const label=`SPY ${signed}${state.volatile?' · TT BIẾN ĐỘNG · GIẢM VOLUME':''}${freshness}`;
  if(node.textContent!==label)node.textContent=label;
  node.className=state.volatile?'warning':state.changePct>0?'up':state.changePct<0?'down':'flat';
  node.dataset.changePct=String(state.changePct);node.dataset.session=state.session;
- node.title=`SPYUSDT � gi� ��ng Post ${fmt(state.reference)} (${state.postDay} � ${state.postClock} New York) � gi� m?i nh?t ${fmt(state.current)} � n?n ${new Date(state.lastTime).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})} (VN) � ng�?ng c?nh b�o |%| > ${state.threshold.toLocaleString('vi-VN')}%`;
+ node.title=`SPYUSDT · giá đóng Post ${fmt(state.reference)} (${state.postDay} · ${state.postClock} New York) · giá mới nhất ${fmt(state.current)} · nến ${new Date(state.lastTime).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})} (VN) · ngưỡng cảnh báo |%| > ${state.threshold.toLocaleString('vi-VN')}%`;
 }
 function setLive(){
  const node=$('live-indicator'),wasLive=node.classList.contains('live'),live=isChartLive();
- node.textContent=live?'? CHART LIVE':cache?'? CHART DELAYED':'? CHART KH�NG LIVE';node.className=live?'live':'offline';
+ node.textContent=live?'● CHART LIVE':cache?'● CHART DELAYED':'● CHART KHÔNG LIVE';node.className=live?'live':'offline';
  updateSpyUsdtSessionChange();
  let source=$('chart-source-status');if(!source){source=document.createElement('p');source.id='chart-source-status';source.setAttribute('role','status');source.style.cssText='color:#f6c85f;font:12px/1.6 system-ui;margin:8px 0';$('chart').insertAdjacentElement('beforebegin',source);}
  source.hidden=live||!cache;const last=(rows[$('symbol').value]??[]).findLast(r=>r.end<(cache?.serverTime??0));
  const missing=['SPYUSDT','QQQUSDT'].filter(symbol=>!(rows[symbol]?.length));
- source.textContent=live?'':(cache?.historical?'L?CH S? �? L�U':'D? LI?U C?')+' � DELAYED'+(missing.length?' � thi?u '+missing.join('/'):'')+' � n?n ��ng cu?i '+(last?new Date(last.end+1).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'}):'�')+' (gi? VN). �ang th? k?t n?i l?i Binance; d? b�o ph�n v? t?m d?ng.';
+ source.textContent=live?'':(cache?.historical?'LỊCH SỬ ĐÃ LƯU':'DỮ LIỆU CŨ')+' · DELAYED'+(missing.length?' · thiếu '+missing.join('/'):'')+' · nến đóng cuối '+(last?new Date(last.end+1).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'}):'—')+' (giờ VN). Đang thử kết nối lại Binance; dự báo phân vị tạm dừng.';
  scheduleAbaBandColors();strengthBoxLayer?.update();
 }
 function syncChartFrameButtons(){for(const id of ['chart-frame-m15','chart-frame-h1']){const button=$(id);if(!button)continue;const active=$('interval').value===button.dataset.interval;button.setAttribute('aria-pressed',String(active));button.style.background=active?'#1d4e67':'';button.style.color=active?'#e5f4ff':'';button.style.borderColor=active?'#55b8e5':'';}}
 function setupChartActions(){
   const actions=document.querySelector('.chart-actions'),fit=$('chart-fit'),live=$('live-indicator');
   if(!actions||!fit||!live)return;
-  if(!$('spyusdt-session-change')){const badge=document.createElement('span');badge.id='spyusdt-session-change';badge.textContent='SPY �';badge.setAttribute('aria-live','polite');live.insertAdjacentElement('afterend',badge);}
-  if(!$('causal-trend-channel')){const input=document.createElement('input');input.id='causal-trend-channel';input.type='checkbox';input.checked=true;const label=document.createElement('label');label.title='Flow-Leg: SPY V kh�a h�?ng khi m? � ch? gi� ho?c SPY V b?t l?i 2 n?n ��ng li�n ti?p m?i k?t th�c � d?c OLS ch? d�ng ch?n �o�n, kh�ng c?t tu?i trend � v? ngay khi �? 8 n?n �? ��ng � k�nh �ang ch?y kh?p l?i theo t?ng n?n, ch�a c? �?nh � bi�n �2? v?i s�n ATR � k�nh �? ��ng: UP v�ng, DOWN tr?ng � k�nh �ang s?ng n�t ch?m: UP cyan, DOWN tr?ng';label.append(input,'K�nh trend causal');$('geometry-pivots').closest('label').insertAdjacentElement('beforebegin',label);}
-  $('geometry-pivots').closest('label').title='�u ti�n �i?m xoay t? m�u H?p H1 �? kh�a cho Pivot, ph�n k? v� m?u n�m t�ng/gi?m; khi ch�a �? �t nh?t 2 �?nh v� 2 ��y H1, t? d�ng pivot gi� M15. Trendline ch? d�ng �i?m �? x�c nh?n causal.';
-  $('geometry-overlay').setAttribute('aria-label','Pivot, ph�n k? v� K�nh trend causal');
+  if(!$('spyusdt-session-change')){const badge=document.createElement('span');badge.id='spyusdt-session-change';badge.textContent='SPY —';badge.setAttribute('aria-live','polite');live.insertAdjacentElement('afterend',badge);}
+  if(!$('causal-trend-channel')){const input=document.createElement('input');input.id='causal-trend-channel';input.type='checkbox';input.checked=true;const label=document.createElement('label');label.title='Flow-Leg: SPY V khóa hướng khi mở · chỉ giá hoặc SPY V bất lợi 2 nến đóng liên tiếp mới kết thúc · dốc OLS chỉ dùng chẩn đoán, không cắt tuổi trend · vẽ ngay khi đủ 8 nến đã đóng · kênh đang chạy khớp lại theo từng nến, chưa cố định · biên ±2σ với sàn ATR · kênh đã đóng: UP vàng, DOWN trắng · kênh đang sống nét chấm: UP cyan, DOWN trắng';label.append(input,'Kênh trend causal');$('geometry-pivots').closest('label').insertAdjacentElement('beforebegin',label);}
+  $('geometry-pivots').closest('label').title='Ưu tiên điểm xoay từ màu Hộp H1 đã khóa cho Pivot, phân kỳ và mẫu nêm tăng/giảm; khi chưa đủ ít nhất 2 đỉnh và 2 đáy H1, tự dùng pivot giá M15. Trendline chỉ dùng điểm đã xác nhận causal.';
+  $('geometry-overlay').setAttribute('aria-label','Pivot, phân kỳ và Kênh trend causal');
   fit.insertAdjacentElement('afterend',live);
-  const frame=document.createElement('span');frame.id='chart-frame-switch';frame.style.cssText='display:inline-flex;gap:3px;align-items:center';frame.setAttribute('aria-label','Khung bi?u �?');
-  for(const [id,label,value] of [['chart-frame-m15','M15','15m'],['chart-frame-h1','H1','1h']]){const button=document.createElement('button');button.id=id;button.type='button';button.textContent=label;button.dataset.interval=value;button.setAttribute('aria-pressed','false');button.title=`Chuy?n bi?u �? sang khung ${label}`;button.onclick=()=>{if($('interval').value!==value){$('interval').value=value;updateH1TrendAgeReadout();refresh(true);}syncChartFrameButtons();syncDisplayModeButtons();};frame.append(button);}
+  const frame=document.createElement('span');frame.id='chart-frame-switch';frame.style.cssText='display:inline-flex;gap:3px;align-items:center';frame.setAttribute('aria-label','Khung biểu đồ');
+  for(const [id,label,value] of [['chart-frame-m15','M15','15m'],['chart-frame-h1','H1','1h']]){const button=document.createElement('button');button.id=id;button.type='button';button.textContent=label;button.dataset.interval=value;button.setAttribute('aria-pressed','false');button.title=`Chuyển biểu đồ sang khung ${label}`;button.onclick=()=>{if($('interval').value!==value){$('interval').value=value;updateH1TrendAgeReadout();refresh(true);}syncChartFrameButtons();syncDisplayModeButtons();};frame.append(button);}
   live.insertAdjacentElement('afterend',frame);
-  const half=document.createElement('button');half.id='chart-fit-half';half.type='button';half.title='Hi?n th? c�c n?n trong 0,5 ng�y g?n nh?t';half.textContent='Fit 0.5 ng�y';live.insertAdjacentElement('afterend',half);
-  const save=document.createElement('button');save.id='chart-save';save.type='button';save.title='L�u to�n b? l?a ch?n v� v�ng th?i gian �ang xem tr�n tr?nh duy?t n�y';save.textContent='L�u setup';save.setAttribute('aria-live','polite');half.insertAdjacentElement('afterend',save);
+  const half=document.createElement('button');half.id='chart-fit-half';half.type='button';half.title='Hiển thị các nến trong 0,5 ngày gần nhất';half.textContent='Fit 0.5 ngày';live.insertAdjacentElement('afterend',half);
+  const save=document.createElement('button');save.id='chart-save';save.type='button';save.title='Lưu toàn bộ lựa chọn và vùng thời gian đang xem trên trình duyệt này';save.textContent='Lưu setup';save.setAttribute('aria-live','polite');half.insertAdjacentElement('afterend',save);
   const vix=$('chart-vix-quote');if(vix)live.insertAdjacentElement('afterend',vix);
-  const alignmentLabel=$('alignment')?.closest('label');if(alignmentLabel){alignmentLabel.lastChild.textContent='SPY V ? n?n';alignmentLabel.dataset.pane='strength-spy-v';alignmentLabel.title='Histogram Delta / SMA20(volume): v? tr?c ti?p gi� tr? chu?n h�a, kh�ng chia 2 v� kh�ng ch?n �1; spike +3 v� +5 gi? ��ng bi�n �?. Thang histogram ri�ng �?i x?ng quanh 0. M�u theo d?u SPY V: d��ng xanh, �m �?, b?ng 0 ho?c thi?u d? li?u m�u x�m.';}
-  const compositeLabel=$('composite')?.closest('label');if(compositeLabel)compositeLabel.title='? C Taker NF t�ch l?y c� d?u theo c?m m�u SPY V th�n n?n; �?i m�u ho?c thi?u d? li?u th? b?t �?u l?i. C?p nh?t c? n?n live kho?ng 3 gi�y; c?t live c� th? thay �?i �?n khi ��ng. M�u theo d?u t?ng NF: d��ng xanh, �m �?, b?ng 0 x�m; thang ri�ng �?i x?ng chung t�m 0 v?i Strength.';
+  const alignmentLabel=$('alignment')?.closest('label');if(alignmentLabel){alignmentLabel.lastChild.textContent='SPY V Δ nến';alignmentLabel.dataset.pane='strength-spy-v';alignmentLabel.title='Histogram Delta / SMA20(volume): vẽ trực tiếp giá trị chuẩn hóa, không chia 2 và không chặn ±1; spike +3 và +5 giữ đúng biên độ. Thang histogram riêng đối xứng quanh 0. Màu theo dấu SPY V: dương xanh, âm đỏ, bằng 0 hoặc thiếu dữ liệu màu xám.';}
+  const compositeLabel=$('composite')?.closest('label');if(compositeLabel)compositeLabel.title='Σ C Taker NF tích lũy có dấu theo cụm màu SPY V thân nến; đổi màu hoặc thiếu dữ liệu thì bắt đầu lại. Cập nhật cả nến live khoảng 3 giây; cột live có thể thay đổi đến khi đóng. Màu theo dấu tổng NF: dương xanh, âm đỏ, bằng 0 xám; thang riêng đối xứng chung tâm 0 với Strength.';
   const phaseLabel=$('phase-width')?.closest('label');if(phaseLabel){phaseLabel.hidden=true;const button=document.createElement('button');button.id='wlr-width-mode';button.type='button';button.className='display-mode-button';phaseLabel.insertAdjacentElement('afterend',button);}
   if(!$('wlr-soft-colors')){const input=document.createElement('input');input.id='wlr-soft-colors';input.type='checkbox';input.checked=true;input.hidden=true;const button=document.createElement('button');button.id='wlr-soft-color-mode';button.type='button';button.className='display-mode-button';button.append(input,document.createElement('span'));$('wlr-width-mode').insertAdjacentElement('afterend',button);}
   const candleLabel=$('candle-agreement-color')?.closest('label');if(candleLabel){candleLabel.hidden=true;const button=document.createElement('button');button.id='candle-color-mode';button.type='button';button.className='display-mode-button';candleLabel.insertAdjacentElement('afterend',button);}
-  if(candleLabel&&!$('candle-h1-box-color')){const input=document.createElement('input');input.id='candle-h1-box-color';input.type='checkbox';input.checked=true;input.hidden=true;const button=document.createElement('button');button.id='h1-box-candle-mode';button.type='button';button.className='display-mode-button';button.append(input,'N?n theo H?p H1: T?T');$('candle-color-mode').insertAdjacentElement('afterend',button);}
+  if(candleLabel&&!$('candle-h1-box-color')){const input=document.createElement('input');input.id='candle-h1-box-color';input.type='checkbox';input.checked=true;input.hidden=true;const button=document.createElement('button');button.id='h1-box-candle-mode';button.type='button';button.className='display-mode-button';button.append(input,'Nến theo Hộp H1: TẮT');$('candle-color-mode').insertAdjacentElement('afterend',button);}
 
   if(!$('aba-band-colors')){
     const input=document.createElement('input');input.id='aba-band-colors';input.type='checkbox';input.checked=true;input.hidden=true;
     const button=document.createElement('button');button.id='aba-band-color-mode';button.type='button';button.className='display-mode-button';button.append(input,document.createElement('span'));
     $('price-bands').closest('label').insertAdjacentElement('afterend',button);
     const status=document.createElement('span');status.id='aba-band-color-status';status.setAttribute('role','status');status.style.cssText='font-size:11px;color:#9badc2;flex-basis:100%;line-height:1.45';button.insertAdjacentElement('afterend',status);
-    const history=document.createElement('button');history.id='aba-band-history';history.type='button';history.textContent='Xem l?ch s? k�nh';history.disabled=true;status.insertAdjacentElement('afterend',history);history.onclick=()=>{const times=[...abaBandPhaseMap.keys()].sort((a,b)=>a-b);if(!times.length)return;const last=times.at(-1),first=times.find(t=>t>=last-36*3600000)??times[0];chart.timeScale().setVisibleRange({from:(first-3600000)/1000,to:(last+3600000)/1000});};
+    const history=document.createElement('button');history.id='aba-band-history';history.type='button';history.textContent='Xem lịch sử kênh';history.disabled=true;status.insertAdjacentElement('afterend',history);history.onclick=()=>{const times=[...abaBandPhaseMap.keys()].sort((a,b)=>a-b);if(!times.length)return;const last=times.at(-1),first=times.find(t=>t>=last-36*3600000)??times[0];chart.timeScale().setVisibleRange({from:(first-3600000)/1000,to:(last+3600000)/1000});};
   }
   const spySessionChange=$('spyusdt-session-change');if(spySessionChange)live.insertAdjacentElement('afterend',spySessionChange);
-  const hint=document.querySelector('.hint');if(hint){hint.textContent='Hai nh?n x?p d?c: Tu?i H1 ? tr�n, CVD/?OI Composite ? d�?i: C� = ch? �?ng; OI ?/? = t�ng/gi?m t?ng v? th? m?. ';hint.textContent+=' K�nh trend causal d�ng setup Flow-Leg: ngu?n SPY V ph�n v?, dead-band �0,15, t?i thi?u 8 n?n, R� hi?n th? 0,20 v� gi? 12 leg. Khi c� break, ��?ng l�i t?i �a 4 n?n M15 li?n tr�?c c�ng ng�y v� c�ng d?u SPY V l�m g?c. Ph� �2? theo h�?ng trend v?n h?p l?; n?n SPY V trung t�nh ho?c m?t n?n tr�i d?u v?n ��?c gi?. Gi� ph� bi�n b?t l?i, SPY V v�?t dead-band �?i ngh?ch ho?c d?c OLS ng�?c h�?ng �? m?nh ph?i k�o d�i hai n?n ��ng li�n ti?p m?i ��ng leg; n?n ph� gi� �?u ��?c nh?n �? t�i kh?p OLS v� �2?. Hai rail d�ng m?t OLS cu?i n�n lu�n th?ng. Pivot/ph�n k? ��?c t�nh �?c l?p v?i k�nh.';}
+  const hint=document.querySelector('.hint');if(hint){hint.textContent='Hai nhãn xếp dọc: Tuổi H1 ở trên, CVD/ΔOI Composite ở dưới: CĐ = chủ động; OI ↑/↓ = tăng/giảm tổng vị thế mở. ';hint.textContent+=' Kênh trend causal dùng setup Flow-Leg: nguồn SPY V phân vị, dead-band ±0,15, tối thiểu 8 nến, R² hiển thị 0,20 và giữ 12 leg. Khi có break, đường lùi tối đa 4 nến M15 liền trước cùng ngày và cùng dấu SPY V làm gốc. Phá ±2σ theo hướng trend vẫn hợp lệ; nến SPY V trung tính hoặc một nến trái dấu vẫn được giữ. Giá phá biên bất lợi, SPY V vượt dead-band đối nghịch hoặc dốc OLS ngược hướng đủ mạnh phải kéo dài hai nến đóng liên tiếp mới đóng leg; nến phá giá đầu được nhận để tái khớp OLS và ±2σ. Hai rail dùng một OLS cuối nên luôn thẳng. Pivot/phân kỳ được tính độc lập với kênh.';}
 }
 function syncDisplayModeButtons(){
-  const soft=$('wlr-soft-color-mode');if(soft){const on=$('wlr-soft-colors').checked,h1=usesH1WlrStyle();soft.querySelector('span').textContent=`M�u WLR ${h1?'theo H1':'d?c + SPY V'}: ${on?'B?T':'T?T'}`;soft.setAttribute('aria-pressed',String(on));soft.title=h1?'SPY M15: h�?ng theo m�u H1 �? kh�a. M�u theo h?p �i?m: �i?m d��ng xanh, �m �?, 0 ho?c thi?u �i?m x�m. L?ch s? t� ��ng h?p sau khi H1 ��ng, kh�ng ph?i t�n hi?u �? bi?t ? �?u h?p. T?m 3/4 ch? �?i ph?n �ang ch?y v� theo m�u h?p xem tr�?c. T?t �? v? m�u C�V.':'D?c WLR/? v� SPY V, Composite l�m kh�a m?m; t?t �? v? m�u C�V. Ch? �? �i?m H1 �p d?ng tr�n SPY M15.';}
-  const bandButton=$('aba-band-color-mode');if(bandButton){const on=Boolean($('aba-band-colors')?.checked);bandButton.querySelector('span').textContent=`M�u bi�n theo k�nh: ${on?'B?T':'T?T'}`;bandButton.setAttribute('aria-pressed',String(on));bandButton.title='T� bi�n WLR theo ph?m vi k�nh causal; kh�ng th�m nh?n A1.';}
+  const soft=$('wlr-soft-color-mode');if(soft){const on=$('wlr-soft-colors').checked,h1=usesH1WlrStyle();soft.querySelector('span').textContent=`Màu WLR ${h1?'theo H1':'dốc + SPY V'}: ${on?'BẬT':'TẮT'}`;soft.setAttribute('aria-pressed',String(on));soft.title=h1?'SPY M15: hướng theo màu H1 đã khóa. Màu theo hộp điểm: điểm dương xanh, âm đỏ, 0 hoặc thiếu điểm xám. Lịch sử tô đúng hộp sau khi H1 đóng, không phải tín hiệu đã biết ở đầu hộp. Tạm 3/4 chỉ đổi phần đang chạy và theo màu hộp xem trước. Tắt để về màu C×V.':'Dốc WLR/σ và SPY V, Composite làm khóa mềm; tắt để về màu C×V. Chế độ điểm H1 áp dụng trên SPY M15.';}
+  const bandButton=$('aba-band-color-mode');if(bandButton){const on=Boolean($('aba-band-colors')?.checked);bandButton.querySelector('span').textContent=`Màu biên theo kênh: ${on?'BẬT':'TẮT'}`;bandButton.setAttribute('aria-pressed',String(on));bandButton.title='Tô biên WLR theo phạm vi kênh causal; không thêm nhãn A1.';}
   const width=$('wlr-width-mode'),candle=$('candle-color-mode'),h1Candle=$('h1-box-candle-mode'),trendWidth=$('phase-width').checked,priceVolume=$('candle-agreement-color').checked,h1BoxColor=$('candle-h1-box-color')?.checked;
-  if(width){const h1=usesH1WlrStyle(),soft=$('wlr-soft-colors').checked&&$('symbol').value==='SPYUSDT';width.textContent=`�? d�y WLR: ${h1?(trendWidth?'�i?m H1':'C? �?nh 3'):soft?(trendWidth?'D?c/? + kh�a m?m':'C? �?nh 3'):(trendWidth?'D?c�R� + V�C':'C�V')}`;width.title=h1?'SPY M15: 2 + |�i?m H1| = 2�7 px. M�u l?y d?u �i?m; thi?u d? li?u gi? 2 px. Kh�ng th�m EWMA. �o?n l?ch s? c�n ��ng h?p t?o �i?m sau khi H1 ��ng. �i?m t?m 3/4 ch? cho n?n �ang ch?y, nh?t v� t?i �a 3 px. T?t: c? �?nh 3 px. �i?m m� t? �?ng thu?n, kh�ng ph?i x�c su?t.':soft?'�? d�y theo d?c/? + kh�a m?m, t?i �a 8; t?t d�ng n�t c? �?nh 3.':trendWidth?'�? d�y 2�10 theo d?c/R� v� V�C.':'�? d�y theo �?ng thu?n Composite � SPY V';width.setAttribute('aria-pressed',String(trendWidth));}
-  if(candle){candle.textContent=`M�u n?n: ${priceVolume?'C?m Gi��SPY V':'C�V'}`;candle.title=priceVolume?'C?m causal t? WLR8, SPY V v� th�n gi�/ATR; hai n?n �?i ngh?ch m?i �?i c?m, n?n ng�?c nh? ch? gi?m s�ng':'M�u n?n theo �?ng thu?n Strength Composite � SPY V';candle.setAttribute('aria-pressed',String(priceVolume));}
-  if(h1Candle){h1Candle.lastChild.textContent=`D?i H1/H4 v� n?n H1: ${h1BoxColor?'B?T':'T?T'}`;h1Candle.title='Hi?n d?i h?p v� �i?m H1 tr�n SPY M15, d?i h?p v� m�u n?n tr�n SPY H1. Bao g?m cu?i tu?n khi c� d? li?u. Xanh = UP, �? = DOWN, x�m = WAIT. L?p h?p ��?c �u ti�n h�n m�u tu?i trend v� c?m Gi��SPY V.';h1Candle.setAttribute('aria-pressed',String(Boolean(h1BoxColor)));}
+  if(width){const h1=usesH1WlrStyle(),soft=$('wlr-soft-colors').checked&&$('symbol').value==='SPYUSDT';width.textContent=`Độ dày WLR: ${h1?(trendWidth?'Điểm H1':'Cố định 3'):soft?(trendWidth?'Dốc/σ + khóa mềm':'Cố định 3'):(trendWidth?'Dốc·R² + V×C':'C×V')}`;width.title=h1?'SPY M15: 2 + |điểm H1| = 2–7 px. Màu lấy dấu điểm; thiếu dữ liệu giữ 2 px. Không thêm EWMA. Đoạn lịch sử căn đúng hộp tạo điểm sau khi H1 đóng. Điểm tạm 3/4 chỉ cho nến đang chạy, nhạt và tối đa 3 px. Tắt: cố định 3 px. Điểm mô tả đồng thuận, không phải xác suất.':soft?'Độ dày theo dốc/σ + khóa mềm, tối đa 8; tắt dùng nét cố định 3.':trendWidth?'Độ dày 2–10 theo dốc/R² và V×C.':'Độ dày theo đồng thuận Composite × SPY V';width.setAttribute('aria-pressed',String(trendWidth));}
+  if(candle){candle.textContent=`Màu nến: ${priceVolume?'Cụm Giá×SPY V':'C×V'}`;candle.title=priceVolume?'Cụm causal từ WLR8, SPY V và thân giá/ATR; hai nến đối nghịch mới đổi cụm, nến ngược nhỏ chỉ giảm sáng':'Màu nến theo đồng thuận Strength Composite × SPY V';candle.setAttribute('aria-pressed',String(priceVolume));}
+  if(h1Candle){h1Candle.lastChild.textContent=`Dải H1/H4 và nến H1: ${h1BoxColor?'BẬT':'TẮT'}`;h1Candle.title='Hiện dải hộp và điểm H1 trên SPY M15, dải hộp và màu nến trên SPY H1. Bao gồm cuối tuần khi có dữ liệu. Xanh = UP, đỏ = DOWN, xám = WAIT. Lớp hộp được ưu tiên hơn màu tuổi trend và cụm Giá×SPY V.';h1Candle.setAttribute('aria-pressed',String(Boolean(h1BoxColor)));}
 }
 function restoreSavedSetup(){
   try{
@@ -270,11 +270,11 @@ function saveChartSetup(){
   try{
     const controls={};for(const id of SETUP_CONTROL_IDS){const node=$(id);if(node)controls[id]=node.type==='checkbox'?node.checked:node.value;}
     const visible=chart.timeScale().getVisibleRange(),timeRange=visible&&Number.isFinite(Number(visible.from))&&Number.isFinite(Number(visible.to))?{from:Number(visible.from),to:Number(visible.to)}:null;
-    if(daoV2Stats&&!daoV2Stats.saveSetup())throw Error('Kh�ng l�u ��?c setup TK V?; ki?m tra ph� ho?c quy?n l�u tr?');
+    if(daoV2Stats&&!daoV2Stats.saveSetup())throw Error('Không lưu được setup TK V₂; kiểm tra phí hoặc quyền lưu trữ');
     localStorage.setItem(SETUP_STORAGE_KEY,JSON.stringify({...readChartSetup(),version:1,savedAt:Date.now(),controls,timeRange}));
-    button.textContent='? �? l�u';button.title='Setup �? ��?c l�u tr�n tr?nh duy?t n�y';
-  }catch(error){button.textContent='Kh�ng l�u ��?c';button.title=error.message;}
-  clearTimeout(saveSetupTimer);saveSetupTimer=setTimeout(()=>{button.textContent='L�u setup';button.title='L�u to�n b? l?a ch?n v� v�ng th?i gian �ang xem tr�n tr?nh duy?t n�y';},1800);
+    button.textContent='✓ Đã lưu';button.title='Setup đã được lưu trên trình duyệt này';
+  }catch(error){button.textContent='Không lưu được';button.title=error.message;}
+  clearTimeout(saveSetupTimer);saveSetupTimer=setTimeout(()=>{button.textContent='Lưu setup';button.title='Lưu toàn bộ lựa chọn và vùng thời gian đang xem trên trình duyệt này';},1800);
 }
 
 function resetStudies(){
@@ -365,7 +365,7 @@ function applyResponsiveChartOptions(){
   const host=$('chart');host.dataset.lwcVersion=L.version();host.dataset.touchProfile=touch?'touch':'pointer';host.dataset.compactProfile=String(compact);host.dataset.verticalTouchDrag=String(touch&&full);host.dataset.priceAxisMinWidth=String(compact?58:64);
 }
 function init(){
-  if(!L){status('Kh�ng t?i ��?c th� vi?n chart c?c b?. Ki?m tra network ho?c t?i l?i trang.',true);return false;}
+  if(!L){status('Không tải được thư viện chart cục bộ. Kiểm tra network hoặc tải lại trang.',true);return false;}
   const controls=document.querySelector('.toggles'),card=document.querySelector('.chart-card');
   mountChartSettings(controls,card);
   chart=L.createChart($('chart'),{autoSize:true,layout:{background:{type:'solid',color:'#0e1726'},textColor:'#91a5bd',fontSize:12,attributionLogo:true},grid:{vertLines:{color:'#1a283a'},horzLines:{color:'#1a283a'}},crosshair:{mode:L.CrosshairMode.Normal,doNotSnapToHiddenSeriesIndices:true,vertLine:{visible:true,labelVisible:true},horzLine:{visible:true,labelVisible:true}},timeScale:{timeVisible:true,secondsVisible:false,rightOffsetPixels:96,barSpacing:6,minBarSpacing:.5,lockVisibleTimeRangeOnResize:true},rightPriceScale:{autoScale:true,minimumWidth:64,tickMarkDensity:2.5},handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:false},handleScale:{mouseWheel:true,pinch:true,axisPressedMouseMove:{time:true,price:true},axisDoubleClickReset:{time:true,price:true}},kineticScroll:{touch:true,mouse:false},localization:{locale:'vi-VN',timeFormatter:t=>new Date(t*1000).toLocaleString('en-US',{timeZone:'America/New_York',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'})}});
@@ -385,7 +385,7 @@ function init(){
     const legend=document.createElement('div');legend.id='pane-legend-'+index;legend.className='pane-legend';
     $('chart').append(legend);return legend;
   });
-  const markerLayer=document.createElement('div');markerLayer.id='h1-oi-markers';markerLayer.setAttribute('aria-label','Tam gi�c OI theo h?p H1');
+  const markerLayer=document.createElement('div');markerLayer.id='h1-oi-markers';markerLayer.setAttribute('aria-label','Tam giác OI theo hộp H1');
   markerLayer.style.cssText='position:absolute;inset:0;z-index:9;pointer-events:none';
   const markerDetail=document.createElement('output');markerDetail.setAttribute('popover','auto');
   markerDetail.style.cssText='max-width:min(360px,calc(100vw - 24px));margin:auto;padding:8px 10px;border:1px solid #60748c;border-radius:6px;background:#0e1726;color:#edf4ff;font:12px/1.5 system-ui;white-space:normal';
@@ -406,13 +406,13 @@ function init(){
   series.oiCandleBars.priceScale().applyOptions({autoScale:true,scaleMargins:{top:.80,bottom:0}});
   const spyVolumeScale={priceScaleId:'right',priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},autoscaleInfoProvider:symmetricAutoscale};
   const spyVolumeBaseline={...spyVolumeScale,baseValue:{type:'price',price:0},topLineColor:'#f6c85f',bottomLineColor:'#f3f6fb'};
-  series.spyBodyVolume=chart.addSeries(L.BaselineSeries,{...spyVolumeBaseline,baseLineVisible:false,topFillColor1:'transparent',topFillColor2:'transparent',bottomFillColor1:'transparent',bottomFillColor2:'transparent',lineStyle:L.LineStyle.Solid,lineWidth:2,title:'SPY V th�n n?n',priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,visible:false},1);
+  series.spyBodyVolume=chart.addSeries(L.BaselineSeries,{...spyVolumeBaseline,baseLineVisible:false,topFillColor1:'transparent',topFillColor2:'transparent',bottomFillColor1:'transparent',bottomFillColor2:'transparent',lineStyle:L.LineStyle.Solid,lineWidth:2,title:'SPY V thân nến',priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,visible:false},1);
   series.nfSmooth=chart.addSeries(L.BaselineSeries,{priceScaleId:'right',baseValue:{type:'price',price:0},topLineColor:'#28ddb0',bottomLineColor:'#ff718e',topFillColor1:'rgba(40,221,176,0)',topFillColor2:'rgba(40,221,176,0)',bottomFillColor1:'rgba(255,113,142,0)',bottomFillColor2:'rgba(255,113,142,0)',lineWidth:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:3,title:'',priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},autoscaleInfoProvider:()=>({priceRange:{minValue:-1,maxValue:1}})},1);
   series.strengthOi8=chart.addSeries(L.BaselineSeries,{
     priceScaleId:'right',baseValue:{type:'price',price:0},topLineColor:'#70b7ff',bottomLineColor:'#f08aff',
     topFillColor1:'transparent',topFillColor2:'transparent',bottomFillColor1:'transparent',bottomFillColor2:'transparent',
     lineWidth:3,baseLineVisible:false,priceLineVisible:false,lastValueVisible:true,crosshairMarkerRadius:3,
-    title:'?OI8',
+    title:'ΔOI8',
     priceFormat:{type:'custom',minMove:.01,formatter:strengthUnitFormat},
     autoscaleInfoProvider:()=>({priceRange:{minValue:-1,maxValue:1}})
   },1);
@@ -432,7 +432,7 @@ function init(){
   series.COMPOSITE=chart.addSeries(L.HistogramSeries,{priceScaleId:'taker-flow-strength-overlay',base:0,color:flowColors.COMPOSITE.up,title:'',priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'custom',formatter:fmtK},autoscaleInfoProvider:symmetricAutoscale},2);
   series.COMPOSITE.priceScale().applyOptions({autoScale:true,scaleMargins:LOWER_PANE_SCALE_MARGINS});
   $('chart').dataset.compositeHistogramPane=String(series.COMPOSITE.getPane().paneIndex());
-  for(const [id,label] of [['composite-flow-fixed','C Taker NF']]){const node=document.createElement('div');node.id=id;node.className='pane-fixed-readout missing';node.textContent=`${label} �`;$('chart').append(node);}
+  for(const [id,label] of [['composite-flow-fixed','C Taker NF']]){const node=document.createElement('div');node.id=id;node.className='pane-fixed-readout missing';node.textContent=`${label} —`;$('chart').append(node);}
   for(const node of [$('nf-smooth-readout'),$('h1-score-line-readout'),markerStatus])paneLegends[0].append(node);
   $('chart').dataset.compositeNetflowPane='removed';$('chart').dataset.netflowPane='removed';$('chart').dataset.takerFlowOverlay='spy-qqq-composite';$('chart').dataset.compositeStrengthOverlay='pane-2-independent-scales-shared-zero-center';$('chart').dataset.compositeStrengthOverlayLabel='C Taker NF';$('chart').dataset.fixedReadoutSide='left-legend';$('chart').dataset.strengthLineWidth='1';$('chart').dataset.spyVolumeDeltaPane='1';$('chart').dataset.spyVolumeDeltaScale='symmetric-overlay';$('chart').dataset.spyVolumeDeltaTitle='hidden';$('chart').dataset.compositeStrengthSource='spy-price-confirmed-taker';$('chart').dataset.spyVolumeStrengthLabel='pane-legend';$('chart').dataset.spyVolumeStrengthUnits='signed-2dp';$('chart').dataset.spyVolumeStrengthPositive='#f6c85f';$('chart').dataset.spyVolumeStrengthNegative='#f3f6fb';
   $('chart').dataset.wlrColorMode='hysteresis-closed-bars';$('chart').dataset.wlrColorEnter=String(WLR_COLOR_DEFAULTS.enter);$('chart').dataset.wlrColorExit=String(WLR_COLOR_DEFAULTS.exit);
@@ -545,7 +545,7 @@ function updateAbaBandColors(){
  $('aba-band-history').disabled=!abaBandPhaseMap.size;
  for(const [name,field] of [['priceUpper','upper'],['priceLower','lower']])writeSeries(name,series[name],bands.map(r=>Number.isFinite(r[field])?{time:r.t/1000,value:r[field],color:wlrBandColor(field,r.slope,enabled&&!result.phases.has(r.t))}:{time:r.t/1000}),[$('symbol').value,$('interval').value,enabled,$('wlr-soft-colors').checked].join('|'));
  $('chart').dataset.causalA1Count=String(result.channelCount);
- $('aba-band-color-status').textContent=!on?'�? t?t m�u bi�n theo k�nh causal.':!supported?'Bi�n theo k�nh causal h? tr? SPY M15.':`Bi�n theo k�nh trend causal � ${result.channelCount} k�nh. H?p s?c m?nh ghi lo?i h?p thay nh?n A1.`;
+ $('aba-band-color-status').textContent=!on?'Đã tắt màu biên theo kênh causal.':!supported?'Biên theo kênh causal hỗ trợ SPY M15.':`Biên theo kênh trend causal · ${result.channelCount} kênh. Hộp sức mạnh ghi loại hộp thay nhãn A1.`;
 }
 
 function scheduleCvdSpectrum(){spectrumPrimitive.redraw();}
@@ -559,7 +559,7 @@ function drawH1H4Strip(){
   const context=canvas.getContext('2d');context.setTransform(dpr,0,0,dpr,0,0);context.clearRect(0,0,width,height);
   const interval=$('interval').value,active=$('symbol').value==='SPYUSDT'&&['15m','1h'].includes(interval)&&$('candle-h1-box-color')?.checked;
   canvas.dataset.mode=active?'active':'off';canvas.dataset.states=String(h1CandleMap.size);canvas.dataset.structureStates=String(h1H4CandleMap.size);canvas.dataset.colorSource='H1';canvas.dataset.visibleBars='0';canvas.dataset.previewBars='0';
-  canvas.setAttribute('aria-label',active?'D?i m�u ph�a tr�n pane SPY V: gi? nguy�n h?nh d�ng v� c�c � H1 c?a d?i c?, nh�ng m�u l?y t? H?p H1; vi?n v�ng l� H1 XEM TR�?C.':'D?i m�u H?p H1 hi?n th? tr�n chart SPY M15 ho?c H1 khi b?t m�u h?p.');
+  canvas.setAttribute('aria-label',active?'Dải màu phía trên pane SPY V: giữ nguyên hình dáng và các ô H1 của dải cũ, nhưng màu lấy từ Hộp H1; viền vàng là H1 XEM TRƯỚC.':'Dải màu Hộp H1 hiển thị trên chart SPY M15 hoặc H1 khi bật màu hộp.');
   const bounds=paneBounds(1);
   if(!bounds)return;
   const scaleWidth=chart.priceScale('right',1)?.width?.()??56,right=Math.max(0,width-scaleWidth),stripHeight=10,y=Math.round(bounds.top);
@@ -586,7 +586,7 @@ function drawH1H4Strip(){
   context.restore();
   }
   canvas.dataset.visibleBars=String(visibleBars);canvas.dataset.previewBars=String(previewBars);
-  canvas.setAttribute('aria-label',`D?i m�u ph�a tr�n pane SPY V: ${visibleBars} � H1 �ang hi?n th?, m�u l?y t? H?p H1; chart ${interval==='15m'?'M15':'H1'}, ${previewBars} � XEM TR�?C vi?n v�ng � ${isChartLive()?'LIVE':'DELAYED'}. D?i b�m s�t m�p tr�n pane SPY V; k�ch th�?c � v� v?ch ph�n nh�m H4 gi? nh� d?i c?.`);
+  canvas.setAttribute('aria-label',`Dải màu phía trên pane SPY V: ${visibleBars} ô H1 đang hiển thị, màu lấy từ Hộp H1; chart ${interval==='15m'?'M15':'H1'}, ${previewBars} ô XEM TRƯỚC viền vàng · ${isChartLive()?'LIVE':'DELAYED'}. Dải bám sát mép trên pane SPY V; kích thước ô và vạch phân nhóm H4 giữ như dải cũ.`);
 }
 
 let h1OiPriceFrame=0;
@@ -603,24 +603,24 @@ function drawH1OiPriceMarkers(){
   const hiddenReasons=new Set();
   const markers=h1OiMarkers.flatMap(mark=>{
     const state=h1CandleMap.get(mark.start);
-    if(!state){hiddenReasons.add('ch? m�u h?p H1');return [];}
-    if(state.preview!==false||Math.sign(mark.base)!==state.direction){hiddenReasons.add('l?c theo h?p H1');return [];}
+    if(!state){hiddenReasons.add('chờ màu hộp H1');return [];}
+    if(state.preview!==false||Math.sign(mark.base)!==state.direction){hiddenReasons.add('lọc theo hộp H1');return [];}
     const group=Array.from({length:4},(_,i)=>maps.SPYUSDT?.get(mark.start+i*step));
-    if(group.some(bar=>!Number.isFinite(bar?.h)||!Number.isFinite(bar?.l))){hiddenReasons.add('thi?u n?n �? v?');return [];}
+    if(group.some(bar=>!Number.isFinite(bar?.h)||!Number.isFinite(bar?.l))){hiddenReasons.add('thiếu nến để vẽ');return [];}
     const x1=timeScale.timeToCoordinate(mark.start/1000),x2=timeScale.timeToCoordinate((mark.start+3*step)/1000);
-    if(!Number.isFinite(x1)||!Number.isFinite(x2)){hiddenReasons.add('ch? t?a �? chart');return [];}
-    if(Math.max(x1,x2)<0||Math.min(x1,x2)>right){hiddenReasons.add('ngo�i th?i gian �ang xem');return [];}
+    if(!Number.isFinite(x1)||!Number.isFinite(x2)){hiddenReasons.add('chờ tọa độ chart');return [];}
+    if(Math.max(x1,x2)<0||Math.min(x1,x2)>right){hiddenReasons.add('ngoài thời gian đang xem');return [];}
     const high=price.priceToCoordinate(Math.max(...group.map(bar=>bar.h)));
     const low=price.priceToCoordinate(Math.min(...group.map(bar=>bar.l)));
-    if(!Number.isFinite(high)||!Number.isFinite(low)||right<16||bounds.height<18){hiddenReasons.add('ch? t?a �? chart');return [];}
-    if(low<0||high>bounds.height){hiddenReasons.add('ngo�i v�ng gi� �ang xem');return [];}
+    if(!Number.isFinite(high)||!Number.isFinite(low)||right<16||bounds.height<18){hiddenReasons.add('chờ tọa độ chart');return [];}
+    if(low<0||high>bounds.height){hiddenReasons.add('ngoài vùng giá đang xem');return [];}
     const x=Math.round(Math.max(8,Math.min(right-8,(x1+x2)/2)));
     const above=high-21,below=low+3;
     const offset=Math.max(0,Math.min(bounds.height-18,state.direction>0?below:above));
     return [{...mark,x,y:Math.round(bounds.top+offset),color:h1BoxCandlePalette(null,state).body}];
   });
   const valid=h1OiMarkerCoverage.validHours??0;
-  const status=markers.length?'':hiddenReasons.size?`OI H1 � ${[...hiddenReasons].join(' � ')}`:valid<37?`OI H1 � �? d? li?u ${valid}/37 h?p`:'OI H1 � ch�a c� h?p �?t 4/5';
+  const status=markers.length?'':hiddenReasons.size?`OI H1 · ${[...hiddenReasons].join(' · ')}`:valid<37?`OI H1 · đủ dữ liệu ${valid}/37 hộp`:'OI H1 · chưa có hộp đạt 4/5';
   drawH1OiMarkers(markers,status);
 }
 function drawH1OiMarkers(markers,message=''){
@@ -638,7 +638,7 @@ function drawH1OiMarkers(markers,message=''){
     button.innerHTML=`<svg width="${size}" height="${size}" viewBox="0 0 12 12" aria-hidden="true"><path d="${path}" fill="${mark.filled?'currentColor':'none'}" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
     const time=new Date(mark.start).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'});
     const pct=(mark.pct>0?'+':'')+mark.pct.toFixed(3)+'%';
-    button.title=`H1 ${time} VN � OI ${pct} � P75 ${mark.p75.toFixed(3)}% � �?ng h�?ng ${Math.round(100*mark.coherence)}% � ${mark.sameDirection}/4 M15 � N?n H1 ${mark.base>0?'+':''}${mark.base} � �i?m OI ${mark.points}/5 � Taker SPY ${mark.taker===null?'thi?u':fmtK(mark.taker)+' USDT'}`;
+    button.title=`H1 ${time} VN · OI ${pct} · P75 ${mark.p75.toFixed(3)}% · Đồng hướng ${Math.round(100*mark.coherence)}% · ${mark.sameDirection}/4 M15 · Nền H1 ${mark.base>0?'+':''}${mark.base} · Điểm OI ${mark.points}/5 · Taker SPY ${mark.taker===null?'thiếu':fmtK(mark.taker)+' USDT'}`;
     button.setAttribute('aria-label',button.title);
     button.onclick=()=>{detail.textContent=button.title;detail.showPopover?.();};
     return button;
@@ -682,7 +682,7 @@ function currentH1TrendAge(){
 }
 function updateH1TrendAgeReadout(){
   let row=$('h1-cvd-status-row');
-  if(!row){row=document.createElement('div');row.id='h1-cvd-status-row';row.setAttribute('role','group');row.setAttribute('aria-label','Tu?i h?p H1 v� ?OI');$('chart').append(row);}
+  if(!row){row=document.createElement('div');row.id='h1-cvd-status-row';row.setAttribute('role','group');row.setAttribute('aria-label','Tuổi hộp H1 và ΔOI');$('chart').append(row);}
   let node=$('h1-trend-age-readout');
   if(!node){
     node=document.createElement('span');node.id='h1-trend-age-readout';
@@ -693,10 +693,10 @@ function updateH1TrendAgeReadout(){
     row.append(node);
   }
   const visible=usesH1WlrStyle();row.hidden=!visible;if(!visible)return;
-  const state=currentH1TrendAge(),direction=state?.direction??0,word=direction>0?'?':direction<0?'?':'WAIT';
-  $('h1-trend-age-text').textContent=state?`${word} ${state.ageH1} H1`:'H1 � WAIT';
+  const state=currentH1TrendAge(),direction=state?.direction??0,word=direction>0?'↑':direction<0?'↓':'WAIT';
+  $('h1-trend-age-text').textContent=state?`${word} ${state.ageH1} H1`:'H1 · WAIT';
   node.className=direction>0?'up':direction<0?'down':'wait';
-  node.title=$('h1-trend-age-text').textContent+'. H?p H1 �?m c�c h?p H1 li�n ti?p c�ng m�u v?i n?n: xanh ?, �? ?, x�m WAIT. �?i m�u ho?c sang ng�y New York m?i s? �?t l?i tu?i. XEM TR�?C g?m h?p H1 �ang h?nh th�nh v� c� th? �?i m�u. �?ng h? l� th?i gian �?n h?t gi? H1 hi?n t?i, kh�ng x�c nh?n d? li?u LIVE.';
+  node.title=$('h1-trend-age-text').textContent+'. Hộp H1 đếm các hộp H1 liên tiếp cùng màu với nến: xanh ↑, đỏ ↓, xám WAIT. Đổi màu hoặc sang ngày New York mới sẽ đặt lại tuổi. XEM TRƯỚC gồm hộp H1 đang hình thành và có thể đổi màu. Đồng hồ là thời gian đến hết giờ H1 hiện tại, không xác nhận dữ liệu LIVE.';
   updateH1OiReadout();updateH1CandleCountdown();scheduleH1Status();
 }
 function updateH1CandleCountdown(){
@@ -706,7 +706,7 @@ function updateH1CandleCountdown(){
   const label=`H1 ${String(minutes).padStart(2,'0')}:${String(rest).padStart(2,'0')}`;
   if(node.textContent!==label){
     node.textContent=label;
-    node.setAttribute('aria-label',`N?n H1 ��ng sau ${minutes} ph�t ${rest} gi�y`);
+    node.setAttribute('aria-label',`Nến H1 đóng sau ${minutes} phút ${rest} giây`);
   }
 }
 function updateCandleCountdown(){
@@ -738,7 +738,7 @@ function updateH1OiReadout(){
  const parts=[['h1-oi-arrow',label.arrow],['h1-oi-percent',label.value],['h1-oi-flags',label.suffix]];
  for(const [id,text] of parts){const part=$(id);if(part&&part.textContent!==text)part.textContent=text;}
  $('h1-oi-percent').dataset.tone=oiPercentColor.update(live,{now,sampleTime:currentOiLoader.sample?.time,error:!!currentOiLoader.error});
- node.title=label.title+' M?i t�n v� % c?p nh?t ngay; m�u % c?n �t nh?t 3 m?u m?i c�ng h�?ng trong 9 gi�y, gi? m�u t?i thi?u 15 gi�y. Sang n?n m?i, thi?u/c?/l?i tr? m�u trung t�nh.';node.setAttribute('aria-label',node.title);
+ node.title=label.title+' Mũi tên và % cập nhật ngay; màu % cần ít nhất 3 mẫu mới cùng hướng trong 9 giây, giữ màu tối thiểu 15 giây. Sang nến mới, thiếu/cũ/lỗi trả màu trung tính.';node.setAttribute('aria-label',node.title);
 }
 function drawDaySeparators(){
   const canvas=$('day-separators'),host=$('chart'),width=host.clientWidth,height=host.clientHeight,dpr=window.devicePixelRatio||1;
@@ -771,7 +771,7 @@ function drawGeometryOverlay(){
       const strokeRail=(key,stroke,width)=>{context.strokeStyle=stroke;context.lineWidth=width;context.setLineDash(dash);context.beginPath();for(let i=0;i<path.length;i++)i?context.lineTo(path[i].x,path[i][key]):context.moveTo(path[i].x,path[i][key]);context.stroke();};
       strokeRail(secondaryKey,secondaryColor,1.35);strokeRail(primaryKey,color,Math.max(2,Math.min(trend.provisional?3:5,trend.lineWidth??2)));
       const startY=path[0].center;
-      if(Number.isFinite(startY)&&x1>=0&&x1<=right){context.setLineDash([]);context.fillStyle=color;context.beginPath();context.arc(x1,startY,4,0,Math.PI*2);context.fill();if(width>=650){context.font='800 9px Inter,system-ui,sans-serif';context.textAlign='left';context.textBaseline='bottom';context.fillText(`${trend.direction>0?'?':'?'} B?T �?U`,x1+6,startY-4);}}
+      if(Number.isFinite(startY)&&x1>=0&&x1<=right){context.setLineDash([]);context.fillStyle=color;context.beginPath();context.arc(x1,startY,4,0,Math.PI*2);context.fill();if(width>=650){context.font='800 9px Inter,system-ui,sans-serif';context.textAlign='left';context.textBaseline='bottom';context.fillText(`${trend.direction>0?'↑':'↓'} BẮT ĐẦU`,x1+6,startY-4);}}
       if(trend.confirmationTime!==trend.startTime&&confirmPoint&&confirmPoint.x>=0&&confirmPoint.x<=right){context.setLineDash([]);context.strokeStyle=color;context.lineWidth=1.5;context.beginPath();context.arc(confirmPoint.x,confirmPoint.center,3,0,Math.PI*2);context.stroke();}
     }
   }
@@ -802,13 +802,13 @@ function render(fit=false){
   const seriesContext=[h1StyleEnabled,h1StyleEnabled?studyResultKey:'off',$('symbol').value,$('interval').value,$('signal').value,$('days').value,$('candle-agreement-color').checked ,h1BoxColor,h1BoxKey,$('phase-width').checked,$('wlr-soft-colors').checked].join('|');
   dayBoundaries=dayBoundaryTimes(p);
   const compositeCvd=$('symbol').value==='SPYUSDT',cvdBars=compositeCvd?projectNetFlowToPrice(p,rows.COMPOSITE??[]):p;
-  cvdSourceLabel=compositeCvd?'C?S':'Q';$('cvd-spectrum').dataset.source=compositeCvd?'COMPOSITE?SPY':'QQQUSDT';
+  cvdSourceLabel=compositeCvd?'C→S':'Q';$('cvd-spectrum').dataset.source=compositeCvd?'COMPOSITE→SPY':'QQQUSDT';
   // Keep paired OI data available to the chart's contextual readings.
   const oiProfile=compositeCvd?oiSpectrum(p,oiWidths,STEPS[$('interval').value],cache?.serverTime??0):{ready:false,bins:[],max:0};
   cvdProfile=continuousCvdSpectrum(cvdBars);cvdAnchorTime=cvdBars.at(-1)?.t??p.at(-1)?.t??null;
   spectrumComparison=buildSpectrumComparison(p,compositeCvd?spyCandleVolumeFlow(p):cvdBars,oiProfile,cache?.serverTime??0,{flowSource:compositeCvd?'spy-candle-volume':'taker'});
   const spectrumNode=$('cvd-spectrum');spectrumNode.dataset.renderer='chart-primitive';
-  const spectrumDescription=`Ph? CVD nhi?u ng�y${compositeCvd?` v� CVD ng�y � ${spectrumComparison.day??'�'} NY � ${spectrumComparison.count} n?n`:''}.`;
+  const spectrumDescription=`Phổ CVD nhiều ngày${compositeCvd?` và CVD ngày · ${spectrumComparison.day??'—'} NY · ${spectrumComparison.count} nến`:''}.`;
   if(spectrumNode.getAttribute('aria-label')!==spectrumDescription)spectrumNode.setAttribute('aria-label',spectrumDescription);
   $('chart').dataset.oiSpectrumState='off';$('chart').dataset.cvdSpectrumPeriod='loaded-history';$('chart').dataset.cvdSpectrumBars=String(cvdBars.length);$('chart').dataset.spectrumLayout='cvd-only';$('chart').dataset.cvdDayBars=String(spectrumComparison.count);$('chart').dataset.spectrumPaired=String(spectrumComparison.pairedReady);
   const closedBefore=cache?.serverTime??Infinity;
@@ -832,7 +832,7 @@ function render(fit=false){
   const daoV2On=Boolean($('dao-v2-toggle')?.checked)&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
   const daoV2Source=$('symbol').value==='SPYUSDT'&&$('interval').value==='15m';
   const daoV2State=daoV2Source&&(daoV2On||daoV2Stats?.needsContext())?daoV2Cache.get(cache?.SPYUSDT??[],new Map(),{now:cache?.serverTime??Date.now(),adaptive:false}):{points:[],last:null};
-  daoV2Stats?.setContext({active:daoV2Source,waitingH1:false,bars:cache?.SPYUSDT??[],bodyRows:bodyVolumeRows,points:daoV2State.points,now:cache?.serverTime??Date.now(),source:'SPY V th�n n?n � EWMA c? �?nh � ? 0,2929'});
+  daoV2Stats?.setContext({active:daoV2Source,waitingH1:false,bars:cache?.SPYUSDT??[],bodyRows:bodyVolumeRows,points:daoV2State.points,now:cache?.serverTime??Date.now(),source:'SPY V thân nến · EWMA cố định · α 0,2929'});
   daoV2Layer?.setData(daoV2State,daoV2On);
   $('chart').dataset.daoV2=daoV2On?'active':'off';
   $('chart').dataset.daoV2Points=String(daoV2State.points.length);
@@ -864,7 +864,7 @@ function render(fit=false){
   $('chart').dataset.oiCandleBarsState=!oiBarsEnabled?'off':oiBarState.gateReady?'ready':'WAIT';
   $('chart').dataset.oiCandleBarsPane=String(series.oiCandleBars.getPane().paneIndex());
   $('chart').dataset.oiCandleBarsMatched=String(oiBarState.matched);$('chart').dataset.oiCandleBarsEligible=String(oiBarState.eligible);
-  $('oi-candle-bars-status').textContent=$('symbol').value!=='SPYUSDT'?'?OI theo n?n � ch? SPY':!oiBarsEnabled?'?OI theo n?n':oiBarState.gateReady?`?OI theo n?n � ${oiBarState.matched}/${oiBarState.eligible} � l?ch s?`:oiBarState.eligible?'?OI � ch? n?n 10 n?n':'?OI theo n?n � WAIT';
+  $('oi-candle-bars-status').textContent=$('symbol').value!=='SPYUSDT'?'ΔOI theo nến · chỉ SPY':!oiBarsEnabled?'ΔOI theo nến':oiBarState.gateReady?`ΔOI theo nến · ${oiBarState.matched}/${oiBarState.eligible} · lịch sử`:oiBarState.eligible?'ΔOI · chờ nền 10 nến':'ΔOI theo nến · WAIT';
   const oi8On=Boolean(strengthOi8Enabled());
   const oi8PivotsOn=$('oi8-pivot-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&step===900000;
   const oi8Points=(oi8On||oi8PivotsOn)&&oiStamp==='15m'&&cache?.interval==='15m'
@@ -874,12 +874,12 @@ function render(fit=false){
     ?strengthOiPhase(cache.SPYUSDT??[],oiAppliedSamples,bodyVolumeRows,cache.serverTime):{points:[],pending:null};
   const oiDisplayPoints=oiPhaseOn?oiPhaseState.points:oi8Points;
   writeSeries('strengthOi8',series.strengthOi8,oi8On?oiDisplayPoints.map(({time,value})=>Number.isFinite(value)?{time,value}:{time}):[],seriesContext+'|oi8|phase:'+oiPhaseOn);
-  setOptions(series.strengthOi8,{topLineColor:oiPhaseOn?'transparent':'#70b7ff',bottomLineColor:oiPhaseOn?'transparent':'#f08aff',title:oiPhaseOn?'?OI8 pha':'?OI8'});
+  setOptions(series.strengthOi8,{topLineColor:oiPhaseOn?'transparent':'#70b7ff',bottomLineColor:oiPhaseOn?'transparent':'#f08aff',title:oiPhaseOn?'ΔOI8 pha':'ΔOI8'});
   oiPhaseLayer?.setData(oiPhaseState,oi8On&&oiPhaseOn);
   $('chart').dataset.oi8Mode=oiPhaseOn?'spy-body-phase':'continuous';
   $('chart').dataset.oi8PhasePending=String(Boolean(oiPhaseState.pending));
   const oiPhaseStatus=$('oi8-phase-status');
-  if(oiPhaseStatus)oiPhaseStatus.textContent=oi8On&&oiPhaseOn&&oiPhaseState.pending?' � pha d? ki?n':'';
+  if(oiPhaseStatus)oiPhaseStatus.textContent=oi8On&&oiPhaseOn&&oiPhaseState.pending?' · pha dự kiến':'';
   const oi8Levels=oi8PivotsOn?oi8PivotLevels(p,oi8Points,cache?.serverTime??0):[];
   for(const [type,lines] of Object.entries(oi8PivotLines)){
     const levels=oi8Levels.filter(level=>level.type===type).slice(-lines.length).reverse();
@@ -887,7 +887,7 @@ function render(fit=false){
       const level=levels[i];
       setOptions(line,{visible:Boolean(level),lineWidth:level?.aligned?2:1,
         lineStyle:level?.aligned?L.LineStyle.Solid:L.LineStyle.Dashed,
-        title:(type==='low'?'HT':'KC')+' ?OI8'+(level?.aligned?' + NF':'')});
+        title:(type==='low'?'HT':'KC')+' ΔOI8'+(level?.aligned?' + NF':'')});
       writeSeries('oi8-pivot-'+type+i,line,level?[
         {time:level.start,value:level.level},
         {time:Math.max(level.start+900,p.at(-1).t/1000),value:level.level}
@@ -943,12 +943,12 @@ function positionFixedPaneReadouts(){
 }
 function latestFiniteValue(data,key){for(let i=data.length-1;i>=0;i--)if(Number.isFinite(data[i]?.[key]))return data[i][key];return null;}
 function updateFixedPaneReadouts(){
-  const compositeValue=latestFiniteValue(compositeClusterRows,'value'),compositeNode=$('composite-flow-fixed');compositeNode.textContent=`? C Taker NF ${fmtK(compositeValue)}`;compositeNode.className=`pane-fixed-readout ${Number.isFinite(compositeValue)?compositeValue>=0?'positive':'negative':'missing'}`;compositeNode.style.display=$('composite').checked?'block':'none';
+  const compositeValue=latestFiniteValue(compositeClusterRows,'value'),compositeNode=$('composite-flow-fixed');compositeNode.textContent=`Σ C Taker NF ${fmtK(compositeValue)}`;compositeNode.className=`pane-fixed-readout ${Number.isFinite(compositeValue)?compositeValue>=0?'positive':'negative':'missing'}`;compositeNode.style.display=$('composite').checked?'block':'none';
   compositeNode.title=[
-    '? C Taker NF � c?ng d?n NF c� d?u trong t?ng c?m m�u SPY V th�n n?n.',
-    'M?i m?: NF = taker buy quote ? taker sell quote = 2 � taker buy quote ? t?ng quote volume. C Taker NF = NF(SPY) + NF(QQQ).',
-    '��n v? USDT; K = ngh?n, M = tri?u. D��ng: t?ng mua ch? �?ng tr?i trong c?m; �m: t?ng b�n ch? �?ng tr?i. M�u c?t theo d?u t?ng NF: d��ng xanh, �m �?, b?ng 0 x�m.',
-    '�?i m�u SPY V ho?c thi?u d? li?u th? b?t �?u l?i. C?p nh?t c? n?n live kho?ng 3 gi�y; lu�n t�nh l?i t? d? li?u �? kh�ng c?ng tr�ng. Kh�ng ph?i d?ng ti?n r?ng v�o/ra th? tr�?ng v� kh�ng x�c �?nh ch?c m?/��ng Long�Short.'
+    'Σ C Taker NF — cộng dồn NF có dấu trong từng cụm màu SPY V thân nến.',
+    'Mỗi mã: NF = taker buy quote − taker sell quote = 2 × taker buy quote − tổng quote volume. C Taker NF = NF(SPY) + NF(QQQ).',
+    'Đơn vị USDT; K = nghìn, M = triệu. Dương: tổng mua chủ động trội trong cụm; âm: tổng bán chủ động trội. Màu cột theo dấu tổng NF: dương xanh, âm đỏ, bằng 0 xám.',
+    'Đổi màu SPY V hoặc thiếu dữ liệu thì bắt đầu lại. Cập nhật cả nến live khoảng 3 giây; luôn tính lại từ dữ liệu để không cộng trùng. Không phải dòng tiền ròng vào/ra thị trường và không xác định chắc mở/đóng Long–Short.'
   ].join('\n');
   requestAnimationFrame(positionFixedPaneReadouts);
 }
@@ -967,7 +967,7 @@ function updatePivotZones(){
     const line=series[prefix+'Mid'];if(!line)continue;
     const current=cache?.[symbol]?.at(-1)?.c;
     const distance=zone&&current>0?100*Math.abs(current-zone.level)/current:null;
-    setOptions(line,{lineWidth:2,lineStyle:L.LineStyle.Solid,title:label+(locked?' � KH�A':'')});
+    setOptions(line,{lineWidth:2,lineStyle:L.LineStyle.Solid,title:label+(locked?' · KHÓA':'')});
     writeSeries(prefix+'Mid',line,zone?[
       {time:zone.start/1000,value:zone.level},
       {time:Math.max(zone.start+STEPS[interval],cache?.[symbol]?.at(-1)?.t??zone.end)/1000,value:zone.level}
@@ -976,9 +976,9 @@ function updatePivotZones(){
     const button=document.createElement('button');button.type='button';button.disabled=!zone;
     button.dataset.side=kind;
     button.dataset.locked=String(Boolean(locked));
-    button.textContent=zone?label+' '+zone.level.toFixed(2):label+' �';
-    button.title=zone?(zone.source==='H1'?zone.boxes+' h?p H1 c�ng d?u � T?ng |�i?m| '+zone.points+' � '+(zone.missing?'Thi?u OI: h?p n�y t�nh 75% �i?m':'�? th�nh ph?n'):'V�ng pivot g?c � �i?m '+zone.score+'/100 � '+(zone.oiReady?'�? OI':'Thi?u OI'))+' � C�ch gi� '+distance?.toFixed(2)+'% � SL tham kh?o, kh�ng ph?i l�?ng stop tr�n s�n. Kh�a trong phi�n m? trang.':'Ch? v�ng H1 t�ch l?y ho?c pivot �? m?nh';
-    if(zone){button.setAttribute('aria-label',button.textContent+(locked?' � M? kh�a':' � Kh�a'));button.setAttribute('aria-pressed',String(Boolean(locked)));}
+    button.textContent=zone?label+' '+zone.level.toFixed(2):label+' —';
+    button.title=zone?(zone.source==='H1'?zone.boxes+' hộp H1 cùng dấu · Tổng |điểm| '+zone.points+' · '+(zone.missing?'Thiếu OI: hộp này tính 75% điểm':'Đủ thành phần'):'Vùng pivot gốc · Điểm '+zone.score+'/100 · '+(zone.oiReady?'Đủ OI':'Thiếu OI'))+' · Cách giá '+distance?.toFixed(2)+'% · SL tham khảo, không phải lượng stop trên sàn. Khóa trong phiên mở trang.':'Chờ vùng H1 tích lũy hoặc pivot đủ mạnh';
+    if(zone){button.setAttribute('aria-label',button.textContent+(locked?' · Mở khóa':' · Khóa'));button.setAttribute('aria-pressed',String(Boolean(locked)));}
     button.onclick=()=>{if(locked)lockedStops.delete(lockKey);else lockedStops.set(lockKey,{...zone});updatePivotZones();};node.append(button);
   }
   $('chart').dataset.slH1Zones=String(accumulation.zones.length);
@@ -987,7 +987,7 @@ function updatePivotZones(){
 
 function h1ScoreLineText(asOf){
   const r=h1ScoreLineReading(h1ScoreLineState,asOf);if(!r)return '';
-  return r.score===null?'�i?m H1 � thi?u d? li?u':`H1 g?c ${signed(r.score)} � m�?t ${signed(r.smoothed)}${r.preview?' � T?M 3/4':' � �? KH�A'}`;
+  return r.score===null?'Điểm H1 · thiếu dữ liệu':`H1 gốc ${signed(r.score)} · mượt ${signed(r.smoothed)}${r.preview?' · TẠM 3/4':' · ĐÃ KHÓA'}`;
 }
 function updateH1ScoreLineReadout(t){
   const node=$('h1-score-line-readout');if(!node)return;
@@ -999,40 +999,40 @@ function updateNfSmoothReadout(t=null){
   const node=$('nf-smooth-readout');if(!node)return;
   const on=nfSmoothEnabled(),now=cache?.serverTime??Date.now(),r=t===null?nfSmoothRows.findLast(x=>x.knownAt<=now):nfSmoothMap.get(t),value=r?.value;
   node.hidden=!on;node.style.display=on?'block':'none';
-  node.textContent='C NF'+($('nf-smooth-window')?.value??'4')+' '+(Number.isFinite(value)?signed(value):r?.reason==='forming_excluded'?'ch? ��ng':'ch? n?n');
+  node.textContent='C NF'+($('nf-smooth-window')?.value??'4')+' '+(Number.isFinite(value)?signed(value):r?.reason==='forming_excluded'?'chờ đóng':'chờ nền');
   node.className='pane-fixed-readout '+(Number.isFinite(value)?value>=0?'positive':'negative':'missing');
-  node.title='C Taker NF m�?t: NF th?t SPY + QQQ / SMA20(t?ng quote volume), c?ng '+($('nf-smooth-window')?.value??'4')+' M15 ? EWMA t? th�ch ?ng ?=0,18�0,60 ? chu?n h�a �?i x?ng ?1�+1 b?ng n?n 500 �i?m. Ch? n?n ��ng c� �? hai m?; kh�ng l?c theo th�n gi�, H1 hay OI v� kh�ng d?ch t�m theo phi�n. ��y l� ch? s? kh�ng ��n v?, kh�ng ph?i NF USDT c?a ri�ng n?n m?i nh?t. '+(r?'Tr?ng th�i: '+r.reason+(Number.isFinite(r.alpha)?' � ?='+r.alpha.toFixed(3):''):'Ch�a c� d? li?u.');
+  node.title='C Taker NF mượt: NF thật SPY + QQQ / SMA20(tổng quote volume), cộng '+($('nf-smooth-window')?.value??'4')+' M15 → EWMA tự thích ứng α=0,18–0,60 → chuẩn hóa đối xứng −1…+1 bằng nền 500 điểm. Chỉ nến đóng có đủ hai mã; không lọc theo thân giá, H1 hay OI và không dịch tâm theo phiên. Đây là chỉ số không đơn vị, không phải NF USDT của riêng nến mới nhất. '+(r?'Trạng thái: '+r.reason+(Number.isFinite(r.alpha)?' · α='+r.alpha.toFixed(3):''):'Chưa có dữ liệu.');
 }
 function showTooltip(t){
   updateNfSmoothReadout(inspectedTime);
   updateH1ScoreLineReadout(inspectedTime);
   const p=maps[$('symbol').value]?.get(t),record=statsMap.get(t),state=record?.state,colorSignal=candleColorMap.get(t),clusterSignal=candleClusterMap.get(t),geometryEvent=geometryState.events?.find(event=>event.at===t);
-  const time=p?new Date(t).toLocaleString('vi-VN',{timeZone:'America/New_York'})+' ET':'Ch�a c� d? li?u';
+  const time=p?new Date(t).toLocaleString('vi-VN',{timeZone:'America/New_York'})+' ET':'Chưa có dữ liệu';
   const h1Text=$('h1-score-line-toggle')?.checked&&$('symbol').value==='SPYUSDT'&&$('interval').value==='15m'?h1ScoreLineText(Math.min(cache?.serverTime??Date.now(),p?.end!==undefined?p.end+1:t)):'';
-  const running=isChartLive()&&p&&p.end>=(cache?.serverTime??Infinity),mode=inspectedTime!==null?'N?N �ANG XEM':'M?I NH?T';
+  const running=isChartLive()&&p&&p.end>=(cache?.serverTime??Infinity),mode=inspectedTime!==null?'NẾN ĐANG XEM':'MỚI NHẤT';
   if(!state){
-    for(const id of ['stat-group','stat-score','stat-pair'])statValue(id,'�');
-    for(const id of ['stat-group-note','stat-score-note','stat-pair-note'])$(id).textContent='Ch? �? Strength v� quote volume c?a SPY/QQQ';
-    $('tooltip').textContent=`${mode} � ${time} � Ch�a �? d? li?u �? ch?m �i?m v� th?ng k� nh�m Strength.${h1Text?' � '+h1Text:''}`;return;
+    for(const id of ['stat-group','stat-score','stat-pair'])statValue(id,'—');
+    for(const id of ['stat-group-note','stat-score-note','stat-pair-note'])$(id).textContent='Chờ đủ Strength và quote volume của SPY/QQQ';
+    $('tooltip').textContent=`${mode} · ${time} · Chưa đủ dữ liệu để chấm điểm và thống kê nhóm Strength.${h1Text?' · '+h1Text:''}`;return;
   }
   $('stat-group').replaceChildren(...state.signs.map((s,i)=>{const span=document.createElement('span');span.className=tone(s);span.textContent=`${['S','Q','C'][i]}${signLabel(s)}`;return span;}));
-  $('stat-group-note').textContent=`${sourceName($('signal').value)} ${signed(state.value)} � ${state.session}${state.marker?' � ? >0.95':state.extreme?' � <?0.95':''}`;
-  statValue('stat-score',state.score===null?'Trung t�nh':`${state.score}/100`,state.score>=65?'positive':state.score<40?'negative':'neutral');
-  $('stat-score-note').textContent=`Mua ${fmt(state.buyShare*100)}% / B�n ${fmt(state.sellShare*100)}% � ${state.flowDirection===0?'C�n b?ng':state.flowDirection===state.direction?'C�ng d?u':'Ng�?c d?u Strength'}`;
+  $('stat-group-note').textContent=`${sourceName($('signal').value)} ${signed(state.value)} · ${state.session}${state.marker?' · ● >0.95':state.extreme?' · <−0.95':''}`;
+  statValue('stat-score',state.score===null?'Trung tính':`${state.score}/100`,state.score>=65?'positive':state.score<40?'negative':'neutral');
+  $('stat-score-note').textContent=`Mua ${fmt(state.buyShare*100)}% / Bán ${fmt(state.sellShare*100)}% · ${state.flowDirection===0?'Cân bằng':state.flowDirection===state.direction?'Cùng dấu':'Ngược dấu Strength'}`;
   const a=state.alignment;
-  statValue('stat-pair',a.detailState, a.detailState==='THU?N MUA'?'positive':a.detailState==='THU?N B�N'?'negative':'neutral');
-  $('stat-pair-note').textContent=`NF% m�?t � S ${signed(a.smoothSpyNf)} / Q ${signed(a.smoothQqqNf)}`;
-  const regimeText=colorSignal?.direction?`Composite�Volume ${colorSignal.colorRegime}: Composite ${signed(colorSignal.compositeStrength)}, SPY Volume ${signed(colorSignal.volumeStrength)}; �? �?m theo min(|Composite|, |Volume|) = ${fmt(colorSignal.agreement)}.`:`Composite�Volume TRUNG T�NH${colorSignal?.neutralReason?` (${colorSignal.neutralReason.toLowerCase()})`:''}: Composite ${signed(colorSignal?.compositeStrength)}, SPY Volume ${signed(colorSignal?.volumeStrength)}; tr�i d?u, b?ng 0 ho?c thi?u d? li?u �?u d�ng x�m.`;
-  const clusterName=clusterSignal?.group>0?'C?M T�NG':clusterSignal?.group<0?'C?M GI?M':'TRUNG T�NH',colorText=$('candle-agreement-color').checked?`M�u n?n C?m Gi��SPY V ${clusterName} � ${clusterSignal?.level??'weak'}${clusterSignal?.counter?' � n?n ng�?c nh?, gi? m�u c?m':''}${clusterSignal?.transition?' � th? chuy?n pha, vi?n v�ng':''}${running?' � LIVE ch? xem tr�?c':''}. �i?m m�?t ${signed(clusterSignal?.smooth)} = WLR8 45% + SPY V 35% + th�n/ATR 20%; c?n hai n?n �?i ngh?ch �? �?o c?m.`:`M�u n?n ${regimeText}`;
+  statValue('stat-pair',a.detailState, a.detailState==='THUẬN MUA'?'positive':a.detailState==='THUẬN BÁN'?'negative':'neutral');
+  $('stat-pair-note').textContent=`NF% mượt · S ${signed(a.smoothSpyNf)} / Q ${signed(a.smoothQqqNf)}`;
+  const regimeText=colorSignal?.direction?`Composite×Volume ${colorSignal.colorRegime}: Composite ${signed(colorSignal.compositeStrength)}, SPY Volume ${signed(colorSignal.volumeStrength)}; độ đậm theo min(|Composite|, |Volume|) = ${fmt(colorSignal.agreement)}.`:`Composite×Volume TRUNG TÍNH${colorSignal?.neutralReason?` (${colorSignal.neutralReason.toLowerCase()})`:''}: Composite ${signed(colorSignal?.compositeStrength)}, SPY Volume ${signed(colorSignal?.volumeStrength)}; trái dấu, bằng 0 hoặc thiếu dữ liệu đều dùng xám.`;
+  const clusterName=clusterSignal?.group>0?'CỤM TĂNG':clusterSignal?.group<0?'CỤM GIẢM':'TRUNG TÍNH',colorText=$('candle-agreement-color').checked?`Màu nến Cụm Giá×SPY V ${clusterName} · ${clusterSignal?.level??'weak'}${clusterSignal?.counter?' · nến ngược nhỏ, giữ màu cụm':''}${clusterSignal?.transition?' · thử chuyển pha, viền vàng':''}${running?' · LIVE chỉ xem trước':''}. Điểm mượt ${signed(clusterSignal?.smooth)} = WLR8 45% + SPY V 35% + thân/ATR 20%; cần hai nến đối nghịch để đảo cụm.`:`Màu nến ${regimeText}`;
   const displayedColorText=colorText;
-  const text=[`${mode} � ${time} � ${state.session} � Gi� ${sourceName($('symbol').value)}, Strength ph�n t�ch ${sourceName($('signal').value)}${running?' � N?n �ang ch?y: �i?m t?m th?i, l?ch s? so s�nh d�ng n?n ��ng':''}`,
+  const text=[`${mode} · ${time} · ${state.session} · Giá ${sourceName($('symbol').value)}, Strength phân tích ${sourceName($('signal').value)}${running?' · Nến đang chạy: điểm tạm thời, lịch sử so sánh dùng nến đóng':''}`,
     h1Text,
-    $('phase-width').checked?(()=>{const x=wlrThicknessMap.get(t);if(x?.model==='h1-box-score')return wlrH1StyleText(x);if(x?.tone)return `�? d�y WLR ${fmt(x.width)}/8 � d?c/? EWMA ${fmt(x.smoothed)} � ${x.tone} � m� t? s?c m?nh hi?n t?i, kh�ng ph?i x�c su?t th?ng.`;return x?.ready?`�? d�y WLR ${fmt(x.width)}/${WLR_SLOPE_DEFAULTS.maxWidth} � trend 61% / V�C 39% � |d?c|�13/ATR14 ${fmt(x.normalizedSlope)}, R� ${fmt(x.r2)} � �?ng thu?n d?ng ti?n ${fmt(x.flowQuality)}${x.flowReady?'':' (thi?u Strength)'} � ?13/ATR14 ${fmt(x.atr>0?x.sigma/x.atr:0)} � h? s? gi?m nhi?u ${fmt(x.noisePenalty)}.`:`�? d�y WLR: ch? �? 14 n?n tr�?c �? ��ng (${x?.pairs??0} n?n).`;})():null,
-    (()=>{const x=wlrColorMap.get(t);if(x?.model==='h1-box-score')return $('phase-width').checked?null:wlrH1StyleText(x);if(x?.tone)return `M�u WLR kh�a m?m: ${{early:'NH?P S?M � NH?T, N�T M?NG, CH�A X�C NH?N',confirmed:'�?NG THU?N �?M',weak:'CH�A X�C NH?N � NH?T',conflict:'XUNG �?T � V�NG CAM',neutral:'TRUNG T�NH � X�M'}[x.tone]} � d?c/? EWMA ${fmt(x.smoothed)}${x.early?` � d?c gi� 4/? ${fmt(x.priceScore)} � c?m 2/3 th�n n?n c�ng ph�a WLR`:``} � Composite ${fmt(x.referenceComposite)} � SPY V ${fmt(x.referenceVolume)}${x.pendingCount?' � �ang ch? n?n th? hai x�c nh?n s?c �?':''}${x.closed?' � n?n �? ��ng':' � gi? m�u n?n ��ng tr�?c'}.`;return x?`M�u WLR ${x.direction>0?'XANH':x.direction<0?'�?':'V�NG TRUNG T�NH'} theo Composite ${Number.isFinite(x.referenceComposite)?x.referenceComposite.toFixed(3):'�'} � SPY V ${Number.isFinite(x.referenceVolume)?x.referenceVolume.toFixed(3):'�'} � v�o �0,15 / tho�t �0,07${x.closed?' � �? x�c nh?n khi ��ng n?n':' � gi? m�u n?n ��ng tr�?c, ch�a d�ng Strength n?n �ang ch?y'}. M�u th? hi?n d?ng ti?n, kh�ng ph?i d?u �? d?c gi�.`:null;})(),
-    geometryEvent?`D? bi?t ��?c x�c nh?n t?i n?n n�y: ${geometryEvent.direction==='bullish'?'ph�n k? t�ng':geometryEvent.direction==='bearish'?'ph�n k? gi?m':'SPY/QQQ lu�n phi�n d?n d?t'} � �i?m ${geometryEvent.score}/100 � ?Strength SPY ${signed(geometryEvent.spyDelta)} / QQQ ${signed(geometryEvent.qqqDelta)} / SPY V ${signed(geometryEvent.volumeDelta)} � ?NetFlow ${signed(geometryEvent.flowDelta)}${geometryEvent.pairSplit?` � Strength SPY v� QQQ ng�?c nhau, gi� �ang g?n nh?p ${geometryEvent.leader==='SPY'?'SPY':geometryEvent.leader==='QQQ'?'QQQ':'h?n h?p'}`:''}. ��y l� m� t? h?p l�u t?i th?i �i?m x�c nh?n, kh�ng ph?i d? b�o ch?c ch?n.`:null,
+    $('phase-width').checked?(()=>{const x=wlrThicknessMap.get(t);if(x?.model==='h1-box-score')return wlrH1StyleText(x);if(x?.tone)return `Độ dày WLR ${fmt(x.width)}/8 · dốc/σ EWMA ${fmt(x.smoothed)} · ${x.tone} · mô tả sức mạnh hiện tại, không phải xác suất thắng.`;return x?.ready?`Độ dày WLR ${fmt(x.width)}/${WLR_SLOPE_DEFAULTS.maxWidth} · trend 61% / V×C 39% · |dốc|×13/ATR14 ${fmt(x.normalizedSlope)}, R² ${fmt(x.r2)} · đồng thuận dòng tiền ${fmt(x.flowQuality)}${x.flowReady?'':' (thiếu Strength)'} · σ13/ATR14 ${fmt(x.atr>0?x.sigma/x.atr:0)} · hệ số giảm nhiễu ${fmt(x.noisePenalty)}.`:`Độ dày WLR: chờ đủ 14 nến trước đã đóng (${x?.pairs??0} nến).`;})():null,
+    (()=>{const x=wlrColorMap.get(t);if(x?.model==='h1-box-score')return $('phase-width').checked?null:wlrH1StyleText(x);if(x?.tone)return `Màu WLR khóa mềm: ${{early:'NHỊP SỚM — NHẠT, NÉT MỎNG, CHƯA XÁC NHẬN',confirmed:'ĐỒNG THUẬN ĐẬM',weak:'CHƯA XÁC NHẬN — NHẠT',conflict:'XUNG ĐỘT — VÀNG CAM',neutral:'TRUNG TÍNH — XÁM'}[x.tone]} · dốc/σ EWMA ${fmt(x.smoothed)}${x.early?` · dốc giá 4/σ ${fmt(x.priceScore)} · cụm 2/3 thân nến cùng phía WLR`:``} · Composite ${fmt(x.referenceComposite)} · SPY V ${fmt(x.referenceVolume)}${x.pendingCount?' · đang chờ nến thứ hai xác nhận sắc độ':''}${x.closed?' · nến đã đóng':' · giữ màu nến đóng trước'}.`;return x?`Màu WLR ${x.direction>0?'XANH':x.direction<0?'ĐỎ':'VÀNG TRUNG TÍNH'} theo Composite ${Number.isFinite(x.referenceComposite)?x.referenceComposite.toFixed(3):'—'} × SPY V ${Number.isFinite(x.referenceVolume)?x.referenceVolume.toFixed(3):'—'} · vào ±0,15 / thoát ±0,07${x.closed?' · đã xác nhận khi đóng nến':' · giữ màu nến đóng trước, chưa dùng Strength nến đang chạy'}. Màu thể hiện dòng tiền, không phải dấu độ dốc giá.`:null;})(),
+    geometryEvent?`Dị biệt được xác nhận tại nến này: ${geometryEvent.direction==='bullish'?'phân kỳ tăng':geometryEvent.direction==='bearish'?'phân kỳ giảm':'SPY/QQQ luân phiên dẫn dắt'} · điểm ${geometryEvent.score}/100 · ΔStrength SPY ${signed(geometryEvent.spyDelta)} / QQQ ${signed(geometryEvent.qqqDelta)} / SPY V ${signed(geometryEvent.volumeDelta)} · ΔNetFlow ${signed(geometryEvent.flowDelta)}${geometryEvent.pairSplit?` · Strength SPY và QQQ ngược nhau, giá đang gần nhịp ${geometryEvent.leader==='SPY'?'SPY':geometryEvent.leader==='QQQ'?'QQQ':'hỗn hợp'}`:''}. Đây là mô tả hợp lưu tại thời điểm xác nhận, không phải dự báo chắc chắn.`:null,
     displayedColorText,
-    $('oi-candle-bars-toggle')?.checked&&$('symbol').value==='SPYUSDT'?(()=>{const x=oiBarState.points.get(t);return x?`?OI theo n?n ${signed(x.delta)} � SPY V ${signed(x.spyV)} � C Taker NF ${signed(x.net)} � ${OI_GROUP_LABELS[x.kind]??'kh�ng �? �?ng thu?n'}${x.pinAdjusted?' � pin bar ph?n �?i chi?u th�n':''} � ${x.gateReady?`|?OI| ${fmt(Math.abs(x.delta))} / ng�?ng P${Math.round(x.percentile*100)} ${fmt(x.threshold)}: ${x.gatePassed?'V�?T NG�?NG':'CH�A V�?T NG�?NG'}`:'CH? �? 10 ?OI N?N'}. Chi?u cao c?t = |?OI|; c?t xanh khi gi� t�ng, �? khi gi� gi?m. Th�n n?n: OI t�ng �?m kh�ng vi?n, OI gi?m c� vi?n kem; OI gi?m l� gi?m t?ng v? th? m?.`:'?OI theo n?n: c?n n?n ��ng v� hai m?u OI li�n ti?p trong l?ch s? �? t?i.';})():null,
-    `�i?m x�c nh?n ${state.score??'�'}/100 = Taker ${fmt(state.taker)}/50 + D?i ${fmt(state.pair)}/30 + |Strength| ${fmt(state.strength)}/20. �i?m theo quy t?c, kh�ng ph?i x�c su?t th?ng.`];
+    $('oi-candle-bars-toggle')?.checked&&$('symbol').value==='SPYUSDT'?(()=>{const x=oiBarState.points.get(t);return x?`ΔOI theo nến ${signed(x.delta)} · SPY V ${signed(x.spyV)} · C Taker NF ${signed(x.net)} · ${OI_GROUP_LABELS[x.kind]??'không đủ đồng thuận'}${x.pinAdjusted?' · pin bar phản đối chiều thân':''} · ${x.gateReady?`|ΔOI| ${fmt(Math.abs(x.delta))} / ngưỡng P${Math.round(x.percentile*100)} ${fmt(x.threshold)}: ${x.gatePassed?'VƯỢT NGƯỠNG':'CHƯA VƯỢT NGƯỠNG'}`:'CHỜ ĐỦ 10 ΔOI NỀN'}. Chiều cao cột = |ΔOI|; cột xanh khi giá tăng, đỏ khi giá giảm. Thân nến: OI tăng đậm không viền, OI giảm có viền kem; OI giảm là giảm tổng vị thế mở.`:'ΔOI theo nến: cần nến đóng và hai mẫu OI liên tiếp trong lịch sử đã tải.';})():null,
+    `Điểm xác nhận ${state.score??'—'}/100 = Taker ${fmt(state.taker)}/50 + Dải ${fmt(state.pair)}/30 + |Strength| ${fmt(state.strength)}/20. Điểm theo quy tắc, không phải xác suất thắng.`];
   const nodes=text.filter(Boolean).map(value=>{const div=document.createElement('div');div.textContent=value;return div;});
   $('tooltip').replaceChildren(...nodes);
 }
@@ -1060,7 +1060,7 @@ function showStartupPreview(data){
  const last=bars.at(-1).t,first=bars.find(x=>x.t>=last-FIT_WINDOW_MS)?.t??bars[0].t;
  chart.timeScale().setVisibleRange({from:first/1000,to:last/1000});
  $('chart').dataset.startupPhase='preview';
- $('live-indicator').textContent='? �ANG T?I L?CH S?';
+ $('live-indicator').textContent='◌ ĐANG TẢI LỊCH SỬ';
  requestAnimationFrame(()=>{$('chart').dataset.firstPricePaintMs??=String(Math.round(performance.now()));});
 }
 function acceptChartData(data,fit,live){
@@ -1084,12 +1084,12 @@ async function refresh(clear=false){
  if(clear){resetStudies();cache=null;chartLiveResponse=false;rows={};volumeStrengthRows=[];spyVolumeDeltaRows=[];volumeStrengthMap=new Map();maps={};lastSuccess=null;inspectedTime=null;pivotZoneKey='';pivotZoneState={ready:false,reason:'history',support:null,resistance:null};render(true);}
   const interval=$('interval').value,days=+$('days').value;
   if(!cache){$('chart').dataset.startupPhase='loading';$('chart').setAttribute('aria-busy','true');}
-  status(`�ang x�c minh SPYUSDT/QQQUSDT v� t?i ${interval} � ${days} ng�y�`);
+  status(`Đang xác minh SPYUSDT/QQQUSDT và tải ${interval} · ${days} ngày…`);
   try{
     const data=await load(interval,days,{signal:controller.signal,previous:cache,previewSymbol:$('symbol').value,onPreview:data=>{if(gen===generation&&!cache)showStartupPreview(data);}});if(gen!==generation)return;
     acceptChartData(data,clear,true);
-    const modelText=interval==='15m'?' � Nghi�n c?u l?ch s? ch?y n?n':'';
-    status(`SPYUSDT + QQQUSDT � TRADING / ${data.contracts.map(x=>x.contractType).join(' + ')} � ${rows.SPYUSDT.length}/${rows.QQQUSDT.length} n?n, g?m n?n �ang ch?y � ${rows.COMPOSITE.length} timestamp chung${modelText} � ${data.incremental?'c?p nh?t realtime ~3 gi�y':'t?i l?ch s? song song'} � c?p nh?t ${lastSuccess.toLocaleTimeString('vi-VN')} � ${rows.COMPOSITE.length?'D? li?u th?t Binance':'Composite ch�a c� d? li?u giao nhau'}`);
+    const modelText=interval==='15m'?' · Nghiên cứu lịch sử chạy nền':'';
+    status(`SPYUSDT + QQQUSDT · TRADING / ${data.contracts.map(x=>x.contractType).join(' + ')} · ${rows.SPYUSDT.length}/${rows.QQQUSDT.length} nến, gồm nến đang chạy · ${rows.COMPOSITE.length} timestamp chung${modelText} · ${data.incremental?'cập nhật realtime ~3 giây':'tải lịch sử song song'} · cập nhật ${lastSuccess.toLocaleTimeString('vi-VN')} · ${rows.COMPOSITE.length?'Dữ liệu thật Binance':'Composite chưa có dữ liệu giao nhau'}`);
   }catch(e){
     if(gen!==generation)return;
     chartLiveResponse=false;
@@ -1098,7 +1098,7 @@ async function refresh(clear=false){
      try{const historical=await chartHistoryFallback({interval,days,signal:controller.signal});if(gen!==generation)return;acceptChartData(historical,true,false);}
      catch(historyError){if(gen!==generation)return;$('chart').dataset.historyFallbackError=historyError.message;}
     }
-    setLive();updateH1OiReadout();status(`${e.message}. C� th? b? CORS, v�ng truy c?p, m?t m?ng ho?c rate limit. ${cache?(cache.historical?'�ang hi?n th? l?ch s? �? l�u, kh�ng ph?i d? li?u live.':`D? li?u c? ch�a c?p nh?t${lastSuccess?` (l?n th�nh c�ng ${lastSuccess.toLocaleTimeString('vi-VN')})`:''}.`):'Kh�ng c� d? li?u thay th?; bi?u �? �? tr?ng.'} D�ng T?i l?i sau khi ki?m tra k?t n?i.`,true);
+    setLive();updateH1OiReadout();status(`${e.message}. Có thể bị CORS, vùng truy cập, mất mạng hoặc rate limit. ${cache?(cache.historical?'Đang hiển thị lịch sử đã lưu, không phải dữ liệu live.':`Dữ liệu cũ chưa cập nhật${lastSuccess?` (lần thành công ${lastSuccess.toLocaleTimeString('vi-VN')})`:''}.`):'Không có dữ liệu thay thế; biểu đồ để trống.'} Dùng Tải lại sau khi kiểm tra kết nối.`,true);
   }finally{if(gen===generation){loading=false;$('refresh').disabled=false;}}
 }
 function exportCSV(){
@@ -1118,7 +1118,7 @@ function fitChart(windowMs=FIT_WINDOW_MS){
   scheduleCvdSpectrum();scheduleDaySeparators();scheduleGeometryOverlay();
 }
 function isFullChart(){const card=document.querySelector('.chart-card');return document.fullscreenElement===card||card.classList.contains('fullscreen-fallback');}
-function syncFullChart(){const active=isFullChart();$('fullscreen').textContent=active?'? Thu nh?':'? Full chart';$('fullscreen').setAttribute('aria-pressed',String(active));document.body.classList.toggle('chart-fullscreen',active);if(active&&$('chart-settings'))$('chart-settings').open=false;applyResponsiveChartOptions();setTimeout(()=>{window.dispatchEvent(new Event('resize'));scheduleCvdSpectrum();scheduleDaySeparators();scheduleGeometryOverlay();},50);}
+function syncFullChart(){const active=isFullChart();$('fullscreen').textContent=active?'✕ Thu nhỏ':'⛶ Full chart';$('fullscreen').setAttribute('aria-pressed',String(active));document.body.classList.toggle('chart-fullscreen',active);if(active&&$('chart-settings'))$('chart-settings').open=false;applyResponsiveChartOptions();setTimeout(()=>{window.dispatchEvent(new Event('resize'));scheduleCvdSpectrum();scheduleDaySeparators();scheduleGeometryOverlay();},50);}
 async function toggleFullChart(){
   const card=document.querySelector('.chart-card');
   if(document.fullscreenElement===card){await document.exitFullscreen();return;}
@@ -1154,55 +1154,55 @@ if(init()){
   actions.prepend($('fullscreen'),$('live-indicator'),$('spyusdt-session-change'),$('chart-frame-switch'));
   if(shareButton)actions.append(shareButton);
   const chartCard=document.querySelector('.chart-card');
-  const indicatorTools=document.createElement('section');indicatorTools.id='chart-indicator-tools';indicatorTools.className='chart-options chart-indicator-tools';indicatorTools.setAttribute('aria-label','�i?u khi?n h?p s?c m?nh v� ph�n v?');($('chart-settings-panel')??chartCard.parentElement).append(indicatorTools);
-  const chartNotes=document.createElement('details');chartNotes.id='chart-notes';const notesSummary=document.createElement('summary');notesSummary.textContent='Gi?i th�ch v� tr?ng th�i ch? b�o';chartNotes.append(notesSummary);chartCard.after(chartNotes);
+  const indicatorTools=document.createElement('section');indicatorTools.id='chart-indicator-tools';indicatorTools.className='chart-options chart-indicator-tools';indicatorTools.setAttribute('aria-label','Điều khiển hộp sức mạnh và phân vị');($('chart-settings-panel')??chartCard.parentElement).append(indicatorTools);
+  const chartNotes=document.createElement('details');chartNotes.id='chart-notes';const notesSummary=document.createElement('summary');notesSummary.textContent='Giải thích và trạng thái chỉ báo';chartNotes.append(notesSummary);chartCard.after(chartNotes);
   for(const node of chartCard.querySelectorAll('#tooltip,.hint'))chartNotes.append(node);
   strengthBoxLayer=createStrengthBoxLayer({chart,host:$('chart'),actions:indicatorTools,getContext:()=>({rows:rows[$('symbol').value]??[],symbol:$('symbol').value,interval:$('interval').value,step:STEPS[$('interval').value],now:cache?.serverTime??0,price,composite:maps.COMPOSITE??new Map(),compositeRevision:studyResultKey,volume:volumeStrengthMap,channels:studyResultKey===studyKey&&$('causal-trend-channel').checked?(causalChannelState.trends??[]).filter(c=>!c.provisional):[]}),onChange:()=>{}});
   const h1OiMarkerLabel=document.createElement('label'),h1OiMarkerToggle=document.createElement('input');
   h1OiMarkerToggle.id='h1-oi-markers-toggle';h1OiMarkerToggle.type='checkbox';h1OiMarkerToggle.checked=true;
-  h1OiMarkerLabel.title='SPY M15 � H1 �? kh�a. V? t? 4/5 �i?m: 2 �i?m khi |?OI| v�?t P75 c?a 36 h?p tr�?c, 1 �i?m khi OI r?ng chi?m �t nh?t 60% t?ng dao �?ng, 1 �i?m khi �i?m n?n H1 (kh�ng OI) c� �? l?n ?2 v� c�ng m�u h?p, th�m 1 �i?m n?u ?3/4 M15 c� ?OI c�ng d?u. ? OI t�ng, ? OI gi?m. Tam gi�c �?c khi Taker NF SPY c�ng m�u h?p.';
-  h1OiMarkerLabel.append(h1OiMarkerToggle,'Tam gi�c OI � H1');$('cvd-spectrum-toggle').closest('label').after(h1OiMarkerLabel);
+  h1OiMarkerLabel.title='SPY M15 · H1 đã khóa. Vẽ từ 4/5 điểm: 2 điểm khi |ΔOI| vượt P75 của 36 hộp trước, 1 điểm khi OI ròng chiếm ít nhất 60% tổng dao động, 1 điểm khi điểm nền H1 (không OI) có độ lớn ≥2 và cùng màu hộp, thêm 1 điểm nếu ≥3/4 M15 có ΔOI cùng dấu. ▲ OI tăng, ▼ OI giảm. Tam giác đặc khi Taker NF SPY cùng màu hộp.';
+  h1OiMarkerLabel.append(h1OiMarkerToggle,'Tam giác OI · H1');$('cvd-spectrum-toggle').closest('label').after(h1OiMarkerLabel);
   h1OiMarkerToggle.onchange=()=>render(false);
   const oiBarLabel=document.createElement('label'),oiBarToggle=document.createElement('input'),oiBarStatus=document.createElement('span');
-  oiBarToggle.id='oi-candle-bars-toggle';oiBarToggle.type='checkbox';oiBarToggle.checked=true;oiBarStatus.id='oi-candle-bars-status';oiBarStatus.textContent='?OI theo n?n � WAIT';
-  oiBarLabel.title='C?t s�t ��y pane SPY V, cao theo |?OI|: th�n n?n, SPY V v� C Taker NF ph?i c�ng h�?ng; chia th�nh 4 nh�m t�ng/gi?m � OI t�ng/gi?m. C?t xanh khi gi� t�ng, �? khi gi� gi?m, �?c l?p d?u ?OI; m�u th�n n?n tr�n chart v?n ph�n bi?t b?n nh�m. Ph?i v�?t ng�?ng ?OI �? ch?n. C Taker NF d�ng d?u, ch�a �?t ng�?ng �? m?nh. N?n ��ng, OI li�n ti?p, l?ch s? l�u t?i �a 90 ng�y tr�n tr?nh duy?t; thi?u OI �? tr?ng.';oiBarLabel.append(oiBarToggle,oiBarStatus);h1OiMarkerLabel.after(oiBarLabel);
-  const pinLabel=document.createElement('label'),pinToggle=document.createElement('input');pinToggle.id='oi-candle-pin-toggle';pinToggle.type='checkbox';pinToggle.checked=true;pinLabel.title='Th�n ?35% bi�n �?, r�u ch�nh ?60% v� �t nh?t g?p ��i r�u c?n l?i: h�?ng t? ch?i gi� theo r�u. Pin ng�?c th�n b? lo?i v? kh�ng �?ng d?u SPY V th?c t?; kh�ng �?i histogram hay m�u n?n.';pinLabel.append(pinToggle,'L?c pin bar ?OI');oiBarLabel.after(pinLabel);
+  oiBarToggle.id='oi-candle-bars-toggle';oiBarToggle.type='checkbox';oiBarToggle.checked=true;oiBarStatus.id='oi-candle-bars-status';oiBarStatus.textContent='ΔOI theo nến · WAIT';
+  oiBarLabel.title='Cột sát đáy pane SPY V, cao theo |ΔOI|: thân nến, SPY V và C Taker NF phải cùng hướng; chia thành 4 nhóm tăng/giảm × OI tăng/giảm. Cột xanh khi giá tăng, đỏ khi giá giảm, độc lập dấu ΔOI; màu thân nến trên chart vẫn phân biệt bốn nhóm. Phải vượt ngưỡng ΔOI đã chọn. C Taker NF dùng dấu, chưa đặt ngưỡng độ mạnh. Nến đóng, OI liên tiếp, lịch sử lưu tối đa 90 ngày trên trình duyệt; thiếu OI để trống.';oiBarLabel.append(oiBarToggle,oiBarStatus);h1OiMarkerLabel.after(oiBarLabel);
+  const pinLabel=document.createElement('label'),pinToggle=document.createElement('input');pinToggle.id='oi-candle-pin-toggle';pinToggle.type='checkbox';pinToggle.checked=true;pinLabel.title='Thân ≤35% biên độ, râu chính ≥60% và ít nhất gấp đôi râu còn lại: hướng từ chối giá theo râu. Pin ngược thân bị loại vì không đồng dấu SPY V thực tế; không đổi histogram hay màu nến.';pinLabel.append(pinToggle,'Lọc pin bar ΔOI');oiBarLabel.after(pinLabel);
   oiBarToggle.onchange=pinToggle.onchange=()=>render(false);
-  const gateLabel=document.createElement('label'),gateSelect=document.createElement('select');gateSelect.id='oi-delta-percentile';gateSelect.setAttribute('aria-label','Ng�?ng ?OI');
-  for(const [value,text] of [['0.60','P60 � 10 n?n'],['0.62','P62 � 10 n?n'],['0.70','P70 � 10 n?n'],['0.80','P80 � 10 n?n']]){const option=document.createElement('option');option.value=value;option.textContent=text;gateSelect.append(option);}
+  const gateLabel=document.createElement('label'),gateSelect=document.createElement('select');gateSelect.id='oi-delta-percentile';gateSelect.setAttribute('aria-label','Ngưỡng ΔOI');
+  for(const [value,text] of [['0.60','P60 · 10 nến'],['0.62','P62 · 10 nến'],['0.70','P70 · 10 nến'],['0.80','P80 · 10 nến']]){const option=document.createElement('option');option.value=value;option.textContent=text;gateSelect.append(option);}
   gateSelect.value='0.62';
-  gateLabel.title='Ch? ��nh d?u th�n n?n v� v? c?t khi |?OI| l?n h�n ph�n v? �? ch?n c?a |?OI| ? ��ng 10 n?n ��ng li?n tr�?c. M?c �?nh P62, n?i suy tuy?n t�nh. Kh�ng t�nh n?n hi?n t?i v�o n?n; thi?u d? li?u ho?c �?t chu?i th? ch? �? n?n. �p d?ng c? l?ch s?; ph? ?OI theo gi� v?n t�nh nh� c?.';gateLabel.append('Ng�?ng ?OI > ',gateSelect);pinLabel.after(gateLabel);gateSelect.onchange=()=>render(false);
-  const boldLabel=document.createElement('label'),boldToggle=document.createElement('input');boldToggle.id='oi-bold-candles-toggle';boldToggle.type='checkbox';boldToggle.checked=true;boldLabel.title='N?n �?ng thu?n OI: th�n r?ng kho?ng 1,5 l?n, gi?i h?n 94% b�?c n?n. Gi� t�ng + mua ch? �?ng + OI t�ng: xanh �?m #1243be kh�ng vi?n. Gi� gi?m + b�n ch? �?ng + OI t�ng: t�m �?m #5b21b6 kh�ng vi?n. Gi� t�ng + mua ch? �?ng + OI gi?m: xanh #1351ee vi?n kem. Gi� gi?m + b�n ch? �?ng + OI gi?m: t�m #8b5cf6 vi?n kem. M�u 4 nh�m �u ti�n h�n H1/H4; ch? n?n ��ng v�?t ng�?ng ?OI. C� kh�i ph?c l?ch s?; �?c l?p n�t hi?n d?i ?OI.';boldLabel.append(boldToggle,'N?n �?ng thu?n OI �?m');gateLabel.after(boldLabel);boldToggle.onchange=()=>render(false);
+  gateLabel.title='Chỉ đánh dấu thân nến và vẽ cột khi |ΔOI| lớn hơn phân vị đã chọn của |ΔOI| ở đúng 10 nến đóng liền trước. Mặc định P62, nội suy tuyến tính. Không tính nến hiện tại vào nền; thiếu dữ liệu hoặc đứt chuỗi thì chờ đủ nền. Áp dụng cả lịch sử; phổ ΔOI theo giá vẫn tính như cũ.';gateLabel.append('Ngưỡng ΔOI > ',gateSelect);pinLabel.after(gateLabel);gateSelect.onchange=()=>render(false);
+  const boldLabel=document.createElement('label'),boldToggle=document.createElement('input');boldToggle.id='oi-bold-candles-toggle';boldToggle.type='checkbox';boldToggle.checked=true;boldLabel.title='Nến đồng thuận OI: thân rộng khoảng 1,5 lần, giới hạn 94% bước nến. Giá tăng + mua chủ động + OI tăng: xanh đậm #1243be không viền. Giá giảm + bán chủ động + OI tăng: tím đậm #5b21b6 không viền. Giá tăng + mua chủ động + OI giảm: xanh #1351ee viền kem. Giá giảm + bán chủ động + OI giảm: tím #8b5cf6 viền kem. Màu 4 nhóm ưu tiên hơn H1/H4; chỉ nến đóng vượt ngưỡng ΔOI. Có khôi phục lịch sử; độc lập nút hiện dải ΔOI.';boldLabel.append(boldToggle,'Nến đồng thuận OI đậm');gateLabel.after(boldLabel);boldToggle.onchange=()=>render(false);
   const spyBodyLabel=document.createElement('label'),spyBodyToggle=document.createElement('input');
   spyBodyToggle.id='spy-volume-body-toggle';spyBodyToggle.type='checkbox';spyBodyToggle.checked=true;
-  spyBodyLabel.title='N�t li?n trong pane SPY V tr�n SPY M15, v�ng khi tr�n 0 v� tr?ng khi d�?i 0. Thay volume b?ng |Close ? Open|, gi? d?u theo h�?ng th�n n?n v� ngu?n H1 �ang d�ng cho m�u n?n, �?O V?.';
-  spyBodyLabel.append(spyBodyToggle,'SPY V th�n n?n � EWMA c? �?nh');$('alignment').closest('label').after(spyBodyLabel);
+  spyBodyLabel.title='Nét liền trong pane SPY V trên SPY M15, vàng khi trên 0 và trắng khi dưới 0. Thay volume bằng |Close − Open|, giữ dấu theo hướng thân nến và nguồn H1 đang dùng cho màu nến, ĐẢO V₂.';
+  spyBodyLabel.append(spyBodyToggle,'SPY V thân nến · EWMA cố định');$('alignment').closest('label').after(spyBodyLabel);
   spyBodyToggle.onchange=()=>render(false);
   const daoV2Label=document.createElement('label'),daoV2Toggle=document.createElement('input');
   daoV2Toggle.id='dao-v2-toggle';daoV2Toggle.type='checkbox';daoV2Toggle.checked=true;
-  daoV2Label.title='�?O V?: t?m nghi?m �?o d?u th?t sau hai M15 theo ��?ng gi� li�n t?c t? Close. N?n �? ph?i v�?t High, xanh ph?i v�?t Low. Th? t? l? hai th�n 25/75, 50/50 v� 75/25, gi? nghi?m g?n nh?t. Bi�n t?m theo P85 dao �?ng hai n?n qu� kh?, t?i �a 3 ATR; kh�ng c� nghi?m g?n th? ng?t n�t, kh�ng �p gi�. Ch? d�ng H1 �? bi?t. M?c tr�n v�ng, m?c d�?i xanh lam; n?n live d�ng v?ng r?ng v� n�t ng?n.';
-  daoV2Label.append(daoV2Toggle,'�?O V?');spyBodyLabel.after(daoV2Label);
+  daoV2Label.title='ĐẢO V₂: tìm nghiệm đảo dấu thật sau hai M15 theo đường giá liên tục từ Close. Nến đỏ phải vượt High, xanh phải vượt Low. Thử tỷ lệ hai thân 25/75, 50/50 và 75/25, giữ nghiệm gần nhất. Biên tìm theo P85 dao động hai nến quá khứ, tối đa 3 ATR; không có nghiệm gần thì ngắt nét, không ép giá. Chỉ dùng H1 đã biết. Mốc trên vàng, mốc dưới xanh lam; nến live dùng vòng rỗng và nét ngắn.';
+  daoV2Label.append(daoV2Toggle,'ĐẢO V₂');spyBodyLabel.after(daoV2Label);
   daoV2Toggle.onchange=()=>render(false);
   const nfLabel=document.createElement('label'),nfInput=document.createElement('input'),nfWindow=document.createElement('select');
   nfInput.id='nf-smooth-toggle';nfInput.type='checkbox';nfInput.checked=true;nfWindow.id='nf-smooth-window';
   for(const n of [4,8]){const option=document.createElement('option');option.value=String(n);option.textContent=n+' M15';nfWindow.append(option);}
-  nfLabel.append(nfInput,'C Taker NF m�?t � th? ',nfWindow);nfLabel.title='Line trong pane SPY tr�n SPY M15: NF SPY + QQQ th?t, chu?n h�a SMA20, c?ng 4/8 n?n, EWMA t? th�ch ?ng, n?n 500. Ch? n?n ��ng; thi?u c?p th? ng?t. Histogram NF t�ch l?y theo c?m m�u SPY V th�n n?n �? �?i chi?u.';spyBodyLabel.after(nfLabel);
+  nfLabel.append(nfInput,'C Taker NF mượt · thử ',nfWindow);nfLabel.title='Line trong pane SPY trên SPY M15: NF SPY + QQQ thật, chuẩn hóa SMA20, cộng 4/8 nến, EWMA tự thích ứng, nền 500. Chỉ nến đóng; thiếu cặp thì ngắt. Histogram NF tích lũy theo cụm màu SPY V thân nến để đối chiếu.';spyBodyLabel.after(nfLabel);
   nfInput.onchange=()=>render(false);nfWindow.onchange=()=>render(false);
   const oi8Label=document.createElement('label'),oi8Toggle=document.createElement('input');
   oi8Toggle.id='strength-oi8-toggle';oi8Toggle.type='checkbox';oi8Toggle.checked=true;
-  oi8Label.title='SPYUSDT M15 �? ��ng � Xanh lam s�ng: OI m? r?ng � T�m h?ng s�ng: OI thu h?p';
-  oi8Label.append(oi8Toggle,'Strength ?OI8');nfLabel.after(oi8Label);
+  oi8Label.title='SPYUSDT M15 đã đóng · Xanh lam sáng: OI mở rộng · Tím hồng sáng: OI thu hẹp';
+  oi8Label.append(oi8Toggle,'Strength ΔOI8');nfLabel.after(oi8Label);
   oi8Toggle.onchange=()=>render(false);
   const oiPhaseLabel=document.createElement('label'),oiPhaseToggle=document.createElement('input'),oiPhaseStatus=document.createElement('small');
   oiPhaseToggle.id='oi8-phase-reset-toggle';oiPhaseToggle.type='checkbox';oiPhaseToggle.checked=true;
   oiPhaseStatus.id='oi8-phase-status';
-  oiPhaseLabel.title='Reset t�ch l?y v� l�m m�?t ?OI8 khi SPY V th�n n?n �?i d?u tr�n n?n M15 �? ��ng. Gi? thang chu?n h�a l?ch s?; t?i �a 8 n?n trong pha. D?u b?ng 0 gi? pha. N�t �?t ? 0: pha d? ki?n, ch�a c� ?OI n?n �ang ch?y.';
-  oiPhaseLabel.append(oiPhaseToggle,'?OI8 reset theo SPY V th�n n?n',oiPhaseStatus);oi8Label.after(oiPhaseLabel);
+  oiPhaseLabel.title='Reset tích lũy và làm mượt ΔOI8 khi SPY V thân nến đổi dấu trên nến M15 đã đóng. Giữ thang chuẩn hóa lịch sử; tối đa 8 nến trong pha. Dấu bằng 0 giữ pha. Nét đứt ở 0: pha dự kiến, chưa có ΔOI nến đang chạy.';
+  oiPhaseLabel.append(oiPhaseToggle,'ΔOI8 reset theo SPY V thân nến',oiPhaseStatus);oi8Label.after(oiPhaseLabel);
   oiPhaseToggle.onchange=()=>render(false);
   const oi8PivotLabel=document.createElement('label'),oi8PivotToggle=document.createElement('input');
   oi8PivotToggle.id='oi8-pivot-toggle';oi8PivotToggle.type='checkbox';oi8PivotToggle.checked=true;
-  oi8PivotLabel.title='SPYUSDT M15 � PRE�RTH � N�t �?t: ?OI8 xoay �?i d?u � N�t li?n: th�m Taker NF ri�ng SPY c�ng h�?ng';
-  oi8PivotLabel.append(oi8PivotToggle,'Pivot ?OI8 � th?');oi8Label.after(oi8PivotLabel);
+  oi8PivotLabel.title='SPYUSDT M15 · PRE–RTH · Nét đứt: ΔOI8 xoay đổi dấu · Nét liền: thêm Taker NF riêng SPY cùng hướng';
+  oi8PivotLabel.append(oi8PivotToggle,'Pivot ΔOI8 · thử');oi8Label.after(oi8PivotLabel);
   oi8PivotToggle.onchange=()=>render(false);
   tpoLayer=mountTpo({chart,price,controls:document.querySelector('.toggles'),host:$('chart'),get:getJSON,context:()=>({symbol:$('symbol').value,interval:$('interval').value,bars:rows[$('symbol').value]??[],now:cache?.serverTime??Date.now()})});
   gexLayer=mountGex({chart,price,context:()=>({symbol:$('symbol').value,anchor:cvdAnchorTime})});
@@ -1247,6 +1247,5 @@ if(init()){
   setInterval(()=>{if(!document.hidden)refreshCalendar();},CALENDAR_REFRESH_MS);
   setInterval(updateCandleCountdown,250);
 }
-
 
 

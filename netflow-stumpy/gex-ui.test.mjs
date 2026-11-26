@@ -19,12 +19,11 @@ test('load, toggle, bad import, reload and clear preserve applied state',()=>{
  try{
   mount();const raw='S:12|L:7000,ZG,ZERO GAMMA|P:6990,-2,-1;7010,4,1';
   nodes.get('gex-data').value=raw;nodes.get('gex-load').onclick();
-  assert.equal(nodes.get('gex-spectrum-toggle').checked,true);assert.equal(nodes.get('gex-basis').value,'12');assert.match(nodes.get('gex-status').textContent,/2 m?c/);
-  nodes.get('gex-data').value='bad';nodes.get('gex-load').onclick();assert.match(nodes.get('gex-status').textContent,/gi? nguy�n/);
+  assert.equal(nodes.get('gex-spectrum-toggle').checked,true);assert.equal(nodes.get('gex-basis').value,'12');assert.match(nodes.get('gex-status').textContent,/2 mức/);
+  nodes.get('gex-data').value='bad';nodes.get('gex-load').onclick();assert.match(nodes.get('gex-status').textContent,/giữ nguyên/);
   nodes.get('gex-spectrum-toggle').checked=false;nodes.get('gex-spectrum-toggle').onchange();assert.equal(JSON.parse(storage.get('netflow:gex:v1')).text,raw);
   mount();assert.equal(nodes.get('gex-data').value,raw);assert.equal(nodes.get('gex-spectrum-toggle').checked,false);
   symbol='QQQUSDT';assert.doesNotThrow(()=>primitive.paint({}));
   nodes.get('gex-clear').onclick();assert.equal(JSON.parse(storage.get('netflow:gex:v1')).text,'');assert.ok(redraws>0);
  }finally{globalThis.document=originalDocument;globalThis.localStorage=originalStorage;}
 });
-

@@ -2,10 +2,10 @@
 // always move both the spectrum and Zero Gamma together.
 export function parseGex(text){
   const raw=String(text??'').trim().replace(/[\r\n]/g,'');
-  if(!raw||raw.length>1000000)throw Error('D? li?u GEX tr?ng ho?c qu� l?n (t?i �a 1 MB).');
+  if(!raw||raw.length>1000000)throw Error('Dữ liệu GEX trống hoặc quá lớn (tối đa 1 MB).');
   const number=s=>s?.trim()!==''&&Number.isFinite(Number(s))?Number(s):NaN;
   const spreadMatch=raw.match(/^S:([^|]+)\|/),spread=spreadMatch?number(spreadMatch[1]):0;
-  if(!Number.isFinite(spread))throw Error('Gi� tr? S: kh�ng h?p l?.');
+  if(!Number.isFinite(spread))throw Error('Giá trị S: không hợp lệ.');
   const body=spreadMatch?raw.slice(spreadMatch[0].length):raw;
   const p=body.indexOf('|P:');
   const levels=p>=0&&body.startsWith('L:')?body.slice(2,p):'';
@@ -14,18 +14,18 @@ export function parseGex(text){
   for(const row of levels.split(';')){
     const fields=row.split(',');
     if(fields[1]?.trim()==='ZG'){
-      const value=number(fields[0]);if(!Number.isFinite(value)||value<=0)throw Error('M?c Zero Gamma kh�ng h?p l?.');
+      const value=number(fields[0]);if(!Number.isFinite(value)||value<=0)throw Error('Mức Zero Gamma không hợp lệ.');
       zeroGamma=value;
     }
   }
   for(const row of profile.split(';')){
     if(!row.trim())continue;
     const f=row.split(','),[strike,force,sign]=f.map(number);
-    if(f.length!==3||!Number.isFinite(strike)||strike<=0||!Number.isFinite(force)||![-1,0,1].includes(sign))throw Error('Sai �?nh d?ng P: c?n strike,�? m?nh,d?u;�');
+    if(f.length!==3||!Number.isFinite(strike)||strike<=0||!Number.isFinite(force)||![-1,0,1].includes(sign))throw Error('Sai định dạng P: cần strike,độ mạnh,dấu;…');
     bins.push({strike,force,sign});
-    if(bins.length>5000)throw Error('T?i �a 5.000 m?c GEX.');
+    if(bins.length>5000)throw Error('Tối đa 5.000 mức GEX.');
   }
-  if(!bins.length)throw Error('Kh�ng t?m th?y ph? P:.');
+  if(!bins.length)throw Error('Không tìm thấy phổ P:.');
   return {spread,zeroGamma,bins};
 }
 export function gexPrice(strike,basis,scale){return (strike-basis)/scale;}
