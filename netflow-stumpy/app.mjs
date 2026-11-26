@@ -1,4 +1,4 @@
-import {mountGex} from './gex-ui.mjs?v=20261127-gex4';
+import {mountGex} from './gex-ui.mjs?v=20261127-gex5';
 let gexLayer;
 import {clusterTakerNf} from './cluster-taker-nf.mjs?v=20261125-cluster-live1';
 let compositeClusterRows=[];
@@ -268,10 +268,11 @@ function applySavedTimeRange(data){
 function saveChartSetup(){
   const button=$('chart-save');
   try{
+    const gex=gexLayer?.saveSetup();
     const controls={};for(const id of SETUP_CONTROL_IDS){const node=$(id);if(node)controls[id]=node.type==='checkbox'?node.checked:node.value;}
     const visible=chart.timeScale().getVisibleRange(),timeRange=visible&&Number.isFinite(Number(visible.from))&&Number.isFinite(Number(visible.to))?{from:Number(visible.from),to:Number(visible.to)}:null;
     if(daoV2Stats&&!daoV2Stats.saveSetup())throw Error('Không lưu được setup TK V₂; kiểm tra phí hoặc quyền lưu trữ');
-    localStorage.setItem(SETUP_STORAGE_KEY,JSON.stringify({...readChartSetup(),version:1,savedAt:Date.now(),controls,timeRange}));
+    localStorage.setItem(SETUP_STORAGE_KEY,JSON.stringify({...readChartSetup(),version:1,savedAt:Date.now(),controls:{...controls,...(gex?{'gex-spectrum-toggle':gex.enabled}:{})},timeRange,...(gex?{gex}:{})}));
     button.textContent='✓ Đã lưu';button.title='Setup đã được lưu trên trình duyệt này';
   }catch(error){button.textContent='Không lưu được';button.title=error.message;}
   clearTimeout(saveSetupTimer);saveSetupTimer=setTimeout(()=>{button.textContent='Lưu setup';button.title='Lưu toàn bộ lựa chọn và vùng thời gian đang xem trên trình duyệt này';},1800);
@@ -1206,7 +1207,7 @@ if(init()){
   oi8PivotToggle.onchange=()=>render(false);
   tpoLayer=mountTpo({chart,price,controls:document.querySelector('.toggles'),host:$('chart'),get:getJSON,context:()=>({symbol:$('symbol').value,interval:$('interval').value,bars:rows[$('symbol').value]??[],now:cache?.serverTime??Date.now()})});
   gexLayer=mountGex({chart,price,context:()=>({symbol:$('symbol').value,anchor:cvdAnchorTime,bars:rows[$('symbol').value]??[],step:STEPS[$('interval').value],now:Date.now()+serverOffsetMs})});
-  SETUP_CONTROL_IDS.push('gex-spectrum-toggle',...TPO_CONTROL_IDS);
+  SETUP_CONTROL_IDS.push(...TPO_CONTROL_IDS);
   restoreSavedSetup();syncChartFrameButtons();
   // Restore the C histogram once for setups saved before the taker plot cleanup.
   // Subsequent user choices remain under the normal Save setup control.
