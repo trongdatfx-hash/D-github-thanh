@@ -74,7 +74,7 @@ export function actualVsForecast(event){
   return actual>forecast?{key:'above',label:'Cao hơn dự báo'}:{key:'below',label:'Thấp hơn dự báo'};
 }
 
-export async function loadForexCalendar({fetchImpl=fetch,url='../netflow-rth-lite/data/forex-calendar.json',signal}={}){
+export async function loadForexCalendar({fetchImpl=fetch,url=new URL('./data/forex-calendar.json',import.meta.url).href,signal}={}){
   const response=await fetchImpl(`${url}${url.includes('?')?'&':'?'}v=${Date.now()}`,{signal,cache:'no-store'});
   if(!response.ok)throw Error(`Lịch Forex Factory HTTP ${response.status}`);
   const payload=await response.json(),events=normalizeCalendarFeed(payload);
