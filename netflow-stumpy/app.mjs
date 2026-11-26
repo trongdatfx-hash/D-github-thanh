@@ -1,4 +1,4 @@
-import {mountGex} from './gex-ui.mjs?v=20261126-gex2';
+import {mountGex} from './gex-ui.mjs?v=20261126-gex3';
 let gexLayer;
 import {clusterTakerNf} from './cluster-taker-nf.mjs?v=20261125-cluster-live1';
 let compositeClusterRows=[];
@@ -1205,7 +1205,7 @@ if(init()){
   oi8PivotLabel.append(oi8PivotToggle,'Pivot ΔOI8 · thử');oi8Label.after(oi8PivotLabel);
   oi8PivotToggle.onchange=()=>render(false);
   tpoLayer=mountTpo({chart,price,controls:document.querySelector('.toggles'),host:$('chart'),get:getJSON,context:()=>({symbol:$('symbol').value,interval:$('interval').value,bars:rows[$('symbol').value]??[],now:cache?.serverTime??Date.now()})});
-  gexLayer=mountGex({chart,price,context:()=>({symbol:$('symbol').value,anchor:cvdAnchorTime})});
+  gexLayer=mountGex({chart,price,context:()=>({symbol:$('symbol').value,anchor:cvdAnchorTime,bars:rows[$('symbol').value]??[],step:STEPS[$('interval').value],now:Date.now()+serverOffsetMs})});
   SETUP_CONTROL_IDS.push('gex-spectrum-toggle',...TPO_CONTROL_IDS);
   restoreSavedSetup();syncChartFrameButtons();
   // Restore the C histogram once for setups saved before the taker plot cleanup.
