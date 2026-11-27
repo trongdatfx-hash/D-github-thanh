@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-11-27T08:03:36.442Z",
+  "updatedAt": "2026-11-27T18:09:12.060Z",
   "events": [
     {
       "title": "Core Retail Sales q/q",
@@ -671,7 +671,7 @@
       "impact": "Low",
       "actual": "0.0%",
       "forecast": "0.1%",
-      "previous": "-0.5%"
+      "previous": "-0.9%"
     },
     {
       "title": "French Final Private Payrolls q/q",
@@ -709,7 +709,7 @@
       "date": "2026-11-27T08:00:00.000Z",
       "timestamp": 1795766400000,
       "impact": "Low",
-      "actual": "",
+      "actual": "4.1%",
       "forecast": "4.7%",
       "previous": "4.9%"
     },
@@ -719,19 +719,19 @@
       "date": "2026-11-27T08:55:00.000Z",
       "timestamp": 1795769700000,
       "impact": "Low",
-      "actual": "",
+      "actual": "9K",
       "forecast": "5K",
       "previous": "4K"
     },
     {
       "title": "Italian 10-y Bond Auction",
       "country": "EUR",
-      "date": "2026-11-27T10:33:00.000Z",
-      "timestamp": 1795775580000,
+      "date": "2026-11-27T10:05:00.000Z",
+      "timestamp": 1795773900000,
       "impact": "Low",
-      "actual": "",
-      "forecast": "",
-      "previous": "4.49"
+      "actual": "4.33",
+      "forecast": "1.5",
+      "previous": "4.49|1.6"
     },
     {
       "title": "German Buba President Nagel Speaks",
@@ -749,9 +749,9 @@
       "date": "2026-11-27T13:30:00.000Z",
       "timestamp": 1795786200000,
       "impact": "Low",
-      "actual": "",
+      "actual": "4.5B",
       "forecast": "9.5B",
-      "previous": "8.8B"
+      "previous": "6.1B"
     },
     {
       "title": "Goods Trade Balance",
@@ -759,7 +759,7 @@
       "date": "2026-11-27T13:30:00.000Z",
       "timestamp": 1795786200000,
       "impact": "Low",
-      "actual": "",
+      "actual": "-149.5B",
       "forecast": "-135.9B",
       "previous": "-135.1B"
     },
@@ -769,7 +769,7 @@
       "date": "2026-11-27T13:30:00.000Z",
       "timestamp": 1795786200000,
       "impact": "Low",
-      "actual": "",
+      "actual": "0.9%",
       "forecast": "0.5%",
       "previous": "0.7%"
     }
