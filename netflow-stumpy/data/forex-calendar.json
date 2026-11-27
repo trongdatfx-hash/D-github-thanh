@@ -1,7 +1,7 @@
 {
   "source": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
   "resultsSource": "https://r.jina.ai/http://www.forexfactory.com/calendar?week=this",
-  "updatedAt": "2026-11-26T15:40:46.127Z",
+  "updatedAt": "2026-11-27T08:03:36.442Z",
   "events": [
     {
       "title": "Core Retail Sales q/q",
@@ -659,7 +659,7 @@
       "date": "2026-11-26T23:30:00.000Z",
       "timestamp": 1795735800000,
       "impact": "Medium",
-      "actual": "",
+      "actual": "2.9%",
       "forecast": "3.0%",
       "previous": "2.6%"
     },
@@ -669,7 +669,7 @@
       "date": "2026-11-27T07:45:00.000Z",
       "timestamp": 1795765500000,
       "impact": "Low",
-      "actual": "",
+      "actual": "0.0%",
       "forecast": "0.1%",
       "previous": "-0.5%"
     },
@@ -679,7 +679,7 @@
       "date": "2026-11-27T07:45:00.000Z",
       "timestamp": 1795765500000,
       "impact": "Low",
-      "actual": "",
+      "actual": "-0.1%",
       "forecast": "-0.1%",
       "previous": "-0.1%"
     },
@@ -689,7 +689,7 @@
       "date": "2026-11-27T07:45:00.000Z",
       "timestamp": 1795765500000,
       "impact": "Low",
-      "actual": "",
+      "actual": "-0.7%",
       "forecast": "-0.2%",
       "previous": "0.4%"
     },
@@ -699,7 +699,7 @@
       "date": "2026-11-27T07:45:00.000Z",
       "timestamp": 1795765500000,
       "impact": "Low",
-      "actual": "",
+      "actual": "-0.2%",
       "forecast": "-0.1%",
       "previous": "-0.1%"
     },
