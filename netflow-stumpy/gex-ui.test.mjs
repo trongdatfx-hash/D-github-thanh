@@ -11,7 +11,7 @@ test('load, file import, drafts, Save setup and reload preserve GEX data',async(
   addEventListener(name,fn){this['on'+name]=fn;}
  }
  nodes.set('cvd-spectrum-toggle',new Element());
- const originalDocument=globalThis.document,originalStorage=globalThis.localStorage;
+ const originalDocument=globalThis.document,originalStorage=globalThis.localStorage,originalFetch=globalThis.fetch;
  const storage=new Map();globalThis.document={createElement:()=>new Element(),getElementById:id=>nodes.get(id),querySelector:()=>new Element()};
  globalThis.localStorage={getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)};
  let primitive,redraws=0,symbol='SPYUSDT',layer;
@@ -38,10 +38,15 @@ test('load, file import, drafts, Save setup and reload preserve GEX data',async(
   nodes.get('gex-data').value=raw;nodes.get('gex-data').oninput();await new Promise(resolve=>setTimeout(resolve,350));
   mount();assert.equal(nodes.get('gex-data').value,raw);assert.match(nodes.get('gex-status').textContent,/Có bản nhập chưa áp dụng/);
   const snapshot=layer.saveSetup();assert.equal(snapshot.text,raw);assert.equal(snapshot.mapping.source,7600);assert.equal(JSON.parse(storage.get('netflow-rth-lite:chart-setup:v1')).gex.text,raw);
+  nodes.get('gex-github-token').value='test-session-token';
+  globalThis.fetch=async(url,options)=>({ok:true,status:200,json:async()=>options.method==='PUT'?{commit:{sha:'a'.repeat(40)}}:{sha:'previous'}});
+  await nodes.get('gex-cloud-save').onclick();assert.match(nodes.get('gex-cloud-status').textContent,/ĐÃ LƯU GITHUB/);
+  for(const value of storage.values())assert.equal(value.includes('test-session-token'),false);
+  mount();assert.equal(nodes.get('gex-github-token').value,'');
   symbol='QQQUSDT';assert.doesNotThrow(()=>primitive.paint({}));
   nodes.get('gex-clear').onclick();assert.equal(JSON.parse(storage.get('netflow:gex:v1')).text,'');assert.ok(redraws>0);
   globalThis.localStorage={getItem:()=>null,setItem(){throw Error('quota');}};nodes.get('gex-data').value=raw;assert.doesNotThrow(()=>nodes.get('gex-load').onclick());assert.match(nodes.get('gex-status').textContent,/CHƯA LƯU/);
- }finally{globalThis.document=originalDocument;globalThis.localStorage=originalStorage;}
+ }finally{globalThis.document=originalDocument;globalThis.localStorage=originalStorage;globalThis.fetch=originalFetch;}
 });
 
 

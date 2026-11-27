@@ -2,6 +2,7 @@ import {parseGex,drawGex} from './gex-profile.mjs?v=20261126-gex3';
 import {gexMapping,closedGexReference,gexReferenceTime,gexReferenceInput,projectGexStrike} from './gex-calibration.mjs?v=20261126-gex3';
 import {SpectrumPrimitive} from './spectrum-primitive.mjs?v=20261104-oi-smooth1';
 import {readGexState,writeGexState} from './gex-storage.mjs?v=20261127-gex5';
+import {fetchSharedGex,publishGexToGitHub,shouldLoadSharedGex} from './gex-github.mjs?v=20261127-gex6';
 export function mountGex({chart,price,context}){
   const cvd=document.getElementById('cvd-spectrum-toggle').closest('label'),label=document.createElement('label');
   label.innerHTML='<input id="gex-spectrum-toggle" type="checkbox">Phổ GEX';cvd.after(label);
@@ -12,7 +13,12 @@ export function mountGex({chart,price,context}){
   settings.append(style);document.querySelector('.chart-actions').append(settings);
   const $=id=>document.getElementById(id),status=$('gex-status'),panelToggle=$('gex-panel-toggle');
   $('gex-scale').value='10';$('gex-basis').value='0';$('gex-map-mode').value='BASIS';
-  let profile=null,loadedAt=null,appliedText='',saveState='empty',savedAt=null,draftTimer=null,activeMapping=gexMapping({mode:'BASIS',basis:0,scale:10});
+  let profile=null,loadedAt=null,appliedText='',saveState='empty',savedAt=null,draftTimer=null,sharedRevision=null,origin='local',activeMapping=gexMapping({mode:'BASIS',basis:0,scale:10});
+  const cloudPanel=document.createElement('fieldset');
+  cloudPanel.innerHTML='<legend>GEX dùng chung · GitHub</legend><button id="gex-cloud-load" type="button">Nạp bản GEX chung</button><details><summary>Quyền ghi GitHub</summary><label>Token GitHub · chỉ phiên này<input id="gex-github-token" type="password" autocomplete="off" spellcheck="false" placeholder="Token riêng cho D-github-thanh"></label><small>Fine-grained token: chọn repository D-github-thanh, quyền Contents: Read and write. Token chỉ dùng gửi trực tiếp tới api.github.com, không ghi vào setup hoặc mã nguồn. <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Tạo token trên GitHub</a></small></details><button id="gex-cloud-save" type="button">Lưu GEX lên GitHub</button><small>Bản dùng chung được công khai cùng website. Mỗi lần bấm Lưu GEX lên GitHub sẽ cập nhật dữ liệu và hiệu chỉnh cho các thiết bị. Các nút Nạp GEX / Lưu setup vẫn lưu trên thiết bị.</small><span id="gex-cloud-status" role="status">Đang kiểm tra GEX chung…</span>';
+  settings.querySelector('.gex-panel').append(cloudPanel);
+  let cloudLoading=false,cloudSaving=false,nextCloudCheck=0,cloudSequence=0;
+  const currentSnapshot=()=>({text:appliedText,draft:$('gex-data').value,mapping:activeMapping,enabled:toggle.checked,loadedAt,sharedRevision,origin});
   const primitive=new SpectrumPrimitive(scope=>{
     const state=context();if(!toggle.checked||!profile||state.symbol!=='SPYUSDT'||!Number.isFinite(state.anchor))return;
     drawGex({...scope,profile,mapping:activeMapping,anchor:chart.timeScale().timeToCoordinate(state.anchor/1000),priceToY:v=>price.priceToCoordinate(v)});
@@ -20,7 +26,7 @@ export function mountGex({chart,price,context}){
   function save(){
     clearTimeout(draftTimer);draftTimer=null;
     let result=null;
-    try{result=writeGexState(globalThis.localStorage,{text:appliedText,draft:$('gex-data').value,basis:activeMapping.basis??0,scale:String(activeMapping.scale),mapping:activeMapping,enabled:toggle.checked,loadedAt});savedAt=result.snapshot.savedAt;saveState=result.local&&result.setup?'saved':result.local||result.setup?'partial':'error';}
+    try{result=writeGexState(globalThis.localStorage,{...currentSnapshot(),basis:activeMapping.basis??0,scale:String(activeMapping.scale)});savedAt=result.snapshot.savedAt;saveState=result.local&&result.setup?'saved':result.local||result.setup?'partial':'error';}
     catch{saveState='error';}
     update();return result;
   }
@@ -30,6 +36,7 @@ export function mountGex({chart,price,context}){
     $('gex-map-description').textContent=m.mode==='BASIS'?'Đang dùng (strike − '+m.basis+') ÷ '+m.scale+'. S: không đủ để xác định chênh lệch riêng của SPYUSDT. Cặp giá đồng thời giúp hiệu chỉnh sát hơn.':'Đã neo '+gexReferenceInput(m.referenceTime).replace('T',' ')+' VN · nguồn '+m.source+' ↔ SPYUSDT '+m.target+'. '+(m.mode==='PAIR_RATIO'?'Giữ tỷ lệ: giá = strike × '+m.ratio.toFixed(8)+'.':'Giữ bước: giá = '+m.target+' + (strike − '+m.source+') ÷ '+m.scale+'.')+' Mốc cố định; không kéo phổ theo giá live. Đây là quy đổi tham chiếu, cần cập nhật khi chênh lệch hai thị trường thay đổi.';
   }
   function update(){
+    if(typeof window!=='undefined')void refreshShared(false);
     panelToggle.checked=toggle.checked;settings.querySelector('summary').textContent=profile?'GEX · '+(toggle.checked?'BẬT':'TẮT'):'GEX · Nạp data';
     const hasDraft=$('gex-data').value!==appliedText;
     const storageNote=saveState==='error'?' · CHƯA LƯU: trình duyệt chặn hoặc bộ nhớ đã đầy':saveState==='partial'?' · Chỉ lưu được một bản; kiểm tra bộ nhớ trình duyệt':saveState==='restored'?' · Đã khôi phục bản tự lưu':saveState==='saved'?' · Đã lưu tự động GEX + setup trên thiết bị này':'';
@@ -40,7 +47,7 @@ export function mountGex({chart,price,context}){
     try{
       const config={mode:$('gex-map-mode').value,basis:$('gex-basis').value,scale:$('gex-scale').value,source:$('gex-source-reference').value,target:$('gex-target-reference').value,referenceTime:gexReferenceTime($('gex-reference-time').value)};
       if(config.mode!=='BASIS'&&config.referenceTime>context().now)throw Error('Mốc hiệu chỉnh chưa xảy ra.');
-      const next=gexMapping(config);activeMapping=next;update();save();
+      const next=gexMapping(config);activeMapping=next;origin='local';update();save();
     }catch(e){status.textContent=e.message+' Giữ hiệu chỉnh đang áp dụng.';}
   }
   $('gex-apply-calibration').onclick=applyCalibration;
@@ -57,7 +64,7 @@ export function mountGex({chart,price,context}){
     status.textContent='Đã lấy close SPYUSDT '+ref.price+' · '+gexReferenceInput(ref.time).replace('T',' ')+' VN. Điền giá nguồn đúng mốc rồi áp dụng.';
   };
   function loadText(){
-    const next=parseGex($('gex-data').value);profile=next;appliedText=$('gex-data').value;
+    const next=parseGex($('gex-data').value);profile=next;appliedText=$('gex-data').value;origin='local';
     if(activeMapping.mode==='BASIS'){activeMapping=gexMapping({mode:'BASIS',basis:next.spread,scale:activeMapping.scale});$('gex-basis').value=String(next.spread);}
     loadedAt=Date.now();toggle.checked=true;update();return save();
   }
@@ -66,18 +73,44 @@ export function mountGex({chart,price,context}){
   $('gex-data').addEventListener('input',()=>{clearTimeout(draftTimer);draftTimer=setTimeout(save,300);});
   $('gex-data').addEventListener('change',save);
   globalThis.addEventListener?.('pagehide',()=>{if(draftTimer!==null)save();});
-  $('gex-clear').onclick=()=>{profile=null;loadedAt=null;appliedText='';$('gex-data').value='';toggle.checked=false;update();save();};
+  $('gex-clear').onclick=()=>{profile=null;loadedAt=null;appliedText='';$('gex-data').value='';toggle.checked=false;origin='local';update();save();};
   toggle.addEventListener('change',()=>{update();save();});
   panelToggle.addEventListener('change',()=>{toggle.checked=panelToggle.checked;update();save();});
-  try{
-    const saved=readGexState(globalThis.localStorage);if(saved){
+  function restoreSnapshot(saved){
+    if(saved){
       profile=saved.text?parseGex(saved.text):null;appliedText=saved.text;$('gex-data').value=saved.draft??saved.text;
       try{activeMapping=gexMapping(saved.version===2&&saved.mapping?saved.mapping:{mode:'BASIS',basis:saved.basis??profile?.spread??0,scale:saved.scale==='1'?1:10});}catch{activeMapping=gexMapping({mode:'BASIS',basis:profile?.spread??0,scale:10});}
       $('gex-map-mode').value=activeMapping.mode;$('gex-basis').value=String(activeMapping.basis??profile?.spread??0);$('gex-scale').value=String(activeMapping.scale);
       if(activeMapping.mode!=='BASIS'){$('gex-source-reference').value=String(activeMapping.source);$('gex-target-reference').value=String(activeMapping.target);$('gex-reference-time').value=gexReferenceInput(activeMapping.referenceTime);}
       toggle.checked=Boolean(saved.enabled);loadedAt=saved.loadedAt||Date.now();savedAt=saved.savedAt??loadedAt;saveState='restored';
+      sharedRevision=saved.sharedRevision??null;origin=saved.origin==='github'?'github':'local';
     }
-  }catch{}
+  }
+  try{restoreSnapshot(readGexState(globalThis.localStorage));}catch{}
+  async function refreshShared(force=false){
+    if(cloudSaving||cloudLoading||(!force&&(Date.now()<nextCloudCheck||document.hidden)))return;
+    cloudLoading=true;nextCloudCheck=Date.now()+300000;const sequence=++cloudSequence;
+    $('gex-cloud-load').disabled=true;
+    try{
+      const remote=await fetchSharedGex();if(sequence!==cloudSequence)return;
+      if(force||shouldLoadSharedGex(currentSnapshot(),remote)){restoreSnapshot(remote);fields();update();save();}
+      $('gex-cloud-status').textContent='Bản chung: '+(remote.sourceLabel||'GEX')+' · '+new Date(remote.loadedAt).toLocaleString('vi-VN')+(origin==='github'?' · Đã nạp':' · Đang giữ bản trên thiết bị; bấm Nạp bản GEX chung để chuyển sang bản này.');
+    }catch(e){if(sequence===cloudSequence)$('gex-cloud-status').textContent=e.message;}
+    finally{cloudLoading=false;$('gex-cloud-load').disabled=false;}
+  }
+  $('gex-cloud-load').onclick=()=>refreshShared(true);
+  $('gex-cloud-save').onclick=async()=>{
+    if(cloudSaving)return;
+    const token=$('gex-github-token').value.trim();
+    if(!token){$('gex-cloud-status').textContent='Mở Quyền ghi GitHub và nhập token riêng cho repository này. Token không cần thiết trên điện thoại chỉ xem.';return;}
+    cloudSaving=true;cloudSequence++;$('gex-cloud-save').disabled=true;$('gex-cloud-status').textContent='Đang lưu GEX lên GitHub…';
+    try{
+      const snapshot=saveSetup(),result=await publishGexToGitHub({token,state:snapshot});
+      sharedRevision=result.state.sharedRevision;origin='github';nextCloudCheck=Date.now()+300000;save();
+      $('gex-cloud-status').textContent='ĐÃ LƯU GITHUB · '+result.commit.slice(0,7)+' · Điện thoại mở web hoặc bấm Nạp bản GEX chung. Chỉ báo thành công sau khi GitHub xác nhận commit.';
+    }catch(e){$('gex-cloud-status').textContent=e.message;if(e.status===401)$('gex-github-token').value='';}
+    finally{cloudSaving=false;$('gex-cloud-save').disabled=false;}
+  };
   function saveSetup(){
     if($('gex-data').value.trim()&&$('gex-data').value!==appliedText){try{loadText();}catch(e){save();throw Error('GEX chưa hợp lệ: '+e.message);}}
     const result=save();if(!result?.setup)throw Error('Không lưu được dữ liệu GEX vào setup; kiểm tra quyền lưu trữ hoặc bộ nhớ');
@@ -85,4 +118,5 @@ export function mountGex({chart,price,context}){
   }
   fields();update();return {update,saveSetup};
 }
+
 
