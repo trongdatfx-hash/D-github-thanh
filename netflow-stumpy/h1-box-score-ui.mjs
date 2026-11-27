@@ -14,7 +14,7 @@ export function mountH1ScoreHistogram({chart,host,getState,storage=null}){
     const pane=chart.panes()[0]?.getHTMLElement?.();if(!pane||!host.contains(pane)){root.hidden=true;return;}
     const box=pane.getBoundingClientRect(),hostBox=host.getBoundingClientRect(),paneTop=box.top-hostBox.top-(host.clientTop||0);
     const scaleWidth=chart.priceScale('right',0)?.width?.()??64,plotWidth=Math.max(0,host.clientWidth-scaleWidth);
-    const height=Math.min(100,Math.max(76,box.height*.24)),top=paneTop+Math.min(60,Math.max(38,box.height*.12)),baseline=height/2;
+    const height=Math.min(100,Math.max(76,box.height*.24)),top=paneTop+2,baseline=height/2;
     if(box.height<180||plotWidth<40){root.hidden=true;return;}
     root.hidden=false;root.style.top=top+'px';root.style.width=plotWidth+'px';root.style.height=height+'px';zero.style.top=baseline+'px';
     const range=chart.timeScale().getVisibleRange(),visibleTo=range&&Number.isFinite(Number(range.to))?Number(range.to)*1000+SCORE_STEP-1:Infinity;
